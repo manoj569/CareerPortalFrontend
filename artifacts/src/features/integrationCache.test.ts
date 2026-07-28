@@ -1,0 +1,106 @@
+import { waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
+import { MembershipStatus } from '@/features/dashboard/types/dashboardModels';
+import { jobsApi } from '@/features/jobs/api/jobsApi';
+import { ApplicationAccessStatus } from '@/features/jobs/types/jobModels';
+import { paymentsApi } from '@/features/payments/api/paymentsApi';
+import { PaymentProvider, PaymentStatus } from '@/features/payments/types/paymentModels';
+import { createAppStore } from '@/store/store';
+
+const { mockRequest } = vi.hoisted(() => ({ mockRequest: vi.fn() }));
+
+vi.mock('@/api/apiClient', () => ({
+  apiClient: { request: mockRequest },
+}));
+
+describe('cross-module cache consistency', () => {
+  beforeEach(() => {
+    mockRequest.mockReset();
+  });
+
+  it('refreshes applied-job history after backend application access is granted', async () => {
+    const store = createAppStore();
+    await store.dispatch(
+      dashboardApi.util.upsertQueryData(
+        'getApplications',
+        { pageNumber: 1, pageSize: 10 },
+        {
+          items: [],
+          pageNumber: 1,
+          pageSize: 10,
+          totalCount: 0,
+          totalPages: 0,
+        },
+      ),
+    );
+    mockRequest.mockResolvedValue({
+      data: {
+        data: {
+          applicationUrl: 'https://employer.example/apply',
+          companyId: 'company-id',
+          message: 'Application access granted.',
+          status: ApplicationAccessStatus.Granted,
+        },
+      },
+    });
+
+    await store.dispatch(jobsApi.endpoints.applyToJob.initiate('frontend-engineer')).unwrap();
+
+    await waitFor(() => {
+      expect(Object.keys(store.getState().dashboardApi.queries)).toHaveLength(0);
+    });
+  });
+
+  it('refreshes memberships only after backend payment confirmation succeeds', async () => {
+    const store = createAppStore();
+    await store.dispatch(
+      dashboardApi.util.upsertQueryData('getMemberships', undefined, [
+        {
+          autoRenew: false,
+          companyId: 'company-id',
+          companyName: 'Northstar',
+          endsAtUtc: null,
+          id: 'membership-id',
+          planName: 'Application access',
+          startsAtUtc: '2026-01-01T00:00:00Z',
+          status: MembershipStatus.Pending,
+        },
+      ]),
+    );
+    mockRequest.mockResolvedValue({
+      data: {
+        data: {
+          amount: 499,
+          createdAtUtc: '2026-01-01T00:00:00Z',
+          currencyCode: 'INR',
+          id: 'payment-id',
+          membershipId: 'membership-id',
+          paidAtUtc: '2026-01-01T00:01:00Z',
+          provider: PaymentProvider.Razorpay,
+          providerOrderId: 'order-id',
+          providerPaymentId: 'provider-payment-id',
+          status: PaymentStatus.Paid,
+        },
+      },
+    });
+
+    await store
+      .dispatch(
+        paymentsApi.endpoints.confirmRazorpayPayment.initiate({
+          paymentId: 'payment-id',
+          request: {
+            razorpayOrderId: 'order-id',
+            razorpayPaymentId: 'provider-payment-id',
+            razorpaySignature: 'a'.repeat(64),
+          },
+        }),
+      )
+      .unwrap();
+
+    await waitFor(() => {
+      expect(Object.keys(store.getState().dashboardApi.queries)).toHaveLength(0);
+    });
+  });
+});
