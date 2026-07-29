@@ -1,4 +1,4 @@
-import { Alert, Skeleton, Stack } from '@mui/material';
+import { Skeleton, Stack } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -7,7 +7,8 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { ROUTES } from '@/constants/routes';
 import {
   isAdminApiError,
-  useGetAdminChartsQuery,
+  useGetAdminCategoryOptionsQuery,
+  useGetAdminCompanyOptionsQuery,
   useGetAdminJobQuery,
   useUpdateAdminJobMutation,
 } from '@/features/admin/api/adminApi';
@@ -23,7 +24,8 @@ export const AdminEditJobPage = () => {
   useDocumentMetadata('Edit job | Career Portal', 'Update a backend-managed Career Portal job.');
   const navigate = useNavigate();
   const job = useGetAdminJobQuery(jobId, { skip: !isGuid(jobId) });
-  const lookups = useGetAdminChartsQuery({ distributionLimit: 50 });
+  const companiesQuery = useGetAdminCompanyOptionsQuery();
+  const categoriesQuery = useGetAdminCategoryOptionsQuery();
   const [updateJob, updateState] = useUpdateAdminJobMutation();
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverFieldErrors, setServerFieldErrors] = useState<
@@ -58,7 +60,7 @@ export const AdminEditJobPage = () => {
     );
   }
 
-  if (job.isLoading || lookups.isLoading) {
+  if (job.isLoading || companiesQuery.isLoading || categoriesQuery.isLoading) {
     return (
       <Stack aria-label="Loading job editor" role="status" spacing={3}>
         <Skeleton height={80} variant="rounded" />
@@ -82,12 +84,15 @@ export const AdminEditJobPage = () => {
     );
   }
 
-  if (lookups.isError) {
+  if (companiesQuery.isError || categoriesQuery.isError) {
     return (
       <ErrorState
         description="Company and category choices could not be loaded."
         headingLevel="h1"
-        onRetry={() => void lookups.refetch()}
+        onRetry={() => {
+          void companiesQuery.refetch();
+          void categoriesQuery.refetch();
+        }}
         title="Job editor unavailable"
       />
     );
@@ -102,19 +107,17 @@ export const AdminEditJobPage = () => {
     );
   }
 
-  const companies = lookups.data?.companies.some((company) => company.id === job.data.companyId)
-    ? lookups.data.companies
+  const companies = companiesQuery.data?.some((company) => company.id === job.data.companyId)
+    ? companiesQuery.data
     : [
-        ...(lookups.data?.companies ?? []),
-        { id: job.data.companyId, label: job.data.companyName, value: 0 },
+        ...(companiesQuery.data ?? []),
+        { id: job.data.companyId, name: job.data.companyName, slug: '' },
       ];
-  const categories = lookups.data?.categories.some(
-    (category) => category.id === job.data.categoryId,
-  )
-    ? lookups.data.categories
+  const categories = categoriesQuery.data?.some((category) => category.id === job.data.categoryId)
+    ? categoriesQuery.data
     : [
-        ...(lookups.data?.categories ?? []),
-        { id: job.data.categoryId, label: job.data.categoryName, value: 0 },
+        ...(categoriesQuery.data ?? []),
+        { id: job.data.categoryId, name: job.data.categoryName, slug: '' },
       ];
 
   return (
@@ -124,10 +127,6 @@ export const AdminEditJobPage = () => {
         eyebrow="Jobs"
         title={`Edit ${job.data.title}`}
       />
-      <Alert severity="warning">
-        The administrator job response omits the existing private application URL, while the update
-        DTO requires it. Re-enter the correct application URL before saving any edit.
-      </Alert>
       <AdminJobForm
         categories={categories}
         companies={companies}

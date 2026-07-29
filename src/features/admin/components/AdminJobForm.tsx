@@ -20,7 +20,7 @@ import {
   workplaceTypeOptions,
 } from '@/features/jobs/constants/jobOptions';
 import { EmploymentType, ExperienceLevel, WorkplaceType } from '@/features/jobs/types/jobModels';
-import type { AdminJob, AdminJobRequest, DistributionChartPoint } from '../types/adminModels';
+import type { AdminJob, AdminJobRequest } from '../types/adminModels';
 import { toDateTimeLocalValue } from '../utils/adminFormatting';
 import { adminJobSchema, type AdminJobFormValues } from '../validation/adminJobSchema';
 
@@ -46,7 +46,7 @@ const emptyValues: AdminJobFormValues = {
 const valuesFromJob = (job?: AdminJob): AdminJobFormValues =>
   job
     ? {
-        applicationUrl: '',
+        applicationUrl: job.applicationUrl,
         benefits: job.benefits ?? '',
         categoryId: job.categoryId,
         companyId: job.companyId,
@@ -85,8 +85,8 @@ const toRequest = (values: AdminJobFormValues): AdminJobRequest => ({
 });
 
 interface AdminJobFormProps {
-  categories: DistributionChartPoint[];
-  companies: DistributionChartPoint[];
+  categories: Array<{ id: string; label?: string; name?: string }>;
+  companies: Array<{ id: string; label?: string; name?: string }>;
   initialJob?: AdminJob;
   isSaving: boolean;
   onCancel: () => void;
@@ -234,7 +234,7 @@ export const AdminJobForm = ({
               <MenuItem value="">Select a company</MenuItem>
               {companies.map((company) => (
                 <MenuItem key={company.id} value={company.id}>
-                  {company.label}
+                  {company.name ?? company.label}
                 </MenuItem>
               ))}
             </TextField>
@@ -256,7 +256,7 @@ export const AdminJobForm = ({
               <MenuItem value="">Select a category</MenuItem>
               {categories.map((category) => (
                 <MenuItem key={category.id} value={category.id}>
-                  {category.label}
+                  {category.name ?? category.label}
                 </MenuItem>
               ))}
             </TextField>

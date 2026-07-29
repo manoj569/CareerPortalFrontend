@@ -115,6 +115,7 @@ export interface AdminJob {
   responsibilities: string | null;
   requirements: string | null;
   benefits: string | null;
+  applicationUrl: string;
   companyName: string;
   companyId: string;
   categoryName: string;
@@ -162,6 +163,8 @@ export interface AdminJobsQuery {
   isDeleted?: boolean;
   publishedFromUtc?: string;
   publishedToUtc?: string;
+  expiresFromUtc?: string;
+  expiresToUtc?: string;
   sortBy: AdminJobSortField;
   sortDirection: SortDirection;
 }
@@ -196,3 +199,239 @@ export interface SetAdminJobFlagArgs {
 }
 
 export type AdminJobsPage = PaginatedResponse<AdminJob>;
+
+export interface AdminOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface AdminCompany {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  websiteUrl: string | null;
+  logoUrl: string | null;
+  industry: string | null;
+  location: string | null;
+  employeeCount: number | null;
+  isVerified: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+  isDeleted: boolean;
+}
+
+export interface AdminCompanyRequest {
+  name: string;
+  slug: string | null;
+  description: string | null;
+  websiteUrl: string | null;
+  logoUrl: string | null;
+  industry: string | null;
+  location: string | null;
+  employeeCount: number | null;
+  isVerified: boolean;
+}
+
+export interface AdminCompaniesQuery {
+  pageNumber: number;
+  pageSize: number;
+  search?: string;
+  isVerified?: boolean;
+  isDeleted?: boolean;
+  sortBy: 'createdAt' | 'updatedAt' | 'name' | 'industry' | 'location' | 'employeeCount';
+  sortDirection: SortDirection;
+}
+
+export interface AdminCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  displayOrder: number;
+  parentCategoryId: string | null;
+  parentCategoryName: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string | null;
+  isDeleted: boolean;
+}
+
+export interface AdminCategoryRequest {
+  name: string;
+  slug: string | null;
+  description: string | null;
+  displayOrder: number;
+  parentCategoryId: string | null;
+}
+
+export interface AdminCategoriesQuery {
+  pageNumber: number;
+  pageSize: number;
+  search?: string;
+  parentCategoryId?: string;
+  rootOnly?: boolean;
+  isDeleted?: boolean;
+  sortBy: 'createdAt' | 'updatedAt' | 'name' | 'displayOrder';
+  sortDirection: SortDirection;
+}
+
+export interface UpdateAdminCompanyArgs {
+  companyId: string;
+  request: AdminCompanyRequest;
+}
+
+export interface UpdateAdminCategoryArgs {
+  categoryId: string;
+  request: AdminCategoryRequest;
+}
+
+export type AdminCompaniesPage = PaginatedResponse<AdminCompany>;
+export type AdminCategoriesPage = PaginatedResponse<AdminCategory>;
+
+export enum AdminApplicationStatus {
+  Submitted = 1,
+  Reviewed,
+  Shortlisted,
+  Rejected,
+  Withdrawn,
+}
+
+export interface AdminApplicationListItem {
+  id: string;
+  status: AdminApplicationStatus;
+  submittedAtUtc: string;
+  candidateId: string;
+  candidateName: string;
+  candidateEmail: string;
+  jobId: string;
+  jobTitle: string;
+  jobSlug: string;
+  companyId: string;
+  companyName: string;
+  categoryId: string;
+  categoryName: string;
+  hasResume: boolean;
+}
+
+export interface AdminApplicationQuery {
+  pageNumber: number;
+  pageSize: number;
+  jobId?: string;
+  companyId?: string;
+  categoryId?: string;
+  status?: AdminApplicationStatus;
+  submittedFromUtc?: string;
+  submittedToUtc?: string;
+  keyword?: string;
+}
+
+export interface AdminCandidateProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  headline: string | null;
+  bio: string | null;
+  location: string | null;
+  skills: string[];
+  education: string[];
+  experience: string[];
+  linkedInUrl: string | null;
+  portfolioUrl: string | null;
+  preferredJobTypes: EmploymentType[];
+}
+
+export interface AdminApplicationJobSummary {
+  id: string;
+  title: string;
+  slug: string;
+  location: string | null;
+  employmentType: EmploymentType;
+  workplaceType: WorkplaceType;
+  companyId: string;
+  companyName: string;
+  categoryId: string;
+  categoryName: string;
+}
+
+export interface AdminApplicationStatusHistory {
+  id: string;
+  previousStatus: AdminApplicationStatus | null;
+  newStatus: AdminApplicationStatus;
+  changedAtUtc: string;
+  actorUserId: string;
+  actorName: string;
+  internalNote: string | null;
+}
+
+export interface AdminApplicationDetail {
+  id: string;
+  status: AdminApplicationStatus;
+  submittedAtUtc: string;
+  withdrawnAtUtc: string | null;
+  coverLetter: string | null;
+  hasResume: boolean;
+  resumeFileName: string | null;
+  candidate: AdminCandidateProfile;
+  job: AdminApplicationJobSummary;
+  statusHistory: AdminApplicationStatusHistory[];
+}
+
+export interface UpdateAdminApplicationStatusArgs {
+  applicationId: string;
+  request: {
+    status: AdminApplicationStatus;
+    internalNote: string | null;
+  };
+}
+
+export type AdminApplicationsPage = PaginatedResponse<AdminApplicationListItem>;
+
+export enum AuditAction {
+  Create = 1,
+  Update,
+  Delete,
+  Restore,
+  Login,
+  Logout,
+  Publish,
+  Unpublish,
+  Close,
+  Archive,
+  Feature,
+  Unfeature,
+  Upload,
+  Submit,
+  Withdraw,
+  Confirm,
+  WebhookSuccess,
+  WebhookFailure,
+  Activate,
+}
+
+export interface AdminAuditLog {
+  id: string;
+  actorId: string | null;
+  actorRole: string | null;
+  action: AuditAction;
+  entityType: string;
+  entityId: string;
+  occurredAtUtc: string;
+  correlationId: string | null;
+  metadata: Record<string, string | null>;
+}
+
+export interface AdminAuditLogsQuery {
+  pageNumber: number;
+  pageSize: number;
+  actorId?: string;
+  action?: AuditAction;
+  entityType?: string;
+  entityId?: string;
+  fromUtc?: string;
+  toUtc?: string;
+  correlationId?: string;
+}
+
+export type AdminAuditLogsPage = PaginatedResponse<AdminAuditLog>;

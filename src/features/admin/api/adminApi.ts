@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 
+import { apiClient } from '@/api/apiClient';
 import { axiosBaseQuery, type AxiosBaseQueryError } from '@/api/axiosBaseQuery';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import { sessionExpired } from '@/features/auth/store/authSlice';
@@ -8,15 +9,32 @@ import { jobsApi } from '@/features/jobs/api/jobsApi';
 import type { ApiResponse } from '@/types';
 import type {
   AdminChartsQuery,
+  AdminApplicationDetail,
+  AdminApplicationQuery,
+  AdminApplicationsPage,
+  AdminAuditLogsPage,
+  AdminAuditLogsQuery,
+  AdminCategoriesPage,
+  AdminCategoriesQuery,
+  AdminCategory,
+  AdminCategoryRequest,
+  AdminCompaniesPage,
+  AdminCompaniesQuery,
+  AdminCompany,
+  AdminCompanyRequest,
   AdminDashboardCharts,
   AdminDashboardStatistics,
   AdminJob,
   AdminJobRequest,
   AdminJobsPage,
   AdminJobsQuery,
+  AdminOption,
   RecentAdminPayment,
   RecentAdminUser,
   SetAdminJobFlagArgs,
+  UpdateAdminApplicationStatusArgs,
+  UpdateAdminCategoryArgs,
+  UpdateAdminCompanyArgs,
   UpdateAdminJobArgs,
 } from '../types/adminModels';
 
@@ -50,7 +68,17 @@ export const adminApi = createApi({
   reducerPath: 'adminApi',
   baseQuery: adminBaseQuery,
   keepUnusedDataFor: 60,
-  tagTypes: ['Statistics', 'Charts', 'RecentPayments', 'RecentUsers', 'AdminJobs'],
+  tagTypes: [
+    'Statistics',
+    'Charts',
+    'RecentPayments',
+    'RecentUsers',
+    'AdminJobs',
+    'AdminCompanies',
+    'AdminCategories',
+    'AdminApplications',
+    'AdminAuditLogs',
+  ],
   endpoints: (builder) => ({
     getAdminStatistics: builder.query<AdminDashboardStatistics, void>({
       query: () => ({ url: API_ENDPOINTS.ADMIN.DASHBOARD_STATISTICS }),
@@ -132,6 +160,58 @@ export const adminApi = createApi({
         void refreshPublicJobs(queryFulfilled, dispatch);
       },
     }),
+    unpublishAdminJob: builder.mutation<AdminJob, string>({
+      query: (jobId) => ({ method: 'POST', url: API_ENDPOINTS.ADMIN.JOB_UNPUBLISH(jobId) }),
+      transformResponse: (response: ApiResponse<AdminJob>) => response.data,
+      invalidatesTags: (_, __, jobId) => [
+        'Statistics',
+        'Charts',
+        { id: jobId, type: 'AdminJobs' },
+        { id: 'LIST', type: 'AdminJobs' },
+      ],
+      onQueryStarted: (_, { dispatch, queryFulfilled }) => {
+        void refreshPublicJobs(queryFulfilled, dispatch);
+      },
+    }),
+    closeAdminJob: builder.mutation<AdminJob, string>({
+      query: (jobId) => ({ method: 'POST', url: API_ENDPOINTS.ADMIN.JOB_CLOSE(jobId) }),
+      transformResponse: (response: ApiResponse<AdminJob>) => response.data,
+      invalidatesTags: (_, __, jobId) => [
+        'Statistics',
+        'Charts',
+        { id: jobId, type: 'AdminJobs' },
+        { id: 'LIST', type: 'AdminJobs' },
+      ],
+      onQueryStarted: (_, { dispatch, queryFulfilled }) => {
+        void refreshPublicJobs(queryFulfilled, dispatch);
+      },
+    }),
+    featureAdminJob: builder.mutation<AdminJob, string>({
+      query: (jobId) => ({ method: 'POST', url: API_ENDPOINTS.ADMIN.JOB_FEATURE(jobId) }),
+      transformResponse: (response: ApiResponse<AdminJob>) => response.data,
+      invalidatesTags: (_, __, jobId) => [
+        'Statistics',
+        'Charts',
+        { id: jobId, type: 'AdminJobs' },
+        { id: 'LIST', type: 'AdminJobs' },
+      ],
+      onQueryStarted: (_, { dispatch, queryFulfilled }) => {
+        void refreshPublicJobs(queryFulfilled, dispatch);
+      },
+    }),
+    unfeatureAdminJob: builder.mutation<AdminJob, string>({
+      query: (jobId) => ({ method: 'POST', url: API_ENDPOINTS.ADMIN.JOB_UNFEATURE(jobId) }),
+      transformResponse: (response: ApiResponse<AdminJob>) => response.data,
+      invalidatesTags: (_, __, jobId) => [
+        'Statistics',
+        'Charts',
+        { id: jobId, type: 'AdminJobs' },
+        { id: 'LIST', type: 'AdminJobs' },
+      ],
+      onQueryStarted: (_, { dispatch, queryFulfilled }) => {
+        void refreshPublicJobs(queryFulfilled, dispatch);
+      },
+    }),
     archiveAdminJob: builder.mutation<AdminJob, string>({
       query: (jobId) => ({ method: 'POST', url: API_ENDPOINTS.ADMIN.JOB_ARCHIVE(jobId) }),
       transformResponse: (response: ApiResponse<AdminJob>) => response.data,
@@ -186,13 +266,189 @@ export const adminApi = createApi({
         void refreshPublicJobs(queryFulfilled, dispatch);
       },
     }),
+    getAdminCompanies: builder.query<AdminCompaniesPage, AdminCompaniesQuery>({
+      query: (params) => ({ params, url: API_ENDPOINTS.ADMIN.COMPANIES }),
+      transformResponse: (response: ApiResponse<AdminCompaniesPage>) => response.data,
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.items.map((item) => ({
+                id: item.id,
+                type: 'AdminCompanies' as const,
+              })),
+              { id: 'LIST', type: 'AdminCompanies' as const },
+            ]
+          : [{ id: 'LIST', type: 'AdminCompanies' as const }],
+    }),
+    getAdminCompany: builder.query<AdminCompany, string>({
+      query: (companyId) => ({ url: API_ENDPOINTS.ADMIN.COMPANY(companyId) }),
+      transformResponse: (response: ApiResponse<AdminCompany>) => response.data,
+      providesTags: (_, __, companyId) => [{ id: companyId, type: 'AdminCompanies' }],
+    }),
+    getAdminCompanyOptions: builder.query<AdminOption[], void>({
+      query: () => ({ url: API_ENDPOINTS.ADMIN.COMPANY_OPTIONS }),
+      transformResponse: (response: ApiResponse<AdminOption[]>) => response.data,
+      providesTags: [{ id: 'OPTIONS', type: 'AdminCompanies' }],
+    }),
+    createAdminCompany: builder.mutation<AdminCompany, AdminCompanyRequest>({
+      query: (data) => ({ data, method: 'POST', url: API_ENDPOINTS.ADMIN.COMPANIES }),
+      transformResponse: (response: ApiResponse<AdminCompany>) => response.data,
+      invalidatesTags: [
+        'Statistics',
+        'Charts',
+        { id: 'LIST', type: 'AdminCompanies' },
+        { id: 'OPTIONS', type: 'AdminCompanies' },
+      ],
+    }),
+    updateAdminCompany: builder.mutation<AdminCompany, UpdateAdminCompanyArgs>({
+      query: ({ companyId, request }) => ({
+        data: request,
+        method: 'PUT',
+        url: API_ENDPOINTS.ADMIN.COMPANY(companyId),
+      }),
+      transformResponse: (response: ApiResponse<AdminCompany>) => response.data,
+      invalidatesTags: (_, __, { companyId }) => [
+        'Charts',
+        { id: companyId, type: 'AdminCompanies' },
+        { id: 'LIST', type: 'AdminCompanies' },
+        { id: 'OPTIONS', type: 'AdminCompanies' },
+      ],
+    }),
+    deleteAdminCompany: builder.mutation<void, string>({
+      query: (companyId) => ({
+        method: 'DELETE',
+        url: API_ENDPOINTS.ADMIN.COMPANY(companyId),
+      }),
+      invalidatesTags: [
+        'Statistics',
+        'Charts',
+        { id: 'LIST', type: 'AdminCompanies' },
+        { id: 'OPTIONS', type: 'AdminCompanies' },
+      ],
+    }),
+    getAdminCategories: builder.query<AdminCategoriesPage, AdminCategoriesQuery>({
+      query: (params) => ({ params, url: API_ENDPOINTS.ADMIN.CATEGORIES }),
+      transformResponse: (response: ApiResponse<AdminCategoriesPage>) => response.data,
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.items.map((item) => ({
+                id: item.id,
+                type: 'AdminCategories' as const,
+              })),
+              { id: 'LIST', type: 'AdminCategories' as const },
+            ]
+          : [{ id: 'LIST', type: 'AdminCategories' as const }],
+    }),
+    getAdminCategory: builder.query<AdminCategory, string>({
+      query: (categoryId) => ({ url: API_ENDPOINTS.ADMIN.CATEGORY(categoryId) }),
+      transformResponse: (response: ApiResponse<AdminCategory>) => response.data,
+      providesTags: (_, __, categoryId) => [{ id: categoryId, type: 'AdminCategories' }],
+    }),
+    getAdminCategoryOptions: builder.query<AdminOption[], void>({
+      query: () => ({ url: API_ENDPOINTS.ADMIN.CATEGORY_OPTIONS }),
+      transformResponse: (response: ApiResponse<AdminOption[]>) => response.data,
+      providesTags: [{ id: 'OPTIONS', type: 'AdminCategories' }],
+    }),
+    createAdminCategory: builder.mutation<AdminCategory, AdminCategoryRequest>({
+      query: (data) => ({ data, method: 'POST', url: API_ENDPOINTS.ADMIN.CATEGORIES }),
+      transformResponse: (response: ApiResponse<AdminCategory>) => response.data,
+      invalidatesTags: [
+        'Statistics',
+        'Charts',
+        { id: 'LIST', type: 'AdminCategories' },
+        { id: 'OPTIONS', type: 'AdminCategories' },
+      ],
+    }),
+    updateAdminCategory: builder.mutation<AdminCategory, UpdateAdminCategoryArgs>({
+      query: ({ categoryId, request }) => ({
+        data: request,
+        method: 'PUT',
+        url: API_ENDPOINTS.ADMIN.CATEGORY(categoryId),
+      }),
+      transformResponse: (response: ApiResponse<AdminCategory>) => response.data,
+      invalidatesTags: (_, __, { categoryId }) => [
+        'Charts',
+        { id: categoryId, type: 'AdminCategories' },
+        { id: 'LIST', type: 'AdminCategories' },
+        { id: 'OPTIONS', type: 'AdminCategories' },
+      ],
+    }),
+    deleteAdminCategory: builder.mutation<void, string>({
+      query: (categoryId) => ({
+        method: 'DELETE',
+        url: API_ENDPOINTS.ADMIN.CATEGORY(categoryId),
+      }),
+      invalidatesTags: [
+        'Statistics',
+        'Charts',
+        { id: 'LIST', type: 'AdminCategories' },
+        { id: 'OPTIONS', type: 'AdminCategories' },
+      ],
+    }),
+    getAdminApplications: builder.query<AdminApplicationsPage, AdminApplicationQuery>({
+      query: (params) => ({ params, url: API_ENDPOINTS.ADMIN.APPLICATIONS }),
+      transformResponse: (response: ApiResponse<AdminApplicationsPage>) => response.data,
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.items.map((item) => ({
+                id: item.id,
+                type: 'AdminApplications' as const,
+              })),
+              { id: 'LIST', type: 'AdminApplications' as const },
+            ]
+          : [{ id: 'LIST', type: 'AdminApplications' as const }],
+    }),
+    getAdminApplication: builder.query<AdminApplicationDetail, string>({
+      query: (applicationId) => ({
+        url: API_ENDPOINTS.ADMIN.APPLICATION(applicationId),
+      }),
+      transformResponse: (response: ApiResponse<AdminApplicationDetail>) => response.data,
+      providesTags: (_, __, applicationId) => [{ id: applicationId, type: 'AdminApplications' }],
+    }),
+    updateAdminApplicationStatus: builder.mutation<
+      AdminApplicationDetail,
+      UpdateAdminApplicationStatusArgs
+    >({
+      query: ({ applicationId, request }) => ({
+        data: request,
+        method: 'PUT',
+        url: API_ENDPOINTS.ADMIN.APPLICATION_STATUS(applicationId),
+      }),
+      transformResponse: (response: ApiResponse<AdminApplicationDetail>) => response.data,
+      invalidatesTags: (_, __, { applicationId }) => [
+        { id: applicationId, type: 'AdminApplications' },
+        { id: 'LIST', type: 'AdminApplications' },
+      ],
+    }),
+    getAdminAuditLogs: builder.query<AdminAuditLogsPage, AdminAuditLogsQuery>({
+      query: (params) => ({ params, url: API_ENDPOINTS.ADMIN.AUDIT_LOGS }),
+      transformResponse: (response: ApiResponse<AdminAuditLogsPage>) => response.data,
+      providesTags: ['AdminAuditLogs'],
+    }),
   }),
 });
 
 export const {
   useArchiveAdminJobMutation,
+  useCloseAdminJobMutation,
+  useCreateAdminCategoryMutation,
+  useCreateAdminCompanyMutation,
   useCreateAdminJobMutation,
+  useDeleteAdminCategoryMutation,
+  useDeleteAdminCompanyMutation,
+  useFeatureAdminJobMutation,
+  useGetAdminApplicationQuery,
+  useGetAdminApplicationsQuery,
+  useGetAdminAuditLogsQuery,
+  useGetAdminCategoriesQuery,
+  useGetAdminCategoryOptionsQuery,
+  useGetAdminCategoryQuery,
   useGetAdminChartsQuery,
+  useGetAdminCompaniesQuery,
+  useGetAdminCompanyOptionsQuery,
+  useGetAdminCompanyQuery,
   useGetAdminJobQuery,
   useGetAdminJobsQuery,
   useGetAdminRecentPaymentsQuery,
@@ -202,8 +458,23 @@ export const {
   useSetAdminJobFeaturedMutation,
   useSetAdminJobHiddenMutation,
   useSoftDeleteAdminJobMutation,
+  useUnfeatureAdminJobMutation,
+  useUnpublishAdminJobMutation,
+  useUpdateAdminApplicationStatusMutation,
+  useUpdateAdminCategoryMutation,
+  useUpdateAdminCompanyMutation,
   useUpdateAdminJobMutation,
 } = adminApi;
+
+export const downloadAdminApplicationResume = async (applicationId: string): Promise<Blob> => {
+  const response = await apiClient.request<Blob>({
+    method: 'GET',
+    responseType: 'blob',
+    url: API_ENDPOINTS.ADMIN.APPLICATION_RESUME(applicationId),
+  });
+
+  return response.data;
+};
 
 export const isAdminApiError = (error: unknown): error is AxiosBaseQueryError =>
   Boolean(error && typeof error === 'object' && 'message' in error);

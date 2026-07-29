@@ -1,4 +1,4 @@
-import { Alert, Skeleton, Stack } from '@mui/material';
+import { Skeleton, Stack } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +8,8 @@ import { ROUTES, buildAdminJobEditPath } from '@/constants/routes';
 import {
   isAdminApiError,
   useCreateAdminJobMutation,
-  useGetAdminChartsQuery,
+  useGetAdminCategoryOptionsQuery,
+  useGetAdminCompanyOptionsQuery,
 } from '@/features/admin/api/adminApi';
 import { AdminJobForm } from '@/features/admin/components/AdminJobForm';
 import { AdminUnavailableState } from '@/features/admin/components/AdminUnavailableState';
@@ -22,7 +23,8 @@ export const AdminCreateJobPage = () => {
     'Create a backend-validated Career Portal job draft.',
   );
   const navigate = useNavigate();
-  const lookups = useGetAdminChartsQuery({ distributionLimit: 50 });
+  const companies = useGetAdminCompanyOptionsQuery();
+  const categories = useGetAdminCategoryOptionsQuery();
   const [createJob, createState] = useCreateAdminJobMutation();
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverFieldErrors, setServerFieldErrors] = useState<
@@ -47,7 +49,7 @@ export const AdminCreateJobPage = () => {
     }
   };
 
-  if (lookups.isLoading) {
+  if (companies.isLoading || categories.isLoading) {
     return (
       <Stack aria-label="Loading job form" role="status" spacing={3}>
         <Skeleton height={80} variant="rounded" />
@@ -56,18 +58,21 @@ export const AdminCreateJobPage = () => {
     );
   }
 
-  if (lookups.isError) {
+  if (companies.isError || categories.isError) {
     return (
       <ErrorState
-        description="Company and category choices could not be loaded from the administrator dashboard API."
+        description="Company and category choices could not be loaded from their Administrator options endpoints."
         headingLevel="h1"
-        onRetry={() => void lookups.refetch()}
+        onRetry={() => {
+          void companies.refetch();
+          void categories.refetch();
+        }}
         title="Job form unavailable"
       />
     );
   }
 
-  if (!lookups.data?.companies.length || !lookups.data.categories.length) {
+  if (!companies.data?.length || !categories.data?.length) {
     return (
       <AdminUnavailableState
         description="A job requires both a company and a category, but the backend did not return any configured options. Add those records through a supported backend workflow before creating a job."
@@ -83,16 +88,9 @@ export const AdminCreateJobPage = () => {
         eyebrow="Jobs"
         title="Create job"
       />
-      {lookups.data &&
-      (lookups.data.companies.length === 50 || lookups.data.categories.length === 50) ? (
-        <Alert severity="warning">
-          The backend provides only the top 50 company and category distribution entries, not
-          complete lookup endpoints. Choices outside this set cannot be selected here.
-        </Alert>
-      ) : null}
       <AdminJobForm
-        categories={lookups.data?.categories ?? []}
-        companies={lookups.data?.companies ?? []}
+        categories={categories.data ?? []}
+        companies={companies.data ?? []}
         isSaving={createState.isLoading}
         onCancel={() => void navigate(ROUTES.ADMIN_JOBS)}
         onSubmit={submitJob}

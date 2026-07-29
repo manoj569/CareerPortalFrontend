@@ -41,9 +41,27 @@ export const API_ENDPOINTS = {
     JOBS: '/admin/jobs',
     JOB: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}`,
     JOB_PUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/publish`,
+    JOB_UNPUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unpublish`,
+    JOB_CLOSE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/close`,
     JOB_ARCHIVE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/archive`,
+    JOB_FEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/feature`,
+    JOB_UNFEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unfeature`,
     JOB_FEATURED: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/featured`,
     JOB_HIDDEN: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/hidden`,
+    COMPANIES: '/admin/companies',
+    COMPANY: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}`,
+    COMPANY_OPTIONS: '/admin/companies/options',
+    CATEGORIES: '/admin/categories',
+    CATEGORY: (categoryId: string) => `/admin/categories/${encodeURIComponent(categoryId)}`,
+    CATEGORY_OPTIONS: '/admin/categories/options',
+    APPLICATIONS: '/admin/applications',
+    APPLICATION: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}`,
+    APPLICATION_STATUS: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}/status`,
+    APPLICATION_RESUME: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}/resume`,
+    AUDIT_LOGS: '/admin/audit-logs',
   },
   DASHBOARD: {
     MEMBERSHIPS: '/dashboard/memberships',

@@ -1,5 +1,6 @@
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
+import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import PublishOutlinedIcon from '@mui/icons-material/PublishOutlined';
@@ -37,16 +38,25 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { ROUTES, buildAdminJobEditPath, buildJobDetailsPath } from '@/constants/routes';
+import {
+  ROUTES,
+  buildAdminJobDetailsPath,
+  buildAdminJobEditPath,
+  buildJobDetailsPath,
+} from '@/constants/routes';
 import {
   isAdminApiError,
   useArchiveAdminJobMutation,
-  useGetAdminChartsQuery,
+  useCloseAdminJobMutation,
+  useFeatureAdminJobMutation,
+  useGetAdminCategoryOptionsQuery,
+  useGetAdminCompanyOptionsQuery,
   useGetAdminJobsQuery,
   usePublishAdminJobMutation,
-  useSetAdminJobFeaturedMutation,
   useSetAdminJobHiddenMutation,
   useSoftDeleteAdminJobMutation,
+  useUnfeatureAdminJobMutation,
+  useUnpublishAdminJobMutation,
 } from '@/features/admin/api/adminApi';
 import { AdminJobStatusBadge } from '@/features/admin/components/AdminStatusBadge';
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
@@ -78,7 +88,16 @@ const parseEnum = <T extends number>(
   return Object.values(enumObject).includes(parsed) ? (parsed as T) : undefined;
 };
 
-type JobAction = 'archive' | 'delete' | 'feature' | 'hide' | 'publish' | 'show' | 'unfeature';
+type JobAction =
+  | 'archive'
+  | 'close'
+  | 'delete'
+  | 'feature'
+  | 'hide'
+  | 'publish'
+  | 'show'
+  | 'unfeature'
+  | 'unpublish';
 
 interface PendingAction {
   action: JobAction;
@@ -87,12 +106,14 @@ interface PendingAction {
 
 const actionCopy: Record<JobAction, { label: string; verb: string }> = {
   archive: { label: 'Archive job', verb: 'archive' },
+  close: { label: 'Close job', verb: 'close' },
   delete: { label: 'Delete job', verb: 'soft-delete' },
   feature: { label: 'Feature job', verb: 'feature' },
   hide: { label: 'Hide job', verb: 'hide' },
   publish: { label: 'Publish job', verb: 'publish' },
   show: { label: 'Make job visible', verb: 'make visible' },
   unfeature: { label: 'Remove featured status', verb: 'unfeature' },
+  unpublish: { label: 'Unpublish job', verb: 'unpublish' },
 };
 
 const canPublishJob = (job: AdminJob): boolean =>
@@ -130,6 +151,7 @@ export const AdminJobsPage = () => {
   );
   const workplaceType = parseEnum<WorkplaceType>(searchParams.get('workplaceType'), WorkplaceType);
   const categoryId = searchParams.get('categoryId') || undefined;
+  const companyId = searchParams.get('companyId') || undefined;
   const sortValue = searchParams.get('sort') ?? 'createdAt-desc';
   const [sortByValue, sortDirectionValue] = sortValue.split('-');
   const supportedSorts: AdminJobsQuery['sortBy'][] = [
@@ -151,6 +173,7 @@ export const AdminJobsPage = () => {
   const query = useMemo<AdminJobsQuery>(
     () => ({
       categoryId,
+      companyId,
       employmentType,
       isDeleted,
       pageNumber,
@@ -163,6 +186,7 @@ export const AdminJobsPage = () => {
     }),
     [
       categoryId,
+      companyId,
       employmentType,
       isDeleted,
       pageNumber,
@@ -174,16 +198,23 @@ export const AdminJobsPage = () => {
     ],
   );
   const jobs = useGetAdminJobsQuery(query);
-  const charts = useGetAdminChartsQuery({ distributionLimit: 50 });
+  const categories = useGetAdminCategoryOptionsQuery();
+  const companies = useGetAdminCompanyOptionsQuery();
   const [publishJob, publishState] = usePublishAdminJobMutation();
+  const [unpublishJob, unpublishState] = useUnpublishAdminJobMutation();
+  const [closeJob, closeState] = useCloseAdminJobMutation();
   const [archiveJob, archiveState] = useArchiveAdminJobMutation();
-  const [setFeatured, featuredState] = useSetAdminJobFeaturedMutation();
+  const [featureJob, featureState] = useFeatureAdminJobMutation();
+  const [unfeatureJob, unfeatureState] = useUnfeatureAdminJobMutation();
   const [setHidden, hiddenState] = useSetAdminJobHiddenMutation();
   const [softDelete, deleteState] = useSoftDeleteAdminJobMutation();
   const isActing =
     publishState.isLoading ||
+    unpublishState.isLoading ||
+    closeState.isLoading ||
     archiveState.isLoading ||
-    featuredState.isLoading ||
+    featureState.isLoading ||
+    unfeatureState.isLoading ||
     hiddenState.isLoading ||
     deleteState.isLoading;
 
@@ -201,10 +232,11 @@ export const AdminJobsPage = () => {
     const { action, job } = pendingAction;
     try {
       if (action === 'publish') await publishJob(job.id).unwrap();
+      if (action === 'unpublish') await unpublishJob(job.id).unwrap();
+      if (action === 'close') await closeJob(job.id).unwrap();
       if (action === 'archive') await archiveJob(job.id).unwrap();
-      if (action === 'feature' || action === 'unfeature') {
-        await setFeatured({ jobId: job.id, value: action === 'feature' }).unwrap();
-      }
+      if (action === 'feature') await featureJob(job.id).unwrap();
+      if (action === 'unfeature') await unfeatureJob(job.id).unwrap();
       if (action === 'hide' || action === 'show') {
         await setHidden({ jobId: job.id, value: action === 'hide' }).unwrap();
       }
@@ -229,6 +261,9 @@ export const AdminJobsPage = () => {
 
   const jobActions = (job: AdminJob) => (
     <Stack direction="row" flexWrap="wrap" gap={0.75}>
+      <Button component={Link} size="small" to={buildAdminJobDetailsPath(job.id)}>
+        Details
+      </Button>
       {!job.isDeleted ? (
         <Button
           component={Link}
@@ -252,6 +287,20 @@ export const AdminJobsPage = () => {
         >
           Publish
         </Button>
+      ) : null}
+      {job.status === JobStatus.Published && !job.isDeleted ? (
+        <>
+          <Button onClick={() => openAction('unpublish', job)} size="small">
+            Unpublish
+          </Button>
+          <Button
+            onClick={() => openAction('close', job)}
+            size="small"
+            startIcon={<BlockOutlinedIcon />}
+          >
+            Close
+          </Button>
+        </>
       ) : null}
       {!job.isDeleted && job.status !== JobStatus.Archived ? (
         <Button
@@ -351,9 +400,27 @@ export const AdminJobsPage = () => {
                 value={categoryId ?? ''}
               >
                 <MenuItem value="">All categories</MenuItem>
-                {charts.data?.categories.map((category) => (
+                {categories.data?.map((category) => (
                   <MenuItem key={category.id} value={category.id}>
-                    {category.label}
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="job-company-filter-label">Company</InputLabel>
+              <Select
+                label="Company"
+                labelId="job-company-filter-label"
+                onChange={(event) => setFilter('companyId', event.target.value)}
+                value={companyId ?? ''}
+              >
+                <MenuItem value="">All companies</MenuItem>
+                {companies.data?.map((company) => (
+                  <MenuItem key={company.id} value={company.id}>
+                    {company.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -431,9 +498,10 @@ export const AdminJobsPage = () => {
         </Grid>
       </Paper>
 
-      {charts.isError ? (
+      {categories.isError || companies.isError ? (
         <Alert severity="warning">
-          Category options could not be loaded; existing URL filters still remain active.
+          Company or category filter options could not be loaded; existing URL filters remain
+          active.
         </Alert>
       ) : null}
 

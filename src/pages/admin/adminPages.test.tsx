@@ -6,8 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as AdminApiModule from '@/features/admin/api/adminApi';
 import {
   useArchiveAdminJobMutation,
+  useCloseAdminJobMutation,
   useCreateAdminJobMutation,
+  useFeatureAdminJobMutation,
+  useGetAdminApplicationsQuery,
+  useGetAdminCategoryOptionsQuery,
   useGetAdminChartsQuery,
+  useGetAdminCompanyOptionsQuery,
   useGetAdminJobQuery,
   useGetAdminJobsQuery,
   useGetAdminRecentPaymentsQuery,
@@ -17,6 +22,8 @@ import {
   useSetAdminJobFeaturedMutation,
   useSetAdminJobHiddenMutation,
   useSoftDeleteAdminJobMutation,
+  useUnfeatureAdminJobMutation,
+  useUnpublishAdminJobMutation,
   useUpdateAdminJobMutation,
 } from '@/features/admin/api/adminApi';
 import { AdminJobForm } from '@/features/admin/components/AdminJobForm';
@@ -49,8 +56,13 @@ vi.mock('@/features/admin/api/adminApi', async (importOriginal) => {
   return {
     ...actual,
     useArchiveAdminJobMutation: vi.fn(),
+    useCloseAdminJobMutation: vi.fn(),
     useCreateAdminJobMutation: vi.fn(),
+    useFeatureAdminJobMutation: vi.fn(),
+    useGetAdminApplicationsQuery: vi.fn(),
+    useGetAdminCategoryOptionsQuery: vi.fn(),
     useGetAdminChartsQuery: vi.fn(),
+    useGetAdminCompanyOptionsQuery: vi.fn(),
     useGetAdminJobQuery: vi.fn(),
     useGetAdminJobsQuery: vi.fn(),
     useGetAdminRecentPaymentsQuery: vi.fn(),
@@ -60,6 +72,8 @@ vi.mock('@/features/admin/api/adminApi', async (importOriginal) => {
     useSetAdminJobFeaturedMutation: vi.fn(),
     useSetAdminJobHiddenMutation: vi.fn(),
     useSoftDeleteAdminJobMutation: vi.fn(),
+    useUnfeatureAdminJobMutation: vi.fn(),
+    useUnpublishAdminJobMutation: vi.fn(),
     useUpdateAdminJobMutation: vi.fn(),
   };
 });
@@ -74,9 +88,16 @@ const mockCreate = vi.mocked(useCreateAdminJobMutation);
 const mockUpdate = vi.mocked(useUpdateAdminJobMutation);
 const mockPublish = vi.mocked(usePublishAdminJobMutation);
 const mockArchive = vi.mocked(useArchiveAdminJobMutation);
+const mockClose = vi.mocked(useCloseAdminJobMutation);
+const mockUnpublish = vi.mocked(useUnpublishAdminJobMutation);
+const mockFeature = vi.mocked(useFeatureAdminJobMutation);
+const mockUnfeature = vi.mocked(useUnfeatureAdminJobMutation);
 const mockFeatured = vi.mocked(useSetAdminJobFeaturedMutation);
 const mockHidden = vi.mocked(useSetAdminJobHiddenMutation);
 const mockDelete = vi.mocked(useSoftDeleteAdminJobMutation);
+const mockCompanyOptions = vi.mocked(useGetAdminCompanyOptionsQuery);
+const mockCategoryOptions = vi.mocked(useGetAdminCategoryOptionsQuery);
+const mockApplications = vi.mocked(useGetAdminApplicationsQuery);
 const refetch = vi.fn();
 const jobId = '5aeb6d48-035e-4f58-aa6f-c222ffe27e97';
 const companyId = 'ca95a5ec-7e5a-4d5f-acf6-534dd2225276';
@@ -85,6 +106,7 @@ const userId = 'a785e48e-edeb-433b-a02e-f610d5620e87';
 const paymentId = '721e999a-3b15-46aa-aa66-bfdfd174ba14';
 
 const job: AdminJob = {
+  applicationUrl: 'https://apply.example.com',
   benefits: 'Flexible work',
   categoryId,
   categoryName: 'Engineering',
@@ -201,6 +223,25 @@ beforeEach(() => {
     queryResult([user]) as ReturnType<typeof useGetAdminRecentUsersQuery>,
   );
   mockCharts.mockReturnValue(queryResult(charts) as ReturnType<typeof useGetAdminChartsQuery>);
+  mockCompanyOptions.mockReturnValue(
+    queryResult([{ id: companyId, name: 'Northstar Labs', slug: 'northstar-labs' }]) as ReturnType<
+      typeof useGetAdminCompanyOptionsQuery
+    >,
+  );
+  mockCategoryOptions.mockReturnValue(
+    queryResult([{ id: categoryId, name: 'Engineering', slug: 'engineering' }]) as ReturnType<
+      typeof useGetAdminCategoryOptionsQuery
+    >,
+  );
+  mockApplications.mockReturnValue(
+    queryResult({
+      items: [],
+      pageNumber: 1,
+      pageSize: 10,
+      totalCount: 0,
+      totalPages: 0,
+    }) as ReturnType<typeof useGetAdminApplicationsQuery>,
+  );
   mockJobs.mockReturnValue(
     queryResult({
       items: [job],
@@ -225,6 +266,26 @@ beforeEach(() => {
   mockArchive.mockReturnValue(
     mutationResult({ ...job, status: JobStatus.Archived }).tuple as unknown as ReturnType<
       typeof useArchiveAdminJobMutation
+    >,
+  );
+  mockClose.mockReturnValue(
+    mutationResult({ ...job, status: JobStatus.Closed }).tuple as unknown as ReturnType<
+      typeof useCloseAdminJobMutation
+    >,
+  );
+  mockUnpublish.mockReturnValue(
+    mutationResult({ ...job, status: JobStatus.Draft }).tuple as unknown as ReturnType<
+      typeof useUnpublishAdminJobMutation
+    >,
+  );
+  mockFeature.mockReturnValue(
+    mutationResult({ ...job, isFeatured: true }).tuple as unknown as ReturnType<
+      typeof useFeatureAdminJobMutation
+    >,
+  );
+  mockUnfeature.mockReturnValue(
+    mutationResult({ ...job, isFeatured: false }).tuple as unknown as ReturnType<
+      typeof useUnfeatureAdminJobMutation
     >,
   );
   mockFeatured.mockReturnValue(
@@ -329,6 +390,46 @@ describe('admin jobs', () => {
     expect(mutation.trigger).toHaveBeenCalledWith(job.id);
   });
 
+  it('integrates unpublish, close, and feature lifecycle actions for published jobs', async () => {
+    const publishedJob = { ...job, status: JobStatus.Published };
+    mockJobs.mockReturnValue(
+      queryResult({
+        items: [publishedJob],
+        pageNumber: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      }) as ReturnType<typeof useGetAdminJobsQuery>,
+    );
+    const unpublish = mutationResult({ ...publishedJob, status: JobStatus.Draft });
+    const close = mutationResult({ ...publishedJob, status: JobStatus.Closed });
+    const feature = mutationResult({ ...publishedJob, isFeatured: true });
+    mockUnpublish.mockReturnValue(
+      unpublish.tuple as unknown as ReturnType<typeof useUnpublishAdminJobMutation>,
+    );
+    mockClose.mockReturnValue(
+      close.tuple as unknown as ReturnType<typeof useCloseAdminJobMutation>,
+    );
+    mockFeature.mockReturnValue(
+      feature.tuple as unknown as ReturnType<typeof useFeatureAdminJobMutation>,
+    );
+    renderPage(<AdminJobsPage />);
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Unpublish' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Unpublish job' }));
+    expect(unpublish.trigger).toHaveBeenCalledWith(job.id);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Close job' }));
+    expect(close.trigger).toHaveBeenCalledWith(job.id);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Feature' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Feature job' }));
+    expect(feature.trigger).toHaveBeenCalledWith(job.id);
+  });
+
   it('renders backend text safely instead of interpreting markup', () => {
     mockJobs.mockReturnValue(
       queryResult({
@@ -371,6 +472,7 @@ describe('admin job forms', () => {
       screen.getByRole('textbox', { name: /description/i }),
       'Build accessible products.',
     );
+    await userEvent.clear(screen.getByRole('textbox', { name: /application url/i }));
     await userEvent.type(
       screen.getByRole('textbox', { name: /application url/i }),
       'https://apply.example.com',
@@ -406,8 +508,7 @@ describe('admin job forms', () => {
       { initialEntries: [`/admin/jobs/${jobId}/edit`] },
     );
     renderWithProviders(<RouterProvider router={router} />);
-    await userEvent.type(
-      screen.getByRole('textbox', { name: /application url/i }),
+    expect(screen.getByRole('textbox', { name: /application url/i })).toHaveValue(
       'https://apply.example.com',
     );
     await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
@@ -464,7 +565,7 @@ describe('limited admin modules', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows honest unavailable application and user-detail states', () => {
+  it('shows the integrated empty application state and honest user-detail state', () => {
     const router = createMemoryRouter(
       [
         { path: '/admin/applications', element: <AdminApplicationsPage /> },
@@ -477,7 +578,7 @@ describe('limited admin modules', () => {
       { initialEntries: ['/admin/applications'] },
     );
     const view = renderWithProviders(<RouterProvider router={router} />);
-    expect(screen.getByText('Applications management unavailable')).toBeInTheDocument();
+    expect(screen.getByText('No applications found')).toBeInTheDocument();
     view.unmount();
 
     const detailRouter = createMemoryRouter(

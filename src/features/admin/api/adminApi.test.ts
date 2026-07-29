@@ -13,8 +13,15 @@ import { sessionExpired } from '@/features/auth/store/authSlice';
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import { createAppStore } from '@/store/store';
 import { UserRole } from '@/types';
-import { adminApi } from './adminApi';
-import { JobStatus, type AdminJob, type AdminJobRequest } from '../types/adminModels';
+import { adminApi, downloadAdminApplicationResume } from './adminApi';
+import {
+  AdminApplicationStatus,
+  JobStatus,
+  type AdminCategoryRequest,
+  type AdminCompanyRequest,
+  type AdminJob,
+  type AdminJobRequest,
+} from '../types/adminModels';
 
 const { mockRequest } = vi.hoisted(() => ({ mockRequest: vi.fn() }));
 
@@ -157,5 +164,147 @@ describe('admin API cache consistency', () => {
     await store.dispatch(adminApi.endpoints.getAdminStatistics.initiate());
     expect(store.getState().auth.status).toBe('unauthenticated');
     expect(store.getState().auth.user).toBeNull();
+  });
+
+  it('uses the complete company and category CRUD/options contracts', async () => {
+    const store = createAppStore();
+    const companyRequest: AdminCompanyRequest = {
+      description: null,
+      employeeCount: 25,
+      industry: 'Technology',
+      isVerified: true,
+      location: 'Pune',
+      logoUrl: null,
+      name: 'Northstar Labs',
+      slug: null,
+      websiteUrl: 'https://northstar.example',
+    };
+    const categoryRequest: AdminCategoryRequest = {
+      description: null,
+      displayOrder: 1,
+      name: 'Engineering',
+      parentCategoryId: null,
+      slug: null,
+    };
+    mockRequest.mockResolvedValue({ data: { data: { id: companyId } } });
+
+    await store.dispatch(adminApi.endpoints.createAdminCompany.initiate(companyRequest)).unwrap();
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: companyRequest,
+        method: 'POST',
+        url: '/admin/companies',
+      }),
+    );
+    await store.dispatch(
+      adminApi.endpoints.updateAdminCompany.initiate({
+        companyId,
+        request: companyRequest,
+      }),
+    );
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'PUT', url: `/admin/companies/${companyId}` }),
+    );
+    await store.dispatch(adminApi.endpoints.deleteAdminCompany.initiate(companyId));
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'DELETE', url: `/admin/companies/${companyId}` }),
+    );
+    await store.dispatch(adminApi.endpoints.getAdminCompanyOptions.initiate());
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ url: '/admin/companies/options' }),
+    );
+
+    mockRequest.mockResolvedValue({ data: { data: { id: categoryId } } });
+    await store.dispatch(adminApi.endpoints.createAdminCategory.initiate(categoryRequest));
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: categoryRequest,
+        method: 'POST',
+        url: '/admin/categories',
+      }),
+    );
+    await store.dispatch(
+      adminApi.endpoints.updateAdminCategory.initiate({
+        categoryId,
+        request: categoryRequest,
+      }),
+    );
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'PUT', url: `/admin/categories/${categoryId}` }),
+    );
+    await store.dispatch(adminApi.endpoints.deleteAdminCategory.initiate(categoryId));
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'DELETE', url: `/admin/categories/${categoryId}` }),
+    );
+    await store.dispatch(adminApi.endpoints.getAdminCategoryOptions.initiate());
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ url: '/admin/categories/options' }),
+    );
+  });
+
+  it('uses job lifecycle, application review, resume, and read-only audit endpoints', async () => {
+    const store = createAppStore();
+    mockRequest.mockResolvedValue({ data: { data: createdJob } });
+    await store.dispatch(adminApi.endpoints.unpublishAdminJob.initiate(jobId));
+    await store.dispatch(adminApi.endpoints.closeAdminJob.initiate(jobId));
+    await store.dispatch(adminApi.endpoints.featureAdminJob.initiate(jobId));
+    await store.dispatch(adminApi.endpoints.unfeatureAdminJob.initiate(jobId));
+    for (const action of ['unpublish', 'close', 'feature', 'unfeature']) {
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'POST',
+          url: `/admin/jobs/${jobId}/${action}`,
+        }),
+      );
+    }
+
+    await store.dispatch(
+      adminApi.endpoints.updateAdminApplicationStatus.initiate({
+        applicationId: jobId,
+        request: {
+          internalNote: 'Private review note.',
+          status: AdminApplicationStatus.Reviewed,
+        },
+      }),
+    );
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          internalNote: 'Private review note.',
+          status: AdminApplicationStatus.Reviewed,
+        },
+        method: 'PUT',
+        url: `/admin/applications/${jobId}/status`,
+      }),
+    );
+
+    mockRequest.mockResolvedValue({ data: new Blob(['resume']) });
+    await downloadAdminApplicationResume(jobId);
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        responseType: 'blob',
+        url: `/admin/applications/${jobId}/resume`,
+      }),
+    );
+
+    mockRequest.mockResolvedValue({
+      data: {
+        data: { items: [], pageNumber: 1, pageSize: 20, totalCount: 0, totalPages: 0 },
+      },
+    });
+    await store.dispatch(
+      adminApi.endpoints.getAdminAuditLogs.initiate({
+        correlationId: 'request-123',
+        pageNumber: 1,
+        pageSize: 20,
+      }),
+    );
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        params: { correlationId: 'request-123', pageNumber: 1, pageSize: 20 },
+        url: '/admin/audit-logs',
+      }),
+    );
   });
 });

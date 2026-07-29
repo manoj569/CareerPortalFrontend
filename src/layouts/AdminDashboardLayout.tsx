@@ -4,6 +4,9 @@ import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import PolicyOutlinedIcon from '@mui/icons-material/PolicyOutlined';
 
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
@@ -12,9 +15,12 @@ import { ROUTES } from '@/constants/routes';
 const navigationItems: NavigationItem[] = [
   { label: 'Dashboard', path: ROUTES.ADMIN, icon: DashboardOutlinedIcon, end: true },
   { label: 'Jobs', path: ROUTES.ADMIN_JOBS, icon: WorkOutlineIcon },
+  { label: 'Companies', path: ROUTES.ADMIN_COMPANIES, icon: BusinessOutlinedIcon },
+  { label: 'Categories', path: ROUTES.ADMIN_CATEGORIES, icon: CategoryOutlinedIcon },
   { label: 'Users', path: ROUTES.ADMIN_USERS, icon: PeopleOutlineIcon },
   { label: 'Applications', path: ROUTES.ADMIN_APPLICATIONS, icon: AssignmentOutlinedIcon },
   { label: 'Payments', path: ROUTES.ADMIN_PAYMENTS, icon: PaymentsOutlinedIcon },
+  { label: 'Audit logs', path: ROUTES.ADMIN_AUDIT_LOGS, icon: PolicyOutlinedIcon },
   { label: 'View public site', path: ROUTES.HOME, icon: PublicOutlinedIcon },
 ];
 

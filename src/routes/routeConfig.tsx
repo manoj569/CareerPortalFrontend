@@ -192,6 +192,69 @@ export const appRoutes: RouteObject[] = [
                 ),
               },
               {
+                path: ROUTES.ADMIN_JOB_DETAILS,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminJobDetailsPage'),
+                  'AdminJobDetailsPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANIES,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCompaniesPage'),
+                  'AdminCompaniesPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_CREATE,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCompanyFormPage'),
+                  'AdminCompanyFormPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_DETAILS,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCompanyDetailsPage'),
+                  'AdminCompanyDetailsPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_EDIT,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCompanyFormPage'),
+                  'AdminCompanyFormPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_CATEGORIES,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCategoriesPage'),
+                  'AdminCategoriesPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_CATEGORY_CREATE,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCategoryFormPage'),
+                  'AdminCategoryFormPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_CATEGORY_DETAILS,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCategoryDetailsPage'),
+                  'AdminCategoryDetailsPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_CATEGORY_EDIT,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCategoryFormPage'),
+                  'AdminCategoryFormPage',
+                ),
+              },
+              {
                 path: ROUTES.ADMIN_USERS,
                 element: lazyPage(() => import('@/pages/admin/AdminUsersPage'), 'AdminUsersPage'),
               },
@@ -228,6 +291,13 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(
                   () => import('@/pages/admin/AdminPaymentDetailsPage'),
                   'AdminPaymentDetailsPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_AUDIT_LOGS,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminAuditLogsPage'),
+                  'AdminAuditLogsPage',
                 ),
               },
             ],

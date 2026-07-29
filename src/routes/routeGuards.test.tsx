@@ -42,7 +42,10 @@ const renderGuardRouter = (initialPath: string, auth: AuthState) => {
       },
       {
         element: <AdminRoute />,
-        children: [{ path: '/admin-only', element: <p>Admin content</p> }],
+        children: [
+          { path: '/admin-only', element: <p>Admin content</p> },
+          { path: '/admin/companies', element: <p>Company administration</p> },
+        ],
       },
       {
         element: <CandidateRoute />,
@@ -81,7 +84,7 @@ describe('route guards', () => {
   });
 
   it('redirects candidates away from administrator routes', async () => {
-    renderGuardRouter('/admin-only', createAuthState('authenticated', UserRole.Candidate));
+    renderGuardRouter('/admin/companies', createAuthState('authenticated', UserRole.Candidate));
     expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
   });
 
