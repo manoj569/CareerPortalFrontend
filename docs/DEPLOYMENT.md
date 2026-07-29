@@ -34,13 +34,12 @@ Set these values in the build job:
 
 ```dotenv
 VITE_API_BASE_URL=https://api.example.com/api
-VITE_API_TIMEOUT_MS=30000
 ```
 
 Replace the example origin with the real API address. `VITE_API_BASE_URL` is compiled into the
-browser bundle. The application rejects non-HTTPS and local API hosts in production. Never put JWT
-keys, refresh tokens, database strings, SMTP credentials, Razorpay secrets, or other secrets in a
-`VITE_*` variable.
+browser bundle. Non-local production APIs must use HTTPS; HTTP loopback is accepted only for local
+preview. Never put JWT keys, refresh tokens, database strings, SMTP credentials, Razorpay secrets,
+or other secrets in a `VITE_*` variable.
 
 The API must allow the exact frontend HTTPS origin in `Cors:AllowedOrigins`. Do not use wildcard
 origins. If refresh tokens are migrated to secure cookies, update CORS and the client together to

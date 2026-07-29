@@ -8,6 +8,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { PasswordField } from '@/features/auth/components/PasswordField';
+import { ResendVerificationAction } from '@/features/auth/components/ResendVerificationAction';
+import { EMAIL_NOT_VERIFIED_MESSAGE } from '@/features/auth/services/authErrorMapper';
 import { login } from '@/features/auth/store/authSlice';
 import { getSafeRedirectPath } from '@/features/auth/utils/safeRedirect';
 import { loginSchema, type LoginFormValues } from '@/features/auth/validation/authSchemas';
@@ -24,6 +26,7 @@ export const LoginPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const locationState = location.state as LoginLocationState | null;
   const {
     formState: { errors, isSubmitting },
@@ -38,6 +41,7 @@ export const LoginPage = () => {
 
   const submitLogin = async (values: LoginFormValues) => {
     setServerError(null);
+    setUnverifiedEmail(null);
     try {
       const response = await dispatch(login(values)).unwrap();
       const requestedPath = getSafeRedirectPath(locationState?.from);
@@ -47,7 +51,11 @@ export const LoginPage = () => {
       enqueueSnackbar('Welcome back.', { variant: 'success' });
       await navigate(requestedPath ?? defaultPath, { replace: true });
     } catch (error: unknown) {
-      setServerError(typeof error === 'string' ? error : 'Unable to log in. Please try again.');
+      const message = typeof error === 'string' ? error : 'Unable to log in. Please try again.';
+      setServerError(message);
+      if (message === EMAIL_NOT_VERIFIED_MESSAGE) {
+        setUnverifiedEmail(values.email.trim());
+      }
     }
   };
 
@@ -64,6 +72,7 @@ export const LoginPage = () => {
           {serverError}
         </Alert>
       ) : null}
+      {unverifiedEmail ? <ResendVerificationAction email={unverifiedEmail} /> : null}
 
       <Stack
         component="form"

@@ -9,7 +9,9 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
+import { EmailVerificationPage } from './EmailVerificationPage';
 import { LoginPage } from './LoginPage';
+import { RegisterPage } from './RegisterPage';
 import { ResetPasswordPage } from './ResetPasswordPage';
 
 vi.mock('@/features/auth/services/authService', () => ({
@@ -19,7 +21,9 @@ vi.mock('@/features/auth/services/authService', () => ({
     logout: vi.fn(),
     refresh: vi.fn(),
     register: vi.fn(),
+    resendVerification: vi.fn(),
     resetPassword: vi.fn(),
+    verifyEmail: vi.fn(),
   },
 }));
 
@@ -67,10 +71,52 @@ const renderLogin = (initialEntry: string | { pathname: string; state: unknown }
   renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticatedState });
 };
 
+const renderRegistration = () => {
+  const router = createMemoryRouter(
+    [
+      { path: '/register', element: <RegisterPage /> },
+      { path: '/login', element: <p>Login page</p> },
+    ],
+    { initialEntries: ['/register'] },
+  );
+  return renderWithProviders(<RouterProvider router={router} />, {
+    auth: unauthenticatedState,
+  });
+};
+
+const fillRegistration = async () => {
+  const user = userEvent.setup();
+  await user.type(screen.getByLabelText(/first name/i), 'Avery');
+  await user.type(screen.getByLabelText(/last name/i), 'Patel');
+  await user.type(screen.getByLabelText(/email address/i), 'candidate@example.com');
+  await user.type(screen.getByLabelText(/mobile number/i), '+91 98765 43210');
+  await user.type(screen.getByLabelText(/^password/i), 'Str0ng!Password2026');
+  await user.type(
+    screen.getByLabelText(/confirm password/i, { selector: 'input' }),
+    'Str0ng!Password2026',
+  );
+  await user.click(screen.getByRole('checkbox', { name: /terms of use/i }));
+  await user.click(screen.getByRole('button', { name: /create account/i }));
+};
+
+const renderVerification = (entry: string) => {
+  const router = createMemoryRouter(
+    [
+      { path: '/verify-email', element: <EmailVerificationPage /> },
+      { path: '/login', element: <p>Login page</p> },
+    ],
+    { initialEntries: [entry] },
+  );
+  renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticatedState });
+};
+
 describe('authentication pages', () => {
   beforeEach(() => {
     mockedAuthService.login.mockReset();
     mockedAuthService.forgotPassword.mockReset();
+    mockedAuthService.register.mockReset();
+    mockedAuthService.resendVerification.mockReset();
+    mockedAuthService.verifyEmail.mockReset();
   });
 
   it('redirects a candidate to the dashboard after login', async () => {
@@ -108,12 +154,126 @@ describe('authentication pages', () => {
     ).toBeInTheDocument();
   });
 
+  it('offers a privacy-safe resend when login is blocked for an unverified email', async () => {
+    mockedAuthService.login.mockRejectedValue(
+      new ApiRequestError({
+        code: 'email_not_verified',
+        message: 'Backend detail',
+        status: 403,
+      }),
+    );
+    mockedAuthService.resendVerification.mockResolvedValue({
+      message: 'Backend response must not disclose whether the account exists.',
+    });
+    renderLogin();
+    await fillLogin();
+
+    expect(
+      await screen.findByText(/verify your email address before signing in/i),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^resend verification email$/i }));
+
+    expect(mockedAuthService.resendVerification.mock.calls[0]?.[0]).toEqual({
+      email: 'candidate@example.com',
+    });
+    expect(
+      await screen.findByText(
+        'If an unverified account exists, a verification email will be sent.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('shows inline login validation feedback', async () => {
     renderLogin();
     await userEvent.click(screen.getByRole('button', { name: /^log in$/i }));
     expect(await screen.findByText('Email address is required.')).toBeInTheDocument();
     expect(screen.getByText('Password is required.')).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toHaveFocus();
+  });
+
+  it('registers without creating a session and shows the verification confirmation', async () => {
+    mockedAuthService.register.mockResolvedValue({
+      message: 'Registration accepted. Verify your email address before signing in.',
+    });
+    const { store } = renderRegistration();
+    await fillRegistration();
+
+    expect(mockedAuthService.register.mock.calls[0]?.[0]).toEqual({
+      email: 'candidate@example.com',
+      firstName: 'Avery',
+      lastName: 'Patel',
+      password: 'Str0ng!Password2026',
+      phoneNumber: '+91 98765 43210',
+    });
+    expect(await screen.findByText('Check your email to verify your account.')).toBeInTheDocument();
+    expect(store.getState().auth.status).toBe('unauthenticated');
+    expect(store.getState().auth.user).toBeNull();
+  });
+
+  it('resends verification from the registration success state', async () => {
+    mockedAuthService.register.mockResolvedValue({ message: 'Registration accepted.' });
+    mockedAuthService.resendVerification.mockResolvedValue({
+      message: 'If an unverified account exists, a verification message will be sent.',
+    });
+    renderRegistration();
+    await fillRegistration();
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^resend verification email$/i }),
+    );
+
+    expect(mockedAuthService.resendVerification.mock.calls[0]?.[0]).toEqual({
+      email: 'candidate@example.com',
+    });
+    expect(
+      await screen.findByText(
+        'If an unverified account exists, a verification email will be sent.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('verifies an email from the link without rendering the token', async () => {
+    mockedAuthService.verifyEmail.mockResolvedValue({ message: 'Email verified.' });
+    renderVerification(
+      '/verify-email?email=candidate%40example.com&token=sensitive-verification-token',
+    );
+
+    expect(await screen.findByText(/your email address has been verified/i)).toBeInTheDocument();
+    expect(mockedAuthService.verifyEmail.mock.calls[0]?.[0]).toEqual({
+      email: 'candidate@example.com',
+      token: 'sensitive-verification-token',
+    });
+    expect(screen.queryByText('sensitive-verification-token')).not.toBeInTheDocument();
+  });
+
+  it('shows an invalid-link state and permits a privacy-safe resend', async () => {
+    mockedAuthService.verifyEmail.mockRejectedValue(
+      new ApiRequestError({
+        code: 'invalid_verification_token',
+        message: 'Backend detail',
+        status: 400,
+      }),
+    );
+    mockedAuthService.resendVerification.mockResolvedValue({ message: 'Accepted.' });
+    renderVerification('/verify-email?email=candidate%40example.com&token=expired-token');
+
+    expect(
+      await screen.findByText('This email verification link is invalid or has expired.'),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^resend verification email$/i }));
+    expect(mockedAuthService.resendVerification.mock.calls[0]?.[0]).toEqual({
+      email: 'candidate@example.com',
+    });
+  });
+
+  it('retries email verification after a temporary failure', async () => {
+    mockedAuthService.verifyEmail
+      .mockRejectedValueOnce(new ApiRequestError({ message: 'Network unavailable.' }))
+      .mockResolvedValueOnce({ message: 'Email verified.' });
+    renderVerification('/verify-email?email=candidate%40example.com&token=retry-token');
+
+    await userEvent.click(await screen.findByRole('button', { name: /try verification again/i }));
+    expect(await screen.findByText(/your email address has been verified/i)).toBeInTheDocument();
+    expect(mockedAuthService.verifyEmail.mock.calls).toHaveLength(2);
   });
 
   it('submits forgot-password at the mocked network boundary', async () => {

@@ -70,6 +70,15 @@ export const forgotPasswordSchema = yup.object({
     .max(256, 'Email address must be no more than 256 characters.'),
 });
 
+export const resendVerificationSchema = yup.object({
+  email: yup
+    .string()
+    .trim()
+    .required('Email address is required.')
+    .email('Enter a valid email address.')
+    .max(256, 'Email address must be no more than 256 characters.'),
+});
+
 export const resetPasswordSchema = yup.object({
   newPassword: passwordSchema,
   confirmPassword: yup
@@ -81,4 +90,5 @@ export const resetPasswordSchema = yup.object({
 export type LoginFormValues = yup.InferType<typeof loginSchema>;
 export type RegistrationFormValues = yup.InferType<typeof registrationSchema>;
 export type ForgotPasswordFormValues = yup.InferType<typeof forgotPasswordSchema>;
+export type ResendVerificationFormValues = yup.InferType<typeof resendVerificationSchema>;
 export type ResetPasswordFormValues = yup.InferType<typeof resetPasswordSchema>;

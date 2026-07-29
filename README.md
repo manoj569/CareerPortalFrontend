@@ -32,12 +32,14 @@ Copy `.env.example` to the environment file you use and set:
 
 ```dotenv
 VITE_API_BASE_URL=http://localhost:5259/api
-VITE_API_TIMEOUT_MS=30000
 ```
 
-Only variables prefixed with `VITE_` are exposed to the browser. Do not place secrets in these
-files. Production deployments must inject an HTTPS, non-local API URL at build time. `.env` and
-environment-specific variants are ignored; only `.env.example` is intended for source control.
+Only the API base URL belongs in frontend environment files. Variables prefixed with `VITE_` are
+exposed to the browser, so JWTs, payment keys, SMTP credentials, database credentials, and other
+secrets must never be placed in these files. Production deployments must inject an HTTPS,
+non-local API URL at build time; HTTP is accepted only for a loopback URL used in local preview.
+`.env` and environment-specific variants are ignored; only `.env.example` is intended for source
+control.
 
 ## Commands
 
@@ -134,17 +136,21 @@ backend role. Browser route guards improve navigation but do not replace API aut
 
 The frontend is aligned with the current `JobPortal.API` contract:
 
-| Operation       | Method and path              |
-| --------------- | ---------------------------- |
-| Register        | `POST /auth/register`        |
-| Login           | `POST /auth/login`           |
-| Refresh session | `POST /auth/refresh`         |
-| Forgot password | `POST /auth/forgot-password` |
-| Reset password  | `POST /auth/reset-password`  |
-| Logout          | `POST /auth/logout`          |
+| Operation                 | Method and path                  |
+| ------------------------- | -------------------------------- |
+| Register                  | `POST /auth/register`            |
+| Verify email              | `POST /auth/verify-email`        |
+| Resend verification email | `POST /auth/resend-verification` |
+| Login                     | `POST /auth/login`               |
+| Refresh session           | `POST /auth/refresh`             |
+| Forgot password           | `POST /auth/forgot-password`     |
+| Reset password            | `POST /auth/reset-password`      |
+| Logout                    | `POST /auth/logout`              |
 
-The API currently has no current-user, email-verification, or resend-verification endpoint.
-Registration returns an authenticated candidate session immediately.
+Registration returns a message-only `RegistrationResponse`; it does not create an authenticated
+session. Candidates must verify their email before login. Verification tokens are accepted only by
+the API request and are never rendered or logged by the frontend. Resend responses use a generic
+privacy-safe message regardless of whether an unverified account exists.
 
 ## Public jobs API contract
 

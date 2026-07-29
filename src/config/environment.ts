@@ -1,10 +1,6 @@
-const parsePositiveNumber = (value: string | undefined, fallback: number): number => {
-  const parsedValue = Number(value);
-  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
-};
-
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
 const localHostnames = new Set(['127.0.0.1', '::1', 'localhost']);
+const apiTimeoutMs = 30_000;
 
 if (!apiBaseUrl) {
   throw new Error('VITE_API_BASE_URL must be configured.');
@@ -22,8 +18,8 @@ const parseApiBaseUrl = (value: string): string => {
     throw new Error('VITE_API_BASE_URL must use HTTP or HTTPS.');
   }
 
-  if (import.meta.env.PROD && (url.protocol !== 'https:' || localHostnames.has(url.hostname))) {
-    throw new Error('Production VITE_API_BASE_URL must use HTTPS and a non-local hostname.');
+  if (import.meta.env.PROD && url.protocol !== 'https:' && !localHostnames.has(url.hostname)) {
+    throw new Error('A non-local production VITE_API_BASE_URL must use HTTPS.');
   }
 
   return url.toString().replace(/\/+$/, '');
@@ -31,7 +27,7 @@ const parseApiBaseUrl = (value: string): string => {
 
 export const environment = Object.freeze({
   apiBaseUrl: parseApiBaseUrl(apiBaseUrl),
-  apiTimeoutMs: parsePositiveNumber(import.meta.env.VITE_API_TIMEOUT_MS, 30_000),
+  apiTimeoutMs,
   isDevelopment: import.meta.env.DEV,
   isProduction: import.meta.env.PROD,
 });

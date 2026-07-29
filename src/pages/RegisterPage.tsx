@@ -11,14 +11,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { PasswordField } from '@/features/auth/components/PasswordField';
+import { ResendVerificationAction } from '@/features/auth/components/ResendVerificationAction';
 import { register as registerAccount } from '@/features/auth/store/authSlice';
 import {
   registrationSchema,
@@ -28,8 +28,8 @@ import { useAppDispatch } from '@/hooks/reduxHooks';
 
 export const RegisterPage = () => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const {
     control,
     formState: { errors, isSubmitting },
@@ -62,14 +62,34 @@ export const RegisterPage = () => {
           phoneNumber: values.phoneNumber?.trim() || null,
         }),
       ).unwrap();
-      enqueueSnackbar('Your account is ready.', { variant: 'success' });
-      await navigate(ROUTES.DASHBOARD, { replace: true });
+      setRegisteredEmail(values.email.trim());
     } catch (error: unknown) {
       setServerError(
         typeof error === 'string' ? error : 'Unable to create your account. Please try again.',
       );
     }
   };
+
+  if (registeredEmail) {
+    return (
+      <Stack spacing={3}>
+        <AuthPageHeader
+          description="Your account is registered, but it cannot be used until the email address is verified."
+          title="Check your email"
+        />
+        <Alert aria-live="polite" severity="success">
+          Check your email to verify your account.
+        </Alert>
+        <ResendVerificationAction email={registeredEmail} />
+        <Typography color="text.secondary" textAlign="center">
+          Already verified?{' '}
+          <MuiLink component={Link} to={ROUTES.LOGIN}>
+            Log in
+          </MuiLink>
+        </Typography>
+      </Stack>
+    );
+  }
 
   return (
     <Stack spacing={3}>

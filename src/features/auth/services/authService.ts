@@ -8,7 +8,11 @@ import type {
   LogoutRequest,
   RefreshTokenRequest,
   RegisterRequest,
+  RegistrationResponse,
+  ResendVerificationRequest,
   ResetPasswordRequest,
+  VerificationResponse,
+  VerifyEmailRequest,
 } from '../types/authModels';
 
 const storeAuthentication = (response: AuthenticationResponse): AuthenticationResponse => {
@@ -30,13 +34,13 @@ const refreshSession = async (signal?: AbortSignal): Promise<AuthenticationRespo
 };
 
 export const authService = {
-  async register(request: RegisterRequest, signal?: AbortSignal): Promise<AuthenticationResponse> {
-    const response = await apiClient.post<AuthenticationResponse>(
+  async register(request: RegisterRequest, signal?: AbortSignal): Promise<RegistrationResponse> {
+    const response = await apiClient.post<RegistrationResponse>(
       API_ENDPOINTS.AUTH.REGISTER,
       request,
       { signal },
     );
-    return storeAuthentication(response.data);
+    return response.data;
   },
 
   async login(request: LoginRequest, signal?: AbortSignal): Promise<AuthenticationResponse> {
@@ -48,6 +52,30 @@ export const authService = {
       },
     );
     return storeAuthentication(response.data);
+  },
+
+  async verifyEmail(
+    request: VerifyEmailRequest,
+    signal?: AbortSignal,
+  ): Promise<VerificationResponse> {
+    const response = await apiClient.post<VerificationResponse>(
+      API_ENDPOINTS.AUTH.VERIFY_EMAIL,
+      request,
+      { signal },
+    );
+    return response.data;
+  },
+
+  async resendVerification(
+    request: ResendVerificationRequest,
+    signal?: AbortSignal,
+  ): Promise<VerificationResponse> {
+    const response = await apiClient.post<VerificationResponse>(
+      API_ENDPOINTS.AUTH.RESEND_VERIFICATION,
+      request,
+      { signal },
+    );
+    return response.data;
   },
 
   async refresh(signal?: AbortSignal): Promise<AuthenticationResponse> {

@@ -4,7 +4,7 @@ import { authTokenStore } from '@/services/authTokenStore';
 import type { AuthenticatedSession, AuthenticatedUser, AuthenticationResponse } from '@/types';
 import { getAuthenticationErrorMessage } from '../services/authErrorMapper';
 import { authService } from '../services/authService';
-import type { LoginRequest, RegisterRequest } from '../types/authModels';
+import type { LoginRequest, RegisterRequest, RegistrationResponse } from '../types/authModels';
 
 export type AuthenticationStatus = 'idle' | 'initializing' | 'authenticated' | 'unauthenticated';
 
@@ -55,7 +55,7 @@ export const login = createAsyncThunk<AuthenticationResponse, LoginRequest, Auth
   },
 );
 
-export const register = createAsyncThunk<AuthenticationResponse, RegisterRequest, AuthThunkConfig>(
+export const register = createAsyncThunk<RegistrationResponse, RegisterRequest, AuthThunkConfig>(
   'auth/register',
   async (request, { rejectWithValue }) => {
     try {
@@ -137,9 +137,9 @@ const authSlice = createSlice({
         state.isSubmitting = true;
         state.error = null;
       })
-      .addCase(register.fulfilled, (state, action) => {
+      .addCase(register.fulfilled, (state) => {
         state.isSubmitting = false;
-        applyAuthentication(state, action.payload);
+        state.error = null;
       })
       .addCase(register.rejected, (state, action) => {
         state.isSubmitting = false;

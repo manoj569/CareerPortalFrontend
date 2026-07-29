@@ -13,7 +13,9 @@ vi.mock('@/features/auth/services/authService', () => ({
     logout: vi.fn(),
     refresh: vi.fn(),
     register: vi.fn(),
+    resendVerification: vi.fn(),
     resetPassword: vi.fn(),
+    verifyEmail: vi.fn(),
   },
 }));
 

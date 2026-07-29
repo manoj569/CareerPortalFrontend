@@ -1,7 +1,15 @@
 import { ApiRequestError, toApiRequestError } from '@/api/apiError';
 
+export const EMAIL_NOT_VERIFIED_MESSAGE =
+  'Verify your email address before signing in. You can request a new verification email below.';
+
+export const INVALID_VERIFICATION_LINK_MESSAGE =
+  'This email verification link is invalid or has expired.';
+
 const messagesByCode: Record<string, string> = {
   invalid_reset_token: 'This password reset link is invalid or has expired.',
+  invalid_verification_token: INVALID_VERIFICATION_LINK_MESSAGE,
+  email_not_verified: EMAIL_NOT_VERIFIED_MESSAGE,
   validation_error: 'Please review the highlighted information and try again.',
   conflict: 'An account with this email address already exists.',
 };
