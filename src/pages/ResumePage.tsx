@@ -18,9 +18,9 @@ import { useRef, useState, type ChangeEvent } from 'react';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
 import {
+  downloadCandidateResume,
   isDashboardApiError,
   useDeleteResumeMutation,
-  useDownloadResumeMutation,
   useGetProfileQuery,
   useUploadResumeMutation,
 } from '@/features/dashboard/api/dashboardApi';
@@ -64,10 +64,10 @@ export const ResumePage = () => {
   const fileInput = useRef<HTMLInputElement>(null);
   const profile = useGetProfileQuery();
   const [uploadResume, uploadState] = useUploadResumeMutation();
-  const [downloadResume, downloadState] = useDownloadResumeMutation();
   const [deleteResume, deleteState] = useDeleteResumeMutation();
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -97,8 +97,9 @@ export const ResumePage = () => {
   const handleDownload = async () => {
     if (!profile.data?.resume) return;
     setError(null);
+    setIsDownloading(true);
     try {
-      const blob = await downloadResume().unwrap();
+      const blob = await downloadCandidateResume();
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -111,6 +112,8 @@ export const ResumePage = () => {
           ? downloadError.message
           : 'Unable to download your resume. Please try again.',
       );
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -143,7 +146,7 @@ export const ResumePage = () => {
   }
 
   const resume = profile.data.resume;
-  const isWorking = uploadState.isLoading || downloadState.isLoading || deleteState.isLoading;
+  const isWorking = uploadState.isLoading || isDownloading || deleteState.isLoading;
 
   return (
     <Stack spacing={4}>
@@ -180,7 +183,7 @@ export const ResumePage = () => {
                   startIcon={<CloudDownloadOutlinedIcon />}
                   variant="contained"
                 >
-                  {downloadState.isLoading ? 'Downloading…' : 'Download resume'}
+                  {isDownloading ? 'Downloading…' : 'Download resume'}
                 </Button>
                 <Button
                   component="label"

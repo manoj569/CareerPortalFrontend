@@ -34,17 +34,19 @@ Required backend migration:
 Do not encrypt a browser-stored refresh token as a substitute; an XSS payload can use the same
 decryption path.
 
-## Backend production blockers observed during Step 10
+## Backend production boundary
 
-The inspected tracked API `appsettings.json` contains non-placeholder Razorpay-looking credentials.
-Treat them as exposed: rotate/revoke them and remove secret values from tracked history. The same
-file uses a default JWT signing key and local database configuration. Production must inject fresh
-values from a secret manager. Do not copy any inspected values into frontend configuration.
+The inspected tracked API `appsettings.json` uses placeholders for Razorpay credentials, a default
+development JWT signing key, and a local database connection. Production must inject fresh values
+from a secret manager. Do not copy backend configuration into frontend files, and scan repository
+history independently before release in case older revisions contained credentials.
 
-The API already implements exact-origin CORS, JWT lifetime/signature validation, rate limiting,
-HTTPS redirection, response compression, output caching, health endpoints, and security headers.
-Production still requires a configured trusted proxy, a non-default JWT key, a reachable migrated
-database, a production frontend CORS origin, SMTP credentials, and reviewed live Razorpay settings.
+The API implements exact-origin CORS, JWT lifetime/signature validation, rate limiting, HTTPS
+redirection, response compression, output caching, health endpoints, security headers,
+signature-verified Razorpay webhooks, and pending-payment reconciliation. Production still
+requires a configured trusted proxy, a non-default JWT key, a reachable migrated database, the
+exact production frontend CORS origin, SMTP credentials, protected resume storage, and reviewed
+Razorpay settings.
 
 ## Reporting integration
 
@@ -83,18 +85,15 @@ The current backend correctly owns order amounts, signature verification, idempo
 of an already-paid payment, and membership activation. The frontend treats checkout success as
 provisional until backend confirmation.
 
-Real payments are not ready because:
+The inspected backend enforces the configured ₹99 INR, 30-day plan, verifies checkout signatures,
+confirms provider capture, handles signed webhooks, and supports Candidate-triggered
+reconciliation. Test and live keys must remain separate, and only the backend may hold a secret or
+switch environments.
 
-- the inspected plan is 499 INR for 30 days, which does not match a ₹99 lifetime product;
-- no Razorpay webhook endpoint/signature verification was found;
-- no pending-payment reconciliation job was found;
-- no refund workflow was found;
-- tracked Razorpay-looking credentials must be revoked and moved to a secret manager;
-- the database readiness check must pass before payment or entitlement traffic is accepted.
-
-Test and live keys must remain separate. Only the backend may hold the secret or switch environments.
-Complete provider-webhook verification and reconciliation before relying on redirects or browser
-callbacks for recovery.
+Production payments remain blocked until the product deliberately enables and reviews a live-mode
+backend configuration, provisions the public HTTPS webhook, validates automatic capture, defines a
+refund process, and passes database/readiness and end-to-end payment recovery checks. The current
+module intentionally accepts Razorpay Test Mode only.
 
 ## PWA decision
 

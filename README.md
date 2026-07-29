@@ -26,6 +26,37 @@ jobs, candidate and payment flows, and the role-protected administrator dashboar
 npm ci
 ```
 
+## Local startup order
+
+Start the backend before Vite so authentication initialization and live page requests have a
+reachable API:
+
+1. From the .NET solution directory, configure the backend development secrets and CORS origin.
+2. Apply the current Entity Framework migrations:
+
+   ```powershell
+   dotnet ef database update --project JobPortal.Infrastructure --startup-project JobPortal.API
+   ```
+
+3. Start the API and wait for `http://localhost:5259`:
+
+   ```powershell
+   dotnet run --project JobPortal.API --launch-profile http
+   ```
+
+4. From this frontend directory, install the locked dependencies and start Vite:
+
+   ```powershell
+   npm ci
+   npm run dev
+   ```
+
+5. Open the exact local URL printed by Vite, normally `http://localhost:5173`.
+
+The API's `Cors:AllowedOrigins` must contain that exact Vite origin. Email verification, database
+data, administrator bootstrap credentials, resume storage, and Razorpay Test Mode credentials are
+backend concerns; do not add them to frontend environment files.
+
 ## Environment setup
 
 Copy `.env.example` to the environment file you use and set:
@@ -117,17 +148,23 @@ Public routes:
 
 Authenticated candidate routes:
 
-- `/dashboard`, `/dashboard/profile`, `/dashboard/saved-jobs`
-- `/dashboard/applications`, `/dashboard/notifications`, `/dashboard/settings`
+- `/dashboard`, `/dashboard/profile`, `/dashboard/resume`, `/dashboard/saved-jobs`
+- `/dashboard/applications`, `/dashboard/applications/:applicationId`
+- `/dashboard/notifications`, `/dashboard/settings`, `/dashboard/membership`
 - `/dashboard/payments`
 - `/payment`, `/payment/success`, `/payment/pending`, `/payment/failed`
 
 Administrator routes:
 
-- `/admin`, `/admin/jobs`, `/admin/jobs/create`, `/admin/jobs/:jobId/edit`
+- `/admin`, `/admin/jobs`, `/admin/jobs/create`, `/admin/jobs/:jobId`, `/admin/jobs/:jobId/edit`
+- `/admin/companies`, `/admin/companies/create`, `/admin/companies/:companyId`
+- `/admin/companies/:companyId/edit`
+- `/admin/categories`, `/admin/categories/create`, `/admin/categories/:categoryId`
+- `/admin/categories/:categoryId/edit`
 - `/admin/users`, `/admin/users/:userId`
 - `/admin/applications`, `/admin/applications/:applicationId`
 - `/admin/payments`, `/admin/payments/:paymentId`
+- `/admin/audit-logs`
 
 Candidate and administrator routes require both a restored authenticated session and the matching
 backend role. Browser route guards improve navigation but do not replace API authorization.
@@ -186,24 +223,28 @@ backend itself excludes hidden, unpublished, archived, and expired jobs.
 
 Authenticated candidate pages use:
 
-| Operation                   | Method and path                            |
-| --------------------------- | ------------------------------------------ |
-| Read/update profile         | `GET/PUT /dashboard/profile`               |
-| Membership access           | `GET /dashboard/memberships`               |
-| Saved jobs                  | `GET /dashboard/saved-jobs`                |
-| Save/unsave a job           | `PUT/DELETE /dashboard/saved-jobs/{jobId}` |
-| Application history         | `GET /dashboard/applied-jobs`              |
-| Notifications               | `GET /dashboard/notifications`             |
-| Mark one notification read  | `PUT /dashboard/notifications/{id}/read`   |
-| Mark all notifications read | `PUT /dashboard/notifications/read-all`    |
-| Change password             | `POST /dashboard/change-password`          |
+| Operation                   | Method and path                               |
+| --------------------------- | --------------------------------------------- |
+| Read/update profile         | `GET/PUT /candidate/profile`                  |
+| Upload/download/delete CV   | `PUT/GET/DELETE /candidate/resume`            |
+| Membership access           | `GET /dashboard/memberships`                  |
+| Saved jobs                  | `GET /candidate/saved-jobs`                   |
+| Save/unsave a job           | `PUT/DELETE /candidate/saved-jobs/{jobId}`    |
+| Submit an application       | `POST /candidate/jobs/{jobId}/applications`   |
+| Application history         | `GET /candidate/applications`                 |
+| Application detail          | `GET /candidate/applications/{applicationId}` |
+| Withdraw application        | `POST /candidate/applications/{id}/withdraw`  |
+| Notifications               | `GET /dashboard/notifications`                |
+| Mark one notification read  | `PUT /dashboard/notifications/{id}/read`      |
+| Mark all notifications read | `PUT /dashboard/notifications/read-all`       |
+| Change password             | `POST /dashboard/change-password`             |
 
 The overview composes these backend resources and does not manufacture career activity. Profile
 updates also synchronize the authenticated user's displayed name in Redux.
 
-The current API has no resume upload/storage endpoints, application-detail endpoint, email-change
-operation, account export, communication-preference management, or account deletion operation.
-Those dashboard areas show explicit unavailable states instead of fake controls.
+The current API has no email-change operation, account export, communication-preference
+management, or account deletion operation. Those settings areas show explicit unavailable states
+instead of fake controls.
 
 The backend development profile currently launches on `http://localhost:5259`. Its development
 CORS allowlist must include the Vite origin (normally `http://localhost:5173`) before browser-based
@@ -216,12 +257,14 @@ session after a successful password change and requires a new login.
 
 Payments use backend-owned pricing and verification:
 
-| Operation               | Method and path                               |
-| ----------------------- | --------------------------------------------- |
-| Create Razorpay order   | `POST /payments/razorpay/orders`              |
-| Confirm Razorpay result | `POST /payments/{paymentId}/razorpay/confirm` |
-| Payment list            | `GET /payments`                               |
-| Payment status history  | `GET /payments/history`                       |
+| Operation                 | Method and path                                 |
+| ------------------------- | ----------------------------------------------- |
+| Create Razorpay order     | `POST /payments/razorpay/orders`                |
+| Confirm Razorpay result   | `POST /payments/{paymentId}/razorpay/confirm`   |
+| Reconcile pending payment | `POST /payments/{paymentId}/razorpay/reconcile` |
+| Current access status     | `GET /payments/status`                          |
+| Payment list              | `GET /payments`                                 |
+| Payment status history    | `GET /payments/history`                         |
 
 The backend returns a company-specific membership with a configured duration; it is not a
 frontend-controlled lifetime entitlement. The frontend never contains a gateway secret, generates
@@ -235,19 +278,19 @@ public key identifier from the backend-created order and has no payment-key envi
 Use backend test data and the Razorpay sandbox; never enter live card/payment data during local or
 automated verification.
 
-The inspected backend currently configures a 499 INR, 30-day membership—not a ₹99 lifetime plan.
-There is also no webhook verification, refund workflow, or pending-payment reconciliation
-implementation. Those backend/product decisions must be resolved before accepting real payments.
+The inspected backend currently enforces a ₹99 INR, 30-day membership in Razorpay Test Mode. It
+implements backend confirmation, signature-verified webhooks, and Candidate-triggered
+reconciliation. Refunds and automatic scheduled reconciliation are not implemented.
 
 ## Administrator contract limitations
 
-The backend supports administrator dashboard reports and job management. It does not currently
-provide full administrator user, application, payment-detail, reconciliation, settings, or audit-log
-controllers. Those routes display read-only recent reports or explicit unavailable states.
+The backend supports company and category CRUD/options, job CRUD and lifecycle actions,
+application review with private internal notes and secure resume download, and read-only audit
+logs. The frontend uses those real contracts.
 
-The backend also exposes only top distribution data for companies and categories, not complete
-lookup endpoints. Job edit responses omit the private application URL even though the update DTO
-requires it, so administrators must re-enter that URL before saving.
+Dedicated administrator user-account mutation and payment-detail controllers are not available.
+Those existing routes remain read-only reports or explicit unavailable states rather than
+simulated actions.
 
 ## Production readiness
 
@@ -285,8 +328,8 @@ Step 10 prepares deployment but does not deploy, commit, push, or open a pull re
   contract.
 - The SPA updates dynamic job metadata in the browser; crawlers that do not execute JavaScript need
   future prerendering/SSR and a backend- or CI-generated job sitemap.
-- Resume upload, application details, and several administrator management operations remain
-  unavailable because the backend has no corresponding endpoints.
-- The current backend database readiness check fails locally, so live data end-to-end regression
-  requires a migrated, reachable database and matching CORS origin.
+- Dedicated administrator user mutation/payment-detail APIs and Candidate account export,
+  preference, email-change, and deletion APIs are not currently available.
+- Live end-to-end regression requires a migrated, reachable database, configured email delivery,
+  matching CORS origin, seeded role-specific accounts, and Razorpay Test Mode credentials.
 - PWA/offline mode is intentionally not enabled.

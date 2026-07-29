@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmploymentType } from '@/features/jobs/types/jobModels';
 import { createAppStore } from '@/store/store';
 import { JobApplicationStatus, type UserProfile } from '../types/dashboardModels';
-import { dashboardApi } from './dashboardApi';
+import { dashboardApi, downloadCandidateResume } from './dashboardApi';
 
 const { mockRequest } = vi.hoisted(() => ({ mockRequest: vi.fn() }));
 
@@ -100,6 +100,21 @@ describe('Candidate API integration', () => {
     expect(request.url).toBe('/candidate/resume');
     expect(request.data).toBeInstanceOf(FormData);
     expect(request.data.get('file')).toBe(file);
+  });
+
+  it('downloads resumes through the authenticated client without caching binary data', async () => {
+    const resume = new Blob(['%PDF-resume'], { type: 'application/pdf' });
+    mockRequest.mockResolvedValue({ data: resume });
+
+    await expect(downloadCandidateResume()).resolves.toBe(resume);
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        responseType: 'blob',
+        url: '/candidate/resume',
+      }),
+    );
+    expect('downloadResume' in dashboardApi.endpoints).toBe(false);
   });
 
   it('uses Candidate saved-job endpoints for save and removal', async () => {

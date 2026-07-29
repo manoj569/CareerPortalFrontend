@@ -33,9 +33,14 @@ export const RouteErrorPage = () => {
           We could not open this page
         </Typography>
         <Typography color="text.secondary">{getErrorMessage(error)}</Typography>
-        <Button component={Link} to={ROUTES.HOME} variant="contained">
-          Return home
-        </Button>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <Button onClick={() => window.location.reload()} variant="contained">
+            Reload page
+          </Button>
+          <Button component={Link} to={ROUTES.HOME} variant="outlined">
+            Return home
+          </Button>
+        </Stack>
       </Stack>
     </Container>
   );

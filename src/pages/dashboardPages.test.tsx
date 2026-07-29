@@ -1,7 +1,7 @@
 import {
+  downloadCandidateResume,
   useChangePasswordMutation,
   useDeleteResumeMutation,
-  useDownloadResumeMutation,
   useGetApplicationQuery,
   useGetApplicationsQuery,
   useGetMembershipsQuery,
@@ -54,9 +54,9 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
   const actual = await importOriginal<typeof DashboardApiModule>();
   return {
     ...actual,
+    downloadCandidateResume: vi.fn(),
     useChangePasswordMutation: vi.fn(),
     useDeleteResumeMutation: vi.fn(),
-    useDownloadResumeMutation: vi.fn(),
     useGetApplicationQuery: vi.fn(),
     useGetApplicationsQuery: vi.fn(),
     useGetMembershipsQuery: vi.fn(),
@@ -81,7 +81,7 @@ const mockMemberships = vi.mocked(useGetMembershipsQuery);
 const mockNotifications = vi.mocked(useGetNotificationsQuery);
 const mockUpdateProfile = vi.mocked(useUpdateProfileMutation);
 const mockUploadResume = vi.mocked(useUploadResumeMutation);
-const mockDownloadResume = vi.mocked(useDownloadResumeMutation);
+const mockDownloadResume = vi.mocked(downloadCandidateResume);
 const mockDeleteResume = vi.mocked(useDeleteResumeMutation);
 const mockWithdrawApplication = vi.mocked(useWithdrawApplicationMutation);
 const mockRemoveSavedJob = vi.mocked(useRemoveSavedJobMutation);
@@ -244,9 +244,7 @@ beforeEach(() => {
   mockUploadResume.mockReturnValue(
     mutationResult().tuple as unknown as ReturnType<typeof useUploadResumeMutation>,
   );
-  mockDownloadResume.mockReturnValue(
-    mutationResult(new Blob()).tuple as unknown as ReturnType<typeof useDownloadResumeMutation>,
-  );
+  mockDownloadResume.mockResolvedValue(new Blob());
   mockDeleteResume.mockReturnValue(
     mutationResult().tuple as unknown as ReturnType<typeof useDeleteResumeMutation>,
   );

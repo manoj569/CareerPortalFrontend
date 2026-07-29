@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 
+import { apiClient } from '@/api/apiClient';
 import { axiosBaseQuery, type AxiosBaseQueryError } from '@/api/axiosBaseQuery';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import type { ApiResponse } from '@/types';
@@ -54,12 +55,6 @@ export const dashboardApi = createApi({
       },
       transformResponse: (response: ApiResponse<ResumeMetadata>) => response.data,
       invalidatesTags: ['Profile', 'Resume'],
-    }),
-    downloadResume: builder.mutation<Blob, void>({
-      query: () => ({
-        responseType: 'blob',
-        url: API_ENDPOINTS.CANDIDATE.RESUME,
-      }),
     }),
     deleteResume: builder.mutation<void, void>({
       query: () => ({
@@ -159,7 +154,6 @@ export const dashboardApi = createApi({
 export const {
   useChangePasswordMutation,
   useDeleteResumeMutation,
-  useDownloadResumeMutation,
   useGetApplicationQuery,
   useGetApplicationsQuery,
   useGetMembershipsQuery,
@@ -175,6 +169,16 @@ export const {
   useUpdateProfileMutation,
   useWithdrawApplicationMutation,
 } = dashboardApi;
+
+export const downloadCandidateResume = async (): Promise<Blob> => {
+  const response = await apiClient.request<Blob>({
+    method: 'GET',
+    responseType: 'blob',
+    url: API_ENDPOINTS.CANDIDATE.RESUME,
+  });
+
+  return response.data;
+};
 
 export const isDashboardApiError = (error: unknown): error is AxiosBaseQueryError =>
   Boolean(error && typeof error === 'object' && 'message' in error);
