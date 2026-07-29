@@ -10,6 +10,8 @@ const statusColors: Record<PaymentStatus, ChipProps['color']> = {
   [PaymentStatus.Failed]: 'error',
   [PaymentStatus.Refunded]: 'secondary',
   [PaymentStatus.Cancelled]: 'default',
+  [PaymentStatus.Created]: 'info',
+  [PaymentStatus.Expired]: 'default',
 };
 
 export const PaymentStatusBadge = ({ status }: { status: PaymentStatus }) => (

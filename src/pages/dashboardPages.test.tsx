@@ -169,8 +169,6 @@ const application: JobApplication = {
 
 const membership: Membership = {
   autoRenew: false,
-  companyId: job.companyId,
-  companyName: job.companyName,
   endsAtUtc: null,
   id: 'membership-id',
   planName: 'Job Application Access',

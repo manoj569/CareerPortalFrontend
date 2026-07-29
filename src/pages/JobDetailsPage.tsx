@@ -22,7 +22,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -50,7 +50,7 @@ import {
 } from '@/features/jobs/constants/jobOptions';
 import { ApplicationAccessStatus } from '@/features/jobs/types/jobModels';
 import { formatJobDate, formatSalary, isJobExpired } from '@/features/jobs/utils/jobFormatting';
-import { buildPaymentPath } from '@/features/payments/utils/paymentReturnUrl';
+import { buildMembershipPath } from '@/features/payments/utils/paymentReturnUrl';
 import {
   selectAuthStatus,
   selectCurrentUser,
@@ -96,6 +96,7 @@ export const JobDetailsPage = () => {
   const [confirmApplication, setConfirmApplication] = useState(false);
   const [coverLetter, setCoverLetter] = useState('');
   const [applyError, setApplyError] = useState<string | null>(null);
+  const resumedApplicationRef = useRef(false);
   const {
     data: job,
     error,
@@ -137,7 +138,7 @@ export const JobDetailsPage = () => {
     },
   );
 
-  const handleApply = async () => {
+  const handleApply = useCallback(async () => {
     if (!job || expired) return;
     setApplyError(null);
 
@@ -157,7 +158,7 @@ export const JobDetailsPage = () => {
         return;
       }
       if (access.status === ApplicationAccessStatus.PaymentRequired) {
-        await navigate(buildPaymentPath(job.id, job.slug));
+        await navigate(buildMembershipPath(job.slug));
         return;
       }
 
@@ -165,7 +166,31 @@ export const JobDetailsPage = () => {
     } catch {
       setApplyError('We could not check application access. Please try again.');
     }
-  };
+  }, [applyToJob, expired, isAuthenticated, job, location, navigate, user?.role]);
+
+  useEffect(() => {
+    if (
+      !job ||
+      authStatus === 'initializing' ||
+      resumedApplicationRef.current ||
+      new URLSearchParams(location.search).get('apply') !== '1'
+    ) {
+      return;
+    }
+
+    resumedApplicationRef.current = true;
+    const nextSearch = new URLSearchParams(location.search);
+    nextSearch.delete('apply');
+    const navigation = navigate(
+      {
+        hash: location.hash,
+        pathname: location.pathname,
+        search: nextSearch.size ? `?${nextSearch.toString()}` : '',
+      },
+      { replace: true },
+    );
+    void Promise.resolve(navigation).then(() => void handleApply());
+  }, [authStatus, handleApply, job, location.hash, location.pathname, location.search, navigate]);
 
   const handleSubmitApplication = async () => {
     if (!job || submitState.isLoading) return;

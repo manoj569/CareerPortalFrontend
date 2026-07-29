@@ -213,13 +213,16 @@ const renderJobsPage = (initialPath = '/jobs') => {
   renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticated });
 };
 
-const renderDetailsPage = (auth: AuthState = unauthenticated) => {
+const renderDetailsPage = (
+  auth: AuthState = unauthenticated,
+  initialPath = `/jobs/${job.slug}`,
+) => {
   const router = createMemoryRouter(
     [
       { path: '/jobs/:slug', element: <JobDetailsPage /> },
       { path: '/login', element: <p>Login destination</p> },
       {
-        path: '/payment',
+        path: '/dashboard/membership',
         element: (
           <>
             <p>Payments destination</p>
@@ -229,7 +232,7 @@ const renderDetailsPage = (auth: AuthState = unauthenticated) => {
       },
       { path: '/dashboard/applications/:applicationId', element: <p>Application destination</p> },
     ],
-    { initialEntries: [`/jobs/${job.slug}`] },
+    { initialEntries: [initialPath] },
   );
   renderWithProviders(<RouterProvider router={router} />, { auth });
 };
@@ -486,7 +489,7 @@ describe('job details page', () => {
     expect(await screen.findByText('Login destination')).toBeInTheDocument();
   });
 
-  it('redirects authenticated candidates without entitlement to payments', async () => {
+  it('redirects authenticated candidates without membership to Candidate checkout', async () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
     const unwrap = vi.fn().mockResolvedValue({
       applicationUrl: null,
@@ -500,8 +503,25 @@ describe('job details page', () => {
 
     expect(await screen.findByText('Payments destination')).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(
-      `/payment?jobId=${job.id}&returnTo=%2Fjobs%2F${job.slug}`,
+      `/dashboard/membership?returnTo=%2Fjobs%2F${job.slug}%3Fapply%3D1`,
     );
+  });
+
+  it('resumes the intended application flow after returning from membership', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    const unwrap = vi.fn().mockResolvedValue({
+      applicationUrl: null,
+      message: 'Application access granted.',
+      status: ApplicationAccessStatus.Granted,
+    });
+    mockApplyToJob.mockReturnValue(applyResult(unwrap));
+
+    renderDetailsPage(authenticated, `/jobs/${job.slug}?apply=1`);
+
+    expect(
+      await screen.findByRole('dialog', { name: `Apply for ${job.title}` }),
+    ).toBeInTheDocument();
+    expect(unwrap).toHaveBeenCalledOnce();
   });
 
   it('submits a confirmed application when backend access is granted', async () => {

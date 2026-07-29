@@ -29,6 +29,8 @@ const paymentStatusLabels: Record<PaymentStatus, string> = {
   [PaymentStatus.Failed]: 'Failed',
   [PaymentStatus.Refunded]: 'Refunded',
   [PaymentStatus.Cancelled]: 'Cancelled',
+  [PaymentStatus.Created]: 'Created',
+  [PaymentStatus.Expired]: 'Expired',
 };
 
 const paymentProviderLabels: Record<PaymentProvider, string> = {

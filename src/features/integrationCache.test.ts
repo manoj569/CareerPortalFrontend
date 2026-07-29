@@ -70,8 +70,6 @@ describe('cross-module cache consistency', () => {
       dashboardApi.util.upsertQueryData('getMemberships', undefined, [
         {
           autoRenew: false,
-          companyId: 'company-id',
-          companyName: 'Northstar',
           endsAtUtc: null,
           id: 'membership-id',
           planName: 'Application access',

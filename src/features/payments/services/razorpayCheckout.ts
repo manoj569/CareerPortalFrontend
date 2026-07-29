@@ -100,6 +100,9 @@ export const openRazorpayCheckout = async ({
   name,
   order,
 }: OpenCheckoutOptions): Promise<RazorpayCheckoutResult> => {
+  if (!order.keyId.startsWith('rzp_test_')) {
+    throw new Error('Razorpay Test Mode checkout is unavailable.');
+  }
   await loadRazorpayCheckout();
   const Razorpay = window.Razorpay;
   if (!Razorpay) throw new Error('The secure checkout is unavailable.');
@@ -117,7 +120,7 @@ export const openRazorpayCheckout = async ({
     const checkout: RazorpayInstance = new Razorpay({
       amount: order.amountInMinorUnits,
       currency: order.currencyCode,
-      description: 'Application access',
+      description: `${order.planName} · ${order.durationDays} days`,
       handler: (response) => finish({ response, type: 'success' }),
       key: order.keyId,
       modal: { ondismiss: () => finish({ type: 'dismissed' }) },

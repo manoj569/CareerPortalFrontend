@@ -33,10 +33,9 @@ export const getJobSlugFromReturnPath = (returnPath: string): string | null => {
   }
 };
 
-export const buildPaymentPath = (jobId: string, jobSlug: string): string => {
-  const returnTo = buildJobDetailsPath(jobSlug);
-  const params = new URLSearchParams({ jobId, returnTo });
-  return `${ROUTES.PAYMENT}?${params.toString()}`;
+export const buildMembershipPath = (jobSlug?: string): string => {
+  const returnTo = jobSlug ? `${buildJobDetailsPath(jobSlug)}?apply=1` : ROUTES.JOBS;
+  return `${ROUTES.MEMBERSHIP}?${new URLSearchParams({ returnTo }).toString()}`;
 };
 
 interface PaymentStatusPathOptions {
@@ -59,17 +58,24 @@ export const buildPaymentStatusPath = (
 
 export const getSafePaymentRetryPath = (
   value: string | null | undefined,
-  fallback = ROUTES.JOBS,
+  fallback: string = ROUTES.JOBS,
 ): string => {
-  if (!value || !value.startsWith(`${ROUTES.PAYMENT}?`)) return fallback;
+  if (
+    !value ||
+    (!value.startsWith(`${ROUTES.MEMBERSHIP}?`) && !value.startsWith(`${ROUTES.PAYMENT}?`))
+  ) {
+    return fallback;
+  }
   try {
     const parsed = new URL(value, LOCAL_ORIGIN);
-    if (parsed.origin !== LOCAL_ORIGIN || parsed.pathname !== ROUTES.PAYMENT) return fallback;
-    const jobId = parsed.searchParams.get('jobId');
+    if (
+      parsed.origin !== LOCAL_ORIGIN ||
+      (parsed.pathname !== ROUTES.MEMBERSHIP && parsed.pathname !== ROUTES.PAYMENT)
+    ) {
+      return fallback;
+    }
     const returnTo = getSafeJobReturnPath(parsed.searchParams.get('returnTo'));
-    return isGuid(jobId)
-      ? `${ROUTES.PAYMENT}?${new URLSearchParams({ jobId, returnTo }).toString()}`
-      : fallback;
+    return `${ROUTES.MEMBERSHIP}?${new URLSearchParams({ returnTo }).toString()}`;
   } catch {
     return fallback;
   }

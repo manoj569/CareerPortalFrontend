@@ -16,6 +16,7 @@ export const ROUTES = {
   APPLICATION_DETAILS: '/dashboard/applications/:applicationId',
   NOTIFICATIONS: '/dashboard/notifications',
   SETTINGS: '/dashboard/settings',
+  MEMBERSHIP: '/dashboard/membership',
   PAYMENTS: '/dashboard/payments',
   PAYMENT: '/payment',
   PAYMENT_SUCCESS: '/payment/success',

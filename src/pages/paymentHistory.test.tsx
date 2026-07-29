@@ -2,10 +2,13 @@ import { screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
-import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
+import { MembershipStatus } from '@/features/dashboard/types/dashboardModels';
 import type * as PaymentsApiModule from '@/features/payments/api/paymentsApi';
-import { useGetPaymentsQuery } from '@/features/payments/api/paymentsApi';
+import {
+  useGetPaymentHistoryQuery,
+  useGetPaymentsQuery,
+  useGetPaymentStatusQuery,
+} from '@/features/payments/api/paymentsApi';
 import {
   PaymentProvider,
   PaymentStatus,
@@ -14,53 +17,44 @@ import {
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { PaymentsPage } from './PaymentsPage';
 
-vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof DashboardApiModule>();
-  return { ...actual, useGetMembershipsQuery: vi.fn() };
-});
-
 vi.mock('@/features/payments/api/paymentsApi', async (importOriginal) => {
   const actual = await importOriginal<typeof PaymentsApiModule>();
-  return { ...actual, useGetPaymentsQuery: vi.fn() };
+  return {
+    ...actual,
+    useGetPaymentHistoryQuery: vi.fn(),
+    useGetPaymentsQuery: vi.fn(),
+    useGetPaymentStatusQuery: vi.fn(),
+  };
 });
 
+const mockHistory = vi.mocked(useGetPaymentHistoryQuery);
 const mockPayments = vi.mocked(useGetPaymentsQuery);
-const mockMemberships = vi.mocked(useGetMembershipsQuery);
-const refetch = vi.fn();
+const mockStatus = vi.mocked(useGetPaymentStatusQuery);
 const payment: Payment = {
-  amount: 499,
+  amount: 99,
   createdAtUtc: '2026-07-28T08:00:00Z',
   currencyCode: 'INR',
   id: '721e999a-3b15-46aa-aa66-bfdfd174ba14',
-  membershipId: null,
+  lastReconciledAtUtc: null,
+  membershipId: '427ac857-ded2-4b2e-94eb-807601308707',
   paidAtUtc: '2026-07-28T08:01:00Z',
   provider: PaymentProvider.Razorpay,
+  providerOrderCreatedAtUtc: '2026-07-28T08:00:00Z',
   providerOrderId: 'order_public',
   providerPaymentId: 'payment_public',
   status: PaymentStatus.Paid,
 };
 
-const paymentsResult = (overrides: Record<string, unknown> = {}) =>
+const queryResult = <T,>(data?: T, overrides: Record<string, unknown> = {}) =>
   ({
-    data: undefined,
-    error: undefined,
-    isError: false,
-    isFetching: false,
-    isLoading: false,
-    refetch,
-    ...overrides,
-  }) as unknown as ReturnType<typeof useGetPaymentsQuery>;
-
-const membershipsResult = (overrides: Record<string, unknown> = {}) =>
-  ({
-    data: [],
+    data,
     error: undefined,
     isError: false,
     isFetching: false,
     isLoading: false,
     refetch: vi.fn(),
     ...overrides,
-  }) as unknown as ReturnType<typeof useGetMembershipsQuery>;
+  }) as unknown;
 
 const renderPage = () =>
   renderWithProviders(
@@ -71,44 +65,86 @@ const renderPage = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockMemberships.mockReturnValue(membershipsResult());
+  mockPayments.mockReturnValue(
+    queryResult({
+      items: [payment],
+      pageNumber: 1,
+      pageSize: 10,
+      totalCount: 1,
+      totalPages: 1,
+    }) as ReturnType<typeof useGetPaymentsQuery>,
+  );
+  mockHistory.mockReturnValue(
+    queryResult({
+      items: [
+        {
+          currentStatus: PaymentStatus.Paid,
+          id: 'history-id',
+          occurredAtUtc: '2026-07-28T08:01:00Z',
+          paymentId: payment.id,
+          previousStatus: PaymentStatus.Authorized,
+          providerEventId: 'provider-event-is-not-rendered',
+          reason: 'provider-reason-is-not-rendered',
+        },
+      ],
+      pageNumber: 1,
+      pageSize: 10,
+      totalCount: 1,
+      totalPages: 1,
+    }) as ReturnType<typeof useGetPaymentHistoryQuery>,
+  );
+  mockStatus.mockReturnValue(
+    queryResult({
+      latestPayment: payment,
+      membership: {
+        autoRenew: false,
+        endsAtUtc: '2099-07-28T00:00:00Z',
+        id: payment.membershipId,
+        planName: 'Candidate Membership',
+        startsAtUtc: '2026-07-28T08:01:00Z',
+        status: MembershipStatus.Active,
+      },
+    }) as ReturnType<typeof useGetPaymentStatusQuery>,
+  );
 });
 
 describe('payment history page', () => {
   it('renders its loading skeleton', () => {
-    mockPayments.mockReturnValue(paymentsResult({ isLoading: true }));
+    mockPayments.mockReturnValue(
+      queryResult(undefined, { isLoading: true }) as ReturnType<typeof useGetPaymentsQuery>,
+    );
     renderPage();
-    expect(screen.getByLabelText('Loading payment history')).toBeInTheDocument();
+    expect(screen.getByLabelText('Loading membership and payment history')).toBeInTheDocument();
   });
 
   it('renders an honest empty state', () => {
     mockPayments.mockReturnValue(
-      paymentsResult({
-        data: { items: [], pageNumber: 1, pageSize: 10, totalCount: 0, totalPages: 0 },
-      }),
+      queryResult({
+        items: [],
+        pageNumber: 1,
+        pageSize: 10,
+        totalCount: 0,
+        totalPages: 0,
+      }) as ReturnType<typeof useGetPaymentsQuery>,
     );
     renderPage();
     expect(screen.getByText('No payments yet')).toBeInTheDocument();
   });
 
-  it('renders backend payment fields and status text', () => {
-    mockPayments.mockReturnValue(
-      paymentsResult({
-        data: { items: [payment], pageNumber: 1, pageSize: 10, totalCount: 1, totalPages: 1 },
-      }),
-    );
+  it('renders membership, transactions, and safe status history', () => {
     renderPage();
+    expect(screen.getAllByText('Candidate Membership').length).toBeGreaterThan(0);
     expect(screen.getAllByText(payment.id).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Razorpay').length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole('table', { name: 'Payment history' }).querySelector('caption'),
-    ).toHaveTextContent(/reference, plan, amount, status, provider, and dates/i);
-    expect(document.querySelectorAll('article').length).toBeGreaterThan(0);
+    expect(screen.queryByText('provider-event-is-not-rendered')).not.toBeInTheDocument();
+    expect(screen.queryByText('provider-reason-is-not-rendered')).not.toBeInTheDocument();
   });
 
   it('shows a retryable API failure', () => {
-    mockPayments.mockReturnValue(paymentsResult({ isError: true }));
+    mockStatus.mockReturnValue(
+      queryResult(undefined, { isError: true }) as ReturnType<typeof useGetPaymentStatusQuery>,
+    );
     renderPage();
     expect(screen.getByText('Payments unavailable')).toBeInTheDocument();
   });

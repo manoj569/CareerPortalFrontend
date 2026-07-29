@@ -6,6 +6,7 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
@@ -19,6 +20,7 @@ const navigationItems: NavigationItem[] = [
   { label: 'Resume', path: ROUTES.RESUME, icon: ArticleOutlinedIcon },
   { label: 'Saved jobs', path: ROUTES.SAVED_JOBS, icon: BookmarkBorderIcon },
   { label: 'Applications', path: ROUTES.APPLICATIONS, icon: DescriptionOutlinedIcon },
+  { label: 'Membership', path: ROUTES.MEMBERSHIP, icon: WorkspacePremiumOutlinedIcon },
   { label: 'Notifications', path: ROUTES.NOTIFICATIONS, icon: NotificationsNoneOutlinedIcon },
   { label: 'Settings', path: ROUTES.SETTINGS, icon: SettingsOutlinedIcon },
   { label: 'Payments', path: ROUTES.PAYMENTS, icon: PaymentsOutlinedIcon },

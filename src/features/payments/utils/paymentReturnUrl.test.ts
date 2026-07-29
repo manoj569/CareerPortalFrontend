@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ROUTES } from '@/constants/routes';
 import {
-  buildPaymentPath,
+  buildMembershipPath,
   getSafeJobReturnPath,
   getSafePaymentRetryPath,
 } from './paymentReturnUrl';
@@ -23,18 +23,18 @@ describe('payment return URL safety', () => {
     expect(getSafeJobReturnPath(value)).toBe(ROUTES.JOBS);
   });
 
-  it('builds a payment path with an encoded job return URL', () => {
-    expect(buildPaymentPath('5aeb6d48-035e-4f58-aa6f-c222ffe27e97', 'frontend engineer')).toBe(
-      '/payment?jobId=5aeb6d48-035e-4f58-aa6f-c222ffe27e97&returnTo=%2Fjobs%2Ffrontend%2520engineer',
+  it('builds a membership path with an encoded application return URL', () => {
+    expect(buildMembershipPath('frontend engineer')).toBe(
+      '/dashboard/membership?returnTo=%2Fjobs%2Ffrontend%2520engineer%3Fapply%3D1',
     );
   });
 
-  it('only accepts retry URLs for payment with a valid job identifier', () => {
+  it('normalizes membership retry URLs and rejects external routes', () => {
     expect(
       getSafePaymentRetryPath(
-        '/payment?jobId=5aeb6d48-035e-4f58-aa6f-c222ffe27e97&returnTo=%2Fjobs%2Ffrontend',
+        '/dashboard/membership?paymentId=5aeb6d48-035e-4f58-aa6f-c222ffe27e97&returnTo=%2Fjobs%2Ffrontend%3Fapply%3D1',
       ),
-    ).toBe('/payment?jobId=5aeb6d48-035e-4f58-aa6f-c222ffe27e97&returnTo=%2Fjobs%2Ffrontend');
-    expect(getSafePaymentRetryPath('/payment?jobId=bad&returnTo=/jobs/frontend')).toBe(ROUTES.JOBS);
+    ).toBe('/dashboard/membership?returnTo=%2Fjobs%2Ffrontend%3Fapply%3D1');
+    expect(getSafePaymentRetryPath('/admin?returnTo=/jobs/frontend')).toBe(ROUTES.JOBS);
   });
 });

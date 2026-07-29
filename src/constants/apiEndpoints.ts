@@ -27,6 +27,9 @@ export const API_ENDPOINTS = {
     CREATE_RAZORPAY_ORDER: '/payments/razorpay/orders',
     CONFIRM_RAZORPAY: (paymentId: string) =>
       `/payments/${encodeURIComponent(paymentId)}/razorpay/confirm`,
+    RECONCILE_RAZORPAY: (paymentId: string) =>
+      `/payments/${encodeURIComponent(paymentId)}/razorpay/reconcile`,
+    STATUS: '/payments/status',
     LIST: '/payments',
     HISTORY: '/payments/history',
   },

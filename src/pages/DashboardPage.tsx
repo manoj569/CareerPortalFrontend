@@ -241,15 +241,17 @@ export const DashboardPage = () => {
               {memberships.data?.length ? (
                 memberships.data.map((membership) => (
                   <Box key={membership.id}>
-                    <Typography fontWeight={700}>{membership.companyName}</Typography>
+                    <Typography fontWeight={700}>{membership.planName}</Typography>
                     <Typography color="text.secondary" variant="body2">
-                      {membership.planName}
+                      {membership.endsAtUtc
+                        ? `Expires ${formatDashboardDate(membership.endsAtUtc) ?? 'date unavailable'}`
+                        : 'Expiry date unavailable'}
                     </Typography>
                   </Box>
                 ))
               ) : (
                 <Typography color="text.secondary">
-                  You do not currently have an active company membership.
+                  You do not currently have an active Candidate membership.
                 </Typography>
               )}
             </Stack>

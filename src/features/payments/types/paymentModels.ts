@@ -1,4 +1,5 @@
 import type { PaginatedResponse } from '@/types';
+import type { Membership } from '@/features/dashboard/types/dashboardModels';
 
 export enum PaymentStatus {
   Pending = 1,
@@ -7,6 +8,8 @@ export enum PaymentStatus {
   Failed,
   Refunded,
   Cancelled,
+  Created,
+  Expired,
 }
 
 export enum PaymentProvider {
@@ -17,10 +20,6 @@ export enum PaymentProvider {
   BankTransfer,
 }
 
-export interface CreatePaymentOrderRequest {
-  jobId: string;
-}
-
 export interface PaymentOrder {
   paymentId: string;
   membershipId: string;
@@ -29,6 +28,8 @@ export interface PaymentOrder {
   amountInMinorUnits: number;
   currencyCode: string;
   receipt: string;
+  planName: string;
+  durationDays: number;
 }
 
 export interface ConfirmRazorpayPaymentRequest {
@@ -53,6 +54,8 @@ export interface Payment {
   paidAtUtc: string | null;
   membershipId: string | null;
   createdAtUtc: string;
+  providerOrderCreatedAtUtc: string | null;
+  lastReconciledAtUtc: string | null;
 }
 
 export interface PaymentHistoryEvent {
@@ -68,6 +71,11 @@ export interface PaymentHistoryEvent {
 export interface PaymentsQuery {
   pageNumber: number;
   pageSize: number;
+}
+
+export interface PaymentStatusResponse {
+  membership: Membership | null;
+  latestPayment: Payment | null;
 }
 
 export type PaymentsPage = PaginatedResponse<Payment>;

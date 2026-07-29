@@ -7,12 +7,6 @@ export const isMembershipActive = (membership: Membership, now = new Date()): bo
   return !Number.isNaN(endsAt.getTime()) && endsAt > now;
 };
 
-export const findActiveCompanyMembership = (
+export const findActiveMembership = (
   memberships: Membership[] | undefined,
-  companyId: string | undefined,
-): Membership | undefined =>
-  companyId
-    ? memberships?.find(
-        (membership) => membership.companyId === companyId && isMembershipActive(membership),
-      )
-    : undefined;
+): Membership | undefined => memberships?.find((membership) => isMembershipActive(membership));

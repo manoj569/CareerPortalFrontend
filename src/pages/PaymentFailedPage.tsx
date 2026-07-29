@@ -3,7 +3,7 @@ import { Skeleton } from '@mui/material';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
-import { useGetPaymentsQuery } from '@/features/payments/api/paymentsApi';
+import { useGetPaymentStatusQuery } from '@/features/payments/api/paymentsApi';
 import { PaymentResult } from '@/features/payments/components/PaymentResult';
 import { PaymentStatus } from '@/features/payments/types/paymentModels';
 import {
@@ -14,28 +14,32 @@ import {
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 const failureMessages: Record<string, string> = {
-  dismissed: 'Secure checkout was closed before payment was verified.',
-  failed: 'The payment gateway reported that this attempt did not complete.',
-  timeout: 'Secure checkout timed out before payment could be verified.',
-  verification: 'The backend could not verify the payment response.',
+  dismissed: 'Test Mode checkout was closed before the payment was confirmed.',
+  failed: 'Razorpay reported that this Test Mode attempt did not complete.',
+  timeout: 'Test Mode checkout timed out before the payment could be confirmed.',
+  verification: 'The backend could not verify the checkout response.',
+  reconciliation: 'Backend reconciliation reported that the payment did not complete.',
 };
+
+const isPendingPayment = (status: PaymentStatus): boolean =>
+  status === PaymentStatus.Created ||
+  status === PaymentStatus.Pending ||
+  status === PaymentStatus.Authorized;
 
 export const PaymentFailedPage = () => {
   useDocumentMetadata(
     'Payment not completed | Career Portal',
-    'Review an unconfirmed payment and safely retry.',
+    'Review an unconfirmed Test Mode payment and recover safely.',
   );
   const [searchParams] = useSearchParams();
   const paymentId = searchParams.get('paymentId');
   const returnTo = getSafeJobReturnPath(searchParams.get('returnTo'));
-  const retryPath = getSafePaymentRetryPath(searchParams.get('retryPath'));
+  const retryPath = getSafePaymentRetryPath(searchParams.get('retryPath'), ROUTES.MEMBERSHIP);
   const reason = searchParams.get('reason') ?? '';
-  const payments = useGetPaymentsQuery(
-    { pageNumber: 1, pageSize: 100 },
-    { skip: !isGuid(paymentId) },
-  );
+  const status = useGetPaymentStatusQuery(undefined, { skip: !isGuid(paymentId) });
+  const payment =
+    status.data?.latestPayment?.id === paymentId ? status.data.latestPayment : undefined;
 
-  const payment = payments.data?.items.find((item) => item.id === paymentId);
   if (payment?.status === PaymentStatus.Paid && isGuid(paymentId)) {
     return (
       <Navigate
@@ -44,21 +48,28 @@ export const PaymentFailedPage = () => {
       />
     );
   }
-  if (payments.isLoading) {
+  if (status.isLoading) {
     return (
       <Skeleton aria-label="Checking payment status" height={360} role="status" variant="rounded" />
     );
   }
 
+  const pendingPath =
+    isGuid(paymentId) && payment && isPendingPayment(payment.status)
+      ? `${ROUTES.PAYMENT_PENDING}?${new URLSearchParams({ paymentId, returnTo }).toString()}`
+      : null;
+
   return (
     <PaymentResult
       actions={[
-        { label: 'Try payment again', path: retryPath, variant: 'contained' },
-        { label: 'Return to jobs', path: ROUTES.JOBS },
+        pendingPath
+          ? { label: 'Resolve pending payment', path: pendingPath, variant: 'contained' }
+          : { label: 'Try payment again', path: retryPath, variant: 'contained' },
+        { label: 'Payment history', path: ROUTES.PAYMENTS },
       ]}
       description={
         failureMessages[reason] ??
-        'This payment was not confirmed, and no access has been activated.'
+        'This payment was not confirmed, and no membership was activated by the frontend.'
       }
       icon={<ErrorOutlineIcon color="error" sx={{ fontSize: 64 }} />}
       reference={isGuid(paymentId) ? paymentId : undefined}

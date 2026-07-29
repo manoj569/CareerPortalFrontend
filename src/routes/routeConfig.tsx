@@ -128,6 +128,10 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(() => import('@/pages/SettingsPage'), 'SettingsPage'),
               },
               {
+                path: ROUTES.MEMBERSHIP,
+                element: lazyPage(() => import('@/pages/PaymentPage'), 'PaymentPage'),
+              },
+              {
                 path: ROUTES.PAYMENTS,
                 element: lazyPage(() => import('@/pages/PaymentsPage'), 'PaymentsPage'),
               },

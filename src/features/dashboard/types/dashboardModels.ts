@@ -121,8 +121,6 @@ export interface Membership {
   startsAtUtc: string;
   endsAtUtc: string | null;
   autoRenew: boolean;
-  companyId: string;
-  companyName: string;
 }
 
 export interface ChangePasswordRequest {

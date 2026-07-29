@@ -6,10 +6,10 @@ import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import type { ApiResponse } from '@/types';
 import type {
   ConfirmPaymentArgs,
-  CreatePaymentOrderRequest,
   Payment,
   PaymentHistoryPage,
   PaymentOrder,
+  PaymentStatusResponse,
   PaymentsPage,
   PaymentsQuery,
 } from '../types/paymentModels';
@@ -18,16 +18,16 @@ export const paymentsApi = createApi({
   reducerPath: 'paymentsApi',
   baseQuery: axiosBaseQuery(),
   keepUnusedDataFor: 60,
-  tagTypes: ['Payments', 'PaymentHistory'],
+  tagTypes: ['Payments', 'PaymentHistory', 'PaymentStatus'],
   endpoints: (builder) => ({
-    createRazorpayOrder: builder.mutation<PaymentOrder, CreatePaymentOrderRequest>({
-      query: (data) => ({
-        data,
+    createRazorpayOrder: builder.mutation<PaymentOrder, void>({
+      query: () => ({
+        data: {},
         method: 'POST',
         url: API_ENDPOINTS.PAYMENTS.CREATE_RAZORPAY_ORDER,
       }),
       transformResponse: (response: ApiResponse<PaymentOrder>) => response.data,
-      invalidatesTags: ['Payments', 'PaymentHistory'],
+      invalidatesTags: ['Payments', 'PaymentHistory', 'PaymentStatus'],
     }),
     confirmRazorpayPayment: builder.mutation<Payment, ConfirmPaymentArgs>({
       query: ({ paymentId, request }) => ({
@@ -36,7 +36,7 @@ export const paymentsApi = createApi({
         url: API_ENDPOINTS.PAYMENTS.CONFIRM_RAZORPAY(paymentId),
       }),
       transformResponse: (response: ApiResponse<Payment>) => response.data,
-      invalidatesTags: ['Payments', 'PaymentHistory'],
+      invalidatesTags: ['Payments', 'PaymentHistory', 'PaymentStatus'],
       onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
         try {
           await queryFulfilled;
@@ -45,6 +45,27 @@ export const paymentsApi = createApi({
           // Membership state remains unchanged when backend verification fails.
         }
       },
+    }),
+    reconcileRazorpayPayment: builder.mutation<Payment, string>({
+      query: (paymentId) => ({
+        method: 'POST',
+        url: API_ENDPOINTS.PAYMENTS.RECONCILE_RAZORPAY(paymentId),
+      }),
+      transformResponse: (response: ApiResponse<Payment>) => response.data,
+      invalidatesTags: ['Payments', 'PaymentHistory', 'PaymentStatus'],
+      onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
+        try {
+          await queryFulfilled;
+          dispatch(dashboardApi.util.invalidateTags(['Memberships']));
+        } catch {
+          // Failed reconciliation never changes frontend entitlement state.
+        }
+      },
+    }),
+    getPaymentStatus: builder.query<PaymentStatusResponse, void>({
+      query: () => ({ url: API_ENDPOINTS.PAYMENTS.STATUS }),
+      transformResponse: (response: ApiResponse<PaymentStatusResponse>) => response.data,
+      providesTags: ['PaymentStatus'],
     }),
     getPayments: builder.query<PaymentsPage, PaymentsQuery>({
       query: (params) => ({ params, url: API_ENDPOINTS.PAYMENTS.LIST }),
@@ -63,7 +84,9 @@ export const {
   useConfirmRazorpayPaymentMutation,
   useCreateRazorpayOrderMutation,
   useGetPaymentHistoryQuery,
+  useGetPaymentStatusQuery,
   useGetPaymentsQuery,
+  useReconcileRazorpayPaymentMutation,
 } = paymentsApi;
 
 export const isPaymentsApiError = (error: unknown): error is AxiosBaseQueryError =>

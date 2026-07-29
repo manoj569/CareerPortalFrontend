@@ -12,7 +12,6 @@ import {
   Typography,
 } from '@mui/material';
 
-import type { Membership } from '@/features/dashboard/types/dashboardModels';
 import type { Payment } from '../types/paymentModels';
 import {
   formatPaymentAmount,
@@ -22,15 +21,14 @@ import {
 import { PaymentStatusBadge } from './PaymentStatusBadge';
 
 interface PaymentHistoryTableProps {
-  memberships: Membership[];
+  planName?: string;
   payments: Payment[];
 }
 
-const paymentPlan = (payment: Payment, memberships: Membership[]): string =>
-  memberships.find((membership) => membership.id === payment.membershipId)?.planName ??
-  'Application access';
-
-export const PaymentHistoryTable = ({ memberships, payments }: PaymentHistoryTableProps) => (
+export const PaymentHistoryTable = ({
+  payments,
+  planName = 'Portal Membership',
+}: PaymentHistoryTableProps) => (
   <>
     <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
       <Table aria-label="Payment history">
@@ -56,7 +54,7 @@ export const PaymentHistoryTable = ({ memberships, payments }: PaymentHistoryTab
                   {payment.id}
                 </Typography>
               </TableCell>
-              <TableCell>{paymentPlan(payment, memberships)}</TableCell>
+              <TableCell>{planName}</TableCell>
               <TableCell>{formatPaymentAmount(payment.amount, payment.currencyCode)}</TableCell>
               <TableCell>
                 <PaymentStatusBadge status={payment.status} />
@@ -76,7 +74,7 @@ export const PaymentHistoryTable = ({ memberships, payments }: PaymentHistoryTab
           <CardContent>
             <Stack spacing={1.5}>
               <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}>
-                <Typography fontWeight={700}>{paymentPlan(payment, memberships)}</Typography>
+                <Typography fontWeight={700}>{planName}</Typography>
                 <PaymentStatusBadge status={payment.status} />
               </Stack>
               <Typography variant="h3">
