@@ -76,6 +76,17 @@ export interface PublicJobDetails extends PublicJobSummary {
   companyWebsiteUrl: string | null;
 }
 
+export interface PopularCompany {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  industry: string | null;
+  location: string | null;
+  isVerified: boolean;
+  activeJobCount: number;
+}
+
 export type PagedResponse<T> = PaginatedResponse<T>;
 export type BackendApiResponse<T> = ApiResponse<T>;
 
@@ -89,6 +100,5 @@ export interface ApplicationAccessResponse {
   status: ApplicationAccessStatus;
   message: string;
   applicationUrl: string | null;
-  companyId: string | null;
 }
 import type { ApiResponse, PaginatedResponse } from '@/types';

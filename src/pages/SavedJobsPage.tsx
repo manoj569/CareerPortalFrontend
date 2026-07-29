@@ -1,14 +1,24 @@
-import { Grid, Pagination, Skeleton, Stack, Typography } from '@mui/material';
+import BookmarkOutlinedIcon from '@mui/icons-material/BookmarkOutlined';
+import {
+  Button,
+  Grid,
+  Link as MuiLink,
+  Pagination,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { ROUTES } from '@/constants/routes';
+import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
 import { useGetSavedJobsQuery } from '@/features/dashboard/api/dashboardApi';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
-import { JobCard } from '@/features/jobs/components/JobCard';
+import { formatDashboardDate } from '@/features/dashboard/utils/dashboardFormatting';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 const PAGE_SIZE = 12;
@@ -43,7 +53,7 @@ export const SavedJobsPage = () => {
         <Grid aria-label="Loading saved jobs" container role="status" spacing={2.5}>
           {Array.from({ length: 4 }, (_, index) => (
             <Grid key={index} size={{ xs: 12, md: 6 }}>
-              <Skeleton height={330} variant="rounded" />
+              <Skeleton height={230} variant="rounded" />
             </Grid>
           ))}
         </Grid>
@@ -68,16 +78,31 @@ export const SavedJobsPage = () => {
           <Grid container spacing={2.5}>
             {data.items.map((savedJob) => (
               <Grid key={savedJob.savedJobId} size={{ xs: 12, md: 6 }}>
-                <JobCard
-                  job={savedJob.job}
-                  secondaryAction={
-                    <SaveJobButton
-                      jobId={savedJob.job.id}
-                      jobTitle={savedJob.job.title}
-                      knownSaved
-                    />
-                  }
-                />
+                <Paper component="article" sx={{ height: '100%', p: 3 }}>
+                  <Stack alignItems="flex-start" height="100%" spacing={2}>
+                    <BookmarkOutlinedIcon color="primary" />
+                    <Stack spacing={0.5} sx={{ flex: 1 }}>
+                      <MuiLink
+                        component={Link}
+                        fontWeight={800}
+                        to={buildJobDetailsPath(savedJob.slug)}
+                        variant="h3"
+                      >
+                        {savedJob.title}
+                      </MuiLink>
+                      <Typography color="text.secondary">{savedJob.companyName}</Typography>
+                      <Typography color="text.secondary" variant="body2">
+                        Saved {formatDashboardDate(savedJob.savedAtUtc) ?? 'date unavailable'}
+                      </Typography>
+                    </Stack>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <Button component={Link} to={buildJobDetailsPath(savedJob.slug)}>
+                        View job
+                      </Button>
+                      <SaveJobButton jobId={savedJob.jobId} jobTitle={savedJob.title} knownSaved />
+                    </Stack>
+                  </Stack>
+                </Paper>
               </Grid>
             ))}
           </Grid>

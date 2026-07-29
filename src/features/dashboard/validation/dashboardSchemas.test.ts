@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
+import { EmploymentType } from '@/features/jobs/types/jobModels';
 import { changePasswordSchema, profileSchema } from './dashboardSchemas';
 
 const validProfile = {
   bio: 'Frontend engineer',
-  firstName: 'Avery',
+  education: 'B.Tech Computer Science',
+  experience: 'Senior engineer at Northstar',
   headline: 'Senior frontend engineer',
-  lastName: 'Patel',
-  phoneNumber: '+91 98765 43210',
-  profileImageUrl: 'https://example.com/avatar.png',
+  linkedInUrl: 'https://linkedin.com/in/avery',
+  location: 'Pune',
+  portfolioUrl: 'https://example.com',
+  preferredJobTypes: [EmploymentType.FullTime],
+  skills: 'React, TypeScript',
 };
 
 describe('dashboard validation schemas', () => {
@@ -16,9 +20,9 @@ describe('dashboard validation schemas', () => {
     await expect(profileSchema.validate(validProfile)).resolves.toMatchObject(validProfile);
   });
 
-  it('rejects non-HTTP profile image URLs', async () => {
+  it('rejects non-HTTP candidate portfolio URLs', async () => {
     await expect(
-      profileSchema.validate({ ...validProfile, profileImageUrl: 'ftp://example.com/avatar.png' }),
+      profileSchema.validate({ ...validProfile, portfolioUrl: 'ftp://example.com/portfolio' }),
     ).rejects.toThrow('Enter an absolute HTTP or HTTPS URL.');
   });
 

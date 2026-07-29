@@ -8,6 +8,7 @@ import {
   LinearProgress,
   Pagination,
   Paper,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
@@ -18,10 +19,11 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { ROUTES } from '@/constants/routes';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
-import { useSearchJobsQuery } from '@/features/jobs/api/jobsApi';
+import { useGetPopularCompaniesQuery, useSearchJobsQuery } from '@/features/jobs/api/jobsApi';
+import { JobDiscoveryHighlights } from '@/features/jobs/components/JobDiscoveryHighlights';
 import { JobCard } from '@/features/jobs/components/JobCard';
 import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
-import { JobFilters } from '@/features/jobs/components/JobFilters';
+import { JobFilters, type JobFilterOption } from '@/features/jobs/components/JobFilters';
 import { SearchInput } from '@/features/jobs/components/SearchInput';
 import {
   employmentTypeOptions,
@@ -55,6 +57,12 @@ export const JobsPage = () => {
   const debouncedSearch = useDebouncedValue(searchInput, 400);
   const debouncedLocation = useDebouncedValue(locationInput, 400);
   const { data, isError, isFetching, isLoading, refetch } = useSearchJobsQuery(query);
+  const {
+    data: popularCompanies,
+    isError: isPopularCompaniesError,
+    isLoading: isPopularCompaniesLoading,
+    refetch: refetchPopularCompanies,
+  } = useGetPopularCompaniesQuery({ limit: 10 });
 
   const setState = useCallback(
     (nextState: JobSearchState, replace = false) => {
@@ -69,6 +77,12 @@ export const JobsPage = () => {
     },
     [setState, state],
   );
+
+  const clearAllFilters = useCallback(() => {
+    setSearchInput('');
+    setLocationInput('');
+    setState(emptyJobSearchState());
+  }, [setState]);
 
   useEffect(() => {
     setSearchInput(state.search);
@@ -95,7 +109,55 @@ export const JobsPage = () => {
     state.search,
   ]);
 
+  const companyOptions = useMemo<JobFilterOption[]>(() => {
+    const options = new Map<string, string>();
+    popularCompanies?.forEach((company) => options.set(company.id, company.name));
+    data?.items.forEach((job) => options.set(job.companyId, job.companyName));
+    if (state.companyId && !options.has(state.companyId)) {
+      options.set(state.companyId, 'Selected company');
+    }
+    return Array.from(options, ([id, name]) => ({ id, name }));
+  }, [data?.items, popularCompanies, state.companyId]);
+
+  const categoryOptions = useMemo<JobFilterOption[]>(() => {
+    const options = new Map<string, string>();
+    data?.items.forEach((job) => options.set(job.categoryId, job.categoryName));
+    if (state.categoryId && !options.has(state.categoryId)) {
+      options.set(state.categoryId, 'Selected category');
+    }
+    return Array.from(options, ([id, name]) => ({ id, name }));
+  }, [data?.items, state.categoryId]);
+
+  const hasDiscoveryContext =
+    state.page === 1 &&
+    !state.search &&
+    !state.location &&
+    !state.companyId &&
+    !state.categoryId &&
+    !state.employmentType &&
+    !state.workplaceType &&
+    !state.experienceLevel &&
+    state.minimumSalary === undefined &&
+    state.maximumSalary === undefined &&
+    !state.isFeatured;
+
   const activeFilters = [
+    state.companyId
+      ? {
+          key: 'companyId',
+          label:
+            companyOptions.find((option) => option.id === state.companyId)?.name ??
+            'Selected company',
+        }
+      : null,
+    state.categoryId
+      ? {
+          key: 'categoryId',
+          label:
+            categoryOptions.find((option) => option.id === state.categoryId)?.name ??
+            'Selected category',
+        }
+      : null,
     state.employmentType
       ? {
           key: 'employmentType',
@@ -126,6 +188,7 @@ export const JobsPage = () => {
     state.maximumSalary !== undefined
       ? { key: 'maximumSalary', label: `Maximum salary: ${state.maximumSalary.toLocaleString()}` }
       : null,
+    state.isFeatured ? { key: 'isFeatured', label: 'Featured jobs' } : null,
   ].filter((filter): filter is { key: keyof JobSearchState; label: string } => filter !== null);
 
   const closeMobileFilters = () => {
@@ -135,8 +198,10 @@ export const JobsPage = () => {
 
   const filterPanel = (
     <JobFilters
+      categories={categoryOptions}
+      companies={companyOptions}
       onChange={(changes) => applyChanges(changes)}
-      onClear={() => setState(emptyJobSearchState())}
+      onClear={clearAllFilters}
       state={state}
     />
   );
@@ -202,10 +267,65 @@ export const JobsPage = () => {
               onDelete={() => applyChanges({ [filter.key]: undefined })}
             />
           ))}
-          <Button onClick={() => setState(emptyJobSearchState())} size="small">
+          <Button onClick={clearAllFilters} size="small">
             Clear all
           </Button>
         </Stack>
+      ) : null}
+
+      <JobDiscoveryHighlights enabled={hasDiscoveryContext} />
+
+      {hasDiscoveryContext ? (
+        <Box aria-labelledby="popular-companies-heading" component="section">
+          <Typography component="h2" id="popular-companies-heading" variant="h2">
+            Popular companies
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+            Browse employers with the most active opportunities.
+          </Typography>
+          {isPopularCompaniesLoading ? (
+            <Stack
+              aria-label="Loading popular companies"
+              direction="row"
+              role="status"
+              spacing={1}
+              sx={{ mt: 2 }}
+            >
+              {Array.from({ length: 5 }, (_, index) => (
+                <Skeleton height={40} key={index} variant="rounded" width={130} />
+              ))}
+            </Stack>
+          ) : null}
+          {isPopularCompaniesError ? (
+            <Stack alignItems="flex-start" spacing={1} sx={{ mt: 2 }}>
+              <Typography color="text.secondary">
+                Popular companies are temporarily unavailable.
+              </Typography>
+              <Button onClick={() => void refetchPopularCompanies()} variant="outlined">
+                Retry companies
+              </Button>
+            </Stack>
+          ) : null}
+          {!isPopularCompaniesLoading &&
+          !isPopularCompaniesError &&
+          popularCompanies?.length === 0 ? (
+            <Typography color="text.secondary" sx={{ mt: 2 }}>
+              No companies with active jobs are available yet.
+            </Typography>
+          ) : null}
+          {popularCompanies && popularCompanies.length > 0 ? (
+            <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 2 }}>
+              {popularCompanies.map((company) => (
+                <Chip
+                  clickable
+                  key={company.id}
+                  label={`${company.name} (${company.activeJobCount})`}
+                  onClick={() => applyChanges({ companyId: company.id })}
+                />
+              ))}
+            </Stack>
+          ) : null}
+        </Box>
       ) : null}
 
       <Grid container spacing={3}>
@@ -238,7 +358,7 @@ export const JobsPage = () => {
               <EmptyState
                 actionLabel="Clear all filters"
                 description="Try broader keywords, another location, or fewer filters."
-                onAction={() => setState(emptyJobSearchState())}
+                onAction={clearAllFilters}
                 title="No jobs match your search"
               />
             ) : null}

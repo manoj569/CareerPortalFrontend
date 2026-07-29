@@ -1,5 +1,8 @@
 import {
   useChangePasswordMutation,
+  useDeleteResumeMutation,
+  useDownloadResumeMutation,
+  useGetApplicationQuery,
   useGetApplicationsQuery,
   useGetMembershipsQuery,
   useGetNotificationsQuery,
@@ -9,15 +12,17 @@ import {
   useMarkNotificationReadMutation,
   useRemoveSavedJobMutation,
   useSaveJobMutation,
+  useUploadResumeMutation,
   useUpdateProfileMutation,
+  useWithdrawApplicationMutation,
 } from '@/features/dashboard/api/dashboardApi';
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
 import type { AuthState } from '@/features/auth/store/authSlice';
 import {
-  JobHistoryAction,
+  JobApplicationStatus,
   MembershipStatus,
   NotificationType,
-  type AppliedJobHistory,
+  type JobApplication,
   type DashboardNotification,
   type Membership,
   type SavedJob,
@@ -34,12 +39,14 @@ import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import { UserRole } from '@/types';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApplicationsPage } from './ApplicationsPage';
+import { ApplicationDetailsPage } from './ApplicationDetailsPage';
 import { DashboardPage } from './DashboardPage';
 import { NotificationsPage } from './NotificationsPage';
 import { ProfilePage } from './ProfilePage';
+import { ResumePage } from './ResumePage';
 import { SavedJobsPage } from './SavedJobsPage';
 import { SettingsPage } from './SettingsPage';
 
@@ -48,6 +55,9 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
   return {
     ...actual,
     useChangePasswordMutation: vi.fn(),
+    useDeleteResumeMutation: vi.fn(),
+    useDownloadResumeMutation: vi.fn(),
+    useGetApplicationQuery: vi.fn(),
     useGetApplicationsQuery: vi.fn(),
     useGetMembershipsQuery: vi.fn(),
     useGetNotificationsQuery: vi.fn(),
@@ -57,16 +67,23 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
     useMarkNotificationReadMutation: vi.fn(),
     useRemoveSavedJobMutation: vi.fn(),
     useSaveJobMutation: vi.fn(),
+    useUploadResumeMutation: vi.fn(),
     useUpdateProfileMutation: vi.fn(),
+    useWithdrawApplicationMutation: vi.fn(),
   };
 });
 
 const mockProfile = vi.mocked(useGetProfileQuery);
+const mockApplication = vi.mocked(useGetApplicationQuery);
 const mockSavedJobs = vi.mocked(useGetSavedJobsQuery);
 const mockApplications = vi.mocked(useGetApplicationsQuery);
 const mockMemberships = vi.mocked(useGetMembershipsQuery);
 const mockNotifications = vi.mocked(useGetNotificationsQuery);
 const mockUpdateProfile = vi.mocked(useUpdateProfileMutation);
+const mockUploadResume = vi.mocked(useUploadResumeMutation);
+const mockDownloadResume = vi.mocked(useDownloadResumeMutation);
+const mockDeleteResume = vi.mocked(useDeleteResumeMutation);
+const mockWithdrawApplication = vi.mocked(useWithdrawApplicationMutation);
 const mockRemoveSavedJob = vi.mocked(useRemoveSavedJobMutation);
 const mockSaveJob = vi.mocked(useSaveJobMutation);
 const mockMarkRead = vi.mocked(useMarkNotificationReadMutation);
@@ -90,16 +107,19 @@ const auth: AuthState = {
 
 const profile: UserProfile = {
   bio: 'I build accessible web products.',
-  createdAtUtc: '2025-01-10T08:00:00Z',
+  education: ['B.Tech Computer Science'],
   email: 'avery@example.com',
-  emailConfirmed: true,
+  experience: ['Senior engineer at Northstar'],
   firstName: 'Avery',
   headline: 'Senior frontend engineer',
   id: 'user-id',
-  lastLoginAtUtc: '2026-07-27T08:00:00Z',
   lastName: 'Patel',
-  phoneNumber: '+91 98765 43210',
-  profileImageUrl: null,
+  linkedInUrl: 'https://linkedin.com/in/avery',
+  location: 'Pune',
+  portfolioUrl: 'https://avery.example.com',
+  preferredJobTypes: [EmploymentType.FullTime],
+  resume: null,
+  skills: ['React', 'TypeScript'],
 };
 
 const job: PublicJobSummary = {
@@ -126,20 +146,25 @@ const job: PublicJobSummary = {
 };
 
 const savedJob: SavedJob = {
-  job,
+  companyName: job.companyName,
+  jobId: job.id,
   savedAtUtc: '2026-07-25T10:00:00Z',
   savedJobId: 'saved-id',
+  slug: job.slug,
+  title: job.title,
 };
 
-const application: AppliedJobHistory = {
-  action: JobHistoryAction.Applied,
+const application: JobApplication = {
   companyName: job.companyName,
+  coverLetter: 'I would love to join the team.',
   id: 'application-id',
   jobId: job.id,
   jobSlug: job.slug,
   jobTitle: job.title,
-  notes: null,
-  occurredAtUtc: '2026-07-26T10:00:00Z',
+  resumeFileName: 'resume.pdf',
+  status: JobApplicationStatus.Submitted,
+  submittedAtUtc: '2026-07-26T10:00:00Z',
+  withdrawnAtUtc: null,
 };
 
 const membership: Membership = {
@@ -182,6 +207,16 @@ const mutationResult = <T,>(value?: T) => {
 const renderPage = (page: React.ReactElement) =>
   renderWithProviders(<MemoryRouter>{page}</MemoryRouter>, { auth });
 
+const renderApplicationDetails = () =>
+  renderWithProviders(
+    <MemoryRouter initialEntries={[`/dashboard/applications/${application.id}`]}>
+      <Routes>
+        <Route element={<ApplicationDetailsPage />} path="/dashboard/applications/:applicationId" />
+      </Routes>
+    </MemoryRouter>,
+    { auth },
+  );
+
 beforeEach(() => {
   refetch.mockReset();
   mockProfile.mockReturnValue(queryResult({ data: profile }));
@@ -195,6 +230,7 @@ beforeEach(() => {
       data: { items: [], pageNumber: 1, pageSize: 10, totalCount: 0, totalPages: 0 },
     }),
   );
+  mockApplication.mockReturnValue(queryResult({ data: application }));
   mockMemberships.mockReturnValue(queryResult({ data: [] }));
   mockNotifications.mockReturnValue(
     queryResult({
@@ -206,6 +242,20 @@ beforeEach(() => {
   );
   mockUpdateProfile.mockReturnValue(
     mutationResult(profile).tuple as unknown as ReturnType<typeof useUpdateProfileMutation>,
+  );
+  mockUploadResume.mockReturnValue(
+    mutationResult().tuple as unknown as ReturnType<typeof useUploadResumeMutation>,
+  );
+  mockDownloadResume.mockReturnValue(
+    mutationResult(new Blob()).tuple as unknown as ReturnType<typeof useDownloadResumeMutation>,
+  );
+  mockDeleteResume.mockReturnValue(
+    mutationResult().tuple as unknown as ReturnType<typeof useDeleteResumeMutation>,
+  );
+  mockWithdrawApplication.mockReturnValue(
+    mutationResult(application).tuple as unknown as ReturnType<
+      typeof useWithdrawApplicationMutation
+    >,
   );
   mockRemoveSavedJob.mockReturnValue(
     mutationResult().tuple as unknown as ReturnType<typeof useRemoveSavedJobMutation>,
@@ -268,25 +318,54 @@ describe('candidate dashboard pages', () => {
     expect(screen.getByLabelText('Loading candidate dashboard')).toBeInTheDocument();
   });
 
-  it('updates the profile and synchronizes the authenticated user name', async () => {
-    const updated = { ...profile, firstName: 'Priya' };
+  it('updates candidate profile fields through the Candidate API', async () => {
+    const updated = { ...profile, headline: 'Principal frontend engineer' };
     const mutation = mutationResult(updated);
     mockUpdateProfile.mockReturnValue(
       mutation.tuple as unknown as ReturnType<typeof useUpdateProfileMutation>,
     );
-    const { store } = renderPage(<ProfilePage />);
+    renderPage(<ProfilePage />);
 
-    const firstName = screen.getByRole('textbox', { name: 'First name' });
-    await userEvent.clear(firstName);
-    await userEvent.type(firstName, 'Priya');
+    const headline = screen.getByRole('textbox', { name: 'Professional headline' });
+    await userEvent.clear(headline);
+    await userEvent.type(headline, 'Principal frontend engineer');
     await userEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => {
       expect(mutation.trigger).toHaveBeenCalledWith(
-        expect.objectContaining({ firstName: 'Priya' }),
+        expect.objectContaining({ headline: 'Principal frontend engineer' }),
       );
-      expect(store.getState().auth.user?.firstName).toBe('Priya');
     });
+  });
+
+  it('validates and uploads a supported resume file', async () => {
+    const mutation = mutationResult();
+    mockUploadResume.mockReturnValue(
+      mutation.tuple as unknown as ReturnType<typeof useUploadResumeMutation>,
+    );
+    renderPage(<ResumePage />);
+
+    const file = new File(['%PDF-resume'], 'candidate.pdf', { type: 'application/pdf' });
+    await userEvent.upload(screen.getByLabelText('Choose resume'), file);
+
+    await waitFor(() => expect(mutation.trigger).toHaveBeenCalledWith(file));
+  });
+
+  it('rejects an unsupported resume before uploading', async () => {
+    const mutation = mutationResult();
+    mockUploadResume.mockReturnValue(
+      mutation.tuple as unknown as ReturnType<typeof useUploadResumeMutation>,
+    );
+    renderPage(<ResumePage />);
+
+    await userEvent.upload(
+      screen.getByLabelText('Choose resume'),
+      new File(['plain text'], 'candidate.txt', { type: 'text/plain' }),
+      { applyAccept: false },
+    );
+
+    expect(await screen.findByText('Choose a PDF, DOC, or DOCX file.')).toBeInTheDocument();
+    expect(mutation.trigger).not.toHaveBeenCalled();
   });
 
   it('renders saved jobs and removes a saved job through the API mutation', async () => {
@@ -324,7 +403,7 @@ describe('candidate dashboard pages', () => {
     expect(screen.getByText('No saved jobs yet')).toBeInTheDocument();
   });
 
-  it('renders backend application history and the capability limitation', () => {
+  it('renders backend applications and their real status', () => {
     mockApplications.mockReturnValue(
       queryResult({
         data: { items: [application], pageNumber: 1, pageSize: 10, totalCount: 1, totalPages: 1 },
@@ -333,8 +412,20 @@ describe('candidate dashboard pages', () => {
     renderPage(<ApplicationsPage />);
 
     expect(screen.getByText(job.title)).toBeInTheDocument();
-    expect(screen.getByText('Applied')).toBeInTheDocument();
-    expect(screen.getByText(/no application-detail/i)).toBeInTheDocument();
+    expect(screen.getByText('Submitted')).toBeInTheDocument();
+  });
+
+  it('withdraws a Submitted application after confirmation', async () => {
+    const mutation = mutationResult({ ...application, status: JobApplicationStatus.Withdrawn });
+    mockWithdrawApplication.mockReturnValue(
+      mutation.tuple as unknown as ReturnType<typeof useWithdrawApplicationMutation>,
+    );
+    renderApplicationDetails();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Withdraw application' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm withdrawal' }));
+
+    expect(mutation.trigger).toHaveBeenCalledWith(application.id);
   });
 
   it('marks a notification as read through the API mutation', async () => {

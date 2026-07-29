@@ -7,13 +7,16 @@ describe('job search query parameters', () => {
   it('parses and sanitizes supported filters', () => {
     const state = parseJobSearchParams(
       new URLSearchParams(
-        'q=engineer&location=Pune&employmentType=full-time&workplaceType=remote&experienceLevel=senior&page=2&pageSize=20&sort=title-asc',
+        'q=engineer&location=Pune&companyId=11111111-1111-4111-8111-111111111111&categoryId=22222222-2222-4222-8222-222222222222&featured=true&employmentType=full-time&workplaceType=remote&experienceLevel=senior&page=2&pageSize=20&sort=title-asc',
       ),
     );
 
     expect(state).toMatchObject({
+      categoryId: '22222222-2222-4222-8222-222222222222',
+      companyId: '11111111-1111-4111-8111-111111111111',
       employmentType: EmploymentType.FullTime,
       experienceLevel: ExperienceLevel.Senior,
+      isFeatured: true,
       location: 'Pune',
       page: 2,
       pageSize: 20,
@@ -22,6 +25,9 @@ describe('job search query parameters', () => {
       workplaceType: WorkplaceType.Remote,
     });
     expect(toPublicJobQuery(state)).toMatchObject({
+      categoryId: '22222222-2222-4222-8222-222222222222',
+      companyId: '11111111-1111-4111-8111-111111111111',
+      isFeatured: true,
       pageNumber: 2,
       sortBy: 'title',
       sortDirection: 'asc',
@@ -31,10 +37,12 @@ describe('job search query parameters', () => {
   it('rejects unsupported enum, sort, page, and page-size values', () => {
     const state = parseJobSearchParams(
       new URLSearchParams(
-        'employmentType=executive-only&sort=unknown&page=-5&pageSize=1000&minimumSalary=-1',
+        'companyId=not-a-guid&categoryId=also-invalid&employmentType=executive-only&sort=unknown&page=-5&pageSize=1000&minimumSalary=-1',
       ),
     );
 
+    expect(state.categoryId).toBeUndefined();
+    expect(state.companyId).toBeUndefined();
     expect(state.employmentType).toBeUndefined();
     expect(state.minimumSalary).toBeUndefined();
     expect(state.page).toBe(1);

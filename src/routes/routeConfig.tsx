@@ -101,12 +101,23 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(() => import('@/pages/ProfilePage'), 'ProfilePage'),
               },
               {
+                path: ROUTES.RESUME,
+                element: lazyPage(() => import('@/pages/ResumePage'), 'ResumePage'),
+              },
+              {
                 path: ROUTES.SAVED_JOBS,
                 element: lazyPage(() => import('@/pages/SavedJobsPage'), 'SavedJobsPage'),
               },
               {
                 path: ROUTES.APPLICATIONS,
                 element: lazyPage(() => import('@/pages/ApplicationsPage'), 'ApplicationsPage'),
+              },
+              {
+                path: ROUTES.APPLICATION_DETAILS,
+                element: lazyPage(
+                  () => import('@/pages/ApplicationDetailsPage'),
+                  'ApplicationDetailsPage',
+                ),
               },
               {
                 path: ROUTES.NOTIFICATIONS,

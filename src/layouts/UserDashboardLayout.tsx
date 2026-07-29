@@ -5,6 +5,7 @@ import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNone
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
@@ -15,6 +16,7 @@ import { isMembershipActive } from '@/features/payments/utils/entitlement';
 const navigationItems: NavigationItem[] = [
   { label: 'Dashboard', path: ROUTES.DASHBOARD, icon: DashboardOutlinedIcon, end: true },
   { label: 'Profile', path: ROUTES.PROFILE, icon: PersonOutlineIcon },
+  { label: 'Resume', path: ROUTES.RESUME, icon: ArticleOutlinedIcon },
   { label: 'Saved jobs', path: ROUTES.SAVED_JOBS, icon: BookmarkBorderIcon },
   { label: 'Applications', path: ROUTES.APPLICATIONS, icon: DescriptionOutlinedIcon },
   { label: 'Notifications', path: ROUTES.NOTIFICATIONS, icon: NotificationsNoneOutlinedIcon },

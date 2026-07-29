@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
     LATEST: '/jobs/latest',
     NEWEST: '/jobs/newest',
     FEATURED: '/jobs/featured',
+    POPULAR_COMPANIES: '/jobs/companies/popular',
     DETAILS: (slug: string) => `/jobs/${encodeURIComponent(slug)}`,
     RELATED: (slug: string) => `/jobs/${encodeURIComponent(slug)}/related`,
   },
@@ -42,15 +43,23 @@ export const API_ENDPOINTS = {
     JOB_HIDDEN: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/hidden`,
   },
   DASHBOARD: {
-    PROFILE: '/dashboard/profile',
     MEMBERSHIPS: '/dashboard/memberships',
-    SAVED_JOBS: '/dashboard/saved-jobs',
-    SAVED_JOB: (jobId: string) => `/dashboard/saved-jobs/${encodeURIComponent(jobId)}`,
-    APPLIED_JOBS: '/dashboard/applied-jobs',
     NOTIFICATIONS: '/dashboard/notifications',
     NOTIFICATION_READ: (notificationId: string) =>
       `/dashboard/notifications/${encodeURIComponent(notificationId)}/read`,
     NOTIFICATIONS_READ_ALL: '/dashboard/notifications/read-all',
     CHANGE_PASSWORD: '/dashboard/change-password',
+  },
+  CANDIDATE: {
+    PROFILE: '/candidate/profile',
+    RESUME: '/candidate/resume',
+    SAVED_JOBS: '/candidate/saved-jobs',
+    SAVED_JOB: (jobId: string) => `/candidate/saved-jobs/${encodeURIComponent(jobId)}`,
+    APPLICATIONS: '/candidate/applications',
+    APPLICATION: (applicationId: string) =>
+      `/candidate/applications/${encodeURIComponent(applicationId)}`,
+    APPLY: (jobId: string) => `/candidate/jobs/${encodeURIComponent(jobId)}/applications`,
+    WITHDRAW_APPLICATION: (applicationId: string) =>
+      `/candidate/applications/${encodeURIComponent(applicationId)}/withdraw`,
   },
 } as const;

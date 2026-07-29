@@ -1,27 +1,40 @@
-import type { PublicJobSummary } from '@/features/jobs/types/jobModels';
+import type { EmploymentType } from '@/features/jobs/types/jobModels';
 import type { PaginatedResponse } from '@/types';
 
-export interface UserProfile {
+export interface ResumeMetadata {
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAtUtc: string;
+}
+
+export interface CandidateProfile {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  phoneNumber: string | null;
-  profileImageUrl: string | null;
   headline: string | null;
   bio: string | null;
-  emailConfirmed: boolean;
-  createdAtUtc: string;
-  lastLoginAtUtc: string | null;
+  location: string | null;
+  skills: string[];
+  education: string[];
+  experience: string[];
+  linkedInUrl: string | null;
+  portfolioUrl: string | null;
+  preferredJobTypes: EmploymentType[];
+  resume: ResumeMetadata | null;
 }
 
-export interface UpdateUserProfileRequest {
-  firstName: string;
-  lastName: string;
-  phoneNumber: string | null;
-  profileImageUrl: string | null;
+export interface UpdateCandidateProfileRequest {
   headline: string | null;
   bio: string | null;
+  location: string | null;
+  skills: string[];
+  education: string[];
+  experience: string[];
+  linkedInUrl: string | null;
+  portfolioUrl: string | null;
+  preferredJobTypes: EmploymentType[];
 }
 
 export interface DashboardQuery {
@@ -32,28 +45,40 @@ export interface DashboardQuery {
 export interface SavedJob {
   savedJobId: string;
   savedAtUtc: string;
-  job: PublicJobSummary;
+  jobId: string;
+  title: string;
+  slug: string;
+  companyName: string;
 }
 
-export enum JobHistoryAction {
-  Viewed = 1,
-  Saved,
-  Applied,
-  Withdrawn,
-  Rejected,
+export enum JobApplicationStatus {
+  Submitted = 1,
+  Reviewed,
   Shortlisted,
-  Hired,
+  Rejected,
+  Withdrawn,
 }
 
-export interface AppliedJobHistory {
+export interface JobApplication {
   id: string;
   jobId: string;
   jobTitle: string;
   jobSlug: string;
   companyName: string;
-  action: JobHistoryAction;
-  occurredAtUtc: string;
-  notes: string | null;
+  status: JobApplicationStatus;
+  coverLetter: string | null;
+  resumeFileName: string | null;
+  submittedAtUtc: string;
+  withdrawnAtUtc: string | null;
+}
+
+export interface ApplicationsQuery extends DashboardQuery {
+  status?: JobApplicationStatus;
+}
+
+export interface CreateJobApplicationRequest {
+  jobId: string;
+  coverLetter: string | null;
 }
 
 export enum NotificationType {
@@ -106,4 +131,5 @@ export interface ChangePasswordRequest {
 }
 
 export type SavedJobsPage = PaginatedResponse<SavedJob>;
-export type ApplicationsPage = PaginatedResponse<AppliedJobHistory>;
+export type UserProfile = CandidateProfile;
+export type ApplicationsPage = PaginatedResponse<JobApplication>;

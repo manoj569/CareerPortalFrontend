@@ -18,7 +18,7 @@ import {
 import { Link } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { ROUTES, buildJobDetailsPath } from '@/constants/routes';
+import { ROUTES, buildApplicationDetailsPath } from '@/constants/routes';
 import {
   useGetApplicationsQuery,
   useGetMembershipsQuery,
@@ -61,13 +61,17 @@ export const DashboardPage = () => {
     ? [
         profile.data.firstName,
         profile.data.lastName,
-        profile.data.phoneNumber,
         profile.data.headline,
         profile.data.bio,
-        profile.data.profileImageUrl,
+        profile.data.location,
+        profile.data.skills.length ? profile.data.skills : null,
+        profile.data.education.length ? profile.data.education : null,
+        profile.data.experience.length ? profile.data.experience : null,
+        profile.data.preferredJobTypes.length ? profile.data.preferredJobTypes : null,
+        profile.data.resume,
       ].filter(Boolean).length
     : 0;
-  const profileCompletion = Math.round((completedProfileFields / 6) * 100);
+  const profileCompletion = Math.round((completedProfileFields / 10) * 100);
 
   const retryDashboard = () => {
     void profile.refetch();
@@ -171,7 +175,7 @@ export const DashboardPage = () => {
               variant="determinate"
             />
             <Typography color="text.secondary" variant="body2">
-              Add your contact details, headline, bio, and profile image URL to complete your
+              Add your headline, skills, experience, preferences, and resume to strengthen your
               candidate profile.
             </Typography>
           </Stack>
@@ -204,13 +208,13 @@ export const DashboardPage = () => {
                     <MuiLink
                       component={Link}
                       fontWeight={700}
-                      to={buildJobDetailsPath(application.jobSlug)}
+                      to={buildApplicationDetailsPath(application.id)}
                     >
                       {application.jobTitle}
                     </MuiLink>
                     <Typography color="text.secondary" variant="body2">
                       {application.companyName} ·{' '}
-                      {formatDashboardDate(application.occurredAtUtc) ?? 'Date unavailable'}
+                      {formatDashboardDate(application.submittedAtUtc) ?? 'Date unavailable'}
                     </Typography>
                   </Box>
                 ))

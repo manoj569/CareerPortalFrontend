@@ -158,24 +158,29 @@ The public job experience uses the backend's current routes and response models:
 
 | Operation            | Method and path                       |
 | -------------------- | ------------------------------------- |
-| Search jobs          | `GET /jobs/search`                    |
+| Search jobs          | `GET /jobs`                           |
+| Latest jobs          | `GET /jobs/latest`                    |
+| Newest jobs          | `GET /jobs/newest`                    |
 | Featured jobs        | `GET /jobs/featured`                  |
+| Popular companies    | `GET /jobs/companies/popular`         |
 | Job details          | `GET /jobs/{slug}`                    |
 | Related jobs         | `GET /jobs/{slug}/related`            |
 | Request Apply access | `POST /memberships/jobs/{slug}/apply` |
 
-Search supports keyword, location, employment type, workplace type, experience level, minimum
-salary, maximum salary, sorting, and pagination. The UI serializes these values as readable query
-parameters and translates enum values to the numeric representation expected by the API.
+Search supports keyword, location, company ID, category ID, employment type, workplace type,
+experience level, salary range, featured-only results, sorting, and pagination. The UI serializes
+these values as readable query parameters and translates enum values to the numeric representation
+expected by the API.
 
 The Apply action remains backend-driven. Visitors are sent to login, authenticated candidates call
 the membership access endpoint, payment-required responses are sent through backend-created
 Razorpay orders, and granted responses expose only a validated HTTP(S) employer application URL.
 
-The backend currently has no public filter-options or categories endpoint, so the frontend does not
-invent category choices. Public job details also do not expose separate skills, qualifications,
-openings, application instructions, or status fields; the page displays only the supported
-contract. The backend itself excludes unpublished, inactive, and expired jobs.
+The backend has no public category or complete company-catalog endpoint. Company choices therefore
+come from the popular-company endpoint and current public results, while category choices come from
+current public results; the frontend does not invent catalog data. Public job details also do not
+expose separate skills, qualifications, openings, application instructions, or status fields. The
+backend itself excludes hidden, unpublished, archived, and expired jobs.
 
 ## Candidate dashboard API contract
 

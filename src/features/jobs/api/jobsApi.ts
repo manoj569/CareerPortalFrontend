@@ -2,16 +2,19 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 
 import { axiosBaseQuery, type AxiosBaseQueryError } from '@/api/axiosBaseQuery';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
-import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
-import { ApplicationAccessStatus } from '../types/jobModels';
 import type {
   ApplicationAccessResponse,
   BackendApiResponse,
   PagedResponse,
+  PopularCompany,
   PublicJobDetails,
   PublicJobQuery,
   PublicJobSummary,
 } from '../types/jobModels';
+
+interface JobPreviewQuery {
+  pageSize: number;
+}
 
 export const jobsApi = createApi({
   reducerPath: 'jobsApi',
@@ -23,7 +26,7 @@ export const jobsApi = createApi({
       transformResponse: (response: BackendApiResponse<PagedResponse<PublicJobSummary>>) =>
         response.data,
     }),
-    getFeaturedJobs: builder.query<PagedResponse<PublicJobSummary>, { pageSize: number }>({
+    getFeaturedJobs: builder.query<PagedResponse<PublicJobSummary>, JobPreviewQuery>({
       query: ({ pageSize }) => ({
         params: { pageNumber: 1, pageSize },
         url: API_ENDPOINTS.JOBS.FEATURED,
@@ -31,9 +34,39 @@ export const jobsApi = createApi({
       transformResponse: (response: BackendApiResponse<PagedResponse<PublicJobSummary>>) =>
         response.data,
     }),
+    getLatestJobs: builder.query<PagedResponse<PublicJobSummary>, JobPreviewQuery>({
+      query: ({ pageSize }) => ({
+        params: { pageNumber: 1, pageSize },
+        url: API_ENDPOINTS.JOBS.LATEST,
+      }),
+      transformResponse: (response: BackendApiResponse<PagedResponse<PublicJobSummary>>) =>
+        response.data,
+    }),
+    getNewestJobs: builder.query<PagedResponse<PublicJobSummary>, JobPreviewQuery>({
+      query: ({ pageSize }) => ({
+        params: { pageNumber: 1, pageSize },
+        url: API_ENDPOINTS.JOBS.NEWEST,
+      }),
+      transformResponse: (response: BackendApiResponse<PagedResponse<PublicJobSummary>>) =>
+        response.data,
+    }),
+    getPopularCompanies: builder.query<PopularCompany[], { limit: number }>({
+      query: ({ limit }) => ({
+        params: { limit },
+        url: API_ENDPOINTS.JOBS.POPULAR_COMPANIES,
+      }),
+      transformResponse: (response: BackendApiResponse<PopularCompany[]>) => response.data,
+    }),
     getJobDetails: builder.query<PublicJobDetails, string>({
       query: (slug) => ({ url: API_ENDPOINTS.JOBS.DETAILS(slug) }),
       transformResponse: (response: BackendApiResponse<PublicJobDetails>) => response.data,
+    }),
+    getRelatedJobs: builder.query<PublicJobSummary[], { limit: number; slug: string }>({
+      query: ({ limit, slug }) => ({
+        params: { limit },
+        url: API_ENDPOINTS.JOBS.RELATED(slug),
+      }),
+      transformResponse: (response: BackendApiResponse<PublicJobSummary[]>) => response.data,
     }),
     applyToJob: builder.mutation<ApplicationAccessResponse, string>({
       query: (slug) => ({
@@ -42,16 +75,6 @@ export const jobsApi = createApi({
         validateStatus: (status) => (status >= 200 && status < 300) || status === 402,
       }),
       transformResponse: (response: BackendApiResponse<ApplicationAccessResponse>) => response.data,
-      onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
-        try {
-          const { data } = await queryFulfilled;
-          if (data.status === ApplicationAccessStatus.Granted) {
-            dispatch(dashboardApi.util.invalidateTags(['Applications']));
-          }
-        } catch {
-          // Failed access checks must not alter candidate application history.
-        }
-      },
     }),
   }),
 });
@@ -60,6 +83,10 @@ export const {
   useApplyToJobMutation,
   useGetFeaturedJobsQuery,
   useGetJobDetailsQuery,
+  useGetLatestJobsQuery,
+  useGetNewestJobsQuery,
+  useGetPopularCompaniesQuery,
+  useGetRelatedJobsQuery,
   useSearchJobsQuery,
 } = jobsApi;
 

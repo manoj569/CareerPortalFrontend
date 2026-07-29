@@ -1,6 +1,8 @@
 import {
   Button,
+  Checkbox,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
@@ -19,12 +21,25 @@ import {
 import type { JobSearchState } from '../utils/jobSearchParams';
 
 interface JobFiltersProps {
+  categories: JobFilterOption[];
+  companies: JobFilterOption[];
   onChange: (changes: Partial<JobSearchState>) => void;
   onClear: () => void;
   state: JobSearchState;
 }
 
-export const JobFilters = ({ onChange, onClear, state }: JobFiltersProps) => {
+export interface JobFilterOption {
+  id: string;
+  name: string;
+}
+
+export const JobFilters = ({
+  categories,
+  companies,
+  onChange,
+  onClear,
+  state,
+}: JobFiltersProps) => {
   const fieldId = useId();
 
   return (
@@ -37,6 +52,42 @@ export const JobFilters = ({ onChange, onClear, state }: JobFiltersProps) => {
           Clear all
         </Button>
       </Stack>
+      <FormControl fullWidth size="small">
+        <InputLabel id={`${fieldId}-company-label`}>Company</InputLabel>
+        <Select
+          label="Company"
+          labelId={`${fieldId}-company-label`}
+          onChange={(event) =>
+            onChange({ companyId: event.target.value ? String(event.target.value) : undefined })
+          }
+          value={state.companyId ?? ''}
+        >
+          <MenuItem value="">All available companies</MenuItem>
+          {companies.map((company) => (
+            <MenuItem key={company.id} value={company.id}>
+              {company.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl fullWidth size="small">
+        <InputLabel id={`${fieldId}-category-label`}>Category</InputLabel>
+        <Select
+          label="Category"
+          labelId={`${fieldId}-category-label`}
+          onChange={(event) =>
+            onChange({ categoryId: event.target.value ? String(event.target.value) : undefined })
+          }
+          value={state.categoryId ?? ''}
+        >
+          <MenuItem value="">All available categories</MenuItem>
+          {categories.map((category) => (
+            <MenuItem key={category.id} value={category.id}>
+              {category.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
       <FormControl fullWidth size="small">
         <InputLabel id={`${fieldId}-employment-type-label`}>Job type</InputLabel>
         <Select
@@ -121,6 +172,15 @@ export const JobFilters = ({ onChange, onClear, state }: JobFiltersProps) => {
           value={state.maximumSalary ?? ''}
         />
       </Stack>
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={state.isFeatured ?? false}
+            onChange={(_, checked) => onChange({ isFeatured: checked || undefined })}
+          />
+        }
+        label="Featured jobs only"
+      />
       <FormControl fullWidth size="small">
         <InputLabel id={`${fieldId}-sort-jobs-label`}>Sort jobs</InputLabel>
         <Select

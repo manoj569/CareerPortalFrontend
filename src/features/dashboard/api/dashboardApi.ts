@@ -5,12 +5,16 @@ import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import type { ApiResponse } from '@/types';
 import type {
   ApplicationsPage,
+  ApplicationsQuery,
   ChangePasswordRequest,
+  CreateJobApplicationRequest,
   DashboardQuery,
+  JobApplication,
   Membership,
   NotificationPage,
+  ResumeMetadata,
   SavedJobsPage,
-  UpdateUserProfileRequest,
+  UpdateCandidateProfileRequest,
   UserProfile,
 } from '../types/dashboardModels';
 
@@ -22,21 +26,47 @@ export const dashboardApi = createApi({
   reducerPath: 'dashboardApi',
   baseQuery: axiosBaseQuery(),
   keepUnusedDataFor: 120,
-  tagTypes: ['Profile', 'SavedJobs', 'Applications', 'Notifications', 'Memberships'],
+  tagTypes: ['Profile', 'Resume', 'SavedJobs', 'Applications', 'Notifications', 'Memberships'],
   endpoints: (builder) => ({
     getProfile: builder.query<UserProfile, void>({
-      query: () => ({ url: API_ENDPOINTS.DASHBOARD.PROFILE }),
+      query: () => ({ url: API_ENDPOINTS.CANDIDATE.PROFILE }),
       transformResponse: (response: ApiResponse<UserProfile>) => response.data,
       providesTags: ['Profile'],
     }),
-    updateProfile: builder.mutation<UserProfile, UpdateUserProfileRequest>({
+    updateProfile: builder.mutation<UserProfile, UpdateCandidateProfileRequest>({
       query: (data) => ({
         data,
         method: 'PUT',
-        url: API_ENDPOINTS.DASHBOARD.PROFILE,
+        url: API_ENDPOINTS.CANDIDATE.PROFILE,
       }),
       transformResponse: (response: ApiResponse<UserProfile>) => response.data,
       invalidatesTags: ['Profile'],
+    }),
+    uploadResume: builder.mutation<ResumeMetadata, File>({
+      query: (file) => {
+        const data = new FormData();
+        data.append('file', file);
+        return {
+          data,
+          method: 'PUT',
+          url: API_ENDPOINTS.CANDIDATE.RESUME,
+        };
+      },
+      transformResponse: (response: ApiResponse<ResumeMetadata>) => response.data,
+      invalidatesTags: ['Profile', 'Resume'],
+    }),
+    downloadResume: builder.mutation<Blob, void>({
+      query: () => ({
+        responseType: 'blob',
+        url: API_ENDPOINTS.CANDIDATE.RESUME,
+      }),
+    }),
+    deleteResume: builder.mutation<void, void>({
+      query: () => ({
+        method: 'DELETE',
+        url: API_ENDPOINTS.CANDIDATE.RESUME,
+      }),
+      invalidatesTags: ['Profile', 'Resume'],
     }),
     getMemberships: builder.query<Membership[], void>({
       query: () => ({ url: API_ENDPOINTS.DASHBOARD.MEMBERSHIPS }),
@@ -44,28 +74,58 @@ export const dashboardApi = createApi({
       providesTags: ['Memberships'],
     }),
     getSavedJobs: builder.query<SavedJobsPage, DashboardQuery>({
-      query: (params) => ({ params, url: API_ENDPOINTS.DASHBOARD.SAVED_JOBS }),
+      query: (params) => ({ params, url: API_ENDPOINTS.CANDIDATE.SAVED_JOBS }),
       transformResponse: (response: ApiResponse<SavedJobsPage>) => response.data,
       providesTags: ['SavedJobs'],
     }),
     saveJob: builder.mutation<void, string>({
       query: (jobId) => ({
         method: 'PUT',
-        url: API_ENDPOINTS.DASHBOARD.SAVED_JOB(jobId),
+        url: API_ENDPOINTS.CANDIDATE.SAVED_JOB(jobId),
       }),
       invalidatesTags: ['SavedJobs'],
     }),
     removeSavedJob: builder.mutation<void, string>({
       query: (jobId) => ({
         method: 'DELETE',
-        url: API_ENDPOINTS.DASHBOARD.SAVED_JOB(jobId),
+        url: API_ENDPOINTS.CANDIDATE.SAVED_JOB(jobId),
       }),
       invalidatesTags: ['SavedJobs'],
     }),
-    getApplications: builder.query<ApplicationsPage, DashboardQuery>({
-      query: (params) => ({ params, url: API_ENDPOINTS.DASHBOARD.APPLIED_JOBS }),
+    getApplications: builder.query<ApplicationsPage, ApplicationsQuery>({
+      query: (params) => ({ params, url: API_ENDPOINTS.CANDIDATE.APPLICATIONS }),
       transformResponse: (response: ApiResponse<ApplicationsPage>) => response.data,
       providesTags: ['Applications'],
+    }),
+    getApplication: builder.query<JobApplication, string>({
+      query: (applicationId) => ({
+        url: API_ENDPOINTS.CANDIDATE.APPLICATION(applicationId),
+      }),
+      transformResponse: (response: ApiResponse<JobApplication>) => response.data,
+      providesTags: (_, __, applicationId) => [
+        'Applications',
+        { id: applicationId, type: 'Applications' },
+      ],
+    }),
+    submitApplication: builder.mutation<JobApplication, CreateJobApplicationRequest>({
+      query: ({ coverLetter, jobId }) => ({
+        data: { coverLetter },
+        method: 'POST',
+        url: API_ENDPOINTS.CANDIDATE.APPLY(jobId),
+      }),
+      transformResponse: (response: ApiResponse<JobApplication>) => response.data,
+      invalidatesTags: ['Applications'],
+    }),
+    withdrawApplication: builder.mutation<JobApplication, string>({
+      query: (applicationId) => ({
+        method: 'POST',
+        url: API_ENDPOINTS.CANDIDATE.WITHDRAW_APPLICATION(applicationId),
+      }),
+      transformResponse: (response: ApiResponse<JobApplication>) => response.data,
+      invalidatesTags: (_, __, applicationId) => [
+        'Applications',
+        { id: applicationId, type: 'Applications' },
+      ],
     }),
     getNotifications: builder.query<NotificationPage, NotificationsQuery>({
       query: (params) => ({ params, url: API_ENDPOINTS.DASHBOARD.NOTIFICATIONS }),
@@ -98,6 +158,9 @@ export const dashboardApi = createApi({
 
 export const {
   useChangePasswordMutation,
+  useDeleteResumeMutation,
+  useDownloadResumeMutation,
+  useGetApplicationQuery,
   useGetApplicationsQuery,
   useGetMembershipsQuery,
   useGetNotificationsQuery,
@@ -107,7 +170,10 @@ export const {
   useMarkNotificationReadMutation,
   useRemoveSavedJobMutation,
   useSaveJobMutation,
+  useSubmitApplicationMutation,
+  useUploadResumeMutation,
   useUpdateProfileMutation,
+  useWithdrawApplicationMutation,
 } = dashboardApi;
 
 export const isDashboardApiError = (error: unknown): error is AxiosBaseQueryError =>

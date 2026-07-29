@@ -18,11 +18,14 @@ const ALLOWED_PAGE_SIZES = [12, 20, 40] as const;
 export interface JobSearchState {
   search: string;
   location: string;
+  companyId?: string;
+  categoryId?: string;
   employmentType?: EmploymentType;
   workplaceType?: WorkplaceType;
   experienceLevel?: ExperienceLevel;
   minimumSalary?: number;
   maximumSalary?: number;
+  isFeatured?: boolean;
   sort: string;
   page: number;
   pageSize: number;
@@ -40,6 +43,11 @@ const readNonNegativeNumber = (value: string | null): number | undefined => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 };
+
+const readIdentifier = (value: string | null): string | undefined =>
+  value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : undefined;
 
 const findEnumValue = <TValue extends number>(
   slug: string | null,
@@ -67,11 +75,14 @@ export const parseJobSearchParams = (params: URLSearchParams): JobSearchState =>
       : requestedMaximumSalary;
 
   return {
+    categoryId: readIdentifier(params.get('categoryId')),
+    companyId: readIdentifier(params.get('companyId')),
     employmentType: findEnumValue(params.get('employmentType'), employmentTypeOptions),
     experienceLevel: findEnumValue(params.get('experienceLevel'), experienceLevelOptions),
     location: readText(params.get('location')),
     maximumSalary,
     minimumSalary,
+    isFeatured: params.get('featured') === 'true' ? true : undefined,
     page: readPositiveInteger(params.get('page'), DEFAULT_PAGE),
     pageSize,
     search: readText(params.get('q')),
@@ -92,6 +103,8 @@ export const serializeJobSearchState = (state: JobSearchState): URLSearchParams 
 
   if (state.search) params.set('q', state.search);
   if (state.location) params.set('location', state.location);
+  if (state.companyId) params.set('companyId', state.companyId);
+  if (state.categoryId) params.set('categoryId', state.categoryId);
   if (employmentType) params.set('employmentType', employmentType.slug);
   if (workplaceType) params.set('workplaceType', workplaceType.slug);
   if (experienceLevel) params.set('experienceLevel', experienceLevel.slug);
@@ -101,6 +114,7 @@ export const serializeJobSearchState = (state: JobSearchState): URLSearchParams 
   if (state.maximumSalary !== undefined) {
     params.set('maximumSalary', String(state.maximumSalary));
   }
+  if (state.isFeatured) params.set('featured', 'true');
   if (state.sort !== jobSortOptions[0]?.value) params.set('sort', state.sort);
   if (state.page !== DEFAULT_PAGE) params.set('page', String(state.page));
   if (state.pageSize !== DEFAULT_PAGE_SIZE) params.set('pageSize', String(state.pageSize));
@@ -113,11 +127,14 @@ export const toPublicJobQuery = (state: JobSearchState): PublicJobQuery => {
   const defaultSort = jobSortOptions[0];
 
   return {
+    categoryId: state.categoryId,
+    companyId: state.companyId,
     employmentType: state.employmentType,
     experienceLevel: state.experienceLevel,
     location: state.location || undefined,
     maximumSalary: state.maximumSalary,
     minimumSalary: state.minimumSalary,
+    isFeatured: state.isFeatured,
     pageNumber: state.page,
     pageSize: state.pageSize,
     search: state.search || undefined,

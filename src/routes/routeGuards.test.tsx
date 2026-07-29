@@ -46,7 +46,10 @@ const renderGuardRouter = (initialPath: string, auth: AuthState) => {
       },
       {
         element: <CandidateRoute />,
-        children: [{ path: '/payment', element: <p>Payment content</p> }],
+        children: [
+          { path: '/payment', element: <p>Payment content</p> },
+          { path: '/candidate-only', element: <p>Candidate dashboard content</p> },
+        ],
       },
     ],
     { initialEntries: [initialPath] },
@@ -98,6 +101,18 @@ describe('route guards', () => {
 
   it('does not allow administrators to purchase candidate access', async () => {
     renderGuardRouter('/payment', createAuthState('authenticated', UserRole.Administrator));
+    expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
+  });
+
+  it('allows candidates and rejects administrators on Candidate dashboard routes', async () => {
+    const candidateView = renderGuardRouter(
+      '/candidate-only',
+      createAuthState('authenticated', UserRole.Candidate),
+    );
+    expect(await screen.findByText('Candidate dashboard content')).toBeInTheDocument();
+    candidateView.unmount();
+
+    renderGuardRouter('/candidate-only', createAuthState('authenticated', UserRole.Administrator));
     expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
   });
 

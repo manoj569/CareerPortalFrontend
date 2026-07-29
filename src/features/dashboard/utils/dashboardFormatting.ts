@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 
-import { JobHistoryAction, MembershipStatus, NotificationType } from '../types/dashboardModels';
+import { JobApplicationStatus, MembershipStatus, NotificationType } from '../types/dashboardModels';
 
 export const formatDashboardDate = (value: string | null): string | null => {
   if (!value) return null;
@@ -16,14 +16,12 @@ const membershipStatusLabels: Record<MembershipStatus, string> = {
   [MembershipStatus.Expired]: 'Expired',
 };
 
-const jobHistoryLabels: Record<JobHistoryAction, string> = {
-  [JobHistoryAction.Viewed]: 'Viewed',
-  [JobHistoryAction.Saved]: 'Saved',
-  [JobHistoryAction.Applied]: 'Applied',
-  [JobHistoryAction.Withdrawn]: 'Withdrawn',
-  [JobHistoryAction.Rejected]: 'Rejected',
-  [JobHistoryAction.Shortlisted]: 'Shortlisted',
-  [JobHistoryAction.Hired]: 'Hired',
+const applicationStatusLabels: Record<JobApplicationStatus, string> = {
+  [JobApplicationStatus.Submitted]: 'Submitted',
+  [JobApplicationStatus.Reviewed]: 'Reviewed',
+  [JobApplicationStatus.Shortlisted]: 'Shortlisted',
+  [JobApplicationStatus.Rejected]: 'Rejected',
+  [JobApplicationStatus.Withdrawn]: 'Withdrawn',
 };
 
 const notificationTypeLabels: Record<NotificationType, string> = {
@@ -38,8 +36,11 @@ const notificationTypeLabels: Record<NotificationType, string> = {
 export const getMembershipStatusLabel = (value: MembershipStatus): string =>
   membershipStatusLabels[value] ?? 'Unknown';
 
-export const getJobHistoryActionLabel = (value: JobHistoryAction): string =>
-  jobHistoryLabels[value] ?? 'Updated';
+export const getApplicationStatusLabel = (value: JobApplicationStatus): string =>
+  applicationStatusLabels[value] ?? 'Unknown';
+
+export const canWithdrawApplication = (value: JobApplicationStatus): boolean =>
+  value === JobApplicationStatus.Submitted;
 
 export const getNotificationTypeLabel = (value: NotificationType): string =>
   notificationTypeLabels[value] ?? 'General';

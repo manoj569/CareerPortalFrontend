@@ -1,11 +1,16 @@
-import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
   Alert,
-  Avatar,
   Button,
+  Chip,
+  FormControl,
+  FormHelperText,
   Grid,
+  InputLabel,
+  MenuItem,
+  OutlinedInput,
   Paper,
+  Select,
   Skeleton,
   Stack,
   TextField,
@@ -13,31 +18,40 @@ import {
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
 
 import { applyApiValidationErrors } from '@/api/formErrors';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { ROUTES } from '@/constants/routes';
 import {
   isDashboardApiError,
   useGetProfileQuery,
   useUpdateProfileMutation,
 } from '@/features/dashboard/api/dashboardApi';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
-import { profileUpdated } from '@/features/auth/store/authSlice';
 import {
   profileSchema,
+  splitLines,
+  splitList,
   type ProfileFormValues,
 } from '@/features/dashboard/validation/dashboardSchemas';
-import { useAppDispatch } from '@/hooks/reduxHooks';
+import {
+  employmentTypeOptions,
+  getEmploymentTypeLabel,
+} from '@/features/jobs/constants/jobOptions';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 const emptyProfile: ProfileFormValues = {
   bio: '',
-  firstName: '',
+  education: '',
+  experience: '',
   headline: '',
-  lastName: '',
-  phoneNumber: '',
-  profileImageUrl: '',
+  linkedInUrl: '',
+  location: '',
+  portfolioUrl: '',
+  preferredJobTypes: [],
+  skills: '',
 };
 
 export const ProfilePage = () => {
@@ -45,34 +59,35 @@ export const ProfilePage = () => {
     'Candidate profile | Career Portal',
     'Review and update your Career Portal candidate profile.',
   );
-  const dispatch = useAppDispatch();
   const { data: profile, isError, isLoading, refetch } = useGetProfileQuery();
   const [updateProfile] = useUpdateProfileMutation();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
-    formState: { errors, isSubmitting, isDirty },
+    control,
+    formState: { errors, isDirty, isSubmitting },
     handleSubmit,
     register,
     reset,
     setError,
     setFocus,
-    watch,
   } = useForm<ProfileFormValues>({
     defaultValues: emptyProfile,
     mode: 'onTouched',
     resolver: yupResolver(profileSchema),
   });
-  const profileImageUrl = watch('profileImageUrl');
 
   useEffect(() => {
     if (!profile) return;
     reset({
       bio: profile.bio ?? '',
-      firstName: profile.firstName,
+      education: profile.education.join('\n'),
+      experience: profile.experience.join('\n'),
       headline: profile.headline ?? '',
-      lastName: profile.lastName,
-      phoneNumber: profile.phoneNumber ?? '',
-      profileImageUrl: profile.profileImageUrl ?? '',
+      linkedInUrl: profile.linkedInUrl ?? '',
+      location: profile.location ?? '',
+      portfolioUrl: profile.portfolioUrl ?? '',
+      preferredJobTypes: profile.preferredJobTypes,
+      skills: profile.skills.join(', '),
     });
   }, [profile, reset]);
 
@@ -81,26 +96,41 @@ export const ProfilePage = () => {
     try {
       const updated = await updateProfile({
         bio: values.bio.trim() || null,
-        firstName: values.firstName.trim(),
+        education: splitLines(values.education),
+        experience: splitLines(values.experience),
         headline: values.headline.trim() || null,
-        lastName: values.lastName.trim(),
-        phoneNumber: values.phoneNumber.trim() || null,
-        profileImageUrl: values.profileImageUrl.trim() || null,
+        linkedInUrl: values.linkedInUrl.trim() || null,
+        location: values.location.trim() || null,
+        portfolioUrl: values.portfolioUrl.trim() || null,
+        preferredJobTypes: values.preferredJobTypes,
+        skills: splitList(values.skills),
       }).unwrap();
-      dispatch(profileUpdated({ firstName: updated.firstName, lastName: updated.lastName }));
       reset({
         bio: updated.bio ?? '',
-        firstName: updated.firstName,
+        education: updated.education.join('\n'),
+        experience: updated.experience.join('\n'),
         headline: updated.headline ?? '',
-        lastName: updated.lastName,
-        phoneNumber: updated.phoneNumber ?? '',
-        profileImageUrl: updated.profileImageUrl ?? '',
+        linkedInUrl: updated.linkedInUrl ?? '',
+        location: updated.location ?? '',
+        portfolioUrl: updated.portfolioUrl ?? '',
+        preferredJobTypes: updated.preferredJobTypes,
+        skills: updated.skills.join(', '),
       });
       enqueueSnackbar('Profile updated successfully.', { variant: 'success' });
     } catch (updateError: unknown) {
       const hasFieldErrors = applyApiValidationErrors<ProfileFormValues>(
         updateError,
-        ['bio', 'firstName', 'headline', 'lastName', 'phoneNumber', 'profileImageUrl'],
+        [
+          'bio',
+          'education',
+          'experience',
+          'headline',
+          'linkedInUrl',
+          'location',
+          'portfolioUrl',
+          'preferredJobTypes',
+          'skills',
+        ],
         setError,
       );
       setServerError(
@@ -117,7 +147,7 @@ export const ProfilePage = () => {
     return (
       <Stack aria-label="Loading profile" role="status" spacing={3}>
         <Skeleton height={76} variant="rounded" />
-        <Skeleton height={520} variant="rounded" />
+        <Skeleton height={700} variant="rounded" />
       </Stack>
     );
   }
@@ -129,40 +159,38 @@ export const ProfilePage = () => {
   return (
     <Stack spacing={4}>
       <DashboardPageHeader
-        description="Keep the information employers and the portal use to identify you up to date."
-        eyebrow="Account"
+        actions={
+          <Button component={Link} to={ROUTES.RESUME} variant="outlined">
+            Manage resume
+          </Button>
+        }
+        description="Help employers understand your strengths, experience, and preferred opportunities."
+        eyebrow="Candidate account"
         title="Candidate profile"
       />
 
       <Paper sx={{ p: { xs: 3, md: 4 } }}>
+        <Stack spacing={0.5} sx={{ mb: 3 }}>
+          <Typography fontWeight={800}>
+            {profile.firstName} {profile.lastName}
+          </Typography>
+          <Typography color="text.secondary">{profile.email}</Typography>
+          <Typography color="text.secondary" variant="body2">
+            Your name and email are managed by your verified account.
+          </Typography>
+        </Stack>
+
         <Stack
           component="form"
           noValidate
           onSubmit={(event) => {
             void handleSubmit(submitProfile, (formErrors) => {
               const firstField = Object.keys(formErrors)[0] as keyof ProfileFormValues | undefined;
-              if (firstField) setFocus(firstField);
+              if (firstField && firstField !== 'preferredJobTypes') setFocus(firstField);
             })(event);
           }}
           spacing={3}
         >
-          <Stack alignItems="center" direction="row" spacing={2}>
-            <Avatar
-              alt={`${profile.firstName} ${profile.lastName}`}
-              src={profileImageUrl || undefined}
-              sx={{ height: 72, width: 72 }}
-            >
-              {profile.firstName.charAt(0)}
-              {profile.lastName.charAt(0)}
-            </Avatar>
-            <Stack>
-              <Typography fontWeight={700}>{profile.email}</Typography>
-              <Typography color="text.secondary" variant="body2">
-                {profile.emailConfirmed ? 'Email confirmed' : 'Email not confirmed'}
-              </Typography>
-            </Stack>
-          </Stack>
-
           {serverError ? (
             <Alert aria-live="assertive" severity="error">
               {serverError}
@@ -170,63 +198,29 @@ export const ProfilePage = () => {
           ) : null}
 
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, md: 7 }}>
               <TextField
-                autoComplete="given-name"
                 disabled={isSubmitting}
-                error={Boolean(errors.firstName)}
+                error={Boolean(errors.headline)}
                 fullWidth
-                helperText={errors.firstName?.message}
-                label="First name"
-                required
-                {...register('firstName')}
+                helperText={errors.headline?.message ?? 'Optional · maximum 250 characters'}
+                label="Professional headline"
+                {...register('headline')}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <TextField
-                autoComplete="family-name"
+                autoComplete="address-level2"
                 disabled={isSubmitting}
-                error={Boolean(errors.lastName)}
+                error={Boolean(errors.location)}
                 fullWidth
-                helperText={errors.lastName?.message}
-                label="Last name"
-                required
-                {...register('lastName')}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                autoComplete="tel"
-                disabled={isSubmitting}
-                error={Boolean(errors.phoneNumber)}
-                fullWidth
-                helperText={errors.phoneNumber?.message ?? 'Optional'}
-                label="Phone number"
-                {...register('phoneNumber')}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                disabled={isSubmitting}
-                error={Boolean(errors.profileImageUrl)}
-                fullWidth
-                helperText={
-                  errors.profileImageUrl?.message ??
-                  'Optional absolute HTTP(S) URL. File upload is not supported by the API.'
-                }
-                label="Profile image URL"
-                {...register('profileImageUrl')}
+                helperText={errors.location?.message ?? 'Optional'}
+                label="Location"
+                {...register('location')}
               />
             </Grid>
           </Grid>
-          <TextField
-            disabled={isSubmitting}
-            error={Boolean(errors.headline)}
-            fullWidth
-            helperText={errors.headline?.message ?? 'Optional'}
-            label="Professional headline"
-            {...register('headline')}
-          />
+
           <TextField
             disabled={isSubmitting}
             error={Boolean(errors.bio)}
@@ -237,6 +231,99 @@ export const ProfilePage = () => {
             multiline
             {...register('bio')}
           />
+
+          <TextField
+            disabled={isSubmitting}
+            error={Boolean(errors.skills)}
+            fullWidth
+            helperText={errors.skills?.message ?? 'Separate up to 50 skills with commas.'}
+            label="Skills"
+            {...register('skills')}
+          />
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                disabled={isSubmitting}
+                error={Boolean(errors.education)}
+                fullWidth
+                helperText={errors.education?.message ?? 'One education entry per line.'}
+                label="Education"
+                minRows={5}
+                multiline
+                {...register('education')}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                disabled={isSubmitting}
+                error={Boolean(errors.experience)}
+                fullWidth
+                helperText={errors.experience?.message ?? 'One experience entry per line.'}
+                label="Experience"
+                minRows={5}
+                multiline
+                {...register('experience')}
+              />
+            </Grid>
+          </Grid>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                disabled={isSubmitting}
+                error={Boolean(errors.linkedInUrl)}
+                fullWidth
+                helperText={errors.linkedInUrl?.message ?? 'Optional HTTPS URL'}
+                label="LinkedIn URL"
+                {...register('linkedInUrl')}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                disabled={isSubmitting}
+                error={Boolean(errors.portfolioUrl)}
+                fullWidth
+                helperText={errors.portfolioUrl?.message ?? 'Optional HTTPS URL'}
+                label="Portfolio URL"
+                {...register('portfolioUrl')}
+              />
+            </Grid>
+          </Grid>
+
+          <Controller
+            control={control}
+            name="preferredJobTypes"
+            render={({ field }) => (
+              <FormControl error={Boolean(errors.preferredJobTypes)} fullWidth>
+                <InputLabel id="preferred-job-types-label">Preferred job types</InputLabel>
+                <Select
+                  {...field}
+                  disabled={isSubmitting}
+                  input={<OutlinedInput label="Preferred job types" />}
+                  labelId="preferred-job-types-label"
+                  multiple
+                  renderValue={(selected) => (
+                    <Stack direction="row" flexWrap="wrap" gap={0.5}>
+                      {selected.map((value) => (
+                        <Chip key={value} label={getEmploymentTypeLabel(value)} size="small" />
+                      ))}
+                    </Stack>
+                  )}
+                >
+                  {employmentTypeOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>
+                  {errors.preferredJobTypes?.message ?? 'Optional · choose all that apply'}
+                </FormHelperText>
+              </FormControl>
+            )}
+          />
+
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <Button disabled={isSubmitting || !isDirty} type="submit" variant="contained">
               {isSubmitting ? 'Saving…' : 'Save profile'}
@@ -245,19 +332,6 @@ export const ProfilePage = () => {
               Discard changes
             </Button>
           </Stack>
-        </Stack>
-      </Paper>
-
-      <Paper component="section" sx={{ p: { xs: 3, md: 4 } }}>
-        <Stack spacing={2}>
-          <CloudUploadOutlinedIcon color="disabled" />
-          <Typography component="h2" variant="h3">
-            Resume management unavailable
-          </Typography>
-          <Typography color="text.secondary">
-            The current backend has no candidate resume upload, download, replace, or delete
-            endpoint. No file is selected or stored by this frontend.
-          </Typography>
         </Stack>
       </Paper>
     </Stack>

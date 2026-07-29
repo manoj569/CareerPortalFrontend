@@ -9,12 +9,17 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Grid,
   Link as MuiLink,
   Paper,
   Skeleton,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
@@ -22,14 +27,21 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
+import { buildApplicationDetailsPath, buildJobDetailsPath, ROUTES } from '@/constants/routes';
+import {
+  isDashboardApiError,
+  useSubmitApplicationMutation,
+} from '@/features/dashboard/api/dashboardApi';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import {
   isJobsApiError,
   useApplyToJobMutation,
   useGetJobDetailsQuery,
+  useGetRelatedJobsQuery,
 } from '@/features/jobs/api/jobsApi';
 import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
+import { JobCard } from '@/features/jobs/components/JobCard';
+import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
 import { ShareButton } from '@/features/jobs/components/ShareButton';
 import {
   getEmploymentTypeLabel,
@@ -39,9 +51,14 @@ import {
 import { ApplicationAccessStatus } from '@/features/jobs/types/jobModels';
 import { formatJobDate, formatSalary, isJobExpired } from '@/features/jobs/utils/jobFormatting';
 import { buildPaymentPath } from '@/features/payments/utils/paymentReturnUrl';
-import { selectAuthStatus, selectIsAuthenticated } from '@/features/auth/store/authSlice';
+import {
+  selectAuthStatus,
+  selectCurrentUser,
+  selectIsAuthenticated,
+} from '@/features/auth/store/authSlice';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { UserRole } from '@/types';
 
 interface DetailsLocationState {
   jobsSearch?: string;
@@ -75,7 +92,9 @@ export const JobDetailsPage = () => {
   const navigate = useNavigate();
   const authStatus = useAppSelector(selectAuthStatus);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const [applicationUrl, setApplicationUrl] = useState<string | null>(null);
+  const user = useAppSelector(selectCurrentUser);
+  const [confirmApplication, setConfirmApplication] = useState(false);
+  const [coverLetter, setCoverLetter] = useState('');
   const [applyError, setApplyError] = useState<string | null>(null);
   const {
     data: job,
@@ -87,7 +106,19 @@ export const JobDetailsPage = () => {
   } = useGetJobDetailsQuery(slug, {
     skip: !slug,
   });
+  const {
+    data: relatedJobs,
+    isError: isRelatedJobsError,
+    isLoading: isRelatedJobsLoading,
+    refetch: refetchRelatedJobs,
+  } = useGetRelatedJobsQuery(
+    { limit: 3, slug },
+    {
+      skip: !slug || !job,
+    },
+  );
   const [applyToJob, { isLoading: isApplying }] = useApplyToJobMutation();
+  const [submitApplication, submitState] = useSubmitApplicationMutation();
   const locationState = location.state as DetailsLocationState | null;
   const jobsSearch = locationState?.jobsSearch
     ? new URLSearchParams(locationState.jobsSearch).toString()
@@ -114,6 +145,10 @@ export const JobDetailsPage = () => {
       await navigate(ROUTES.LOGIN, { state: { from: location } });
       return;
     }
+    if (user?.role !== UserRole.Candidate) {
+      await navigate(ROUTES.UNAUTHORIZED);
+      return;
+    }
 
     try {
       const access = await applyToJob(job.slug).unwrap();
@@ -126,16 +161,28 @@ export const JobDetailsPage = () => {
         return;
       }
 
-      const safeApplicationUrl = getSafeExternalUrl(access.applicationUrl);
-      if (safeApplicationUrl) {
-        setApplicationUrl(safeApplicationUrl);
-      } else {
-        setApplyError(
-          'Application access was granted, but no valid application link was provided.',
-        );
-      }
+      setConfirmApplication(true);
     } catch {
       setApplyError('We could not check application access. Please try again.');
+    }
+  };
+
+  const handleSubmitApplication = async () => {
+    if (!job || submitState.isLoading) return;
+    setApplyError(null);
+    try {
+      const application = await submitApplication({
+        coverLetter: coverLetter.trim() || null,
+        jobId: job.id,
+      }).unwrap();
+      setConfirmApplication(false);
+      await navigate(buildApplicationDetailsPath(application.id));
+    } catch (error: unknown) {
+      setApplyError(
+        isDashboardApiError(error)
+          ? error.message
+          : 'We could not submit your application. Please try again.',
+      );
     }
   };
 
@@ -167,6 +214,17 @@ export const JobDetailsPage = () => {
 
   if (isError || !job) {
     return <ErrorState headingLevel="h1" onRetry={() => void refetch()} />;
+  }
+
+  if (expired) {
+    return (
+      <EmptyState
+        actionLabel="Browse available jobs"
+        description="This opportunity has closed and is no longer publicly available."
+        onAction={() => void navigate(ROUTES.JOBS)}
+        title="Job no longer available"
+      />
+    );
   }
 
   const publishedDate = formatJobDate(job.publishedAtUtc);
@@ -262,29 +320,14 @@ export const JobDetailsPage = () => {
             ) : null}
           </Grid>
 
-          {expired ? (
-            <Alert severity="warning">
-              This job has expired and is no longer accepting applications.
-            </Alert>
-          ) : null}
           {applyError ? (
             <Alert aria-live="assertive" severity="error">
               {applyError}
             </Alert>
           ) : null}
-          {applicationUrl ? (
-            <Alert severity="success">
-              Application access granted.{' '}
-              <MuiLink href={applicationUrl} rel="noopener noreferrer" target="_blank">
-                Continue to the employer’s application site
-              </MuiLink>
-              .
-            </Alert>
-          ) : null}
-
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <Button
-              disabled={expired || isApplying || authStatus === 'initializing'}
+              disabled={isApplying || authStatus === 'initializing'}
               onClick={() => void handleApply()}
               size="large"
               variant="contained"
@@ -330,6 +373,110 @@ export const JobDetailsPage = () => {
           ) : null}
         </Stack>
       </Paper>
+
+      <Dialog
+        aria-describedby="application-confirmation-description"
+        aria-labelledby="application-confirmation-title"
+        fullWidth
+        maxWidth="sm"
+        onClose={() => !submitState.isLoading && setConfirmApplication(false)}
+        open={confirmApplication}
+      >
+        <DialogTitle id="application-confirmation-title">Apply for {job.title}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography id="application-confirmation-description">
+              Confirm your application to {job.companyName}. Your current resume, if available, will
+              be copied to this application by the backend.
+            </Typography>
+            {applyError ? (
+              <Alert aria-live="assertive" severity="error">
+                {applyError}
+              </Alert>
+            ) : null}
+            <TextField
+              disabled={submitState.isLoading}
+              fullWidth
+              helperText={`${coverLetter.length.toLocaleString()} / 5,000 characters · optional`}
+              inputProps={{ maxLength: 5000 }}
+              label="Cover letter"
+              minRows={6}
+              multiline
+              onChange={(event) => setCoverLetter(event.target.value)}
+              value={coverLetter}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={submitState.isLoading} onClick={() => setConfirmApplication(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={submitState.isLoading}
+            onClick={() => void handleSubmitApplication()}
+            variant="contained"
+          >
+            {submitState.isLoading ? 'Submitting…' : 'Submit application'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Box aria-labelledby="related-jobs-heading" component="section">
+        <Typography component="h2" id="related-jobs-heading" variant="h2">
+          Related jobs
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+          Similar active opportunities based on company, category, or employment type.
+        </Typography>
+
+        {isRelatedJobsLoading ? (
+          <Grid
+            aria-label="Loading related jobs"
+            container
+            role="status"
+            spacing={2.5}
+            sx={{ mt: 0.5 }}
+          >
+            {Array.from({ length: 3 }, (_, index) => (
+              <Grid key={index} size={{ xs: 12, md: 4 }}>
+                <JobCardSkeleton />
+              </Grid>
+            ))}
+          </Grid>
+        ) : null}
+
+        {isRelatedJobsError ? (
+          <Stack alignItems="flex-start" spacing={1.5} sx={{ mt: 2 }}>
+            <Typography color="text.secondary">
+              Related jobs are temporarily unavailable.
+            </Typography>
+            <Button onClick={() => void refetchRelatedJobs()} variant="outlined">
+              Retry related jobs
+            </Button>
+          </Stack>
+        ) : null}
+
+        {!isRelatedJobsLoading && !isRelatedJobsError && relatedJobs?.length === 0 ? (
+          <Typography color="text.secondary" sx={{ mt: 2 }}>
+            No related active jobs are available right now.
+          </Typography>
+        ) : null}
+
+        {relatedJobs && relatedJobs.length > 0 ? (
+          <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+            {relatedJobs.map((relatedJob) => (
+              <Grid key={relatedJob.id} size={{ xs: 12, md: 4 }}>
+                <JobCard
+                  job={relatedJob}
+                  secondaryAction={
+                    <SaveJobButton jobId={relatedJob.id} jobTitle={relatedJob.title} />
+                  }
+                />
+              </Grid>
+            ))}
+          </Grid>
+        ) : null}
+      </Box>
     </Stack>
   );
 };

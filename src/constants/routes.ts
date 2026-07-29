@@ -10,8 +10,10 @@ export const ROUTES = {
   UNAUTHORIZED: '/unauthorized',
   DASHBOARD: '/dashboard',
   PROFILE: '/dashboard/profile',
+  RESUME: '/dashboard/resume',
   SAVED_JOBS: '/dashboard/saved-jobs',
   APPLICATIONS: '/dashboard/applications',
+  APPLICATION_DETAILS: '/dashboard/applications/:applicationId',
   NOTIFICATIONS: '/dashboard/notifications',
   SETTINGS: '/dashboard/settings',
   PAYMENTS: '/dashboard/payments',
@@ -33,6 +35,9 @@ export const ROUTES = {
 
 export const buildJobDetailsPath = (slug: string): string =>
   ROUTES.JOB_DETAILS.replace(':slug', encodeURIComponent(slug));
+
+export const buildApplicationDetailsPath = (applicationId: string): string =>
+  ROUTES.APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
 
 export const buildAdminJobEditPath = (jobId: string): string =>
   ROUTES.ADMIN_JOB_EDIT.replace(':jobId', encodeURIComponent(jobId));

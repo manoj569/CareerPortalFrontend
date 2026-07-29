@@ -10,16 +10,19 @@ import { createAppStore } from './store';
 
 const profile = {
   bio: null,
-  createdAtUtc: '2026-01-01T00:00:00Z',
+  education: [],
   email: 'candidate@example.com',
-  emailConfirmed: false,
+  experience: [],
   firstName: 'Candidate',
   headline: null,
   id: 'candidate-id',
-  lastLoginAtUtc: null,
   lastName: 'User',
-  phoneNumber: null,
-  profileImageUrl: null,
+  linkedInUrl: null,
+  location: null,
+  portfolioUrl: null,
+  preferredJobTypes: [],
+  resume: null,
+  skills: [],
 };
 
 const statistics = {

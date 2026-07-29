@@ -1,11 +1,13 @@
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import {
-  Alert,
   Box,
-  Chip,
+  FormControl,
+  InputLabel,
   Link as MuiLink,
+  MenuItem,
   Pagination,
   Paper,
+  Select,
   Skeleton,
   Stack,
   Typography,
@@ -15,51 +17,73 @@ import { Link } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { buildJobDetailsPath } from '@/constants/routes';
+import { buildApplicationDetailsPath, buildJobDetailsPath } from '@/constants/routes';
 import { useGetApplicationsQuery } from '@/features/dashboard/api/dashboardApi';
+import { ApplicationStatusChip } from '@/features/dashboard/components/ApplicationStatusChip';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
+import { JobApplicationStatus } from '@/features/dashboard/types/dashboardModels';
 import {
   formatDashboardDate,
-  getJobHistoryActionLabel,
+  getApplicationStatusLabel,
 } from '@/features/dashboard/utils/dashboardFormatting';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 const PAGE_SIZE = 10;
+const statuses = Object.values(JobApplicationStatus).filter(
+  (value): value is JobApplicationStatus => typeof value === 'number',
+);
 
 export const ApplicationsPage = () => {
   useDocumentMetadata(
     'Applications | Career Portal',
-    'Review application-access events recorded for your candidate account.',
+    'Review job applications submitted from your candidate account.',
   );
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<JobApplicationStatus | ''>('');
   const { data, isError, isFetching, isLoading, refetch } = useGetApplicationsQuery({
     pageNumber: page,
     pageSize: PAGE_SIZE,
+    ...(status ? { status } : {}),
   });
 
   return (
     <Stack spacing={4}>
       <DashboardPageHeader
-        description="These records are created by the backend when application access is granted."
+        description="Follow every application from submission through the employer’s decision."
         eyebrow="Career activity"
         title="Applications"
       />
 
-      <Alert severity="info">
-        The backend currently provides application history only. It has no application-detail,
-        document, status-update, or withdrawal endpoint.
-      </Alert>
+      <FormControl size="small" sx={{ maxWidth: 280 }}>
+        <InputLabel id="application-status-filter-label">Application status</InputLabel>
+        <Select
+          label="Application status"
+          labelId="application-status-filter-label"
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setPage(1);
+          }}
+          value={status}
+        >
+          <MenuItem value="">All statuses</MenuItem>
+          {statuses.map((value) => (
+            <MenuItem key={value} value={value}>
+              {getApplicationStatusLabel(value)}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
 
       {isFetching && data ? (
         <Typography aria-live="polite" color="text.secondary">
-          Updating application history…
+          Updating applications…
         </Typography>
       ) : null}
 
       {isLoading && !data ? (
         <Stack aria-label="Loading applications" role="status" spacing={2}>
           {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} height={112} variant="rounded" />
+            <Skeleton key={index} height={132} variant="rounded" />
           ))}
         </Stack>
       ) : null}
@@ -68,16 +92,20 @@ export const ApplicationsPage = () => {
 
       {data?.items.length === 0 ? (
         <EmptyState
-          description="Application history will appear after the backend grants access to an employer application."
-          title="No applications recorded"
+          description={
+            status
+              ? 'No applications match this status. Choose another status to see more.'
+              : 'Applications submitted from active job pages will appear here.'
+          }
+          title={status ? 'No matching applications' : 'No applications yet'}
         />
       ) : null}
 
       {data && data.items.length > 0 ? (
         <Stack spacing={2}>
           <Typography color="text.secondary">
-            {data.totalCount.toLocaleString()} application{' '}
-            {data.totalCount === 1 ? 'record' : 'records'}
+            {data.totalCount.toLocaleString()} application
+            {data.totalCount === 1 ? '' : 's'}
           </Typography>
           {data.items.map((application) => (
             <Paper component="article" key={application.id} sx={{ p: 3 }}>
@@ -91,7 +119,7 @@ export const ApplicationsPage = () => {
                   <MuiLink
                     component={Link}
                     fontWeight={800}
-                    to={buildJobDetailsPath(application.jobSlug)}
+                    to={buildApplicationDetailsPath(application.id)}
                     variant="h3"
                   >
                     {application.jobTitle}
@@ -100,20 +128,12 @@ export const ApplicationsPage = () => {
                     {application.companyName}
                   </Typography>
                   <Typography color="text.secondary" variant="body2">
-                    {formatDashboardDate(application.occurredAtUtc) ?? 'Date unavailable'}
+                    Submitted{' '}
+                    {formatDashboardDate(application.submittedAtUtc) ?? 'date unavailable'}
                   </Typography>
-                  {application.notes ? (
-                    <Typography sx={{ mt: 1 }} variant="body2">
-                      {application.notes}
-                    </Typography>
-                  ) : null}
                 </Box>
                 <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={1}>
-                  <Chip
-                    color="primary"
-                    label={getJobHistoryActionLabel(application.action)}
-                    size="small"
-                  />
+                  <ApplicationStatusChip status={application.status} />
                   <MuiLink
                     component={Link}
                     display="inline-flex"

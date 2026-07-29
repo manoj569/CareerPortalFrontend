@@ -2,9 +2,7 @@ import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
-import { MembershipStatus } from '@/features/dashboard/types/dashboardModels';
-import { jobsApi } from '@/features/jobs/api/jobsApi';
-import { ApplicationAccessStatus } from '@/features/jobs/types/jobModels';
+import { JobApplicationStatus, MembershipStatus } from '@/features/dashboard/types/dashboardModels';
 import { paymentsApi } from '@/features/payments/api/paymentsApi';
 import { PaymentProvider, PaymentStatus } from '@/features/payments/types/paymentModels';
 import { createAppStore } from '@/store/store';
@@ -20,7 +18,7 @@ describe('cross-module cache consistency', () => {
     mockRequest.mockReset();
   });
 
-  it('refreshes applied-job history after backend application access is granted', async () => {
+  it('refreshes applications after a candidate submits an application', async () => {
     const store = createAppStore();
     await store.dispatch(
       dashboardApi.util.upsertQueryData(
@@ -38,15 +36,28 @@ describe('cross-module cache consistency', () => {
     mockRequest.mockResolvedValue({
       data: {
         data: {
-          applicationUrl: 'https://employer.example/apply',
-          companyId: 'company-id',
-          message: 'Application access granted.',
-          status: ApplicationAccessStatus.Granted,
+          companyName: 'Northstar',
+          coverLetter: null,
+          id: 'application-id',
+          jobId: 'job-id',
+          jobSlug: 'frontend-engineer',
+          jobTitle: 'Frontend Engineer',
+          resumeFileName: null,
+          status: JobApplicationStatus.Submitted,
+          submittedAtUtc: '2026-07-29T00:00:00Z',
+          withdrawnAtUtc: null,
         },
       },
     });
 
-    await store.dispatch(jobsApi.endpoints.applyToJob.initiate('frontend-engineer')).unwrap();
+    await store
+      .dispatch(
+        dashboardApi.endpoints.submitApplication.initiate({
+          coverLetter: null,
+          jobId: 'job-id',
+        }),
+      )
+      .unwrap();
 
     await waitFor(() => {
       expect(Object.keys(store.getState().dashboardApi.queries)).toHaveLength(0);

@@ -5,8 +5,9 @@ import { enqueueSnackbar } from 'notistack';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
-import { selectIsAuthenticated } from '@/features/auth/store/authSlice';
+import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
 import { useAppSelector } from '@/hooks/reduxHooks';
+import { UserRole } from '@/types';
 import {
   useGetSavedJobsQuery,
   useRemoveSavedJobMutation,
@@ -21,20 +22,26 @@ interface SaveJobButtonProps {
 
 export const SaveJobButton = ({ jobId, jobTitle, knownSaved }: SaveJobButtonProps) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const user = useAppSelector(selectCurrentUser);
+  const isCandidate = user?.role === UserRole.Candidate;
   const location = useLocation();
   const navigate = useNavigate();
   const { data, isFetching } = useGetSavedJobsQuery(
     { pageNumber: 1, pageSize: 100 },
-    { skip: !isAuthenticated || knownSaved !== undefined },
+    { skip: !isAuthenticated || !isCandidate || knownSaved !== undefined },
   );
   const [saveJob, saveState] = useSaveJobMutation();
   const [removeSavedJob, removeState] = useRemoveSavedJobMutation();
-  const isSaved = knownSaved ?? data?.items.some((item) => item.job.id === jobId) ?? false;
+  const isSaved = knownSaved ?? data?.items.some((item) => item.jobId === jobId) ?? false;
   const isWorking = saveState.isLoading || removeState.isLoading;
 
   const handleClick = async () => {
     if (!isAuthenticated) {
       await navigate(ROUTES.LOGIN, { state: { from: location } });
+      return;
+    }
+    if (!isCandidate) {
+      await navigate(ROUTES.UNAUTHORIZED);
       return;
     }
 
@@ -56,7 +63,9 @@ export const SaveJobButton = ({ jobId, jobTitle, knownSaved }: SaveJobButtonProp
   return (
     <Button
       aria-label={`${isSaved ? 'Remove' : 'Save'} ${jobTitle}${isSaved ? ' from saved jobs' : ''}`}
-      disabled={isWorking || (isAuthenticated && knownSaved === undefined && isFetching)}
+      disabled={
+        isWorking || (isAuthenticated && isCandidate && knownSaved === undefined && isFetching)
+      }
       onClick={() => void handleClick()}
       startIcon={isSaved ? <BookmarkOutlinedIcon /> : <BookmarkBorderOutlinedIcon />}
       variant="text"
