@@ -1,6 +1,8 @@
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
   Alert,
+  Box,
   Button,
   Checkbox,
   FormControlLabel,
@@ -21,6 +23,7 @@ import { PasswordField } from '@/features/auth/components/PasswordField';
 import { ResendVerificationAction } from '@/features/auth/components/ResendVerificationAction';
 import { register as registerAccount } from '@/features/auth/store/authSlice';
 import {
+  normalizeIndianMobileNumber,
   registrationSchema,
   type RegistrationFormValues,
 } from '@/features/auth/validation/authSchemas';
@@ -29,6 +32,7 @@ import { useAppDispatch } from '@/hooks/reduxHooks';
 export const RegisterPage = () => {
   const dispatch = useAppDispatch();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const {
     control,
@@ -52,14 +56,21 @@ export const RegisterPage = () => {
 
   const submitRegistration = async (values: RegistrationFormValues) => {
     setServerError(null);
+    setHasValidationErrors(false);
+    const normalizedMobile = normalizeIndianMobileNumber(values.phoneNumber);
+    if (!normalizedMobile) {
+      setHasValidationErrors(true);
+      return;
+    }
     try {
       await dispatch(
         registerAccount({
           email: values.email.trim(),
           firstName: values.firstName.trim(),
+          hasAcceptedTermsAndPrivacy: values.termsAccepted,
           lastName: values.lastName.trim(),
           password: values.password,
-          phoneNumber: values.phoneNumber?.trim() || null,
+          phoneNumber: normalizedMobile,
         }),
       ).unwrap();
       setRegisteredEmail(values.email.trim());
@@ -94,9 +105,42 @@ export const RegisterPage = () => {
   return (
     <Stack spacing={3}>
       <AuthPageHeader
-        description="Create a candidate account to save jobs and track applications."
+        description="A simple profile for internships, fresher roles, and experienced opportunities."
         title="Create your account"
       />
+
+      <Box
+        component="aside"
+        sx={{
+          bgcolor: 'action.hover',
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 2,
+          p: 2,
+        }}
+      >
+        <Typography fontWeight={700} sx={{ mb: 1 }}>
+          One account helps you
+        </Typography>
+        <Stack component="ul" spacing={1} sx={{ listStyle: 'none', m: 0, p: 0 }}>
+          {[
+            'Find verified internships and jobs',
+            'Apply with one saved profile',
+            'Track your applications',
+          ].map((benefit) => (
+            <Stack alignItems="center" component="li" direction="row" key={benefit} spacing={1}>
+              <CheckCircleOutlineIcon color="primary" fontSize="small" />
+              <Typography variant="body2">{benefit}</Typography>
+            </Stack>
+          ))}
+        </Stack>
+      </Box>
+
+      {hasValidationErrors ? (
+        <Alert aria-live="assertive" severity="error">
+          Please correct the highlighted fields before creating your account.
+        </Alert>
+      ) : null}
 
       {serverError ? (
         <Alert aria-live="assertive" severity="error">
@@ -109,6 +153,7 @@ export const RegisterPage = () => {
         noValidate
         onSubmit={(event) => {
           void handleSubmit(submitRegistration, (formErrors) => {
+            setHasValidationErrors(true);
             const firstField = Object.keys(formErrors)[0] as
               keyof RegistrationFormValues | undefined;
             if (firstField) setFocus(firstField);
@@ -154,8 +199,9 @@ export const RegisterPage = () => {
           autoComplete="tel"
           disabled={isSubmitting}
           error={Boolean(errors.phoneNumber)}
-          helperText={errors.phoneNumber?.message ?? 'Optional'}
-          label="Mobile number"
+          helperText={errors.phoneNumber?.message ?? 'Use an Indian 10-digit mobile number.'}
+          label="Indian mobile number"
+          required
           type="tel"
           {...register('phoneNumber')}
         />

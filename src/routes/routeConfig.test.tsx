@@ -42,6 +42,7 @@ describe('release route structure', () => {
 
     expect(candidatePaths).toEqual(
       expect.arrayContaining([
+        ROUTES.ONBOARDING,
         ROUTES.DASHBOARD,
         ROUTES.PROFILE,
         ROUTES.RESUME,

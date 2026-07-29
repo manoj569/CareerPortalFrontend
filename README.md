@@ -148,6 +148,7 @@ Public routes:
 
 Authenticated candidate routes:
 
+- `/onboarding`
 - `/dashboard`, `/dashboard/profile`, `/dashboard/resume`, `/dashboard/saved-jobs`
 - `/dashboard/applications`, `/dashboard/applications/:applicationId`
 - `/dashboard/notifications`, `/dashboard/settings`, `/dashboard/membership`
@@ -185,9 +186,10 @@ The frontend is aligned with the current `JobPortal.API` contract:
 | Logout                    | `POST /auth/logout`              |
 
 Registration returns a message-only `RegistrationResponse`; it does not create an authenticated
-session. Candidates must verify their email before login. Verification tokens are accepted only by
-the API request and are never rendered or logged by the frontend. Resend responses use a generic
-privacy-safe message regardless of whether an unverified account exists.
+session. The registration request includes the required Indian mobile number and explicit Terms
+and Privacy consent expected by the backend. Candidates must verify their email before login.
+Verification tokens are accepted only by the API request and are never rendered or logged by the
+frontend. Resend and duplicate-registration responses use generic privacy-safe messaging.
 
 ## Public jobs API contract
 
@@ -225,6 +227,7 @@ Authenticated candidate pages use:
 
 | Operation                   | Method and path                               |
 | --------------------------- | --------------------------------------------- |
+| Read/update onboarding      | `GET/PUT /candidate/onboarding`               |
 | Read/update profile         | `GET/PUT /candidate/profile`                  |
 | Upload/download/delete CV   | `PUT/GET/DELETE /candidate/resume`            |
 | Membership access           | `GET /dashboard/memberships`                  |
@@ -239,8 +242,12 @@ Authenticated candidate pages use:
 | Mark all notifications read | `PUT /dashboard/notifications/read-all`       |
 | Change password             | `POST /dashboard/change-password`             |
 
-The overview composes these backend resources and does not manufacture career activity. Profile
-updates also synchronize the authenticated user's displayed name in Redux.
+The three-step onboarding route captures the backend's career-stage, opportunity, location, skill,
+work-setting, education, and experience fields. Resume setup remains optional and links to the
+existing Candidate resume page. The backend has no separate skip or partial-save operation, so
+Skip leaves the form unsaved and takes the Candidate to the dashboard without gating existing
+accounts. The overview composes backend resources and does not manufacture career activity.
+Profile updates also synchronize the authenticated user's displayed name in Redux.
 
 The current API has no email-change operation, account export, communication-preference
 management, or account deletion operation. Those settings areas show explicit unavailable states

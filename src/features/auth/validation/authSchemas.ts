@@ -7,6 +7,51 @@ const passwordRules = {
   specialCharacter: /[^a-zA-Z0-9]/,
 };
 
+const safeName = /\p{L}/u;
+const hasControlCharacters = (value: string): boolean =>
+  Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 31 || (codePoint >= 127 && codePoint <= 159);
+  });
+
+export const normalizeIndianMobileNumber = (value: string): string | null => {
+  const input = value.trim();
+  if (
+    !input ||
+    hasControlCharacters(input) ||
+    /[^+\d ()-]/.test(input) ||
+    (input.match(/\+/g)?.length ?? 0) > 1 ||
+    (input.includes('+') && !input.startsWith('+')) ||
+    input.includes('--') ||
+    (input.match(/\(/g)?.length ?? 0) > 1 ||
+    (input.match(/\)/g)?.length ?? 0) > 1 ||
+    (input.match(/\(/g)?.length ?? 0) !== (input.match(/\)/g)?.length ?? 0) ||
+    (input.includes('(') && input.indexOf('(') > input.indexOf(')'))
+  ) {
+    return null;
+  }
+
+  const digits = input.replace(/\D/g, '');
+  const nationalNumber =
+    digits.length === 10
+      ? digits
+      : digits.length === 11 && digits.startsWith('0')
+        ? digits.slice(1)
+        : digits.length === 12 && digits.startsWith('91')
+          ? digits.slice(2)
+          : '';
+
+  if (
+    !/^[6-9]\d{9}$/.test(nationalNumber) ||
+    /^(\d)\1{9}$/.test(nationalNumber) ||
+    nationalNumber.slice(0, 5) === nationalNumber.slice(5)
+  ) {
+    return null;
+  }
+
+  return `+91${nationalNumber}`;
+};
+
 export const passwordSchema = yup
   .string()
   .required('Password is required.')
@@ -30,12 +75,24 @@ export const registrationSchema = yup.object({
     .string()
     .trim()
     .required('First name is required.')
-    .max(100, 'First name must be no more than 100 characters.'),
+    .min(2, 'First name must be at least 2 characters.')
+    .max(100, 'First name must be no more than 100 characters.')
+    .test(
+      'safe-name',
+      'First name must contain a letter and no control characters.',
+      (value) => !value || (safeName.test(value) && !hasControlCharacters(value)),
+    ),
   lastName: yup
     .string()
     .trim()
     .required('Last name is required.')
-    .max(100, 'Last name must be no more than 100 characters.'),
+    .min(2, 'Last name must be at least 2 characters.')
+    .max(100, 'Last name must be no more than 100 characters.')
+    .test(
+      'safe-name',
+      'Last name must contain a letter and no control characters.',
+      (value) => !value || (safeName.test(value) && !hasControlCharacters(value)),
+    ),
   email: yup
     .string()
     .trim()
@@ -45,12 +102,39 @@ export const registrationSchema = yup.object({
   phoneNumber: yup
     .string()
     .trim()
+    .required('Indian mobile number is required.')
     .max(32, 'Mobile number must be no more than 32 characters.')
-    .matches(/^\+?[0-9 ()-]{7,32}$/, {
-      excludeEmptyString: true,
-      message: 'Enter a valid mobile number.',
-    }),
-  password: passwordSchema,
+    .test(
+      'indian-mobile',
+      'Enter a valid 10-digit Indian mobile number.',
+      (value) => !value || normalizeIndianMobileNumber(value) !== null,
+    ),
+  password: passwordSchema.test(
+    'personal-data',
+    'Password must not contain your name, email name, or mobile number.',
+    function (value) {
+      if (!value) return true;
+      const values = this.parent as {
+        email?: string;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
+      };
+      const normalizedMobile = normalizeIndianMobileNumber(values.phoneNumber ?? '') ?? '';
+      const personalValues = [
+        values.email?.trim().split('@', 1)[0] ?? '',
+        values.firstName?.trim() ?? '',
+        values.lastName?.trim() ?? '',
+        normalizedMobile,
+        normalizedMobile.replace(/^\+/, ''),
+        normalizedMobile.slice(-10),
+      ].filter(Boolean);
+
+      return personalValues.every(
+        (personalValue) => !value.toLowerCase().includes(personalValue.toLowerCase()),
+      );
+    },
+  ),
   confirmPassword: yup
     .string()
     .required('Please confirm your password.')

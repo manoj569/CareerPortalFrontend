@@ -74,10 +74,19 @@ export const EmailVerificationPage = () => {
       {state === 'success' ? (
         <>
           <Alert aria-live="polite" severity="success">
-            Your email address has been verified. You can now log in.
+            Your email address has been verified. Log in to finish setting up your Candidate
+            profile.
           </Alert>
-          <Button component={Link} to={ROUTES.LOGIN} variant="contained">
-            Continue to login
+          <Button
+            component={Link}
+            state={{
+              from: { hash: '', pathname: ROUTES.ONBOARDING, search: '' },
+              message: 'Email verified. Log in to continue to Candidate onboarding.',
+            }}
+            to={ROUTES.LOGIN}
+            variant="contained"
+          >
+            Continue to onboarding
           </Button>
         </>
       ) : null}

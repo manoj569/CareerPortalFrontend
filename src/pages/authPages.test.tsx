@@ -84,7 +84,7 @@ const renderRegistration = () => {
   });
 };
 
-const fillRegistration = async () => {
+const fillRegistrationFields = async () => {
   const user = userEvent.setup();
   await user.type(screen.getByLabelText(/first name/i), 'Avery');
   await user.type(screen.getByLabelText(/last name/i), 'Patel');
@@ -96,6 +96,11 @@ const fillRegistration = async () => {
     'Str0ng!Password2026',
   );
   await user.click(screen.getByRole('checkbox', { name: /terms of use/i }));
+  return user;
+};
+
+const fillRegistration = async () => {
+  const user = await fillRegistrationFields();
   await user.click(screen.getByRole('button', { name: /create account/i }));
 };
 
@@ -103,7 +108,8 @@ const renderVerification = (entry: string) => {
   const router = createMemoryRouter(
     [
       { path: '/verify-email', element: <EmailVerificationPage /> },
-      { path: '/login', element: <p>Login page</p> },
+      { path: '/login', element: <LoginPage /> },
+      { path: '/onboarding', element: <p>Candidate onboarding</p> },
     ],
     { initialEntries: [entry] },
   );
@@ -201,13 +207,55 @@ describe('authentication pages', () => {
     expect(mockedAuthService.register.mock.calls[0]?.[0]).toEqual({
       email: 'candidate@example.com',
       firstName: 'Avery',
+      hasAcceptedTermsAndPrivacy: true,
       lastName: 'Patel',
       password: 'Str0ng!Password2026',
-      phoneNumber: '+91 98765 43210',
+      phoneNumber: '+919876543210',
     });
     expect(await screen.findByText('Check your email to verify your account.')).toBeInTheDocument();
     expect(store.getState().auth.status).toBe('unauthenticated');
     expect(store.getState().auth.user).toBeNull();
+  });
+
+  it('shows an accessible validation summary for incomplete registration', async () => {
+    renderRegistration();
+    await userEvent.click(screen.getByRole('button', { name: /create account/i }));
+
+    expect(
+      await screen.findByText(/correct the highlighted fields before creating your account/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Indian mobile number is required.')).toBeInTheDocument();
+    expect(screen.getByText(/must accept the Terms of Use/i)).toBeInTheDocument();
+  });
+
+  it('does not reveal a duplicate email or mobile response', async () => {
+    mockedAuthService.register.mockRejectedValue(
+      new ApiRequestError({ code: 'conflict', message: 'Email already exists.', status: 409 }),
+    );
+    renderRegistration();
+    await fillRegistration();
+
+    expect(await screen.findByText(/could not complete your request/i)).toBeInTheDocument();
+    expect(screen.queryByText(/already exists/i)).not.toBeInTheDocument();
+  });
+
+  it('prevents a double registration submission while the request is pending', async () => {
+    let resolveRegistration!: (value: { message: string }) => void;
+    mockedAuthService.register.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRegistration = resolve;
+      }),
+    );
+    renderRegistration();
+    const user = await fillRegistrationFields();
+    const submit = screen.getByRole('button', { name: /create account/i });
+
+    await user.dblClick(submit);
+    expect(mockedAuthService.register.mock.calls).toHaveLength(1);
+    expect(submit).toBeDisabled();
+
+    resolveRegistration({ message: 'Registration accepted.' });
+    expect(await screen.findByText('Check your email to verify your account.')).toBeInTheDocument();
   });
 
   it('resends verification from the registration success state', async () => {
@@ -243,6 +291,19 @@ describe('authentication pages', () => {
       token: 'sensitive-verification-token',
     });
     expect(screen.queryByText('sensitive-verification-token')).not.toBeInTheDocument();
+  });
+
+  it('continues a newly verified Candidate through login to onboarding', async () => {
+    mockedAuthService.verifyEmail.mockResolvedValue({ message: 'Email verified.' });
+    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Candidate));
+    renderVerification('/verify-email?email=candidate%40example.com&token=verification-token');
+
+    await userEvent.click(await screen.findByRole('link', { name: /continue to onboarding/i }));
+    expect(
+      await screen.findByText(/email verified. log in to continue to candidate onboarding/i),
+    ).toBeInTheDocument();
+    await fillLogin();
+    expect(await screen.findByText('Candidate onboarding')).toBeInTheDocument();
   });
 
   it('shows an invalid-link state and permits a privacy-safe resend', async () => {

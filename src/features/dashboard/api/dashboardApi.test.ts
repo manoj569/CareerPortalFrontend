@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EmploymentType } from '@/features/jobs/types/jobModels';
 import { createAppStore } from '@/store/store';
-import { JobApplicationStatus, type UserProfile } from '../types/dashboardModels';
+import {
+  CareerStage,
+  DesiredOpportunity,
+  JobApplicationStatus,
+  WorkPreference,
+  type UserProfile,
+} from '../types/dashboardModels';
 import { dashboardApi, downloadCandidateResume } from './dashboardApi';
 
 const { mockRequest } = vi.hoisted(() => ({ mockRequest: vi.fn() }));
@@ -72,6 +78,50 @@ describe('Candidate API integration', () => {
       .unwrap();
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'PUT', url: '/candidate/profile' }),
+    );
+  });
+
+  it('loads and saves the real Candidate onboarding contract', async () => {
+    const store = createAppStore();
+    const onboarding = {
+      careerStage: CareerStage.Student,
+      city: 'Pune',
+      college: 'City College',
+      completedAtUtc: '2026-07-30T00:00:00Z',
+      degree: 'B.Tech',
+      desiredOpportunities: [DesiredOpportunity.Internship],
+      graduationYear: 2027,
+      skills: ['React', 'TypeScript'],
+      workPreferences: [WorkPreference.Hybrid],
+      yearsOfExperience: null,
+    };
+    mockRequest.mockResolvedValue({ data: { data: onboarding } });
+
+    await store.dispatch(dashboardApi.endpoints.getOnboarding.initiate()).unwrap();
+    expect(mockRequest).toHaveBeenLastCalledWith(
+      expect.objectContaining({ method: 'GET', url: '/candidate/onboarding' }),
+    );
+
+    await store
+      .dispatch(
+        dashboardApi.endpoints.updateOnboarding.initiate({
+          careerStage: CareerStage.Student,
+          city: 'Pune',
+          college: 'City College',
+          degree: 'B.Tech',
+          desiredOpportunities: [DesiredOpportunity.Internship],
+          graduationYear: 2027,
+          skills: ['React', 'TypeScript'],
+          workPreferences: [WorkPreference.Hybrid],
+          yearsOfExperience: null,
+        }),
+      )
+      .unwrap();
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'PUT',
+        url: '/candidate/onboarding',
+      }),
     );
   });
 

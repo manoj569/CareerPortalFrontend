@@ -3,7 +3,8 @@ export interface RegisterRequest {
   password: string;
   firstName: string;
   lastName: string;
-  phoneNumber: string | null;
+  phoneNumber: string;
+  hasAcceptedTermsAndPrivacy: boolean;
 }
 
 export interface RegistrationResponse {

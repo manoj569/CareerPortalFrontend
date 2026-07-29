@@ -37,6 +37,49 @@ export interface UpdateCandidateProfileRequest {
   preferredJobTypes: EmploymentType[];
 }
 
+export enum CareerStage {
+  Student = 1,
+  Fresher,
+  Experienced,
+}
+
+export enum DesiredOpportunity {
+  Internship = 1,
+  FresherJob,
+  ExperiencedJob,
+}
+
+export enum WorkPreference {
+  Remote = 1,
+  Hybrid,
+  OnSite,
+}
+
+export interface CandidateOnboarding {
+  careerStage: CareerStage | null;
+  desiredOpportunities: DesiredOpportunity[];
+  city: string | null;
+  skills: string[];
+  workPreferences: WorkPreference[];
+  college: string | null;
+  degree: string | null;
+  graduationYear: number | null;
+  yearsOfExperience: number | null;
+  completedAtUtc: string | null;
+}
+
+export interface UpdateCandidateOnboardingRequest {
+  careerStage: CareerStage;
+  desiredOpportunities: DesiredOpportunity[];
+  city: string;
+  skills: string[];
+  workPreferences: WorkPreference[];
+  college: string | null;
+  degree: string | null;
+  graduationYear: number | null;
+  yearsOfExperience: number | null;
+}
+
 export interface DashboardQuery {
   pageNumber: number;
   pageSize: number;

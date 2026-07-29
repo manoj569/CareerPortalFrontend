@@ -7,6 +7,7 @@ import type { ApiResponse } from '@/types';
 import type {
   ApplicationsPage,
   ApplicationsQuery,
+  CandidateOnboarding,
   ChangePasswordRequest,
   CreateJobApplicationRequest,
   DashboardQuery,
@@ -16,6 +17,7 @@ import type {
   ResumeMetadata,
   SavedJobsPage,
   UpdateCandidateProfileRequest,
+  UpdateCandidateOnboardingRequest,
   UserProfile,
 } from '../types/dashboardModels';
 
@@ -27,7 +29,15 @@ export const dashboardApi = createApi({
   reducerPath: 'dashboardApi',
   baseQuery: axiosBaseQuery(),
   keepUnusedDataFor: 120,
-  tagTypes: ['Profile', 'Resume', 'SavedJobs', 'Applications', 'Notifications', 'Memberships'],
+  tagTypes: [
+    'Profile',
+    'Onboarding',
+    'Resume',
+    'SavedJobs',
+    'Applications',
+    'Notifications',
+    'Memberships',
+  ],
   endpoints: (builder) => ({
     getProfile: builder.query<UserProfile, void>({
       query: () => ({ url: API_ENDPOINTS.CANDIDATE.PROFILE }),
@@ -42,6 +52,20 @@ export const dashboardApi = createApi({
       }),
       transformResponse: (response: ApiResponse<UserProfile>) => response.data,
       invalidatesTags: ['Profile'],
+    }),
+    getOnboarding: builder.query<CandidateOnboarding, void>({
+      query: () => ({ url: API_ENDPOINTS.CANDIDATE.ONBOARDING }),
+      transformResponse: (response: ApiResponse<CandidateOnboarding>) => response.data,
+      providesTags: ['Onboarding'],
+    }),
+    updateOnboarding: builder.mutation<CandidateOnboarding, UpdateCandidateOnboardingRequest>({
+      query: (data) => ({
+        data,
+        method: 'PUT',
+        url: API_ENDPOINTS.CANDIDATE.ONBOARDING,
+      }),
+      transformResponse: (response: ApiResponse<CandidateOnboarding>) => response.data,
+      invalidatesTags: ['Onboarding', 'Profile'],
     }),
     uploadResume: builder.mutation<ResumeMetadata, File>({
       query: (file) => {
@@ -157,6 +181,7 @@ export const {
   useGetApplicationQuery,
   useGetApplicationsQuery,
   useGetMembershipsQuery,
+  useGetOnboardingQuery,
   useGetNotificationsQuery,
   useGetProfileQuery,
   useGetSavedJobsQuery,
@@ -167,6 +192,7 @@ export const {
   useSubmitApplicationMutation,
   useUploadResumeMutation,
   useUpdateProfileMutation,
+  useUpdateOnboardingMutation,
   useWithdrawApplicationMutation,
 } = dashboardApi;
 

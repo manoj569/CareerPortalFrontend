@@ -53,6 +53,7 @@ const renderGuardRouter = (initialPath: string, auth: AuthState) => {
           { path: '/payment', element: <p>Payment content</p> },
           { path: '/dashboard/membership', element: <p>Membership content</p> },
           { path: '/candidate-only', element: <p>Candidate dashboard content</p> },
+          { path: '/onboarding', element: <p>Candidate onboarding content</p> },
         ],
       },
     ],
@@ -120,6 +121,18 @@ describe('route guards', () => {
     candidateView.unmount();
 
     renderGuardRouter('/candidate-only', createAuthState('authenticated', UserRole.Administrator));
+    expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
+  });
+
+  it('keeps Candidate onboarding unavailable to administrators', async () => {
+    const candidateView = renderGuardRouter(
+      '/onboarding',
+      createAuthState('authenticated', UserRole.Candidate),
+    );
+    expect(await screen.findByText('Candidate onboarding content')).toBeInTheDocument();
+    candidateView.unmount();
+
+    renderGuardRouter('/onboarding', createAuthState('authenticated', UserRole.Administrator));
     expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
   });
 

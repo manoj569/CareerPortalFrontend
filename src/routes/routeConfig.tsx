@@ -90,6 +90,15 @@ export const appRoutes: RouteObject[] = [
         element: <CandidateRoute />,
         children: [
           {
+            element: <PublicLayout />,
+            children: [
+              {
+                path: ROUTES.ONBOARDING,
+                element: lazyPage(() => import('@/pages/OnboardingPage'), 'OnboardingPage'),
+              },
+            ],
+          },
+          {
             element: <UserDashboardLayout />,
             children: [
               {

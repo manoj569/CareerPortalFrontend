@@ -73,6 +73,7 @@ export const API_ENDPOINTS = {
   },
   CANDIDATE: {
     PROFILE: '/candidate/profile',
+    ONBOARDING: '/candidate/onboarding',
     RESUME: '/candidate/resume',
     SAVED_JOBS: '/candidate/saved-jobs',
     SAVED_JOB: (jobId: string) => `/candidate/saved-jobs/${encodeURIComponent(jobId)}`,
