@@ -85,11 +85,13 @@ export const jobsApi = createApi({
         };
         const counts = responses.map((response) => readTotalCount(response.data));
         if (counts.some((count) => count === null)) {
+          // ✅ FIX: Added 'redirectToMembership: false' to satisfy the strict type check
           return {
             error: {
               code: undefined,
               errors: undefined,
               message: 'The job filter counts response was invalid.',
+              redirectToMembership: false,
               retryAfterSeconds: undefined,
               status: undefined,
             },
