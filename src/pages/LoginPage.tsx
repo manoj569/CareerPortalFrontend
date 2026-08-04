@@ -1,5 +1,13 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Alert, Button, Link as MuiLink, Stack, TextField, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Link as MuiLink,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,8 +16,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { PasswordField } from '@/features/auth/components/PasswordField';
-import { ResendVerificationAction } from '@/features/auth/components/ResendVerificationAction';
-import { EMAIL_NOT_VERIFIED_MESSAGE } from '@/features/auth/services/authErrorMapper';
 import { login } from '@/features/auth/store/authSlice';
 import { getSafeRedirectPath } from '@/features/auth/utils/safeRedirect';
 import { loginSchema, type LoginFormValues } from '@/features/auth/validation/authSchemas';
@@ -26,7 +32,6 @@ export const LoginPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const locationState = location.state as LoginLocationState | null;
   const {
     formState: { errors, isSubmitting },
@@ -34,16 +39,17 @@ export const LoginPage = () => {
     register,
     setFocus,
   } = useForm<LoginFormValues>({
-    defaultValues: { email: '', password: '' },
+    defaultValues: { identifier: '', password: '' },
     mode: 'onTouched',
     resolver: yupResolver(loginSchema),
   });
 
   const submitLogin = async (values: LoginFormValues) => {
     setServerError(null);
-    setUnverifiedEmail(null);
     try {
-      const response = await dispatch(login(values)).unwrap();
+      const response = await dispatch(
+        login({ identifier: values.identifier.trim(), password: values.password }),
+      ).unwrap();
       const requestedPath = getSafeRedirectPath(locationState?.from);
       const defaultPath =
         response.user.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD;
@@ -51,18 +57,14 @@ export const LoginPage = () => {
       enqueueSnackbar('Welcome back.', { variant: 'success' });
       await navigate(requestedPath ?? defaultPath, { replace: true });
     } catch (error: unknown) {
-      const message = typeof error === 'string' ? error : 'Unable to log in. Please try again.';
-      setServerError(message);
-      if (message === EMAIL_NOT_VERIFIED_MESSAGE) {
-        setUnverifiedEmail(values.email.trim());
-      }
+      setServerError(typeof error === 'string' ? error : 'Unable to log in. Please try again.');
     }
   };
 
   return (
     <Stack spacing={3}>
       <AuthPageHeader
-        description="Use the email address and password associated with your account."
+        description="Use your email address or Indian mobile number and password."
         title="Welcome back"
       />
 
@@ -72,7 +74,6 @@ export const LoginPage = () => {
           {serverError}
         </Alert>
       ) : null}
-      {unverifiedEmail ? <ResendVerificationAction email={unverifiedEmail} /> : null}
 
       <Stack
         component="form"
@@ -86,14 +87,13 @@ export const LoginPage = () => {
         spacing={2.5}
       >
         <TextField
-          autoComplete="email"
+          autoComplete="username"
           disabled={isSubmitting}
-          error={Boolean(errors.email)}
-          helperText={errors.email?.message}
-          label="Email address"
+          error={Boolean(errors.identifier)}
+          helperText={errors.identifier?.message}
+          label="Email address or mobile number"
           required
-          type="email"
-          {...register('email')}
+          {...register('identifier')}
         />
         <PasswordField
           autoComplete="current-password"
@@ -109,6 +109,12 @@ export const LoginPage = () => {
           {isSubmitting ? 'Logging in…' : 'Log in'}
         </Button>
       </Stack>
+
+      {/* 
+        Removed the Divider and OTP button as requested for production.
+        A small spacer is added below to maintain clean layout.
+      */}
+      <Box sx={{ height: 8 }} />
 
       <Typography color="text.secondary" textAlign="center">
         New to Career Portal?{' '}

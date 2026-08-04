@@ -9,6 +9,7 @@ export interface ApiError {
   code?: string;
   errors?: Record<string, string[]>;
   retryAfterSeconds?: number;
+  redirectToMembership?: boolean;
 }
 
 export interface PaginatedResponse<T> {

@@ -93,7 +93,7 @@ export const SettingsPage = () => {
             </Typography>
           </Stack>
           <Typography color="text.secondary">
-            Use 12–128 characters with uppercase, lowercase, a number, and a symbol.
+            Use 6–128 characters. Spaces and special characters are allowed.
           </Typography>
           {serverError ? (
             <Alert aria-live="assertive" severity="error">

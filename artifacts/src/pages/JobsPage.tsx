@@ -1,8 +1,13 @@
 import FilterListIcon from '@mui/icons-material/FilterList';
 import {
+  Alert,
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Drawer,
   Grid,
   LinearProgress,
@@ -12,7 +17,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -39,11 +44,16 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 export const JobsPage = () => {
+  const navigate = useNavigate();
+  
   useDocumentMetadata(
     'Find jobs | Career Portal',
     'Search published career opportunities by keyword, location, job type, work mode, and experience level.',
     { canonicalPath: ROUTES.JOBS },
   );
+
+  // ✅ STATE FOR QUOTA MODAL (Removed unused message state)
+  const [showQuotaExceededDialog, setShowQuotaExceededDialog] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const state = useMemo(() => parseJobSearchParams(searchParams), [searchParams]);
@@ -140,6 +150,12 @@ export const JobsPage = () => {
       state={state}
     />
   );
+
+  // ✅ HANDLE NAVIGATION TO MEMBERSHIP (Uses void to silence ESLint Promise warning)
+  const handleGoToMembership = () => {
+    setShowQuotaExceededDialog(false);
+    void navigate(ROUTES.MEMBERSHIP);
+  };
 
   return (
     <Stack spacing={4}>
@@ -301,6 +317,49 @@ export const JobsPage = () => {
           Show results
         </Button>
       </Drawer>
+
+      {/* ✅ QUOTA EXCEEDED DIALOG (No dynamic message, using standard text) */}
+      {showQuotaExceededDialog && (
+        <Dialog
+          open={showQuotaExceededDialog}
+          onClose={() => setShowQuotaExceededDialog(false)}
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle>Application Limit Reached</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Typography variant="body1">
+                You have reached your application limit for this period. 
+                Upgrade to Premium to continue applying!
+              </Typography>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="body2" fontWeight="bold" gutterBottom>
+                  Upgrade to Premium for:
+                </Typography>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                  <li>35 daily job applications instead of 10 monthly</li>
+                  <li>View recruiter contact details</li>
+                  <li>Get your application prioritized</li>
+                  <li>Exclusive job opportunities</li>
+                </ul>
+              </Alert>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowQuotaExceededDialog(false)}>
+              Continue Browsing
+            </Button>
+            <Button
+              onClick={handleGoToMembership}
+              variant="contained"
+              color="primary"
+            >
+              View Premium Plans
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   );
 };

@@ -51,6 +51,14 @@ export const appRoutes: RouteObject[] = [
             path: ROUTES.JOB_DETAILS,
             element: lazyPage(() => import('@/pages/JobDetailsPage'), 'JobDetailsPage'),
           },
+          {
+            path: ROUTES.TERMS_OF_USE,
+            element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'TermsOfUsePage'),
+          },
+          {
+            path: ROUTES.PRIVACY_POLICY,
+            element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'PrivacyPolicyPage'),
+          },
         ],
       },
       {
@@ -64,8 +72,19 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(() => import('@/pages/LoginPage'), 'LoginPage'),
               },
               {
+                path: ROUTES.MOBILE_OTP_LOGIN,
+                element: lazyPage(() => import('@/pages/MobileOtpLoginPage'), 'MobileOtpLoginPage'),
+              },
+              {
                 path: ROUTES.REGISTER,
                 element: lazyPage(() => import('@/pages/RegisterPage'), 'RegisterPage'),
+              },
+              {
+                path: ROUTES.VERIFY_REGISTRATION_MOBILE,
+                element: lazyPage(
+                  () => import('@/pages/RegistrationOtpPage'),
+                  'RegistrationOtpPage',
+                ),
               },
               {
                 path: ROUTES.FORGOT_PASSWORD,
@@ -74,13 +93,6 @@ export const appRoutes: RouteObject[] = [
               {
                 path: ROUTES.RESET_PASSWORD,
                 element: lazyPage(() => import('@/pages/ResetPasswordPage'), 'ResetPasswordPage'),
-              },
-              {
-                path: ROUTES.VERIFY_EMAIL,
-                element: lazyPage(
-                  () => import('@/pages/EmailVerificationPage'),
-                  'EmailVerificationPage',
-                ),
               },
             ],
           },
@@ -104,6 +116,13 @@ export const appRoutes: RouteObject[] = [
               {
                 path: ROUTES.DASHBOARD,
                 element: lazyPage(() => import('@/pages/DashboardPage'), 'DashboardPage'),
+              },
+              {
+                path: ROUTES.DASHBOARD_JOBS,
+                element: lazyPage(
+                  () => import('@/pages/CandidateBrowseJobsPage'),
+                  'CandidateBrowseJobsPage',
+                ),
               },
               {
                 path: ROUTES.PROFILE,

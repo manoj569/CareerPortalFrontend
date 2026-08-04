@@ -1,18 +1,19 @@
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
   Alert,
+  Box,
   Button,
   Checkbox,
   FormControlLabel,
   FormHelperText,
-  Grid,
   Link as MuiLink,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -21,7 +22,9 @@ import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { PasswordField } from '@/features/auth/components/PasswordField';
 import { register as registerAccount } from '@/features/auth/store/authSlice';
 import {
+  normalizeIndianMobileNumber,
   registrationSchema,
+  splitFullName,
   type RegistrationFormValues,
 } from '@/features/auth/validation/authSchemas';
 import { useAppDispatch } from '@/hooks/reduxHooks';
@@ -30,6 +33,9 @@ export const RegisterPage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+
   const {
     control,
     formState: { errors, isSubmitting },
@@ -38,10 +44,8 @@ export const RegisterPage = () => {
     setFocus,
   } = useForm<RegistrationFormValues>({
     defaultValues: {
-      confirmPassword: '',
       email: '',
-      firstName: '',
-      lastName: '',
+      fullName: '',
       password: '',
       phoneNumber: '',
       termsAccepted: false,
@@ -52,18 +56,42 @@ export const RegisterPage = () => {
 
   const submitRegistration = async (values: RegistrationFormValues) => {
     setServerError(null);
+    setHasValidationErrors(false);
+
+    const normalizedMobile = normalizeIndianMobileNumber(values.phoneNumber);
+    const names = splitFullName(values.fullName);
+
+    if (!normalizedMobile || !names) {
+      setHasValidationErrors(true);
+      return;
+    }
+
     try {
       await dispatch(
         registerAccount({
           email: values.email.trim(),
-          firstName: values.firstName.trim(),
-          lastName: values.lastName.trim(),
+          firstName: names.firstName,
+          hasAcceptedTermsAndPrivacy: values.termsAccepted,
+          // lastName: names.lastName,
           password: values.password,
-          phoneNumber: values.phoneNumber?.trim() || null,
+          phoneNumber: normalizedMobile,
         }),
       ).unwrap();
-      enqueueSnackbar('Your account is ready.', { variant: 'success' });
-      await navigate(ROUTES.DASHBOARD, { replace: true });
+
+      // ✅ 1. Store the email to show on screen
+      setRegisteredEmail(values.email.trim());
+
+      // ✅ 2. Show a success popup/toast on the same page
+      enqueueSnackbar('Account created successfully! Redirecting to login...', { 
+        variant: 'success',
+        autoHideDuration: 3000, // Wait 3 seconds before closing the snackbar automatically
+      });
+
+      // ✅ 3. Wait 3 seconds, then redirect to Login page
+      setTimeout(() => {
+        void navigate(ROUTES.LOGIN, { replace: true });
+      }, 3000);
+
     } catch (error: unknown) {
       setServerError(
         typeof error === 'string' ? error : 'Unable to create your account. Please try again.',
@@ -71,12 +99,71 @@ export const RegisterPage = () => {
     }
   };
 
+  // If registration is successful, show the message on the SAME page,
+  // instead of redirecting to a different email verification page.
+  if (registeredEmail) {
+    return (
+      <Stack spacing={3}>
+        <AuthPageHeader
+          description="Verify your email address before signing in and completing your profile."
+          title="Check your email"
+        />
+
+        <Alert aria-live="polite" severity="success">
+          Account created successfully! 
+          We've sent a verification link to <strong>{registeredEmail}</strong>.
+        </Alert>
+
+        <Typography color="text.secondary" textAlign="center">
+          Already verified?{' '}
+          <MuiLink component={Link} to={ROUTES.LOGIN}>
+            Log in
+          </MuiLink>
+        </Typography>
+      </Stack>
+    );
+  }
+
   return (
     <Stack spacing={3}>
       <AuthPageHeader
-        description="Create a candidate account to save jobs and track applications."
+        description="Create a profile for internships, fresher roles, and experienced opportunities."
         title="Create your account"
       />
+
+      <Box
+        component="aside"
+        sx={{
+          bgcolor: 'action.hover',
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 2,
+          p: 2,
+        }}
+      >
+        <Typography fontWeight={700} sx={{ mb: 1 }}>
+          One account helps you
+        </Typography>
+
+        <Stack component="ul" spacing={1} sx={{ listStyle: 'none', m: 0, p: 0 }}>
+          {[
+            'Find verified internships and jobs',
+            'Apply with one saved profile',
+            'Track your applications',
+          ].map((benefit) => (
+            <Stack alignItems="center" component="li" direction="row" key={benefit} spacing={1}>
+              <CheckCircleOutlineIcon color="primary" fontSize="small" />
+              <Typography variant="body2">{benefit}</Typography>
+            </Stack>
+          ))}
+        </Stack>
+      </Box>
+
+      {hasValidationErrors ? (
+        <Alert aria-live="assertive" severity="error">
+          Please correct the highlighted fields before creating your account.
+        </Alert>
+      ) : null}
 
       {serverError ? (
         <Alert aria-live="assertive" severity="error">
@@ -89,73 +176,82 @@ export const RegisterPage = () => {
         noValidate
         onSubmit={(event) => {
           void handleSubmit(submitRegistration, (formErrors) => {
+            setHasValidationErrors(true);
+
             const firstField = Object.keys(formErrors)[0] as
-              keyof RegistrationFormValues | undefined;
-            if (firstField) setFocus(firstField);
+              | keyof RegistrationFormValues
+              | undefined;
+
+            if (firstField) {
+              setFocus(firstField);
+            }
           })(event);
         }}
         spacing={2.5}
       >
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              autoComplete="given-name"
-              disabled={isSubmitting}
-              error={Boolean(errors.firstName)}
-              helperText={errors.firstName?.message}
-              label="First name"
-              required
-              {...register('firstName')}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              autoComplete="family-name"
-              disabled={isSubmitting}
-              error={Boolean(errors.lastName)}
-              helperText={errors.lastName?.message}
-              label="Last name"
-              required
-              {...register('lastName')}
-            />
-          </Grid>
-        </Grid>
+        <TextField
+          autoComplete="name"
+          disabled={isSubmitting}
+          error={Boolean(errors.fullName)}
+          helperText={errors.fullName?.message}
+          label="Full name"
+          placeholder="Enter your full name"
+          required
+          {...register('fullName')}
+        />
+
         <TextField
           autoComplete="email"
           disabled={isSubmitting}
           error={Boolean(errors.email)}
           helperText={errors.email?.message}
           label="Email address"
+          placeholder="Enter your email ID"
           required
           type="email"
           {...register('email')}
         />
-        <TextField
-          autoComplete="tel"
-          disabled={isSubmitting}
-          error={Boolean(errors.phoneNumber)}
-          helperText={errors.phoneNumber?.message ?? 'Optional'}
-          label="Mobile number"
-          type="tel"
-          {...register('phoneNumber')}
+
+        <Controller
+          control={control}
+          name="phoneNumber"
+          render={({ field }) => (
+            <TextField
+              autoComplete="tel"
+              disabled={isSubmitting}
+              error={Boolean(errors.phoneNumber)}
+              helperText={errors.phoneNumber?.message}
+              label="Mobile number"
+              placeholder="Enter 10-digit mobile number"
+              required
+              slotProps={{
+                htmlInput: {
+                  inputMode: 'numeric',
+                  maxLength: 10,
+                  pattern: '[0-9]*',
+                },
+              }}
+              type="tel"
+              value={field.value}
+              onBlur={field.onBlur}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                field.onChange(event.target.value.replace(/\D/g, '').slice(0, 10));
+              }}
+              inputRef={field.ref}
+            />
+          )}
         />
+
         <PasswordField
           autoComplete="new-password"
           disabled={isSubmitting}
-          errorMessage={
-            errors.password?.message ??
-            'Use 12–128 characters with uppercase, lowercase, number, and symbol.'
-          }
+          errorMessage={errors.password?.message}
+          helperText="Use at least 12 characters with uppercase, lowercase, number, and symbol."
           label="Password"
+          placeholder="Minimum 12 characters"
           registration={register('password')}
         />
-        <PasswordField
-          autoComplete="new-password"
-          disabled={isSubmitting}
-          errorMessage={errors.confirmPassword?.message}
-          label="Confirm password"
-          registration={register('confirmPassword')}
-        />
+
         <Controller
           control={control}
           name="termsAccepted"
@@ -176,9 +272,11 @@ export const RegisterPage = () => {
             />
           )}
         />
+
         {errors.termsAccepted ? (
           <FormHelperText error>{errors.termsAccepted.message}</FormHelperText>
         ) : null}
+
         <Button disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained">
           {isSubmitting ? 'Creating account…' : 'Create account'}
         </Button>

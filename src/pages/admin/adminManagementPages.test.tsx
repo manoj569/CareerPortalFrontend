@@ -242,6 +242,17 @@ beforeEach(() => {
 });
 
 describe('Administrator company and category management', () => {
+  it('opens the companies CSV import dialog beside the add action', async () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <AdminCompaniesPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('link', { name: 'Add company' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Import companies CSV' }));
+    expect(screen.getByRole('dialog', { name: 'Import companies CSV' })).toBeVisible();
+  });
+
   it('requires confirmation before deleting a company', async () => {
     const mutation = mutationResult();
     mocks.deleteCompany.mockReturnValue(

@@ -16,14 +16,20 @@ export const CandidateRoute = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectCurrentUser);
 
-  if (status === 'idle' || status === 'initializing') return <FullPageLoader />;
+  // 1. Guard clause: Wait for authentication to finish loading
+  if (status === 'idle' || status === 'initializing') {
+    return <FullPageLoader />;
+  }
+
+  // 2. Redirect to login if not authenticated
   if (!isAuthenticated) {
     return <Navigate replace state={{ from: location }} to={ROUTES.LOGIN} />;
   }
 
-  return user?.role === UserRole.Candidate ? (
-    <Outlet />
-  ) : (
-    <Navigate replace to={ROUTES.UNAUTHORIZED} />
-  );
+  // 3. Allow access only for Candidates, redirect others to Unauthorized
+  if (user?.role === UserRole.Candidate) {
+    return <Outlet />;
+  }
+
+  return <Navigate replace to={ROUTES.UNAUTHORIZED} />;
 };

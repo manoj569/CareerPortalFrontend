@@ -8,14 +8,16 @@ import { initializeAuth, logout } from './authSlice';
 
 vi.mock('@/features/auth/services/authService', () => ({
   authService: {
-    forgotPassword: vi.fn(),
+    completePasswordReset: vi.fn(),
     login: vi.fn(),
+    loginWithOtp: vi.fn(),
     logout: vi.fn(),
     refresh: vi.fn(),
     register: vi.fn(),
-    resendVerification: vi.fn(),
-    resetPassword: vi.fn(),
-    verifyEmail: vi.fn(),
+    requestLoginOtp: vi.fn(),
+    requestPasswordReset: vi.fn(),
+    resendRegistrationOtp: vi.fn(),
+    verifyRegistrationOtp: vi.fn(),
   },
 }));
 

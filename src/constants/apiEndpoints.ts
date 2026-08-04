@@ -1,18 +1,25 @@
 export const API_ENDPOINTS = {
   AUTH: {
     REGISTER: '/auth/register',
+    VERIFY_REGISTRATION_OTP: '/auth/verify-registration-otp',
+    RESEND_REGISTRATION_OTP: '/auth/resend-registration-otp',
     LOGIN: '/auth/login',
-    VERIFY_EMAIL: '/auth/verify-email',
-    RESEND_VERIFICATION: '/auth/resend-verification',
+    REQUEST_LOGIN_OTP: '/auth/request-login-otp',
+    LOGIN_WITH_OTP: '/auth/login-with-otp',
     REFRESH_TOKEN: '/auth/refresh',
-    FORGOT_PASSWORD: '/auth/forgot-password',
-    RESET_PASSWORD: '/auth/reset-password',
+    REQUEST_PASSWORD_RESET: '/auth/request-password-reset',
+    COMPLETE_PASSWORD_RESET: '/auth/complete-password-reset',
     CHANGE_PASSWORD: '/auth/change-password',
     LOGOUT: '/auth/logout',
     ADMIN_HEALTH: '/auth/admin/health',
   },
+  LEGAL: {
+    TERMS_OF_USE: '/legal/terms-of-use',
+    PRIVACY_POLICY: '/legal/privacy-policy',
+  },
   JOBS: {
     SEARCH: '/jobs',
+    FILTER_OPTIONS: '/jobs/filter-options',
     LATEST: '/jobs/latest',
     NEWEST: '/jobs/newest',
     FEATURED: '/jobs/featured',
@@ -49,6 +56,8 @@ export const API_ENDPOINTS = {
     JOB_FEATURED: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/featured`,
     JOB_HIDDEN: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/hidden`,
     COMPANIES: '/admin/companies',
+    JOB_RECRUITER_CONTACT: (jobId: string) =>
+      `/admin/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
     COMPANY: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}`,
     COMPANY_OPTIONS: '/admin/companies/options',
     CATEGORIES: '/admin/categories',
@@ -62,6 +71,14 @@ export const API_ENDPOINTS = {
     APPLICATION_RESUME: (applicationId: string) =>
       `/admin/applications/${encodeURIComponent(applicationId)}/resume`,
     AUDIT_LOGS: '/admin/audit-logs',
+    IMPORTS: {
+      COMPANIES_PREVIEW: '/admin/imports/companies/preview',
+      COMPANIES_COMMIT: '/admin/imports/companies/commit',
+      JOBS_PREVIEW: '/admin/imports/jobs/preview',
+      JOBS_COMMIT: '/admin/imports/jobs/commit',
+      COMPANIES_TEMPLATE: '/admin/imports/templates/companies',
+      JOBS_TEMPLATE: '/admin/imports/templates/jobs',
+    },
   },
   DASHBOARD: {
     MEMBERSHIPS: '/dashboard/memberships',
@@ -76,6 +93,7 @@ export const API_ENDPOINTS = {
     ONBOARDING: '/candidate/onboarding',
     RESUME: '/candidate/resume',
     SAVED_JOBS: '/candidate/saved-jobs',
+    APPLICATION_QUOTA: '/candidate/application-quota',
     SAVED_JOB: (jobId: string) => `/candidate/saved-jobs/${encodeURIComponent(jobId)}`,
     APPLICATIONS: '/candidate/applications',
     APPLICATION: (applicationId: string) =>
@@ -83,5 +101,7 @@ export const API_ENDPOINTS = {
     APPLY: (jobId: string) => `/candidate/jobs/${encodeURIComponent(jobId)}/applications`,
     WITHDRAW_APPLICATION: (applicationId: string) =>
       `/candidate/applications/${encodeURIComponent(applicationId)}/withdraw`,
+    RECRUITER_CONTACT: (jobId: string) =>
+      `/candidate/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
   },
 } as const;

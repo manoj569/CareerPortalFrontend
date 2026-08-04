@@ -8,6 +8,7 @@ import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
+import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
@@ -17,6 +18,7 @@ import { isMembershipActive } from '@/features/payments/utils/entitlement';
 
 const navigationItems: NavigationItem[] = [
   { label: 'Dashboard', path: ROUTES.DASHBOARD, icon: DashboardOutlinedIcon, end: true },
+  { label: 'Browse jobs', path: ROUTES.DASHBOARD_JOBS, icon: WorkOutlineIcon },
   { label: 'Profile', path: ROUTES.PROFILE, icon: PersonOutlineIcon },
   { label: 'Career preferences', path: ROUTES.ONBOARDING, icon: TuneOutlinedIcon },
   { label: 'Resume', path: ROUTES.RESUME, icon: ArticleOutlinedIcon },

@@ -336,6 +336,13 @@ describe('admin overview', () => {
 });
 
 describe('admin jobs', () => {
+  it('opens the jobs CSV import dialog beside the create action', async () => {
+    renderPage(<AdminJobsPage />);
+    expect(screen.getByRole('link', { name: 'Create job' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Import CSV' }));
+    expect(screen.getByRole('dialog', { name: 'Import jobs CSV' })).toBeVisible();
+  });
+
   it('preserves search and pagination in URL-backed filters', async () => {
     const router = createMemoryRouter(
       [

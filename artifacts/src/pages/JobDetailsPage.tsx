@@ -9,12 +9,17 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Grid,
   Link as MuiLink,
   Paper,
   Skeleton,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
@@ -23,12 +28,10 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
+// We don't use isDashboardApiError here anymore, so we remove it from the import
+import { useSubmitApplicationMutation } from '@/features/dashboard/api/dashboardApi';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
-import {
-  isJobsApiError,
-  useApplyToJobMutation,
-  useGetJobDetailsQuery,
-} from '@/features/jobs/api/jobsApi';
+import { isJobsApiError, useGetJobDetailsQuery } from '@/features/jobs/api/jobsApi';
 import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
 import { ShareButton } from '@/features/jobs/components/ShareButton';
 import {
@@ -36,12 +39,15 @@ import {
   getExperienceLevelLabel,
   getWorkplaceTypeLabel,
 } from '@/features/jobs/constants/jobOptions';
-import { ApplicationAccessStatus } from '@/features/jobs/types/jobModels';
 import { formatJobDate, formatSalary, isJobExpired } from '@/features/jobs/utils/jobFormatting';
-import { buildPaymentPath } from '@/features/payments/utils/paymentReturnUrl';
-import { selectAuthStatus, selectIsAuthenticated } from '@/features/auth/store/authSlice';
+import {
+  selectAuthStatus,
+  selectCurrentUser,
+  selectIsAuthenticated,
+} from '@/features/auth/store/authSlice';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { UserRole } from '@/types';
 
 interface DetailsLocationState {
   jobsSearch?: string;
@@ -49,6 +55,7 @@ interface DetailsLocationState {
 
 const getSafeExternalUrl = (value: string | null): string | null => {
   if (!value) return null;
+
   try {
     const url = new URL(value);
     return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
@@ -63,6 +70,7 @@ const DetailSection = ({ content, title }: { content: string | null; title: stri
       <Typography component="h2" sx={{ mb: 1.5 }} variant="h3">
         {title}
       </Typography>
+
       <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}>
         {content}
       </Typography>
@@ -73,10 +81,17 @@ export const JobDetailsPage = () => {
   const { slug = '' } = useParams<{ slug: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+
   const authStatus = useAppSelector(selectAuthStatus);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const [applicationUrl, setApplicationUrl] = useState<string | null>(null);
+  const user = useAppSelector(selectCurrentUser);
+
+  const [confirmApplication, setConfirmApplication] = useState(false);
+  const [coverLetter, setCoverLetter] = useState('');
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [showQuotaExceededDialog, setShowQuotaExceededDialog] = useState(false);
+  const [quotaExceededMessage, setQuotaExceededMessage] = useState('');
+
   const {
     data: job,
     error,
@@ -87,11 +102,14 @@ export const JobDetailsPage = () => {
   } = useGetJobDetailsQuery(slug, {
     skip: !slug,
   });
-  const [applyToJob, { isLoading: isApplying }] = useApplyToJobMutation();
+
+  const [submitApplication, submitState] = useSubmitApplicationMutation();
+
   const locationState = location.state as DetailsLocationState | null;
   const jobsSearch = locationState?.jobsSearch
     ? new URLSearchParams(locationState.jobsSearch).toString()
     : '';
+
   const backPath = jobsSearch ? `${ROUTES.JOBS}?${jobsSearch}` : ROUTES.JOBS;
   const expired = job ? isJobExpired(job) : false;
 
@@ -108,6 +126,7 @@ export const JobDetailsPage = () => {
 
   const handleApply = async () => {
     if (!job || expired) return;
+
     setApplyError(null);
 
     if (!isAuthenticated) {
@@ -115,34 +134,82 @@ export const JobDetailsPage = () => {
       return;
     }
 
-    try {
-      const access = await applyToJob(job.slug).unwrap();
-      if (access.status === ApplicationAccessStatus.LoginRequired) {
-        await navigate(ROUTES.LOGIN, { state: { from: location } });
-        return;
-      }
-      if (access.status === ApplicationAccessStatus.PaymentRequired) {
-        await navigate(buildPaymentPath(job.id, job.slug));
-        return;
-      }
+    if (user?.role !== UserRole.Candidate) {
+      await navigate(ROUTES.UNAUTHORIZED);
+      return;
+    }
 
-      const safeApplicationUrl = getSafeExternalUrl(access.applicationUrl);
-      if (safeApplicationUrl) {
-        setApplicationUrl(safeApplicationUrl);
-      } else {
+    setConfirmApplication(true);
+  };
+
+  const handleSubmitApplication = async () => {
+    if (!job || submitState.isLoading) return;
+
+    setApplyError(null);
+
+    try {
+      await submitApplication({
+        coverLetter: coverLetter.trim() || null,
+        jobId: job.id,
+      }).unwrap();
+
+      setConfirmApplication(false);
+      setCoverLetter('');
+
+      await navigate(ROUTES.APPLICATIONS);
+    } catch (error: unknown) {
+      console.log('Application error:', error);
+      
+      // SAFE TYPE CHECK WITHOUT 'any'
+      if (error && typeof error === 'object') {
+        const errorRecord = error as Record<string, unknown>;
+        
+        // Check for redirectToMembership safely
+        if (errorRecord.redirectToMembership === true) {
+          setConfirmApplication(false);
+          setQuotaExceededMessage(
+            typeof errorRecord.message === 'string' 
+              ? errorRecord.message 
+              : 'Application limit reached.'
+          );
+          setShowQuotaExceededDialog(true);
+          return;
+        }
+
+        // Handle other errors safely
         setApplyError(
-          'Application access was granted, but no valid application link was provided.',
+          typeof errorRecord.message === 'string'
+            ? errorRecord.message
+            : 'We could not submit your application. Please try again.'
+        );
+      } else {
+        // Handle unexpected errors
+        setApplyError(
+          'We could not submit your application. Please try again.',
         );
       }
-    } catch {
-      setApplyError('We could not check application access. Please try again.');
     }
   };
 
+    const handleGoToMembership = () => {
+    setShowQuotaExceededDialog(false);
+
+    // Void operator instantly tells the linter "I am ignoring this returned value".
+    // This permanently satisfies the linting rule, even though navigate is actually synchronous.
+    void navigate(ROUTES.MEMBERSHIP, {
+      state: {
+        from: location.pathname,
+        reason: 'application_limit_reached',
+        jobTitle: job?.title,
+        jobId: job?.id,
+      },
+    });
+  };
   if (isLoading) {
     return (
       <Stack aria-label="Loading job details" role="status" spacing={3}>
         <Skeleton height={40} width={180} />
+
         <Paper sx={{ p: { xs: 3, md: 5 } }}>
           <Stack spacing={2}>
             <Skeleton height={64} width="75%" />
@@ -198,14 +265,17 @@ export const JobDetailsPage = () => {
               logoUrl={job.companyLogoUrl}
               size={68}
             />
+
             <Box sx={{ flex: 1 }}>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 1 }}>
                 {job.isFeatured ? <Chip color="primary" label="Featured" size="small" /> : null}
                 <Chip label={job.categoryName} size="small" />
               </Stack>
+
               <Typography component="h1" sx={{ overflowWrap: 'anywhere' }} variant="h1">
                 {job.title}
               </Typography>
+
               <Typography color="text.secondary" sx={{ mt: 0.75 }} variant="h3">
                 {job.companyName}
               </Typography>
@@ -221,6 +291,7 @@ export const JobDetailsPage = () => {
                 </Stack>
               </Grid>
             ) : null}
+
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Stack alignItems="center" direction="row" spacing={1}>
                 <WorkOutlineIcon color="primary" />
@@ -230,12 +301,14 @@ export const JobDetailsPage = () => {
                 </Typography>
               </Stack>
             </Grid>
+
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Stack alignItems="center" direction="row" spacing={1}>
                 <BusinessOutlinedIcon color="primary" />
                 <Typography>{getExperienceLevelLabel(job.experienceLevel)}</Typography>
               </Stack>
             </Grid>
+
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Stack alignItems="center" direction="row" spacing={1}>
                 <PaymentsOutlinedIcon color="primary" />
@@ -244,6 +317,7 @@ export const JobDetailsPage = () => {
                 </Typography>
               </Stack>
             </Grid>
+
             {publishedDate ? (
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <Stack alignItems="center" direction="row" spacing={1}>
@@ -252,6 +326,7 @@ export const JobDetailsPage = () => {
                 </Stack>
               </Grid>
             ) : null}
+
             {expiryDate ? (
               <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                 <Stack alignItems="center" direction="row" spacing={1}>
@@ -267,39 +342,34 @@ export const JobDetailsPage = () => {
               This job has expired and is no longer accepting applications.
             </Alert>
           ) : null}
+
           {applyError ? (
             <Alert aria-live="assertive" severity="error">
               {applyError}
             </Alert>
           ) : null}
-          {applicationUrl ? (
-            <Alert severity="success">
-              Application access granted.{' '}
-              <MuiLink href={applicationUrl} rel="noopener noreferrer" target="_blank">
-                Continue to the employer’s application site
-              </MuiLink>
-              .
-            </Alert>
-          ) : null}
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <Button
-              disabled={expired || isApplying || authStatus === 'initializing'}
+              disabled={expired || authStatus === 'initializing'}
               onClick={() => void handleApply()}
               size="large"
               variant="contained"
             >
-              {expired ? 'Applications closed' : isApplying ? 'Checking access…' : 'Apply now'}
+              {expired ? 'Applications closed' : 'Apply now'}
             </Button>
+
             <ShareButton
               text={`View ${job.title} at ${job.companyName}`}
               title={job.title}
               url={window.location.href}
             />
+
             <SaveJobButton jobId={job.id} jobTitle={job.title} />
           </Stack>
 
           <Divider />
+
           <DetailSection content={job.description} title="About the role" />
           <DetailSection content={job.responsibilities} title="Responsibilities" />
           <DetailSection content={job.requirements} title="Requirements" />
@@ -310,11 +380,13 @@ export const JobDetailsPage = () => {
               <Typography component="h2" sx={{ mb: 1.5 }} variant="h3">
                 About {job.companyName}
               </Typography>
+
               {job.companyDescription ? (
                 <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
                   {job.companyDescription}
                 </Typography>
               ) : null}
+
               {companyWebsite ? (
                 <MuiLink
                   display="inline-block"
@@ -330,6 +402,101 @@ export const JobDetailsPage = () => {
           ) : null}
         </Stack>
       </Paper>
+
+      {/* Application Confirmation Dialog */}
+      <Dialog
+        aria-describedby="application-confirmation-description"
+        aria-labelledby="application-confirmation-title"
+        fullWidth
+        maxWidth="sm"
+        onClose={() => !submitState.isLoading && setConfirmApplication(false)}
+        open={confirmApplication}
+      >
+        <DialogTitle id="application-confirmation-title">Apply for {job.title}</DialogTitle>
+
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography id="application-confirmation-description">
+              Confirm your application to {job.companyName}. Your current resume, if uploaded, will
+              be attached to this application.
+            </Typography>
+
+            {applyError ? (
+              <Alert aria-live="assertive" severity="error">
+                {applyError}
+              </Alert>
+            ) : null}
+
+            <TextField
+              disabled={submitState.isLoading}
+              fullWidth
+              helperText={`${coverLetter.length.toLocaleString()} / 5,000 characters · optional`}
+              inputProps={{ maxLength: 5000 }}
+              label="Cover letter"
+              minRows={6}
+              multiline
+              onChange={(event) => setCoverLetter(event.target.value)}
+              value={coverLetter}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button disabled={submitState.isLoading} onClick={() => setConfirmApplication(false)}>
+            Cancel
+          </Button>
+
+          <Button
+            disabled={submitState.isLoading}
+            onClick={() => void handleSubmitApplication()}
+            variant="contained"
+          >
+            {submitState.isLoading ? 'Submitting…' : 'Submit application'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Quota Exceeded Dialog - Rendering guaranteed by conditional */}
+      {showQuotaExceededDialog && (
+        <Dialog
+          open={showQuotaExceededDialog}
+          onClose={() => setShowQuotaExceededDialog(false)}
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle>Application Limit Reached</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Typography variant="body1">
+                {quotaExceededMessage || 'You have reached your application limit for this period.'}
+              </Typography>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="body2" fontWeight="bold" gutterBottom>
+                  Upgrade to Premium for:
+                </Typography>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                  <li>35 daily job applications instead of 10 monthly</li>
+                  <li>View recruiter contact details</li>
+                  <li>Get your application prioritized</li>
+                  <li>Exclusive job opportunities</li>
+                </ul>
+              </Alert>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowQuotaExceededDialog(false)}>
+              Continue Browsing
+            </Button>
+            <Button
+              onClick={handleGoToMembership}
+              variant="contained"
+              color="primary"
+            >
+              View Premium Plans
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   );
 };

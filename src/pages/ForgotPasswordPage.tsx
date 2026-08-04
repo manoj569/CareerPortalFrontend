@@ -4,69 +4,76 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 
+import { applyApiValidationErrors } from '@/api/formErrors';
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { getAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
 import { authService } from '@/features/auth/services/authService';
 import {
-  forgotPasswordSchema,
-  type ForgotPasswordFormValues,
+  requestPasswordResetSchema,
+  type RequestPasswordResetFormValues,
 } from '@/features/auth/validation/authSchemas';
+import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
-const privacySafeMessage =
-  'If an active account matches that email address, password reset instructions will be sent shortly.';
+const PRIVACY_SAFE_SUCCESS_MESSAGE =
+  'If an account exists for this email address, we have sent a password reset link.';
 
 export const ForgotPasswordPage = () => {
+  useDocumentMetadata(
+    'Forgot password | Career Portal',
+    'Request a secure email link to reset your Career Portal password.',
+  );
   const [serverError, setServerError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
     register,
+    setError,
     setFocus,
-  } = useForm<ForgotPasswordFormValues>({
+  } = useForm<RequestPasswordResetFormValues>({
     defaultValues: { email: '' },
     mode: 'onTouched',
-    resolver: yupResolver(forgotPasswordSchema),
+    resolver: yupResolver(requestPasswordResetSchema),
   });
 
-  const submitRequest = async (values: ForgotPasswordFormValues) => {
+  const requestResetLink = async (values: RequestPasswordResetFormValues) => {
     setServerError(null);
     try {
-      await authService.forgotPassword({ email: values.email.trim() });
+      await authService.requestPasswordReset({ email: values.email.trim() });
       setIsComplete(true);
     } catch (error: unknown) {
-      setServerError(getAuthenticationErrorMessage(error));
+      const hasFieldError = applyApiValidationErrors(error, ['email'] as const, setError);
+      if (!hasFieldError) setServerError(getAuthenticationErrorMessage(error));
     }
   };
 
   return (
     <Stack spacing={3}>
       <AuthPageHeader
-        description="Enter your account email and we’ll send reset instructions when it matches an active account."
+        description="Enter the email address associated with your account."
         title="Reset your password"
       />
 
+      {serverError ? (
+        <Alert aria-live="assertive" severity="error">
+          {serverError}
+        </Alert>
+      ) : null}
       {isComplete ? (
         <Alert aria-live="polite" severity="success">
-          {privacySafeMessage}
+          {PRIVACY_SAFE_SUCCESS_MESSAGE}
         </Alert>
       ) : (
         <Stack
           component="form"
           noValidate
-          onSubmit={(event) => {
-            void handleSubmit(submitRequest, () => setFocus('email'))(event);
-          }}
+          onSubmit={(event) => void handleSubmit(requestResetLink, () => setFocus('email'))(event)}
           spacing={2.5}
         >
-          {serverError ? (
-            <Alert aria-live="assertive" severity="error">
-              {serverError}
-            </Alert>
-          ) : null}
           <TextField
             autoComplete="email"
+            autoFocus
             disabled={isSubmitting}
             error={Boolean(errors.email)}
             helperText={errors.email?.message}
@@ -75,8 +82,8 @@ export const ForgotPasswordPage = () => {
             type="email"
             {...register('email')}
           />
-          <Button disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained">
-            {isSubmitting ? 'Sending instructions…' : 'Send reset instructions'}
+          <Button disabled={isSubmitting} type="submit" variant="contained">
+            {isSubmitting ? 'Sending reset link…' : 'Send reset link'}
           </Button>
         </Stack>
       )}

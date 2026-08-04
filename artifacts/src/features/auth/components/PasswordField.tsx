@@ -8,7 +8,9 @@ interface PasswordFieldProps {
   autoComplete: 'current-password' | 'new-password';
   disabled?: boolean;
   errorMessage?: string;
+  helperText?: string;
   label: string;
+  placeholder?: string;
   registration: UseFormRegisterReturn;
 }
 
@@ -16,7 +18,9 @@ export const PasswordField = ({
   autoComplete,
   disabled = false,
   errorMessage,
+  helperText,
   label,
+  placeholder,
   registration,
 }: PasswordFieldProps) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -26,8 +30,9 @@ export const PasswordField = ({
       autoComplete={autoComplete}
       disabled={disabled}
       error={Boolean(errorMessage)}
-      helperText={errorMessage}
+      helperText={errorMessage ?? helperText}
       label={label}
+      placeholder={placeholder}
       required
       slotProps={{
         input: {

@@ -3,16 +3,18 @@ import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import { authTokenStore } from '@/services/authTokenStore';
 import type { AuthenticationResponse } from '@/types';
 import type {
-  ForgotPasswordRequest,
+  CompletePasswordResetRequest,
   LoginRequest,
+  LoginWithOtpRequest,
   LogoutRequest,
+  MessageResponse,
   RefreshTokenRequest,
   RegisterRequest,
-  RegistrationResponse,
-  ResendVerificationRequest,
-  ResetPasswordRequest,
-  VerificationResponse,
-  VerifyEmailRequest,
+  RegistrationChallengeResponse,
+  RequestLoginOtpRequest,
+  RequestPasswordResetRequest,
+  ResendRegistrationOtpRequest,
+  VerifyRegistrationOtpRequest,
 } from '../types/authModels';
 
 const storeAuthentication = (response: AuthenticationResponse): AuthenticationResponse => {
@@ -34,9 +36,36 @@ const refreshSession = async (signal?: AbortSignal): Promise<AuthenticationRespo
 };
 
 export const authService = {
-  async register(request: RegisterRequest, signal?: AbortSignal): Promise<RegistrationResponse> {
-    const response = await apiClient.post<RegistrationResponse>(
+  async register(
+    request: RegisterRequest,
+    signal?: AbortSignal,
+  ): Promise<RegistrationChallengeResponse> {
+    const response = await apiClient.post<RegistrationChallengeResponse>(
       API_ENDPOINTS.AUTH.REGISTER,
+      request,
+      { signal },
+    );
+    return response.data;
+  },
+
+  async verifyRegistrationOtp(
+    request: VerifyRegistrationOtpRequest,
+    signal?: AbortSignal,
+  ): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
+      API_ENDPOINTS.AUTH.VERIFY_REGISTRATION_OTP,
+      request,
+      { signal },
+    );
+    return response.data;
+  },
+
+  async resendRegistrationOtp(
+    request: ResendRegistrationOtpRequest,
+    signal?: AbortSignal,
+  ): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
+      API_ENDPOINTS.AUTH.RESEND_REGISTRATION_OTP,
       request,
       { signal },
     );
@@ -47,31 +76,53 @@ export const authService = {
     const response = await apiClient.post<AuthenticationResponse>(
       API_ENDPOINTS.AUTH.LOGIN,
       request,
-      {
-        signal,
-      },
+      { signal },
     );
     return storeAuthentication(response.data);
   },
 
-  async verifyEmail(
-    request: VerifyEmailRequest,
+  async requestLoginOtp(
+    request: RequestLoginOtpRequest,
     signal?: AbortSignal,
-  ): Promise<VerificationResponse> {
-    const response = await apiClient.post<VerificationResponse>(
-      API_ENDPOINTS.AUTH.VERIFY_EMAIL,
+  ): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
+      API_ENDPOINTS.AUTH.REQUEST_LOGIN_OTP,
       request,
       { signal },
     );
     return response.data;
   },
 
-  async resendVerification(
-    request: ResendVerificationRequest,
+  async loginWithOtp(
+    request: LoginWithOtpRequest,
     signal?: AbortSignal,
-  ): Promise<VerificationResponse> {
-    const response = await apiClient.post<VerificationResponse>(
-      API_ENDPOINTS.AUTH.RESEND_VERIFICATION,
+  ): Promise<AuthenticationResponse> {
+    const response = await apiClient.post<AuthenticationResponse>(
+      API_ENDPOINTS.AUTH.LOGIN_WITH_OTP,
+      request,
+      { signal },
+    );
+    return storeAuthentication(response.data);
+  },
+
+  async requestPasswordReset(
+    request: RequestPasswordResetRequest,
+    signal?: AbortSignal,
+  ): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
+      API_ENDPOINTS.AUTH.REQUEST_PASSWORD_RESET,
+      request,
+      { signal },
+    );
+    return response.data;
+  },
+
+  async completePasswordReset(
+    request: CompletePasswordResetRequest,
+    signal?: AbortSignal,
+  ): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
+      API_ENDPOINTS.AUTH.COMPLETE_PASSWORD_RESET,
       request,
       { signal },
     );
@@ -80,14 +131,6 @@ export const authService = {
 
   async refresh(signal?: AbortSignal): Promise<AuthenticationResponse> {
     return refreshSession(signal);
-  },
-
-  async forgotPassword(request: ForgotPasswordRequest, signal?: AbortSignal): Promise<void> {
-    await apiClient.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, request, { signal });
-  },
-
-  async resetPassword(request: ResetPasswordRequest, signal?: AbortSignal): Promise<void> {
-    await apiClient.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, request, { signal });
   },
 
   async logout(signal?: AbortSignal): Promise<void> {

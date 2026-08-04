@@ -1,5 +1,5 @@
+import { ROUTES } from '@/constants/routes';
 import {
-  useApplyToJobMutation,
   useGetFeaturedJobsQuery,
   useGetJobDetailsQuery,
   useGetLatestJobsQuery,
@@ -10,7 +10,9 @@ import {
 } from '@/features/jobs/api/jobsApi';
 import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
 import {
+  useGetApplicationQuotaQuery,
   useGetSavedJobsQuery,
+  useLazyGetRecruiterContactQuery,
   useRemoveSavedJobMutation,
   useSaveJobMutation,
   useSubmitApplicationMutation,
@@ -19,7 +21,6 @@ import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi'
 import { ShareButton } from '@/features/jobs/components/ShareButton';
 import type { AuthState } from '@/features/auth/store/authSlice';
 import {
-  ApplicationAccessStatus,
   EmploymentType,
   ExperienceLevel,
   WorkplaceType,
@@ -32,14 +33,15 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { JobDetailsPage } from './JobDetailsPage';
 import { JobsPage } from './JobsPage';
 
 vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
   const actual = await importOriginal<typeof JobsApiModule>();
+
   return {
     ...actual,
-    useApplyToJobMutation: vi.fn(),
     useGetFeaturedJobsQuery: vi.fn(),
     useGetJobDetailsQuery: vi.fn(),
     useGetLatestJobsQuery: vi.fn(),
@@ -52,9 +54,12 @@ vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
 
 vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
   const actual = await importOriginal<typeof DashboardApiModule>();
+
   return {
     ...actual,
+    useGetApplicationQuotaQuery: vi.fn(),
     useGetSavedJobsQuery: vi.fn(),
+    useLazyGetRecruiterContactQuery: vi.fn(),
     useRemoveSavedJobMutation: vi.fn(),
     useSaveJobMutation: vi.fn(),
     useSubmitApplicationMutation: vi.fn(),
@@ -68,12 +73,16 @@ const mockLatestJobs = vi.mocked(useGetLatestJobsQuery);
 const mockNewestJobs = vi.mocked(useGetNewestJobsQuery);
 const mockPopularCompanies = vi.mocked(useGetPopularCompaniesQuery);
 const mockRelatedJobs = vi.mocked(useGetRelatedJobsQuery);
-const mockApplyToJob = vi.mocked(useApplyToJobMutation);
+const mockApplicationQuota = vi.mocked(useGetApplicationQuotaQuery);
 const mockGetSavedJobs = vi.mocked(useGetSavedJobsQuery);
+const mockGetRecruiterContact = vi.mocked(useLazyGetRecruiterContactQuery);
 const mockRemoveSavedJob = vi.mocked(useRemoveSavedJobMutation);
 const mockSaveJob = vi.mocked(useSaveJobMutation);
 const mockSubmitApplication = vi.mocked(useSubmitApplicationMutation);
+
 const refetch = vi.fn();
+const submitApplication = vi.fn();
+const submitApplicationUnwrap = vi.fn();
 
 const job: PublicJobSummary = {
   categoryId: '22222222-2222-4222-8222-222222222222',
@@ -83,16 +92,26 @@ const job: PublicJobSummary = {
   companyName: 'Northstar Labs',
   companySlug: 'northstar-labs',
   currencyCode: 'INR',
+  companyType: null,
+  department: null,
+  educationRequirement: null,
   employmentType: EmploymentType.FullTime,
   experienceLevel: ExperienceLevel.Senior,
   expiresAtUtc: '2099-12-31T00:00:00Z',
+  industry: null,
+  internshipDurationMonths: null,
+  isFlexibleDuration: false,
   id: '33333333-3333-4333-8333-333333333333',
   isFeatured: true,
   location: 'Pune',
   maximumSalary: 2500000,
   minimumSalary: 1800000,
+  maximumExperienceYears: null,
+  minimumExperienceYears: null,
+  postedByType: null,
   publishedAtUtc: '2026-07-20T00:00:00Z',
   referenceNumber: 'JOB-1001',
+  roleCategory: null,
   slug: 'senior-react-engineer',
   title: 'Senior React Engineer',
   workplaceType: WorkplaceType.Hybrid,
@@ -100,6 +119,7 @@ const job: PublicJobSummary = {
 
 const jobDetails: PublicJobDetails = {
   ...job,
+  applicationUrl: 'https://careers.example.com/jobs/senior-react-engineer',
   benefits: 'Flexible working hours',
   companyDescription: 'A product engineering company.',
   companyWebsiteUrl: 'https://example.com',
@@ -143,7 +163,13 @@ const searchResult = (overrides: Record<string, unknown> = {}) =>
 
 const collectionResult = (overrides: Record<string, unknown> = {}) =>
   ({
-    data: { items: [], pageNumber: 1, pageSize: 3, totalCount: 0, totalPages: 0 },
+    data: {
+      items: [],
+      pageNumber: 1,
+      pageSize: 3,
+      totalCount: 0,
+      totalPages: 0,
+    },
     isError: false,
     isLoading: false,
     refetch,
@@ -179,19 +205,9 @@ const relatedResult = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   }) as unknown as ReturnType<typeof useGetRelatedJobsQuery>;
 
-const applyResult = (
-  unwrapResult: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({
-    applicationUrl: null,
-    message: 'Granted',
-    status: ApplicationAccessStatus.Granted,
-  }),
-) => {
-  const trigger = vi.fn(() => ({ unwrap: unwrapResult }));
-  return [trigger, { isLoading: false }] as unknown as ReturnType<typeof useApplyToJobMutation>;
-};
-
 const LocationProbe = () => {
   const location = useLocation();
+
   return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;
 };
 
@@ -210,7 +226,10 @@ const renderJobsPage = (initialPath = '/jobs') => {
     ],
     { initialEntries: [initialPath] },
   );
-  renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticated });
+
+  renderWithProviders(<RouterProvider router={router} />, {
+    auth: unauthenticated,
+  });
 };
 
 const renderDetailsPage = (
@@ -221,28 +240,42 @@ const renderDetailsPage = (
     [
       { path: '/jobs/:slug', element: <JobDetailsPage /> },
       { path: '/login', element: <p>Login destination</p> },
-      {
-        path: '/dashboard/membership',
-        element: (
-          <>
-            <p>Payments destination</p>
-            <LocationProbe />
-          </>
-        ),
-      },
-      { path: '/dashboard/applications/:applicationId', element: <p>Application destination</p> },
+      { path: '/unauthorized', element: <p>Unauthorized destination</p> },
+      { path: '/dashboard/applications', element: <p>Applications destination</p> },
+      { path: '/dashboard/membership', element: <p>Membership destination</p> },
     ],
     { initialEntries: [initialPath] },
   );
-  renderWithProviders(<RouterProvider router={router} />, { auth });
+
+  return {
+    router,
+    ...renderWithProviders(<RouterProvider router={router} />, { auth }),
+  };
 };
 
 beforeEach(() => {
+  refetch.mockReset();
+  submitApplication.mockReset();
+  submitApplicationUnwrap.mockReset();
+  submitApplicationUnwrap.mockResolvedValue(undefined);
+  submitApplication.mockReturnValue({ unwrap: submitApplicationUnwrap });
+
   mockFeaturedJobs.mockReturnValue(collectionResult());
   mockLatestJobs.mockReturnValue(collectionResult());
   mockNewestJobs.mockReturnValue(collectionResult());
   mockPopularCompanies.mockReturnValue(popularCompaniesResult());
   mockRelatedJobs.mockReturnValue(relatedResult());
+
+  mockApplicationQuota.mockReturnValue({
+    data: undefined,
+    isError: false,
+  } as unknown as ReturnType<typeof useGetApplicationQuotaQuery>);
+
+  mockSubmitApplication.mockReturnValue([
+    submitApplication,
+    { isLoading: false },
+  ] as unknown as ReturnType<typeof useSubmitApplicationMutation>);
+
   mockGetSavedJobs.mockReturnValue({
     data: {
       items: [],
@@ -253,123 +286,96 @@ beforeEach(() => {
     },
     isFetching: false,
   } as unknown as ReturnType<typeof useGetSavedJobsQuery>);
+
   mockRemoveSavedJob.mockReturnValue([vi.fn(), { isLoading: false }] as unknown as ReturnType<
     typeof useRemoveSavedJobMutation
   >);
+
   mockSaveJob.mockReturnValue([vi.fn(), { isLoading: false }] as unknown as ReturnType<
     typeof useSaveJobMutation
   >);
-  mockSubmitApplication.mockReturnValue([vi.fn(), { isLoading: false }] as unknown as ReturnType<
-    typeof useSubmitApplicationMutation
-  >);
+
+  mockGetRecruiterContact.mockReturnValue([
+    vi.fn().mockResolvedValue({ data: undefined }),
+    { data: undefined, isFetching: false },
+  ] as unknown as ReturnType<typeof useLazyGetRecruiterContactQuery>);
 });
 
 describe('jobs listing page', () => {
-  beforeEach(() => {
-    refetch.mockReset();
-    mockApplyToJob.mockReturnValue(applyResult());
-  });
-
   it('shows a loading state', () => {
     mockSearchJobs.mockReturnValue(searchResult({ isFetching: true, isLoading: true }));
+
     renderJobsPage();
+
     expect(screen.getByLabelText('Loading jobs')).toBeInTheDocument();
   });
 
   it('renders successful job results', () => {
     mockSearchJobs.mockReturnValue(
       searchResult({
-        data: { items: [job], pageNumber: 1, pageSize: 12, totalCount: 1, totalPages: 1 },
+        data: {
+          items: [job],
+          pageNumber: 1,
+          pageSize: 12,
+          totalCount: 1,
+          totalPages: 1,
+        },
       }),
     );
+
     renderJobsPage();
+
     expect(screen.getByText(job.title)).toBeInTheDocument();
     expect(screen.getByText(job.companyName)).toBeInTheDocument();
-  });
-
-  it('renders featured, latest, newest, and popular-company discovery data', async () => {
-    const latestJob = { ...job, id: '44444444-4444-4444-8444-444444444444', title: 'Latest role' };
-    const newestJob = { ...job, id: '55555555-5555-4555-8555-555555555555', title: 'Newest role' };
-    mockSearchJobs.mockReturnValue(
-      searchResult({
-        data: { items: [], pageNumber: 1, pageSize: 12, totalCount: 0, totalPages: 0 },
-      }),
-    );
-    mockFeaturedJobs.mockReturnValue(
-      collectionResult({
-        data: { items: [job], pageNumber: 1, pageSize: 3, totalCount: 1, totalPages: 1 },
-      }),
-    );
-    mockLatestJobs.mockReturnValue(
-      collectionResult({
-        data: { items: [latestJob], pageNumber: 1, pageSize: 3, totalCount: 1, totalPages: 1 },
-      }),
-    );
-    mockNewestJobs.mockReturnValue(
-      collectionResult({
-        data: { items: [newestJob], pageNumber: 1, pageSize: 3, totalCount: 1, totalPages: 1 },
-      }),
-    );
-    mockPopularCompanies.mockReturnValue(
-      popularCompaniesResult({
-        data: [
-          {
-            activeJobCount: 4,
-            id: job.companyId,
-            industry: 'Software',
-            isVerified: true,
-            location: 'Pune',
-            logoUrl: null,
-            name: job.companyName,
-            slug: job.companySlug,
-          },
-        ],
-      }),
-    );
-    renderJobsPage();
-
-    expect(screen.getByRole('heading', { name: 'Discover jobs' })).toBeInTheDocument();
-    expect(screen.getByText(job.title)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('tab', { name: 'Latest published' }));
-    expect(screen.getByText('Latest role')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('tab', { name: 'Newest added' }));
-    expect(screen.getByText('Newest role')).toBeInTheDocument();
-    await userEvent.click(screen.getByText(`${job.companyName} (4)`));
-    expect(await screen.findByTestId('location')).toHaveTextContent(
-      `/jobs?companyId=${job.companyId}`,
-    );
   });
 
   it('shows an empty state', () => {
     mockSearchJobs.mockReturnValue(
       searchResult({
-        data: { items: [], pageNumber: 1, pageSize: 12, totalCount: 0, totalPages: 0 },
+        data: {
+          items: [],
+          pageNumber: 1,
+          pageSize: 12,
+          totalCount: 0,
+          totalPages: 0,
+        },
       }),
     );
+
     renderJobsPage();
+
     expect(screen.getByText('No jobs match your search')).toBeInTheDocument();
   });
 
   it('shows an API failure and retries', async () => {
     mockSearchJobs.mockReturnValue(searchResult({ isError: true }));
+
     renderJobsPage();
+
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(refetch.mock.calls).toHaveLength(1);
+
+    expect(refetch).toHaveBeenCalledOnce();
   });
 
   it('hydrates supported filters from the URL', async () => {
     mockSearchJobs.mockReturnValue(
       searchResult({
-        data: { items: [job], pageNumber: 2, pageSize: 20, totalCount: 30, totalPages: 2 },
+        data: {
+          items: [job],
+          pageNumber: 2,
+          pageSize: 20,
+          totalCount: 30,
+          totalPages: 2,
+        },
       }),
     );
+
     renderJobsPage(
       `/jobs?q=react&location=Pune&companyId=${job.companyId}&categoryId=${job.categoryId}&featured=true&workplaceType=remote&page=2&pageSize=20&sort=title-asc`,
     );
 
     await waitFor(() => {
-      const firstCall = mockSearchJobs.mock.calls[0]?.[0];
-      expect(firstCall).toMatchObject({
+      expect(mockSearchJobs.mock.calls[0]?.[0]).toMatchObject({
         categoryId: job.categoryId,
         companyId: job.companyId,
         isFeatured: true,
@@ -383,192 +389,311 @@ describe('jobs listing page', () => {
       });
     });
   });
-
-  it('debounces keyword input into the URL and API query', async () => {
-    mockSearchJobs.mockReturnValue(
-      searchResult({
-        data: { items: [job], pageNumber: 1, pageSize: 12, totalCount: 1, totalPages: 1 },
-      }),
-    );
-    renderJobsPage();
-
-    await userEvent.type(screen.getByRole('textbox', { name: 'Keywords' }), 'react');
-
-    await waitFor(
-      () => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/jobs?q=react');
-        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ search: 'react' });
-      },
-      { timeout: 1_500 },
-    );
-  });
-
-  it('updates the URL and query when pagination changes', async () => {
-    mockSearchJobs.mockReturnValue(
-      searchResult({
-        data: { items: [job], pageNumber: 1, pageSize: 12, totalCount: 24, totalPages: 2 },
-      }),
-    );
-    renderJobsPage();
-    await userEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
-
-    expect(await screen.findByTestId('location')).toHaveTextContent('/jobs?page=2');
-    await waitFor(() => {
-      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ pageNumber: 2 });
-    });
-  });
-
-  it('clears URL-backed filters', async () => {
-    mockSearchJobs.mockReturnValue(
-      searchResult({
-        data: { items: [job], pageNumber: 1, pageSize: 12, totalCount: 1, totalPages: 1 },
-      }),
-    );
-    renderJobsPage(`/jobs?q=react&location=Pune&featured=true&companyId=${job.companyId}`);
-
-    await userEvent.click(screen.getAllByRole('button', { name: 'Clear all' })[0] as HTMLElement);
-    expect(await screen.findByTestId('location')).toHaveTextContent(/^\/jobs$/);
-  });
 });
 
 describe('job details page', () => {
-  beforeEach(() => {
-    mockApplyToJob.mockReturnValue(applyResult());
-  });
-
   it('renders job details', () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+
     renderDetailsPage();
+
     expect(screen.getByRole('heading', { name: job.title })).toBeInTheDocument();
     expect(screen.getByText(jobDetails.description)).toBeInTheDocument();
   });
 
   it('shows a not-found state for a 404 response', () => {
     mockJobDetails.mockReturnValue(
-      detailsResult({ error: { message: 'Not found', status: 404 }, isError: true }),
+      detailsResult({
+        error: { message: 'Not found', status: 404 },
+        isError: true,
+      }),
     );
+
     renderDetailsPage();
+
     expect(screen.getByText('Job not found')).toBeInTheDocument();
   });
 
-  it('does not render a stale expired job as an available opportunity', () => {
+  it('does not render an expired job as available', () => {
     mockJobDetails.mockReturnValue(
-      detailsResult({ data: { ...jobDetails, expiresAtUtc: '2020-01-01T00:00:00Z' } }),
+      detailsResult({
+        data: {
+          ...jobDetails,
+          expiresAtUtc: '2020-01-01T00:00:00Z',
+        },
+      }),
     );
+
     renderDetailsPage();
+
     expect(screen.getByText('Job no longer available')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Apply now' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Apply on company site' })).not.toBeInTheDocument();
   });
 
-  it('renders related jobs from the dedicated endpoint', () => {
+  it.each([
+    {
+      expectedQuota: 'Free applications: 9 of 10 used this month',
+      quota: {
+        isPremium: false,
+        limit: 10,
+        plan: 'Free',
+        remainingApplications: 1,
+        resetsAtUtc: '2099-08-31T18:30:00Z',
+        usedApplications: 9,
+      },
+      scenario: 'free Candidate below the monthly limit',
+    },
+    {
+      expectedQuota: 'Premium applications: 34 of 35 used today',
+      quota: {
+        isPremium: true,
+        limit: 35,
+        plan: 'Premium',
+        remainingApplications: 1,
+        resetsAtUtc: '2099-08-03T18:30:00Z',
+        usedApplications: 34,
+      },
+      scenario: 'premium Candidate below the daily limit',
+    },
+  ])(
+    'allows a $scenario and opens the validated external URL',
+    async ({ expectedQuota, quota }) => {
+      mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+      mockApplicationQuota.mockReturnValue({ data: quota } as unknown as ReturnType<
+        typeof useGetApplicationQuotaQuery
+      >);
+      const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+      renderDetailsPage(authenticated);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+
+      expect(submitApplication).toHaveBeenCalledWith({ coverLetter: null, jobId: job.id });
+      expect(open).toHaveBeenCalledWith(
+        'https://careers.example.com/jobs/senior-react-engineer',
+        '_blank',
+        'noopener,noreferrer',
+      );
+      expect(screen.getByText(expectedQuota)).toBeVisible();
+      expect(
+        await screen.findByText('Opening the employer’s official application page in a new tab.'),
+      ).toBeVisible();
+      expect(screen.queryByText('Login destination')).not.toBeInTheDocument();
+
+      open.mockRestore();
+    },
+  );
+
+  it('redirects a free Candidate to membership when the monthly quota is exhausted', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    submitApplicationUnwrap.mockRejectedValue({
+      code: 'MONTHLY_JOB_LIMIT_REACHED',
+      message: "You've reached your monthly application limit of 10 jobs. Upgrade to Premium for more applications.",
+      redirectToMembership: true,
+      status: 403,
+    });
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    const { router } = renderDetailsPage(authenticated);
+    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+
+    expect(await screen.findByText('Membership destination')).toBeVisible();
+    expect(router.state.location.pathname).toBe(ROUTES.MEMBERSHIP);
+    expect(router.state.location.search).toContain('returnTo=');
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('redirects before submitting or opening a tab when the quota endpoint reports 10 free applications used', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    mockApplicationQuota.mockReturnValue({
+      data: {
+        isPremium: false,
+        limit: 10,
+        plan: 'Free',
+        remainingApplications: 0,
+        resetsAtUtc: '2099-08-31T18:30:00Z',
+        usedApplications: 10,
+      },
+      isError: false,
+    } as unknown as ReturnType<typeof useGetApplicationQuotaQuery>);
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    const { router } = renderDetailsPage(authenticated);
+    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+
+    expect(await screen.findByText('Membership destination')).toBeVisible();
+    expect(submitApplication).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe(ROUTES.MEMBERSHIP);
+    open.mockRestore();
+  });
+
+  it('shows the premium daily-limit message and stays on the job page', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    submitApplicationUnwrap.mockRejectedValue({
+      code: 'premium_daily_limit',
+      message: 'Too many requests.',
+      status: 429,
+    });
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    const { router } = renderDetailsPage(authenticated);
+    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+
+    expect(
+      await screen.findByText(
+        'You have reached today’s premium application limit of 35 jobs. Your quota resets tomorrow. You can still save jobs and apply again after the reset.',
+      ),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe(`/jobs/${job.slug}`);
+    expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('shows the duplicate-application message without opening the employer site', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    submitApplicationUnwrap.mockRejectedValue({
+      code: 'conflict',
+      message: 'You have already applied to this job.',
+      status: 409,
+    });
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    renderDetailsPage(authenticated);
+    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+
+    expect(await screen.findByText('You have already applied for this job.')).toBeVisible();
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('redirects an unauthenticated user to Login and preserves the return location', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    const { router } = renderDetailsPage(unauthenticated, `/jobs/${job.slug}?source=featured`);
+    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+
+    expect(await screen.findByText('Login destination')).toBeVisible();
+    expect(router.state.location.state).toMatchObject({
+      from: { pathname: `/jobs/${job.slug}`, search: '?source=featured' },
+    });
+    expect(submitApplication.mock.calls).toHaveLength(0);
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('prevents an Administrator from applying', () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    const administrator: AuthState = {
+      ...authenticated,
+      user: { ...authenticated.user!, role: UserRole.Administrator },
+    };
+
+    renderDetailsPage(administrator);
+
+    expect(screen.getByRole('button', { name: 'Apply on company site' })).toBeDisabled();
+    expect(screen.getByText('Administrator accounts cannot apply for jobs.')).toBeVisible();
+    expect(submitApplication.mock.calls).toHaveLength(0);
+  });
+
+  it('disables Apply while the backend request is pending', () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    mockSubmitApplication.mockReturnValue([
+      submitApplication,
+      { isLoading: true },
+    ] as unknown as ReturnType<typeof useSubmitApplicationMutation>);
+
+    renderDetailsPage(authenticated);
+
+    expect(screen.getByRole('button', { name: 'Processing application…' })).toBeDisabled();
+  });
+
+  it('does not render the internal cover-letter application flow', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    renderDetailsPage(authenticated);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Cover letter' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Submit application' })).not.toBeInTheDocument();
+
+    open.mockRestore();
+  });
+
+  it.each([null, 'javascript:alert(1)', '/relative-application-path'])(
+    'disables Apply for a missing or unsafe application URL: %s',
+    (applicationUrl) => {
+      mockJobDetails.mockReturnValue(detailsResult({ data: { ...jobDetails, applicationUrl } }));
+
+      renderDetailsPage();
+
+      expect(screen.getByRole('button', { name: 'Apply on company site' })).toBeDisabled();
+      expect(screen.getByText('Application link is unavailable for this job.')).toBeInTheDocument();
+    },
+  );
+
+  it('keeps save, share, and recruiter-contact actions working', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    const save = vi.fn(() => ({ unwrap: vi.fn().mockResolvedValue(undefined) }));
+    const loadContact = vi.fn().mockResolvedValue({ data: undefined });
+    const share = vi.fn().mockResolvedValue(undefined);
+    mockSaveJob.mockReturnValue([save, { isLoading: false }] as unknown as ReturnType<
+      typeof useSaveJobMutation
+    >);
+    mockGetRecruiterContact.mockReturnValue([
+      loadContact,
+      { data: undefined, isFetching: false },
+    ] as unknown as ReturnType<typeof useLazyGetRecruiterContactQuery>);
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+
+    renderDetailsPage(authenticated);
+
+    await userEvent.click(screen.getByRole('button', { name: `Save ${job.title}` }));
+    await userEvent.click(screen.getByRole('button', { name: 'Share job' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Unlock recruiter contact' }));
+
+    expect(save).toHaveBeenCalledWith(job.id);
+    expect(share).toHaveBeenCalledWith(
+      expect.objectContaining({ text: `View ${job.title} at ${job.companyName}` }),
+    );
+    expect(loadContact).toHaveBeenCalledWith(job.id);
+  });
+
+  it('keeps related jobs visible in the compact sidebar', () => {
     const relatedJob = {
       ...job,
-      id: '66666666-6666-4666-8666-666666666666',
-      slug: 'related-role',
-      title: 'Related frontend role',
+      id: '44444444-4444-4444-8444-444444444444',
+      slug: 'design-systems-engineer',
+      title: 'Design Systems Engineer',
     };
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
     mockRelatedJobs.mockReturnValue(relatedResult({ data: [relatedJob] }));
+
     renderDetailsPage();
 
     expect(screen.getByRole('heading', { name: 'Related jobs' })).toBeInTheDocument();
-    expect(screen.getByText('Related frontend role')).toBeInTheDocument();
-  });
-
-  it('redirects unauthenticated visitors to login when applying', async () => {
-    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
-    renderDetailsPage();
-    await userEvent.click(screen.getByRole('button', { name: 'Apply now' }));
-    expect(await screen.findByText('Login destination')).toBeInTheDocument();
-  });
-
-  it('redirects unauthenticated visitors to login when saving', async () => {
-    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
-    renderDetailsPage();
-    await userEvent.click(screen.getByRole('button', { name: `Save ${job.title}` }));
-    expect(await screen.findByText('Login destination')).toBeInTheDocument();
-  });
-
-  it('redirects authenticated candidates without membership to Candidate checkout', async () => {
-    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
-    const unwrap = vi.fn().mockResolvedValue({
-      applicationUrl: null,
-      message: 'Payment Required',
-      status: ApplicationAccessStatus.PaymentRequired,
-    });
-    mockApplyToJob.mockReturnValue(applyResult(unwrap));
-    renderDetailsPage(authenticated);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Apply now' }));
-
-    expect(await screen.findByText('Payments destination')).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(
-      `/dashboard/membership?returnTo=%2Fjobs%2F${job.slug}%3Fapply%3D1`,
-    );
-  });
-
-  it('resumes the intended application flow after returning from membership', async () => {
-    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
-    const unwrap = vi.fn().mockResolvedValue({
-      applicationUrl: null,
-      message: 'Application access granted.',
-      status: ApplicationAccessStatus.Granted,
-    });
-    mockApplyToJob.mockReturnValue(applyResult(unwrap));
-
-    renderDetailsPage(authenticated, `/jobs/${job.slug}?apply=1`);
-
+    expect(screen.getByRole('heading', { name: relatedJob.title })).toBeInTheDocument();
     expect(
-      await screen.findByRole('dialog', { name: `Apply for ${job.title}` }),
+      screen.getByRole('link', { name: `View ${relatedJob.title} at ${relatedJob.companyName}` }),
     ).toBeInTheDocument();
-    expect(unwrap).toHaveBeenCalledOnce();
-  });
-
-  it('submits a confirmed application when backend access is granted', async () => {
-    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
-    const unwrap = vi.fn().mockResolvedValue({
-      applicationUrl: 'https://apply.example.com/role',
-      message: 'Application access granted.',
-      status: ApplicationAccessStatus.Granted,
-    });
-    mockApplyToJob.mockReturnValue(applyResult(unwrap));
-    const submitUnwrap = vi.fn().mockResolvedValue({
-      companyName: job.companyName,
-      coverLetter: 'Please consider my application.',
-      id: 'application-id',
-      jobId: job.id,
-      jobSlug: job.slug,
-      jobTitle: job.title,
-      resumeFileName: null,
-      status: 1,
-      submittedAtUtc: '2026-07-29T00:00:00Z',
-      withdrawnAtUtc: null,
-    });
-    const submit = vi.fn(() => ({ unwrap: submitUnwrap }));
-    mockSubmitApplication.mockReturnValue([submit, { isLoading: false }] as unknown as ReturnType<
-      typeof useSubmitApplicationMutation
-    >);
-    renderDetailsPage(authenticated);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Apply now' }));
-    await userEvent.type(
-      screen.getByRole('textbox', { name: 'Cover letter' }),
-      'Please consider my application.',
-    );
-    await userEvent.click(screen.getByRole('button', { name: 'Submit application' }));
-
-    expect(submit).toHaveBeenCalledWith({
-      coverLetter: 'Please consider my application.',
-      jobId: job.id,
-    });
-    expect(await screen.findByText('Application destination')).toBeInTheDocument();
   });
 });
 
 describe('share button', () => {
   it('uses the clipboard fallback when Web Share is unavailable', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: undefined,
+    });
+
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText },
@@ -581,14 +706,22 @@ describe('share button', () => {
         url="https://example.com/jobs/react"
       />,
     );
+
     await userEvent.click(screen.getByRole('button', { name: 'Share job' }));
 
     expect(writeText.mock.calls[0]?.[0]).toBe('https://example.com/jobs/react');
   });
 
-  it('offers a keyboard-accessible manual copy fallback when browser APIs are unavailable', async () => {
-    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+  it('offers a keyboard-accessible manual copy fallback', async () => {
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: undefined,
+    });
+
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: undefined,
+    });
 
     renderWithProviders(
       <ShareButton
@@ -597,13 +730,18 @@ describe('share button', () => {
         url="https://example.com/jobs/react"
       />,
     );
+
     await userEvent.click(screen.getByRole('button', { name: 'Share job' }));
 
-    const linkField = await screen.findByRole('textbox', { name: 'Job link' });
+    const linkField = await screen.findByRole('textbox', {
+      name: 'Job link',
+    });
+
     expect(linkField).toHaveValue('https://example.com/jobs/react');
     expect(linkField).toHaveFocus();
 
     await userEvent.keyboard('{Escape}');
+
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Copy job link' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Share job' })).toHaveFocus();

@@ -32,7 +32,7 @@ describe('authentication validation', () => {
         phoneNumber: '',
         termsAccepted: true,
       }),
-    ).rejects.toThrow('Password must be at least 12 characters.');
+    ).rejects.toThrow('Password must be at least 6 characters.');
   });
 
   it('rejects password confirmation mismatches', async () => {

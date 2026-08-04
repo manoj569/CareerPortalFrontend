@@ -126,8 +126,7 @@ export const AdminUsersPage = () => {
           <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' } }}>
             <Table aria-label="Recent administrator user report">
               <caption className="sr-only">
-                Recent users including account status, email verification, registration, and login
-                dates
+                Recent users including account status, registration, and login dates
               </caption>
               <TableHead>
                 <TableRow>

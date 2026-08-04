@@ -28,11 +28,19 @@ describe('release route structure', () => {
     expect(collectPaths(findGuardedGroup(GuestRoute))).toEqual(
       expect.arrayContaining([
         ROUTES.LOGIN,
+        ROUTES.MOBILE_OTP_LOGIN,
         ROUTES.REGISTER,
+        ROUTES.VERIFY_REGISTRATION_MOBILE,
         ROUTES.FORGOT_PASSWORD,
         ROUTES.RESET_PASSWORD,
-        ROUTES.VERIFY_EMAIL,
       ]),
+    );
+  });
+
+  it('keeps legal documents public', () => {
+    const publicPaths = rootRoute.children?.flatMap((route) => collectPaths(route)) ?? [];
+    expect(publicPaths).toEqual(
+      expect.arrayContaining([ROUTES.TERMS_OF_USE, ROUTES.PRIVACY_POLICY]),
     );
   });
 
@@ -44,6 +52,7 @@ describe('release route structure', () => {
       expect.arrayContaining([
         ROUTES.ONBOARDING,
         ROUTES.DASHBOARD,
+        ROUTES.DASHBOARD_JOBS,
         ROUTES.PROFILE,
         ROUTES.RESUME,
         ROUTES.SAVED_JOBS,

@@ -171,6 +171,15 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+export interface ApplicationQuota {
+  plan: string;
+  isPremium: boolean;
+  limit: number;
+  usedApplications: number;
+  remainingApplications: number;
+  resetsAtUtc: string;
+}
+
 export type SavedJobsPage = PaginatedResponse<SavedJob>;
 export type UserProfile = CandidateProfile;
 export type ApplicationsPage = PaginatedResponse<JobApplication>;

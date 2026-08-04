@@ -7,6 +7,7 @@ interface ErrorPayload {
   title?: string;
   code?: string;
   errors?: Record<string, string[]>;
+  redirectToMembership?: boolean;
 }
 
 export class ApiRequestError extends Error implements ApiError {
@@ -14,6 +15,7 @@ export class ApiRequestError extends Error implements ApiError {
   public readonly code?: string;
   public readonly errors?: Record<string, string[]>;
   public readonly retryAfterSeconds?: number;
+  public readonly redirectToMembership?: boolean;
 
   public constructor(apiError: ApiError) {
     super(apiError.message);
@@ -22,6 +24,7 @@ export class ApiRequestError extends Error implements ApiError {
     this.code = apiError.code;
     this.errors = apiError.errors;
     this.retryAfterSeconds = apiError.retryAfterSeconds;
+    this.redirectToMembership = apiError.redirectToMembership;
   }
 }
 
@@ -82,6 +85,7 @@ export const transformApiError = (error: unknown): ApiError => {
     status,
     code: error.response.data?.code,
     errors: error.response.data?.errors,
+    redirectToMembership: error.response.data?.redirectToMembership,
     retryAfterSeconds,
   };
 };

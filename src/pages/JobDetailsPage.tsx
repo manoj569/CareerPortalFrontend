@@ -1,7 +1,9 @@
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import {
@@ -19,84 +21,186 @@ import {
   Paper,
   Skeleton,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useState, type ReactNode } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { buildApplicationDetailsPath, buildJobDetailsPath, ROUTES } from '@/constants/routes';
-import {
-  isDashboardApiError,
-  useSubmitApplicationMutation,
-} from '@/features/dashboard/api/dashboardApi';
+import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
+import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
+import { ApplicationQuotaIndicator } from '@/features/dashboard/components/ApplicationQuotaIndicator';
+import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import {
   isJobsApiError,
-  useApplyToJobMutation,
   useGetJobDetailsQuery,
   useGetRelatedJobsQuery,
 } from '@/features/jobs/api/jobsApi';
 import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
-import { JobCard } from '@/features/jobs/components/JobCard';
-import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
+import { RecruiterContactCard } from '@/features/jobs/components/RecruiterContactCard';
 import { ShareButton } from '@/features/jobs/components/ShareButton';
 import {
   getEmploymentTypeLabel,
   getExperienceLevelLabel,
   getWorkplaceTypeLabel,
 } from '@/features/jobs/constants/jobOptions';
-import { ApplicationAccessStatus } from '@/features/jobs/types/jobModels';
-import { formatJobDate, formatSalary, isJobExpired } from '@/features/jobs/utils/jobFormatting';
-import { buildMembershipPath } from '@/features/payments/utils/paymentReturnUrl';
-import {
-  selectAuthStatus,
-  selectCurrentUser,
-  selectIsAuthenticated,
-} from '@/features/auth/store/authSlice';
+import { EmploymentType, type PublicJobSummary } from '@/features/jobs/types/jobModels';
+import { formatJobDate, isJobExpired } from '@/features/jobs/utils/jobFormatting';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { UserRole } from '@/types';
+import { getSafeExternalUrl } from '@/utils/safeExternalUrl';
 
-interface DetailsLocationState {
-  jobsSearch?: string;
+interface DetailSectionProps {
+  content: string | null | undefined;
+  title: string;
 }
 
-const getSafeExternalUrl = (value: string | null): string | null => {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
-  } catch {
+interface SummaryItemProps {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}
+
+interface JobHighlight {
+  label: string;
+  value: string;
+}
+
+interface RelatedJobCardProps {
+  job: PublicJobSummary;
+  returnPath: string;
+}
+
+const getOptionalText = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
     return null;
   }
+
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 0 ? trimmedValue : null;
 };
 
-const DetailSection = ({ content, title }: { content: string | null; title: string }) =>
-  content ? (
+const formatSalaryRange = (
+  minimumSalary: number | null | undefined,
+  maximumSalary: number | null | undefined,
+  currencyCode: string | null | undefined,
+): string => {
+  const currency = getOptionalText(currencyCode) ?? 'INR';
+  const formatter = new Intl.NumberFormat('en-IN', {
+    currency,
+    maximumFractionDigits: 0,
+    style: 'currency',
+  });
+
+  if (typeof minimumSalary === 'number' && typeof maximumSalary === 'number') {
+    return `${formatter.format(minimumSalary)} – ${formatter.format(maximumSalary)}`;
+  }
+
+  if (typeof minimumSalary === 'number') {
+    return `From ${formatter.format(minimumSalary)}`;
+  }
+
+  if (typeof maximumSalary === 'number') {
+    return `Up to ${formatter.format(maximumSalary)}`;
+  }
+
+  return 'Not disclosed';
+};
+const DetailSection = ({ content, title }: DetailSectionProps) => {
+  const text = getOptionalText(content);
+
+  if (!text) {
+    return null;
+  }
+
+  return (
     <Box component="section">
       <Typography component="h2" sx={{ mb: 1.5 }} variant="h3">
         {title}
       </Typography>
       <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}>
-        {content}
+        {text}
       </Typography>
     </Box>
-  ) : null;
+  );
+};
+
+const SummaryItem = ({ icon, label, value }: SummaryItemProps) => (
+  <Stack alignItems="flex-start" direction="row" spacing={1.25}>
+    <Box aria-hidden="true" color="primary.main" sx={{ display: 'flex', mt: 0.25 }}>
+      {icon}
+    </Box>
+    <Box sx={{ minWidth: 0 }}>
+      <Typography color="text.secondary" component="p" variant="caption">
+        {label}
+      </Typography>
+      <Typography component="p" fontWeight={600} sx={{ overflowWrap: 'anywhere' }} variant="body2">
+        {value}
+      </Typography>
+    </Box>
+  </Stack>
+);
+
+const RelatedJobCard = ({ job, returnPath }: RelatedJobCardProps) => {
+  const publishedDate = formatJobDate(job.publishedAtUtc);
+
+  return (
+    <Paper component="article" sx={{ p: 2.25 }} variant="outlined">
+      <Stack spacing={1.5}>
+        <Stack alignItems="flex-start" direction="row" spacing={1.5}>
+          <CompanyLogoFallback
+            companyName={job.companyName}
+            logoUrl={job.companyLogoUrl}
+            size={42}
+          />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography component="h3" fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>
+              {job.title}
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              {job.companyName}
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Stack color="text.secondary" spacing={0.75}>
+          <Typography variant="body2">
+            {job.location
+              ? `${job.location} · ${getWorkplaceTypeLabel(job.workplaceType)}`
+              : getWorkplaceTypeLabel(job.workplaceType)}
+          </Typography>
+          {publishedDate ? <Typography variant="caption">Posted {publishedDate}</Typography> : null}
+        </Stack>
+
+        <Stack alignItems="center" direction="row" flexWrap="wrap" gap={0.5}>
+          <Button
+            aria-label={`View ${job.title} at ${job.companyName}`}
+            component={Link}
+            size="small"
+            state={{ jobsPath: returnPath }}
+            to={buildJobDetailsPath(job.slug)}
+          >
+            View job
+          </Button>
+          <SaveJobButton jobId={job.id} jobTitle={job.title} />
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+};
 
 export const JobDetailsPage = () => {
   const { slug = '' } = useParams<{ slug: string }>();
-  const location = useLocation();
   const navigate = useNavigate();
-  const authStatus = useAppSelector(selectAuthStatus);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const user = useAppSelector(selectCurrentUser);
-  const [confirmApplication, setConfirmApplication] = useState(false);
-  const [coverLetter, setCoverLetter] = useState('');
-  const [applyError, setApplyError] = useState<string | null>(null);
-  const resumedApplicationRef = useRef(false);
+  const currentUser = useAppSelector(selectCurrentUser);
+
+  // ✅ FIXED: Strict typing to avoid "Unsafe assignment" ESLint error
+  const [showRecruiterDialog, setShowRecruiterDialog] = useState<boolean>(false);
+
   const {
     data: job,
     error,
@@ -104,29 +208,16 @@ export const JobDetailsPage = () => {
     isFetching,
     isLoading,
     refetch,
-  } = useGetJobDetailsQuery(slug, {
-    skip: !slug,
-  });
+  } = useGetJobDetailsQuery(slug, { skip: !slug });
+
   const {
     data: relatedJobs,
     isError: isRelatedJobsError,
     isLoading: isRelatedJobsLoading,
     refetch: refetchRelatedJobs,
-  } = useGetRelatedJobsQuery(
-    { limit: 3, slug },
-    {
-      skip: !slug || !job,
-    },
-  );
-  const [applyToJob, { isLoading: isApplying }] = useApplyToJobMutation();
-  const [submitApplication, submitState] = useSubmitApplicationMutation();
-  const locationState = location.state as DetailsLocationState | null;
-  const jobsSearch = locationState?.jobsSearch
-    ? new URLSearchParams(locationState.jobsSearch).toString()
-    : '';
-  const backPath = jobsSearch ? `${ROUTES.JOBS}?${jobsSearch}` : ROUTES.JOBS;
-  const expired = job ? isJobExpired(job) : false;
+  } = useGetRelatedJobsQuery({ limit: 3, slug }, { skip: !slug || !job });
 
+  const backPath: string = isAuthenticated ? '/dashboard/jobs' : '/jobs';
   useDocumentMetadata(
     job ? `${job.title} at ${job.companyName} | Career Portal` : 'Job details | Career Portal',
     job
@@ -138,77 +229,10 @@ export const JobDetailsPage = () => {
     },
   );
 
-  const handleApply = useCallback(async () => {
-    if (!job || expired) return;
-    setApplyError(null);
-
-    if (!isAuthenticated) {
-      await navigate(ROUTES.LOGIN, { state: { from: location } });
-      return;
-    }
-    if (user?.role !== UserRole.Candidate) {
-      await navigate(ROUTES.UNAUTHORIZED);
-      return;
-    }
-
-    try {
-      const access = await applyToJob(job.slug).unwrap();
-      if (access.status === ApplicationAccessStatus.LoginRequired) {
-        await navigate(ROUTES.LOGIN, { state: { from: location } });
-        return;
-      }
-      if (access.status === ApplicationAccessStatus.PaymentRequired) {
-        await navigate(buildMembershipPath(job.slug));
-        return;
-      }
-
-      setConfirmApplication(true);
-    } catch {
-      setApplyError('We could not check application access. Please try again.');
-    }
-  }, [applyToJob, expired, isAuthenticated, job, location, navigate, user?.role]);
-
-  useEffect(() => {
-    if (
-      !job ||
-      authStatus === 'initializing' ||
-      resumedApplicationRef.current ||
-      new URLSearchParams(location.search).get('apply') !== '1'
-    ) {
-      return;
-    }
-
-    resumedApplicationRef.current = true;
-    const nextSearch = new URLSearchParams(location.search);
-    nextSearch.delete('apply');
-    const navigation = navigate(
-      {
-        hash: location.hash,
-        pathname: location.pathname,
-        search: nextSearch.size ? `?${nextSearch.toString()}` : '',
-      },
-      { replace: true },
-    );
-    void Promise.resolve(navigation).then(() => void handleApply());
-  }, [authStatus, handleApply, job, location.hash, location.pathname, location.search, navigate]);
-
-  const handleSubmitApplication = async () => {
-    if (!job || submitState.isLoading) return;
-    setApplyError(null);
-    try {
-      const application = await submitApplication({
-        coverLetter: coverLetter.trim() || null,
-        jobId: job.id,
-      }).unwrap();
-      setConfirmApplication(false);
-      await navigate(buildApplicationDetailsPath(application.id));
-    } catch (error: unknown) {
-      setApplyError(
-        isDashboardApiError(error)
-          ? error.message
-          : 'We could not submit your application. Please try again.',
-      );
-    }
+  // ✅ FIXED: Used "void" to explicitly suppress the floating Promise ESLint error
+  const handleGoToMembership = () => {
+    setShowRecruiterDialog(false);
+    void navigate(ROUTES.MEMBERSHIP);
   };
 
   if (isLoading) {
@@ -241,7 +265,7 @@ export const JobDetailsPage = () => {
     return <ErrorState headingLevel="h1" onRetry={() => void refetch()} />;
   }
 
-  if (expired) {
+  if (isJobExpired(job)) {
     return (
       <EmptyState
         actionLabel="Browse available jobs"
@@ -254,7 +278,41 @@ export const JobDetailsPage = () => {
 
   const publishedDate = formatJobDate(job.publishedAtUtc);
   const expiryDate = formatJobDate(job.expiresAtUtc);
+  const experience = getExperienceLevelLabel(job.experienceLevel);
+  const salary = formatSalaryRange(job.minimumSalary, job.maximumSalary, job.currencyCode);
+  const applicationUrl = getSafeExternalUrl(job.applicationUrl);
   const companyWebsite = getSafeExternalUrl(job.companyWebsiteUrl);
+
+  const internshipDuration =
+    typeof job.internshipDurationMonths === 'number' && job.internshipDurationMonths > 0
+      ? `${job.internshipDurationMonths} month${job.internshipDurationMonths === 1 ? '' : 's'}`
+      : job.isFlexibleDuration
+        ? 'Flexible duration'
+        : null;
+
+  const highlights: JobHighlight[] = [
+    { label: 'Work mode', value: getWorkplaceTypeLabel(job.workplaceType) },
+    { label: 'Employment type', value: getEmploymentTypeLabel(job.employmentType) },
+    { label: 'Category', value: job.categoryName },
+    { label: 'Experience', value: experience },
+    {
+      label: job.employmentType === EmploymentType.Internship ? 'Stipend' : 'Salary',
+      value: salary,
+    },
+  ];
+
+  const location = getOptionalText(job.location);
+  const department = getOptionalText(job.department);
+  const roleCategory = getOptionalText(job.roleCategory);
+  const educationRequirement = getOptionalText(job.educationRequirement);
+
+  if (location) highlights.push({ label: 'Location', value: location });
+  if (expiryDate) highlights.push({ label: 'Closing date', value: expiryDate });
+  if (department) highlights.push({ label: 'Department', value: department });
+  if (roleCategory) highlights.push({ label: 'Role category', value: roleCategory });
+  if (educationRequirement) highlights.push({ label: 'Education', value: educationRequirement });
+  if (internshipDuration)
+    highlights.push({ label: 'Internship duration', value: internshipDuration });
 
   return (
     <Stack spacing={3}>
@@ -267,241 +325,301 @@ export const JobDetailsPage = () => {
         Back to jobs
       </Button>
 
-      {isFetching ? <Typography aria-live="polite">Updating job details…</Typography> : null}
+      {isFetching ? (
+        <Typography aria-live="polite" color="text.secondary">
+          Updating job details…
+        </Typography>
+      ) : null}
 
-      <Paper component="article" sx={{ p: { xs: 3, md: 5 } }}>
-        <Stack spacing={4}>
+      <Paper component="section" sx={{ p: { xs: 2.5, sm: 3.5, md: 4 } }}>
+        <Stack spacing={3}>
           <Stack
             alignItems={{ xs: 'flex-start', sm: 'center' }}
             direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
+            spacing={2.5}
           >
             <CompanyLogoFallback
               companyName={job.companyName}
               logoUrl={job.companyLogoUrl}
-              size={68}
+              size={76}
             />
-            <Box sx={{ flex: 1 }}>
+
+            <Box sx={{ flex: 1, minWidth: 0 }}>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 1 }}>
-                {job.isFeatured ? <Chip color="primary" label="Featured" size="small" /> : null}
                 <Chip label={job.categoryName} size="small" />
+                {job.isFeatured ? <Chip color="primary" label="Featured" size="small" /> : null}
               </Stack>
-              <Typography component="h1" sx={{ overflowWrap: 'anywhere' }} variant="h1">
+
+              <Typography
+                component="h1"
+                id="job-title"
+                sx={{ overflowWrap: 'anywhere' }}
+                variant="h1"
+              >
                 {job.title}
               </Typography>
+
               <Typography color="text.secondary" sx={{ mt: 0.75 }} variant="h3">
                 {job.companyName}
               </Typography>
             </Box>
           </Stack>
 
-          <Grid container spacing={2}>
-            {job.location ? (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <Stack alignItems="center" direction="row" spacing={1}>
-                  <LocationOnOutlinedIcon color="primary" />
-                  <Typography>{job.location}</Typography>
-                </Stack>
-              </Grid>
-            ) : null}
+          <Divider />
+
+          <Grid container spacing={{ xs: 2.5, md: 3 }}>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Stack alignItems="center" direction="row" spacing={1}>
-                <WorkOutlineIcon color="primary" />
-                <Typography>
-                  {getEmploymentTypeLabel(job.employmentType)} ·{' '}
-                  {getWorkplaceTypeLabel(job.workplaceType)}
-                </Typography>
-              </Stack>
+              <SummaryItem
+                icon={<WorkOutlineIcon fontSize="small" />}
+                label="Experience"
+                value={experience}
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Stack alignItems="center" direction="row" spacing={1}>
-                <BusinessOutlinedIcon color="primary" />
-                <Typography>{getExperienceLevelLabel(job.experienceLevel)}</Typography>
-              </Stack>
+              <SummaryItem
+                icon={<PaymentsOutlinedIcon fontSize="small" />}
+                label={job.employmentType === EmploymentType.Internship ? 'Stipend' : 'Salary'}
+                value={salary}
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Stack alignItems="center" direction="row" spacing={1}>
-                <PaymentsOutlinedIcon color="primary" />
-                <Typography>
-                  {formatSalary(job.minimumSalary, job.maximumSalary, job.currencyCode)}
-                </Typography>
-              </Stack>
+              <SummaryItem
+                icon={<BusinessOutlinedIcon fontSize="small" />}
+                label="Work mode"
+                value={getWorkplaceTypeLabel(job.workplaceType)}
+              />
             </Grid>
-            {publishedDate ? (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <Stack alignItems="center" direction="row" spacing={1}>
-                  <CalendarMonthOutlinedIcon color="primary" />
-                  <Typography>Posted {publishedDate}</Typography>
-                </Stack>
-              </Grid>
-            ) : null}
-            {expiryDate ? (
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                <Stack alignItems="center" direction="row" spacing={1}>
-                  <CalendarMonthOutlinedIcon color="primary" />
-                  <Typography>Closes {expiryDate}</Typography>
-                </Stack>
-              </Grid>
-            ) : null}
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <SummaryItem
+                icon={<LocationOnOutlinedIcon fontSize="small" />}
+                label="Location"
+                value={location ?? 'Not specified'}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <SummaryItem
+                icon={<CalendarMonthOutlinedIcon fontSize="small" />}
+                label="Posted"
+                value={publishedDate ?? 'Date unavailable'}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <SummaryItem
+                icon={<CalendarMonthOutlinedIcon fontSize="small" />}
+                label="Closing date"
+                value={expiryDate ?? 'Not specified'}
+              />
+            </Grid>
           </Grid>
 
-          {applyError ? (
-            <Alert aria-live="assertive" severity="error">
-              {applyError}
-            </Alert>
-          ) : null}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <Button
-              disabled={isApplying || authStatus === 'initializing'}
-              onClick={() => void handleApply()}
-              size="large"
-              variant="contained"
-            >
-              {expired ? 'Applications closed' : isApplying ? 'Checking access…' : 'Apply now'}
-            </Button>
-            <ShareButton
-              text={`View ${job.title} at ${job.companyName}`}
-              title={job.title}
-              url={window.location.href}
-            />
-            <SaveJobButton jobId={job.id} jobTitle={job.title} />
-          </Stack>
-
           <Divider />
-          <DetailSection content={job.description} title="About the role" />
-          <DetailSection content={job.responsibilities} title="Responsibilities" />
-          <DetailSection content={job.requirements} title="Requirements" />
-          <DetailSection content={job.benefits} title="Benefits" />
 
-          {job.companyDescription || companyWebsite ? (
-            <Box component="section">
-              <Typography component="h2" sx={{ mb: 1.5 }} variant="h3">
-                About {job.companyName}
+          <Stack alignItems={{ xs: 'stretch', sm: 'flex-start' }} spacing={1.25}>
+            <ApplicationQuotaIndicator />
+            <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={1.25}>
+              <ApplyToJobButton
+                applicationUrl={applicationUrl}
+                ariaDescribedBy="application-action-help"
+                jobId={job.id}
+                jobSlug={job.slug}
+              />
+
+              <SaveJobButton jobId={job.id} jobTitle={job.title} />
+
+              <ShareButton
+                text={`View ${job.title} at ${job.companyName}`}
+                title={job.title}
+                url={window.location.href}
+              />
+            </Stack>
+
+            {currentUser?.role === UserRole.Administrator ? (
+              <Alert id="application-action-help" severity="info">
+                Administrator accounts cannot apply for jobs.
+              </Alert>
+            ) : applicationUrl ? (
+              <Typography color="text.secondary" id="application-action-help" variant="body2">
+                You will be redirected to the employer’s application page.
               </Typography>
-              {job.companyDescription ? (
-                <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
-                  {job.companyDescription}
-                </Typography>
-              ) : null}
-              {companyWebsite ? (
-                <MuiLink
-                  display="inline-block"
-                  href={companyWebsite}
-                  rel="noopener noreferrer"
-                  sx={{ mt: 1.5 }}
-                  target="_blank"
-                >
-                  Visit company website
-                </MuiLink>
-              ) : null}
-            </Box>
-          ) : null}
+            ) : (
+              <Alert id="application-action-help" severity="warning">
+                Application link is unavailable for this job.
+              </Alert>
+            )}
+          </Stack>
         </Stack>
       </Paper>
 
-      <Dialog
-        aria-describedby="application-confirmation-description"
-        aria-labelledby="application-confirmation-title"
-        fullWidth
-        maxWidth="sm"
-        onClose={() => !submitState.isLoading && setConfirmApplication(false)}
-        open={confirmApplication}
+      <Box
+        sx={{
+          alignItems: 'start',
+          display: 'grid',
+          gap: 3,
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 7fr) minmax(280px, 3fr)' },
+        }}
       >
-        <DialogTitle id="application-confirmation-title">Apply for {job.title}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography id="application-confirmation-description">
-              Confirm your application to {job.companyName}. Your current resume, if available, will
-              be copied to this application by the backend.
+        <Stack spacing={3} sx={{ minWidth: 0 }}>
+          <Paper component="article" sx={{ p: { xs: 2.5, sm: 3.5, md: 4 } }}>
+            <Stack divider={<Divider flexItem />} spacing={4}>
+              <DetailSection content={job.description} title="About the role" />
+              <DetailSection content={job.responsibilities} title="Responsibilities" />
+              <DetailSection content={job.requirements} title="Requirements" />
+              <DetailSection content={job.benefits} title="Benefits" />
+
+              <Box component="section">
+                <Typography component="h2" sx={{ mb: 2 }} variant="h3">
+                  Job highlights
+                </Typography>
+
+                <Grid container spacing={2}>
+                  {highlights.map((highlight) => (
+                    <Grid key={highlight.label} size={{ xs: 12, sm: 6 }}>
+                      <Typography color="text.secondary" component="p" variant="caption">
+                        {highlight.label}
+                      </Typography>
+                      <Typography component="p" fontWeight={600}>
+                        {highlight.value}
+                      </Typography>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+
+              <Box component="section">
+                <Typography component="h2" sx={{ mb: 2 }} variant="h3">
+                  About the company
+                </Typography>
+
+                <Stack alignItems="flex-start" direction="row" spacing={2}>
+                  <CompanyLogoFallback
+                    companyName={job.companyName}
+                    logoUrl={job.companyLogoUrl}
+                    size={52}
+                  />
+                  <Box>
+                    <Typography component="h3" fontWeight={700} variant="h6">
+                      {job.companyName}
+                    </Typography>
+                    {getOptionalText(job.companyType) ? (
+                      <Typography color="text.secondary" variant="body2">
+                        {getOptionalText(job.companyType)}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                </Stack>
+
+                {getOptionalText(job.companyDescription) ? (
+                  <Typography color="text.secondary" sx={{ mt: 2, whiteSpace: 'pre-line' }}>
+                    {getOptionalText(job.companyDescription)}
+                  </Typography>
+                ) : null}
+
+                {companyWebsite ? (
+                  <MuiLink
+                    display="inline-flex"
+                    href={companyWebsite}
+                    rel="noopener noreferrer"
+                    sx={{ alignItems: 'center', gap: 0.5, mt: 2 }}
+                    target="_blank"
+                  >
+                    <LanguageOutlinedIcon fontSize="small" />
+                    Visit company website
+                    <OpenInNewOutlinedIcon fontSize="small" />
+                  </MuiLink>
+                ) : null}
+              </Box>
+            </Stack>
+          </Paper>
+
+          {/* ⚠️ This prop will continue throwing a TypeScript error until we update RecruiterContactCard.tsx in the next step. */}
+          <RecruiterContactCard 
+            jobId={job.id} 
+            onUnlockRequired={() => setShowRecruiterDialog(true)}
+          />
+        </Stack>
+
+        <Box component="aside" sx={{ minWidth: 0, position: { lg: 'sticky' }, top: { lg: 96 } }}>
+          <Paper sx={{ p: { xs: 2.5, sm: 3 } }}>
+            <Typography component="h2" variant="h3">
+              Related jobs
             </Typography>
-            {applyError ? (
-              <Alert aria-live="assertive" severity="error">
-                {applyError}
-              </Alert>
+
+            {isRelatedJobsLoading ? (
+              <Stack spacing={2} sx={{ mt: 2.5 }}>
+                {Array.from({ length: 3 }, (_, index) => (
+                  <Skeleton height={150} key={index} variant="rounded" />
+                ))}
+              </Stack>
             ) : null}
-            <TextField
-              disabled={submitState.isLoading}
-              fullWidth
-              helperText={`${coverLetter.length.toLocaleString()} / 5,000 characters · optional`}
-              inputProps={{ maxLength: 5000 }}
-              label="Cover letter"
-              minRows={6}
-              multiline
-              onChange={(event) => setCoverLetter(event.target.value)}
-              value={coverLetter}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button disabled={submitState.isLoading} onClick={() => setConfirmApplication(false)}>
-            Cancel
-          </Button>
-          <Button
-            disabled={submitState.isLoading}
-            onClick={() => void handleSubmitApplication()}
-            variant="contained"
-          >
-            {submitState.isLoading ? 'Submitting…' : 'Submit application'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
-      <Box aria-labelledby="related-jobs-heading" component="section">
-        <Typography component="h2" id="related-jobs-heading" variant="h2">
-          Related jobs
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
-          Similar active opportunities based on company, category, or employment type.
-        </Typography>
+            {isRelatedJobsError ? (
+              <Stack alignItems="flex-start" spacing={1.5} sx={{ mt: 2.5 }}>
+                <Typography color="text.secondary" variant="body2">
+                  Related jobs are temporarily unavailable.
+                </Typography>
+                <Button onClick={() => void refetchRelatedJobs()} variant="outlined">
+                  Retry related jobs
+                </Button>
+              </Stack>
+            ) : null}
 
-        {isRelatedJobsLoading ? (
-          <Grid
-            aria-label="Loading related jobs"
-            container
-            role="status"
-            spacing={2.5}
-            sx={{ mt: 0.5 }}
-          >
-            {Array.from({ length: 3 }, (_, index) => (
-              <Grid key={index} size={{ xs: 12, md: 4 }}>
-                <JobCardSkeleton />
-              </Grid>
-            ))}
-          </Grid>
-        ) : null}
+            {!isRelatedJobsLoading && !isRelatedJobsError && relatedJobs?.length === 0 ? (
+              <Typography color="text.secondary" sx={{ mt: 2.5 }} variant="body2">
+                No related active jobs are available right now.
+              </Typography>
+            ) : null}
 
-        {isRelatedJobsError ? (
-          <Stack alignItems="flex-start" spacing={1.5} sx={{ mt: 2 }}>
-            <Typography color="text.secondary">
-              Related jobs are temporarily unavailable.
-            </Typography>
-            <Button onClick={() => void refetchRelatedJobs()} variant="outlined">
-              Retry related jobs
-            </Button>
-          </Stack>
-        ) : null}
-
-        {!isRelatedJobsLoading && !isRelatedJobsError && relatedJobs?.length === 0 ? (
-          <Typography color="text.secondary" sx={{ mt: 2 }}>
-            No related active jobs are available right now.
-          </Typography>
-        ) : null}
-
-        {relatedJobs && relatedJobs.length > 0 ? (
-          <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
-            {relatedJobs.map((relatedJob) => (
-              <Grid key={relatedJob.id} size={{ xs: 12, md: 4 }}>
-                <JobCard
-                  job={relatedJob}
-                  secondaryAction={
-                    <SaveJobButton jobId={relatedJob.id} jobTitle={relatedJob.title} />
-                  }
-                />
-              </Grid>
-            ))}
-          </Grid>
-        ) : null}
+            {relatedJobs && relatedJobs.length > 0 ? (
+              <Stack spacing={2} sx={{ mt: 2.5 }}>
+                {relatedJobs.map((relatedJob) => (
+                  <RelatedJobCard job={relatedJob} key={relatedJob.id} returnPath={backPath} />
+                ))}
+              </Stack>
+            ) : null}
+          </Paper>
+        </Box>
       </Box>
+
+      {/* 🚀 Recruiter Contact Premium Upgrade Dialog */}
+      {showRecruiterDialog && (
+        <Dialog
+          open={showRecruiterDialog}
+          onClose={() => setShowRecruiterDialog(false)}
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle>Unlock Recruiter Contact</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Typography variant="body1">
+                You need an active Premium membership to view direct recruiter contact details.
+              </Typography>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="body2" fontWeight="bold" gutterBottom>
+                  Upgrade to Premium for:
+                </Typography>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                  <li>Direct recruiter contact details (Email & Phone)</li>
+                  <li>35 daily job applications instead of 10 monthly</li>
+                  <li>Get your application prioritized</li>
+                </ul>
+              </Alert>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowRecruiterDialog(false)}>
+              Continue Browsing
+            </Button>
+            <Button
+              onClick={handleGoToMembership}
+              variant="contained"
+              color="primary"
+            >
+              View Premium Plans
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   );
 };

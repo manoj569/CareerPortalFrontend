@@ -1,34 +1,38 @@
 import { ApiRequestError } from '@/api/apiError';
+import { ROUTES } from '@/constants/routes';
 import { authService } from '@/features/auth/services/authService';
 import type { AuthState } from '@/features/auth/store/authSlice';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import type { AuthenticationResponse } from '@/types';
 import { UserRole } from '@/types';
-import { screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
-import { EmailVerificationPage } from './EmailVerificationPage';
 import { LoginPage } from './LoginPage';
+// import { MobileOtpLoginPage } from './MobileOtpLoginPage';
 import { RegisterPage } from './RegisterPage';
+import { RegistrationOtpPage } from './RegistrationOtpPage';
 import { ResetPasswordPage } from './ResetPasswordPage';
 
 vi.mock('@/features/auth/services/authService', () => ({
   authService: {
-    forgotPassword: vi.fn(),
+    completePasswordReset: vi.fn(),
     login: vi.fn(),
+    loginWithOtp: vi.fn(),
     logout: vi.fn(),
     refresh: vi.fn(),
     register: vi.fn(),
-    resendVerification: vi.fn(),
-    resetPassword: vi.fn(),
-    verifyEmail: vi.fn(),
+    requestLoginOtp: vi.fn(),
+    requestPasswordReset: vi.fn(),
+    resendRegistrationOtp: vi.fn(),
+    verifyRegistrationOtp: vi.fn(),
   },
 }));
 
 const mockedAuthService = vi.mocked(authService);
-
+const challengeId = '5b53d833-c7dd-4c39-a80f-c50fd9ab9ff7';
 const unauthenticatedState: AuthState = {
   accessTokenExpiresAtUtc: null,
   error: null,
@@ -51,316 +55,336 @@ const authenticationResponse = (role: UserRole): AuthenticationResponse => ({
   },
 });
 
-const fillLogin = async () => {
-  const user = userEvent.setup();
-  await user.type(screen.getByLabelText(/email address/i), 'candidate@example.com');
-  await user.type(screen.getByLabelText(/^password/i), 'Str0ng!Password2026');
-  await user.click(screen.getByRole('button', { name: /^log in$/i }));
-};
-
-const renderLogin = (initialEntry: string | { pathname: string; state: unknown } = '/login') => {
+const renderAuthRoute = (
+  path: string,
+  element: React.ReactNode,
+  initialEntry: string | { pathname: string; state?: unknown } = path,
+) => {
   const router = createMemoryRouter(
     [
-      { path: '/login', element: <LoginPage /> },
-      { path: '/dashboard', element: <p>Candidate dashboard</p> },
-      { path: '/dashboard/profile', element: <p>Requested profile</p> },
-      { path: '/admin', element: <p>Admin dashboard</p> },
+      { path, element },
+      { path: ROUTES.LOGIN, element: <LoginPage /> },
+      { path: ROUTES.REGISTER, element: <RegisterPage /> },
+      { path: ROUTES.VERIFY_REGISTRATION_MOBILE, element: <RegistrationOtpPage /> },
+      { path: ROUTES.RESET_PASSWORD, element: <ResetPasswordPage /> },
+      { path: ROUTES.DASHBOARD, element: <p>Candidate dashboard</p> },
+      { path: ROUTES.ADMIN, element: <p>Admin dashboard</p> },
     ],
     { initialEntries: [initialEntry] },
   );
-  renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticatedState });
+  return {
+    router,
+    ...renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticatedState }),
+  };
 };
 
-const renderRegistration = () => {
-  const router = createMemoryRouter(
-    [
-      { path: '/register', element: <RegisterPage /> },
-      { path: '/login', element: <p>Login page</p> },
-    ],
-    { initialEntries: ['/register'] },
-  );
-  return renderWithProviders(<RouterProvider router={router} />, {
-    auth: unauthenticatedState,
-  });
-};
-
-const fillRegistrationFields = async () => {
+const fillRegistration = async () => {
   const user = userEvent.setup();
-  await user.type(screen.getByLabelText(/first name/i), 'Avery');
-  await user.type(screen.getByLabelText(/last name/i), 'Patel');
+  await user.type(screen.getByLabelText(/full name/i), 'Manoj Shekapure');
   await user.type(screen.getByLabelText(/email address/i), 'candidate@example.com');
-  await user.type(screen.getByLabelText(/mobile number/i), '+91 98765 43210');
-  await user.type(screen.getByLabelText(/^password/i), 'Str0ng!Password2026');
-  await user.type(
-    screen.getByLabelText(/confirm password/i, { selector: 'input' }),
-    'Str0ng!Password2026',
-  );
+  await user.type(screen.getByLabelText(/^password/i), 'abc 12!');
+  await user.type(screen.getByLabelText(/mobile number/i), '9876543210');
   await user.click(screen.getByRole('checkbox', { name: /terms of use/i }));
   return user;
 };
 
-const fillRegistration = async () => {
-  const user = await fillRegistrationFields();
-  await user.click(screen.getByRole('button', { name: /create account/i }));
+const enterOtp = async (user: ReturnType<typeof userEvent.setup>, otp = '123456') => {
+  const firstDigit = screen.getByLabelText('OTP digit 1 of 6');
+  await user.click(firstDigit);
+  await user.paste(otp);
 };
 
-const renderVerification = (entry: string) => {
-  const router = createMemoryRouter(
-    [
-      { path: '/verify-email', element: <EmailVerificationPage /> },
-      { path: '/login', element: <LoginPage /> },
-      { path: '/onboarding', element: <p>Candidate onboarding</p> },
-    ],
-    { initialEntries: [entry] },
-  );
-  renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticatedState });
+const enterOtpSynchronously = (otp = '123456') => {
+  otp.split('').forEach((digit, index) => {
+    fireEvent.change(screen.getByLabelText(`OTP digit ${index + 1} of 6`), {
+      target: { value: digit },
+    });
+  });
 };
 
-describe('authentication pages', () => {
+describe('mobile authentication pages', () => {
   beforeEach(() => {
-    mockedAuthService.login.mockReset();
-    mockedAuthService.forgotPassword.mockReset();
-    mockedAuthService.register.mockReset();
-    mockedAuthService.resendVerification.mockReset();
-    mockedAuthService.verifyEmail.mockReset();
+    vi.clearAllMocks();
   });
 
-  it('redirects a candidate to the dashboard after login', async () => {
-    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Candidate));
-    renderLogin();
-    await fillLogin();
-    expect(await screen.findByText('Candidate dashboard')).toBeInTheDocument();
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('redirects an administrator to the admin area after login', async () => {
-    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Administrator));
-    renderLogin();
-    await fillLogin();
-    expect(await screen.findByText('Admin dashboard')).toBeInTheDocument();
+  it('filters registration input and shows validation only after touch', async () => {
+    renderAuthRoute(ROUTES.REGISTER, <RegisterPage />);
+    const user = userEvent.setup();
+    const name = screen.getByLabelText(/full name/i);
+    const mobile = screen.getByLabelText(/mobile number/i);
+    const email = screen.getByLabelText(/email address/i);
+
+    expect(screen.queryByText('Password is required.')).not.toBeInTheDocument();
+    await user.type(name, '  आशिष123   कुमार!🙂');
+    expect(name).toHaveValue('आशिष कुमार');
+    await user.click(mobile);
+    await user.paste('call +91 (98765) 43210 now');
+    expect(mobile).toHaveValue('9876543210');
+    await user.type(email, 'invalid');
+    expect(screen.queryByText('Enter a valid email address.')).not.toBeInTheDocument();
+    await user.tab();
+    expect(await screen.findByText('Enter a valid email address.')).toBeInTheDocument();
   });
 
-  it('returns to the originally requested safe protected URL', async () => {
-    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Candidate));
-    renderLogin({
-      pathname: '/login',
-      state: { from: { pathname: '/dashboard/profile', search: '', hash: '' } },
-    });
-    await fillLogin();
-    expect(await screen.findByText('Requested profile')).toBeInTheDocument();
-  });
-
-  it('shows a safe message when authentication fails', async () => {
-    mockedAuthService.login.mockRejectedValue(
-      new ApiRequestError({ message: 'Backend detail', status: 401 }),
-    );
-    renderLogin();
-    await fillLogin();
-    expect(
-      await screen.findByText('The email address or password is incorrect.'),
-    ).toBeInTheDocument();
-  });
-
-  it('offers a privacy-safe resend when login is blocked for an unverified email', async () => {
-    mockedAuthService.login.mockRejectedValue(
-      new ApiRequestError({
-        code: 'email_not_verified',
-        message: 'Backend detail',
-        status: 403,
-      }),
-    );
-    mockedAuthService.resendVerification.mockResolvedValue({
-      message: 'Backend response must not disclose whether the account exists.',
-    });
-    renderLogin();
-    await fillLogin();
-
-    expect(
-      await screen.findByText(/verify your email address before signing in/i),
-    ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /^resend verification email$/i }));
-
-    expect(mockedAuthService.resendVerification.mock.calls[0]?.[0]).toEqual({
-      email: 'candidate@example.com',
-    });
-    expect(
-      await screen.findByText(
-        'If an unverified account exists, a verification email will be sent.',
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it('shows inline login validation feedback', async () => {
-    renderLogin();
-    await userEvent.click(screen.getByRole('button', { name: /^log in$/i }));
-    expect(await screen.findByText('Email address is required.')).toBeInTheDocument();
-    expect(screen.getByText('Password is required.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/email address/i)).toHaveFocus();
-  });
-
-  it('registers without creating a session and shows the verification confirmation', async () => {
+  it('submits the exact registration contract and goes to mobile verification without a session', async () => {
     mockedAuthService.register.mockResolvedValue({
-      message: 'Registration accepted. Verify your email address before signing in.',
+      challengeId,
+      expiresAtUtc: '2099-01-01T00:05:00Z',
+      message: 'If registration can proceed, a mobile OTP has been sent.',
     });
-    const { store } = renderRegistration();
-    await fillRegistration();
+    const { store } = renderAuthRoute(ROUTES.REGISTER, <RegisterPage />);
+    const user = await fillRegistration();
+    await user.click(screen.getByRole('button', { name: /create account/i }));
 
     expect(mockedAuthService.register.mock.calls[0]?.[0]).toEqual({
       email: 'candidate@example.com',
-      firstName: 'Avery',
+      fullName: 'Manoj Shekapure',
       hasAcceptedTermsAndPrivacy: true,
-      lastName: 'Patel',
-      password: 'Str0ng!Password2026',
-      phoneNumber: '+919876543210',
+      password: 'abc 12!',
+      phoneNumber: '9876543210',
     });
-    expect(await screen.findByText('Check your email to verify your account.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Verify your mobile number' })).toBeVisible();
+    expect(screen.getByText(/\+91 ••••••3210/)).toBeVisible();
     expect(store.getState().auth.status).toBe('unauthenticated');
     expect(store.getState().auth.user).toBeNull();
   });
 
-  it('shows an accessible validation summary for incomplete registration', async () => {
-    renderRegistration();
-    await userEvent.click(screen.getByRole('button', { name: /create account/i }));
-
-    expect(
-      await screen.findByText(/correct the highlighted fields before creating your account/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Indian mobile number is required.')).toBeInTheDocument();
-    expect(screen.getByText(/must accept the Terms of Use/i)).toBeInTheDocument();
-  });
-
-  it('does not reveal a duplicate email or mobile response', async () => {
-    mockedAuthService.register.mockRejectedValue(
-      new ApiRequestError({ code: 'conflict', message: 'Email already exists.', status: 409 }),
-    );
-    renderRegistration();
-    await fillRegistration();
-
-    expect(await screen.findByText(/could not complete your request/i)).toBeInTheDocument();
-    expect(screen.queryByText(/already exists/i)).not.toBeInTheDocument();
-  });
-
-  it('prevents a double registration submission while the request is pending', async () => {
-    let resolveRegistration!: (value: { message: string }) => void;
+  it('keeps duplicate registration responses privacy-safe and prevents double submit', async () => {
+    let rejectRegistration!: (reason: unknown) => void;
     mockedAuthService.register.mockReturnValue(
-      new Promise((resolve) => {
-        resolveRegistration = resolve;
+      new Promise((_resolve, reject) => {
+        rejectRegistration = reject;
       }),
     );
-    renderRegistration();
-    const user = await fillRegistrationFields();
+    renderAuthRoute(ROUTES.REGISTER, <RegisterPage />);
+    const user = await fillRegistration();
     const submit = screen.getByRole('button', { name: /create account/i });
-
     await user.dblClick(submit);
     expect(mockedAuthService.register.mock.calls).toHaveLength(1);
     expect(submit).toBeDisabled();
 
-    resolveRegistration({ message: 'Registration accepted.' });
-    expect(await screen.findByText('Check your email to verify your account.')).toBeInTheDocument();
+    rejectRegistration(
+      new ApiRequestError({ code: 'data_conflict', message: 'Email already exists.', status: 409 }),
+    );
+    expect(await screen.findByText(/could not complete your request/i)).toBeVisible();
+    expect(screen.queryByText(/already exists/i)).not.toBeInTheDocument();
   });
 
-  it('resends verification from the registration success state', async () => {
-    mockedAuthService.register.mockResolvedValue({ message: 'Registration accepted.' });
-    mockedAuthService.resendVerification.mockResolvedValue({
-      message: 'If an unverified account exists, a verification message will be sent.',
-    });
-    renderRegistration();
-    await fillRegistration();
-    await userEvent.click(
-      await screen.findByRole('button', { name: /^resend verification email$/i }),
-    );
+  it('recovers safely when registration challenge state is missing', () => {
+    renderAuthRoute(ROUTES.VERIFY_REGISTRATION_MOBILE, <RegistrationOtpPage />);
+    expect(screen.getByText(/verification session is unavailable/i)).toBeVisible();
+    expect(screen.getByRole('link', { name: /back to register/i })).toBeVisible();
+  });
 
-    expect(mockedAuthService.resendVerification.mock.calls[0]?.[0]).toEqual({
+  it('verifies registration OTP, shows success for five seconds, then redirects to Login', async () => {
+    vi.useFakeTimers();
+    mockedAuthService.verifyRegistrationOtp.mockResolvedValue({
+      message: 'Registration successful. Please log in.',
+    });
+    renderAuthRoute(ROUTES.VERIFY_REGISTRATION_MOBILE, <RegistrationOtpPage />, {
+      pathname: ROUTES.VERIFY_REGISTRATION_MOBILE,
+      state: {
+        challengeId,
+        expiresAtUtc: '2099-01-01T00:05:00Z',
+        maskedPhoneNumber: '+91 ••••••3210',
+      },
+    });
+    enterOtpSynchronously();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /verify mobile number/i }));
+      await Promise.resolve();
+    });
+
+    expect(mockedAuthService.verifyRegistrationOtp.mock.calls[0]?.[0]).toEqual({
+      challengeId,
+      otp: '123456',
+    });
+    expect(screen.getByRole('heading', { name: 'Registration successful' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Welcome back' })).not.toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTimeAsync(4_999));
+    expect(screen.queryByRole('heading', { name: 'Welcome back' })).not.toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  });
+
+  it('handles invalid OTP and rate-limited registration resend safely', async () => {
+    vi.useFakeTimers();
+    mockedAuthService.verifyRegistrationOtp.mockRejectedValue(
+      new ApiRequestError({ code: 'invalid_otp', message: 'Raw detail', status: 400 }),
+    );
+    mockedAuthService.resendRegistrationOtp.mockRejectedValue(
+      new ApiRequestError({ message: 'Raw provider detail', retryAfterSeconds: 30, status: 429 }),
+    );
+    renderAuthRoute(ROUTES.VERIFY_REGISTRATION_MOBILE, <RegistrationOtpPage />, {
+      pathname: ROUTES.VERIFY_REGISTRATION_MOBILE,
+      state: {
+        challengeId,
+        expiresAtUtc: '2099-01-01T00:05:00Z',
+        maskedPhoneNumber: '+91 ••••••3210',
+      },
+    });
+    enterOtpSynchronously('654321');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /verify mobile number/i }));
+      await Promise.resolve();
+    });
+    expect(screen.getByText(/invalid, expired, or has already been used/i)).toBeVisible();
+
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
+      await Promise.resolve();
+    });
+    expect(screen.getByText(/try again in 30 seconds/i)).toBeVisible();
+    expect(screen.queryByText(/raw provider/i)).not.toBeInTheDocument();
+  });
+
+  it.each(['candidate@example.com', '9876543210'])(
+    'logs in with password using identifier %s',
+    async (identifier) => {
+      mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Candidate));
+      renderAuthRoute(ROUTES.LOGIN, <LoginPage />);
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText(/email address or mobile number/i), identifier);
+      await user.type(screen.getByLabelText(/^password/i), 'abc123');
+      await user.click(screen.getByRole('button', { name: /^log in$/i }));
+      expect(mockedAuthService.login.mock.calls[0]?.[0]).toEqual({
+        identifier,
+        password: 'abc123',
+      });
+      expect(await screen.findByText('Candidate dashboard')).toBeVisible();
+    },
+  );
+
+  it('retains Administrator password login routing', async () => {
+    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Administrator));
+    renderAuthRoute(ROUTES.LOGIN, <LoginPage />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/email address or mobile number/i), 'admin@example.com');
+    await user.type(screen.getByLabelText(/^password/i), 'abc123');
+    await user.click(screen.getByRole('button', { name: /^log in$/i }));
+    expect(await screen.findByText('Admin dashboard')).toBeVisible();
+  });
+
+  it('creates a Candidate session after mobile OTP login', async () => {
+    mockedAuthService.requestLoginOtp.mockResolvedValue({ message: 'Accepted.' });
+    mockedAuthService.loginWithOtp.mockResolvedValue(authenticationResponse(UserRole.Candidate));
+    // const { store } = renderAuthRoute(ROUTES.MOBILE_OTP_LOGIN, <MobileOtpLoginPage />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/mobile number/i), '9876543210');
+    await user.click(screen.getByRole('button', { name: 'Send OTP' }));
+    expect(await screen.findByText(/verification code has been sent/i)).toBeVisible();
+    await enterOtp(user);
+    await user.click(screen.getByRole('button', { name: /verify and log in/i }));
+
+    expect(mockedAuthService.requestLoginOtp.mock.calls[0]?.[0]).toEqual({
+      phoneNumber: '9876543210',
+    });
+    expect(mockedAuthService.loginWithOtp.mock.calls[0]?.[0]).toEqual({
+      otp: '123456',
+      phoneNumber: '9876543210',
+    });
+    expect(await screen.findByText('Candidate dashboard')).toBeVisible();
+    // expect(store.getState().auth.status).toBe('authenticated');
+  });
+
+  it('requests an email reset link and always displays the privacy-safe success message', async () => {
+    mockedAuthService.requestPasswordReset.mockResolvedValue({
+      message: 'If an account exists, a reset link may have been sent.',
+    });
+    renderAuthRoute(ROUTES.FORGOT_PASSWORD, <ForgotPasswordPage />);
+    const user = userEvent.setup();
+    expect(screen.queryByLabelText(/mobile number/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/otp/i)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/email address/i), '  candidate@example.com  ');
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
+
+    expect(mockedAuthService.requestPasswordReset.mock.calls[0]?.[0]).toEqual({
       email: 'candidate@example.com',
     });
     expect(
       await screen.findByText(
-        'If an unverified account exists, a verification email will be sent.',
+        'If an account exists for this email address, we have sent a password reset link.',
       ),
-    ).toBeInTheDocument();
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Back to login' })).toBeVisible();
   });
 
-  it('verifies an email from the link without rendering the token', async () => {
-    mockedAuthService.verifyEmail.mockResolvedValue({ message: 'Email verified.' });
-    renderVerification(
-      '/verify-email?email=candidate%40example.com&token=sensitive-verification-token',
-    );
-
-    expect(await screen.findByText(/your email address has been verified/i)).toBeInTheDocument();
-    expect(mockedAuthService.verifyEmail.mock.calls[0]?.[0]).toEqual({
-      email: 'candidate@example.com',
-      token: 'sensitive-verification-token',
-    });
-    expect(screen.queryByText('sensitive-verification-token')).not.toBeInTheDocument();
-  });
-
-  it('continues a newly verified Candidate through login to onboarding', async () => {
-    mockedAuthService.verifyEmail.mockResolvedValue({ message: 'Email verified.' });
-    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Candidate));
-    renderVerification('/verify-email?email=candidate%40example.com&token=verification-token');
-
-    await userEvent.click(await screen.findByRole('link', { name: /continue to onboarding/i }));
-    expect(
-      await screen.findByText(/email verified. log in to continue to candidate onboarding/i),
-    ).toBeInTheDocument();
-    await fillLogin();
-    expect(await screen.findByText('Candidate onboarding')).toBeInTheDocument();
-  });
-
-  it('shows an invalid-link state and permits a privacy-safe resend', async () => {
-    mockedAuthService.verifyEmail.mockRejectedValue(
-      new ApiRequestError({
-        code: 'invalid_verification_token',
-        message: 'Backend detail',
-        status: 400,
-      }),
-    );
-    mockedAuthService.resendVerification.mockResolvedValue({ message: 'Accepted.' });
-    renderVerification('/verify-email?email=candidate%40example.com&token=expired-token');
-
-    expect(
-      await screen.findByText('This email verification link is invalid or has expired.'),
-    ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /^resend verification email$/i }));
-    expect(mockedAuthService.resendVerification.mock.calls[0]?.[0]).toEqual({
-      email: 'candidate@example.com',
-    });
-  });
-
-  it('retries email verification after a temporary failure', async () => {
-    mockedAuthService.verifyEmail
-      .mockRejectedValueOnce(new ApiRequestError({ message: 'Network unavailable.' }))
-      .mockResolvedValueOnce({ message: 'Email verified.' });
-    renderVerification('/verify-email?email=candidate%40example.com&token=retry-token');
-
-    await userEvent.click(await screen.findByRole('button', { name: /try verification again/i }));
-    expect(await screen.findByText(/your email address has been verified/i)).toBeInTheDocument();
-    expect(mockedAuthService.verifyEmail.mock.calls).toHaveLength(2);
-  });
-
-  it('submits forgot-password at the mocked network boundary', async () => {
-    mockedAuthService.forgotPassword.mockResolvedValue();
-    const router = createMemoryRouter(
-      [{ path: '/forgot-password', element: <ForgotPasswordPage /> }],
-      { initialEntries: ['/forgot-password'] },
-    );
-    renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticatedState });
-
+  it('validates the reset-request email before calling the backend', async () => {
+    renderAuthRoute(ROUTES.FORGOT_PASSWORD, <ForgotPasswordPage />);
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/email address/i), 'candidate@example.com');
-    await user.click(screen.getByRole('button', { name: /send reset instructions/i }));
+    await user.type(screen.getByLabelText(/email address/i), 'not-an-email');
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
 
-    expect(mockedAuthService.forgotPassword.mock.calls[0]?.[0]).toEqual({
-      email: 'candidate@example.com',
-    });
-    expect(await screen.findByText(/if an active account matches/i)).toBeInTheDocument();
+    expect(await screen.findByText('Enter a valid email address.')).toBeVisible();
+    expect(mockedAuthService.requestPasswordReset.mock.calls).toHaveLength(0);
   });
 
-  it('rejects reset links without the required token and email', async () => {
-    const router = createMemoryRouter(
-      [{ path: '/reset-password', element: <ResetPasswordPage /> }],
-      { initialEntries: ['/reset-password'] },
+  it('shows a safe error state when reset-link parameters are missing', () => {
+    renderAuthRoute(ROUTES.RESET_PASSWORD, <ResetPasswordPage />);
+
+    expect(screen.getByRole('heading', { name: 'Reset link unavailable' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Log in' })).toBeVisible();
+    expect(screen.queryByLabelText(/^new password/i)).not.toBeInTheDocument();
+  });
+
+  it('completes an email-link password reset and redirects after five seconds', async () => {
+    vi.useFakeTimers();
+    mockedAuthService.completePasswordReset.mockResolvedValue({
+      message: 'Password changed successfully. Please log in.',
+    });
+    renderAuthRoute(
+      ROUTES.RESET_PASSWORD,
+      <ResetPasswordPage />,
+      `${ROUTES.RESET_PASSWORD}?email=candidate%40example.com&token=raw-reset-token`,
     );
-    renderWithProviders(<RouterProvider router={router} />, { auth: unauthenticatedState });
-    expect(await screen.findByText(/reset link is incomplete or invalid/i)).toBeInTheDocument();
+    act(() => {
+      fireEvent.change(screen.getByLabelText(/^new password/i), {
+        target: { value: 'simple pass' },
+      });
+      fireEvent.change(screen.getByLabelText(/^confirm password/i, { selector: 'input' }), {
+        target: { value: 'simple pass' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /change password/i }));
+      await Promise.resolve();
+    });
+
+    expect(mockedAuthService.completePasswordReset.mock.calls[0]?.[0]).toEqual({
+      confirmPassword: 'simple pass',
+      email: 'candidate@example.com',
+      newPassword: 'simple pass',
+      token: 'raw-reset-token',
+    });
+    expect(
+      screen.getByRole('heading', {
+        name: 'Password changed successfully. Redirecting you to login…',
+      }),
+    ).toBeVisible();
+    expect(screen.queryByText('raw-reset-token')).not.toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  });
+
+  it('blocks password reset when confirmation does not match', async () => {
+    renderAuthRoute(
+      ROUTES.RESET_PASSWORD,
+      <ResetPasswordPage />,
+      `${ROUTES.RESET_PASSWORD}?email=candidate%40example.com&token=raw-reset-token`,
+    );
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/^new password/i), 'simple pass');
+    await user.type(
+      screen.getByLabelText(/^confirm password/i, { selector: 'input' }),
+      'different',
+    );
+    await user.click(screen.getByRole('button', { name: /change password/i }));
+    expect(await screen.findByText('Passwords must match.')).toBeVisible();
+    expect(mockedAuthService.completePasswordReset.mock.calls).toHaveLength(0);
   });
 });

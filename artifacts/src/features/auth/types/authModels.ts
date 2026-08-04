@@ -2,8 +2,9 @@ export interface RegisterRequest {
   email: string;
   password: string;
   firstName: string;
-  lastName: string;
-  phoneNumber: string | null;
+  // lastName: string;
+  phoneNumber: string;
+  hasAcceptedTermsAndPrivacy: boolean;
 }
 
 export interface LoginRequest {

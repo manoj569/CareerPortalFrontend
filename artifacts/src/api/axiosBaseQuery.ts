@@ -10,6 +10,7 @@ export interface AxiosBaseQueryError {
   code?: string;
   errors?: Record<string, string[]>;
   retryAfterSeconds?: number;
+  redirectToMembership?: boolean; // Add this
 }
 
 interface AxiosBaseQueryArgs {
@@ -57,6 +58,7 @@ export const axiosBaseQuery =
           message: apiError.message,
           retryAfterSeconds: apiError.retryAfterSeconds,
           status: apiError.status,
+          redirectToMembership: apiError.redirectToMembership, // Add this
         } satisfies AxiosBaseQueryError,
       };
     }

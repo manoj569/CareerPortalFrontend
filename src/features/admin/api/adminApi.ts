@@ -24,6 +24,8 @@ import type {
   AdminCompanyRequest,
   AdminDashboardCharts,
   AdminDashboardStatistics,
+  AdminCsvImportKind,
+  AdminCsvImportResult,
   AdminJob,
   AdminJobRequest,
   AdminJobsPage,
@@ -36,7 +38,15 @@ import type {
   UpdateAdminCategoryArgs,
   UpdateAdminCompanyArgs,
   UpdateAdminJobArgs,
+  AdminRecruiterContact,
+  UpdateAdminRecruiterContactArgs,
 } from '../types/adminModels';
+
+const csvUpload = (file: File): FormData => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return formData;
+};
 
 const refreshPublicJobs = async (
   queryFulfilled: Promise<unknown>,
@@ -78,6 +88,7 @@ export const adminApi = createApi({
     'AdminCategories',
     'AdminApplications',
     'AdminAuditLogs',
+    'RecruiterContact',
   ],
   endpoints: (builder) => ({
     getAdminStatistics: builder.query<AdminDashboardStatistics, void>({
@@ -106,6 +117,48 @@ export const adminApi = createApi({
       transformResponse: (response: ApiResponse<AdminDashboardCharts>) => response.data,
       providesTags: ['Charts'],
     }),
+    previewAdminCompaniesImport: builder.mutation<AdminCsvImportResult, File>({
+      query: (file) => ({
+        data: csvUpload(file),
+        method: 'POST',
+        url: API_ENDPOINTS.ADMIN.IMPORTS.COMPANIES_PREVIEW,
+      }),
+      transformResponse: (response: ApiResponse<AdminCsvImportResult>) => response.data,
+    }),
+    commitAdminCompaniesImport: builder.mutation<AdminCsvImportResult, File>({
+      query: (file) => ({
+        data: csvUpload(file),
+        method: 'POST',
+        url: API_ENDPOINTS.ADMIN.IMPORTS.COMPANIES_COMMIT,
+      }),
+      transformResponse: (response: ApiResponse<AdminCsvImportResult>) => response.data,
+      invalidatesTags: [
+        'Statistics',
+        'Charts',
+        { id: 'LIST', type: 'AdminCompanies' },
+        { id: 'OPTIONS', type: 'AdminCompanies' },
+      ],
+    }),
+    previewAdminJobsImport: builder.mutation<AdminCsvImportResult, File>({
+      query: (file) => ({
+        data: csvUpload(file),
+        method: 'POST',
+        url: API_ENDPOINTS.ADMIN.IMPORTS.JOBS_PREVIEW,
+      }),
+      transformResponse: (response: ApiResponse<AdminCsvImportResult>) => response.data,
+    }),
+    commitAdminJobsImport: builder.mutation<AdminCsvImportResult, File>({
+      query: (file) => ({
+        data: csvUpload(file),
+        method: 'POST',
+        url: API_ENDPOINTS.ADMIN.IMPORTS.JOBS_COMMIT,
+      }),
+      transformResponse: (response: ApiResponse<AdminCsvImportResult>) => response.data,
+      invalidatesTags: ['Statistics', 'Charts', { id: 'LIST', type: 'AdminJobs' }],
+      onQueryStarted: (_, { dispatch, queryFulfilled }) => {
+        void refreshPublicJobs(queryFulfilled, dispatch);
+      },
+    }),
     getAdminJobs: builder.query<AdminJobsPage, AdminJobsQuery>({
       query: (params) => ({ params, url: API_ENDPOINTS.ADMIN.JOBS }),
       transformResponse: (response: ApiResponse<AdminJobsPage>) => response.data,
@@ -121,6 +174,26 @@ export const adminApi = createApi({
       query: (jobId) => ({ url: API_ENDPOINTS.ADMIN.JOB(jobId) }),
       transformResponse: (response: ApiResponse<AdminJob>) => response.data,
       providesTags: (_, __, jobId) => [{ id: jobId, type: 'AdminJobs' }],
+    }),
+    getAdminRecruiterContact: builder.query<AdminRecruiterContact, string>({
+      query: (jobId) => ({
+        url: API_ENDPOINTS.ADMIN.JOB_RECRUITER_CONTACT(jobId),
+      }),
+      transformResponse: (response: ApiResponse<AdminRecruiterContact>) => response.data,
+      providesTags: (_, __, jobId) => [{ id: jobId, type: 'RecruiterContact' }],
+    }),
+
+    updateAdminRecruiterContact: builder.mutation<
+      AdminRecruiterContact,
+      UpdateAdminRecruiterContactArgs
+    >({
+      query: ({ jobId, request }) => ({
+        data: request,
+        method: 'PUT',
+        url: API_ENDPOINTS.ADMIN.JOB_RECRUITER_CONTACT(jobId),
+      }),
+      transformResponse: (response: ApiResponse<AdminRecruiterContact>) => response.data,
+      invalidatesTags: (_, __, { jobId }) => [{ id: jobId, type: 'RecruiterContact' }],
     }),
     createAdminJob: builder.mutation<AdminJob, AdminJobRequest>({
       query: (data) => ({ data, method: 'POST', url: API_ENDPOINTS.ADMIN.JOBS }),
@@ -433,6 +506,8 @@ export const adminApi = createApi({
 export const {
   useArchiveAdminJobMutation,
   useCloseAdminJobMutation,
+  useCommitAdminCompaniesImportMutation,
+  useCommitAdminJobsImportMutation,
   useCreateAdminCategoryMutation,
   useCreateAdminCompanyMutation,
   useCreateAdminJobMutation,
@@ -455,6 +530,8 @@ export const {
   useGetAdminRecentUsersQuery,
   useGetAdminStatisticsQuery,
   usePublishAdminJobMutation,
+  usePreviewAdminCompaniesImportMutation,
+  usePreviewAdminJobsImportMutation,
   useSetAdminJobFeaturedMutation,
   useSetAdminJobHiddenMutation,
   useSoftDeleteAdminJobMutation,
@@ -464,7 +541,22 @@ export const {
   useUpdateAdminCategoryMutation,
   useUpdateAdminCompanyMutation,
   useUpdateAdminJobMutation,
+  useGetAdminRecruiterContactQuery,
+  useUpdateAdminRecruiterContactMutation,
 } = adminApi;
+
+export const downloadAdminImportTemplate = async (kind: AdminCsvImportKind): Promise<Blob> => {
+  const response = await apiClient.request<Blob>({
+    method: 'GET',
+    responseType: 'blob',
+    url:
+      kind === 'companies'
+        ? API_ENDPOINTS.ADMIN.IMPORTS.COMPANIES_TEMPLATE
+        : API_ENDPOINTS.ADMIN.IMPORTS.JOBS_TEMPLATE,
+  });
+
+  return response.data;
+};
 
 export const downloadAdminApplicationResume = async (applicationId: string): Promise<Blob> => {
   const response = await apiClient.request<Blob>({

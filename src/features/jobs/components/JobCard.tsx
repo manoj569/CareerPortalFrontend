@@ -17,23 +17,38 @@ import { Link } from 'react-router-dom';
 
 import { buildJobDetailsPath } from '@/constants/routes';
 import {
+  getCompanyTypeLabel,
   getEmploymentTypeLabel,
   getExperienceLevelLabel,
   getWorkplaceTypeLabel,
 } from '../constants/jobOptions';
 import type { PublicJobSummary } from '../types/jobModels';
-import { formatJobDate, formatSalary } from '../utils/jobFormatting';
+import { formatExperienceRange, formatJobDate, formatSalary } from '../utils/jobFormatting';
 import { CompanyLogoFallback } from './CompanyLogoFallback';
 
 interface JobCardProps {
+  additionalAction?: ReactNode;
   job: PublicJobSummary;
+  returnPath?: string;
   returnSearch?: string;
   secondaryAction?: ReactNode;
+  showExtendedDetails?: boolean;
 }
 
-export const JobCard = ({ job, returnSearch = '', secondaryAction }: JobCardProps) => {
+export const JobCard = ({
+  additionalAction,
+  job,
+  returnPath,
+  returnSearch = '',
+  secondaryAction,
+  showExtendedDetails = false,
+}: JobCardProps) => {
   const publishedDate = formatJobDate(job.publishedAtUtc);
   const expiryDate = formatJobDate(job.expiresAtUtc);
+  const experienceRange = formatExperienceRange(
+    job.minimumExperienceYears,
+    job.maximumExperienceYears,
+  );
 
   return (
     <Card component="article" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -49,6 +64,9 @@ export const JobCard = ({ job, returnSearch = '', secondaryAction }: JobCardProp
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>
               {job.companyName}
+              {showExtendedDetails && job.companyType
+                ? ` · ${getCompanyTypeLabel(job.companyType)}`
+                : ''}
             </Typography>
           </Box>
           <Stack color="text.secondary" spacing={1}>
@@ -63,7 +81,9 @@ export const JobCard = ({ job, returnSearch = '', secondaryAction }: JobCardProp
               <Typography variant="body2">
                 {getEmploymentTypeLabel(job.employmentType)} ·{' '}
                 {getWorkplaceTypeLabel(job.workplaceType)} ·{' '}
-                {getExperienceLevelLabel(job.experienceLevel)}
+                {showExtendedDetails && experienceRange
+                  ? experienceRange
+                  : getExperienceLevelLabel(job.experienceLevel)}
               </Typography>
             </Stack>
             <Stack alignItems="center" direction="row" spacing={1}>
@@ -83,19 +103,40 @@ export const JobCard = ({ job, returnSearch = '', secondaryAction }: JobCardProp
             ) : null}
           </Stack>
           <Chip label={job.categoryName} size="small" sx={{ alignSelf: 'flex-start' }} />
+          {showExtendedDetails ? (
+            <Stack direction="row" flexWrap="wrap" gap={0.75}>
+              {job.department ? (
+                <Chip label={job.department} size="small" variant="outlined" />
+              ) : null}
+              {job.roleCategory ? (
+                <Chip label={job.roleCategory} size="small" variant="outlined" />
+              ) : null}
+              {job.industry ? <Chip label={job.industry} size="small" variant="outlined" /> : null}
+              {job.internshipDurationMonths ? (
+                <Chip
+                  label={`${job.internshipDurationMonths} month internship${job.isFlexibleDuration ? ' · flexible' : ''}`}
+                  size="small"
+                  variant="outlined"
+                />
+              ) : job.isFlexibleDuration ? (
+                <Chip label="Flexible internship duration" size="small" variant="outlined" />
+              ) : null}
+            </Stack>
+          ) : null}
         </Stack>
       </CardContent>
-      <CardActions sx={{ px: 3, pb: 3, pt: 0 }}>
+      <CardActions sx={{ flexWrap: 'wrap', px: 3, pb: 3, pt: 0 }}>
         <Button
           aria-label={`View details for ${job.title} at ${job.companyName}`}
           component={Link}
-          state={{ jobsSearch: returnSearch }}
+          state={{ jobsPath: returnPath, jobsSearch: returnSearch }}
           to={buildJobDetailsPath(job.slug)}
           variant="outlined"
         >
           View details
         </Button>
         {secondaryAction}
+        {additionalAction}
       </CardActions>
     </Card>
   );

@@ -51,4 +51,10 @@ export const API_ENDPOINTS = {
     NOTIFICATIONS_READ_ALL: '/dashboard/notifications/read-all',
     CHANGE_PASSWORD: '/dashboard/change-password',
   },
+  CANDIDATE: {
+  APPLICATION_QUOTA: '/candidate/application-quota',
+  APPLY: (jobId: string) => `/candidate/jobs/${jobId}/applications`,
+  RECRUITER_CONTACT: (jobId: string) =>
+    `/candidate/jobs/${jobId}/recruiter-contact`,
+},
 } as const;

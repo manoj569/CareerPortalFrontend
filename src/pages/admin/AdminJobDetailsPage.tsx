@@ -15,6 +15,7 @@ import {
 } from '@/features/jobs/constants/jobOptions';
 import { isGuid } from '@/features/payments/utils/paymentReturnUrl';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { AdminRecruiterContactCard } from '@/features/admin/components/AdminRecruiterContactCard';
 
 export const AdminJobDetailsPage = () => {
   const { jobId = '' } = useParams<{ jobId: string }>();
@@ -95,6 +96,7 @@ export const AdminJobDetailsPage = () => {
           </Typography>
         </Stack>
       </Paper>
+      <AdminRecruiterContactCard jobId={jobId} />
     </Stack>
   );
 };

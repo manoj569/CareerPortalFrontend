@@ -105,5 +105,26 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+export interface ApplicationQuota {
+  plan: string;
+  isPremium: boolean;
+  limit: number;
+  usedApplications: number;
+  remainingApplications: number;
+  resetsAtUtc: string;
+}
+
+export interface CreateJobApplicationRequest {
+  jobId: string;
+  coverLetter: string | null;
+}
+
+export interface CandidateRecruiterContact {
+  contactName: string;
+  contactRole: string;
+  email: string;
+  phoneNumber: string | null;
+}
+
 export type SavedJobsPage = PaginatedResponse<SavedJob>;
 export type ApplicationsPage = PaginatedResponse<AppliedJobHistory>;

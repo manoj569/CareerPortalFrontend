@@ -3,8 +3,10 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 import { apiClient } from '@/api/apiClient';
 import { axiosBaseQuery, type AxiosBaseQueryError } from '@/api/axiosBaseQuery';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
+import type { CandidateRecruiterContact } from '@/features/jobs/types/jobModels';
 import type { ApiResponse } from '@/types';
 import type {
+  ApplicationQuota,
   ApplicationsPage,
   ApplicationsQuery,
   CandidateOnboarding,
@@ -37,6 +39,8 @@ export const dashboardApi = createApi({
     'Applications',
     'Notifications',
     'Memberships',
+    'ApplicationQuota',
+    'RecruiterContact',
   ],
   endpoints: (builder) => ({
     getProfile: builder.query<UserProfile, void>({
@@ -44,6 +48,7 @@ export const dashboardApi = createApi({
       transformResponse: (response: ApiResponse<UserProfile>) => response.data,
       providesTags: ['Profile'],
     }),
+
     updateProfile: builder.mutation<UserProfile, UpdateCandidateProfileRequest>({
       query: (data) => ({
         data,
@@ -53,11 +58,13 @@ export const dashboardApi = createApi({
       transformResponse: (response: ApiResponse<UserProfile>) => response.data,
       invalidatesTags: ['Profile'],
     }),
+
     getOnboarding: builder.query<CandidateOnboarding, void>({
       query: () => ({ url: API_ENDPOINTS.CANDIDATE.ONBOARDING }),
       transformResponse: (response: ApiResponse<CandidateOnboarding>) => response.data,
       providesTags: ['Onboarding'],
     }),
+
     updateOnboarding: builder.mutation<CandidateOnboarding, UpdateCandidateOnboardingRequest>({
       query: (data) => ({
         data,
@@ -67,10 +74,12 @@ export const dashboardApi = createApi({
       transformResponse: (response: ApiResponse<CandidateOnboarding>) => response.data,
       invalidatesTags: ['Onboarding', 'Profile'],
     }),
+
     uploadResume: builder.mutation<ResumeMetadata, File>({
       query: (file) => {
         const data = new FormData();
         data.append('file', file);
+
         return {
           data,
           method: 'PUT',
@@ -80,6 +89,7 @@ export const dashboardApi = createApi({
       transformResponse: (response: ApiResponse<ResumeMetadata>) => response.data,
       invalidatesTags: ['Profile', 'Resume'],
     }),
+
     deleteResume: builder.mutation<void, void>({
       query: () => ({
         method: 'DELETE',
@@ -87,16 +97,33 @@ export const dashboardApi = createApi({
       }),
       invalidatesTags: ['Profile', 'Resume'],
     }),
+
     getMemberships: builder.query<Membership[], void>({
       query: () => ({ url: API_ENDPOINTS.DASHBOARD.MEMBERSHIPS }),
       transformResponse: (response: ApiResponse<Membership[]>) => response.data,
       providesTags: ['Memberships'],
     }),
+
+    getApplicationQuota: builder.query<ApplicationQuota, void>({
+      query: () => ({ url: API_ENDPOINTS.CANDIDATE.APPLICATION_QUOTA }),
+      transformResponse: (response: ApiResponse<ApplicationQuota>) => response.data,
+      providesTags: ['ApplicationQuota'],
+    }),
+
+    getRecruiterContact: builder.query<CandidateRecruiterContact, string>({
+      query: (jobId) => ({
+        url: API_ENDPOINTS.CANDIDATE.RECRUITER_CONTACT(jobId),
+      }),
+      transformResponse: (response: ApiResponse<CandidateRecruiterContact>) => response.data,
+      providesTags: (_, __, jobId) => [{ id: jobId, type: 'RecruiterContact' }],
+    }),
+
     getSavedJobs: builder.query<SavedJobsPage, DashboardQuery>({
       query: (params) => ({ params, url: API_ENDPOINTS.CANDIDATE.SAVED_JOBS }),
       transformResponse: (response: ApiResponse<SavedJobsPage>) => response.data,
       providesTags: ['SavedJobs'],
     }),
+
     saveJob: builder.mutation<void, string>({
       query: (jobId) => ({
         method: 'PUT',
@@ -104,6 +131,7 @@ export const dashboardApi = createApi({
       }),
       invalidatesTags: ['SavedJobs'],
     }),
+
     removeSavedJob: builder.mutation<void, string>({
       query: (jobId) => ({
         method: 'DELETE',
@@ -111,11 +139,13 @@ export const dashboardApi = createApi({
       }),
       invalidatesTags: ['SavedJobs'],
     }),
+
     getApplications: builder.query<ApplicationsPage, ApplicationsQuery>({
       query: (params) => ({ params, url: API_ENDPOINTS.CANDIDATE.APPLICATIONS }),
       transformResponse: (response: ApiResponse<ApplicationsPage>) => response.data,
       providesTags: ['Applications'],
     }),
+
     getApplication: builder.query<JobApplication, string>({
       query: (applicationId) => ({
         url: API_ENDPOINTS.CANDIDATE.APPLICATION(applicationId),
@@ -126,6 +156,7 @@ export const dashboardApi = createApi({
         { id: applicationId, type: 'Applications' },
       ],
     }),
+
     submitApplication: builder.mutation<JobApplication, CreateJobApplicationRequest>({
       query: ({ coverLetter, jobId }) => ({
         data: { coverLetter },
@@ -133,8 +164,9 @@ export const dashboardApi = createApi({
         url: API_ENDPOINTS.CANDIDATE.APPLY(jobId),
       }),
       transformResponse: (response: ApiResponse<JobApplication>) => response.data,
-      invalidatesTags: ['Applications'],
+      invalidatesTags: ['Applications', 'ApplicationQuota'],
     }),
+
     withdrawApplication: builder.mutation<JobApplication, string>({
       query: (applicationId) => ({
         method: 'POST',
@@ -146,11 +178,13 @@ export const dashboardApi = createApi({
         { id: applicationId, type: 'Applications' },
       ],
     }),
+
     getNotifications: builder.query<NotificationPage, NotificationsQuery>({
       query: (params) => ({ params, url: API_ENDPOINTS.DASHBOARD.NOTIFICATIONS }),
       transformResponse: (response: ApiResponse<NotificationPage>) => response.data,
       providesTags: ['Notifications'],
     }),
+
     markNotificationRead: builder.mutation<void, string>({
       query: (notificationId) => ({
         method: 'PUT',
@@ -158,6 +192,7 @@ export const dashboardApi = createApi({
       }),
       invalidatesTags: ['Notifications'],
     }),
+
     markAllNotificationsRead: builder.mutation<void, void>({
       query: () => ({
         method: 'PUT',
@@ -165,6 +200,7 @@ export const dashboardApi = createApi({
       }),
       invalidatesTags: ['Notifications'],
     }),
+
     changePassword: builder.mutation<void, ChangePasswordRequest>({
       query: (data) => ({
         data,
@@ -179,20 +215,22 @@ export const {
   useChangePasswordMutation,
   useDeleteResumeMutation,
   useGetApplicationQuery,
+  useGetApplicationQuotaQuery,
   useGetApplicationsQuery,
   useGetMembershipsQuery,
   useGetOnboardingQuery,
   useGetNotificationsQuery,
   useGetProfileQuery,
   useGetSavedJobsQuery,
+  useLazyGetRecruiterContactQuery,
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   useRemoveSavedJobMutation,
   useSaveJobMutation,
   useSubmitApplicationMutation,
-  useUploadResumeMutation,
-  useUpdateProfileMutation,
   useUpdateOnboardingMutation,
+  useUpdateProfileMutation,
+  useUploadResumeMutation,
   useWithdrawApplicationMutation,
 } = dashboardApi;
 

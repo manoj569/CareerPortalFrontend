@@ -47,6 +47,30 @@ export interface AdminDashboardStatistics {
   generatedAtUtc: string;
 }
 
+export type AdminCsvImportKind = 'companies' | 'jobs';
+
+export interface AdminCsvImportFieldError {
+  field: string;
+  message: string;
+}
+
+export interface AdminCsvImportRow {
+  rowNumber: number;
+  status: string;
+  errors: AdminCsvImportFieldError[];
+}
+
+export interface AdminCsvImportResult {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  importedRows: number;
+  skippedRows: number;
+  canCommit: boolean;
+  rows: AdminCsvImportRow[];
+}
+
 export interface RecentAdminPayment {
   id: string;
   userId: string;
@@ -433,5 +457,25 @@ export interface AdminAuditLogsQuery {
   toUtc?: string;
   correlationId?: string;
 }
+export interface AdminRecruiterContact {
+  jobId: string;
+  contactName: string;
+  contactRole: string;
+  email: string;
+  phoneNumber: string | null;
+  isSharingApproved: boolean;
+}
 
+export interface UpdateAdminRecruiterContactRequest {
+  contactName: string;
+  contactRole: string;
+  email: string;
+  phoneNumber: string | null;
+  isSharingApproved: boolean;
+}
+
+export interface UpdateAdminRecruiterContactArgs {
+  jobId: string;
+  request: UpdateAdminRecruiterContactRequest;
+}
 export type AdminAuditLogsPage = PaginatedResponse<AdminAuditLog>;

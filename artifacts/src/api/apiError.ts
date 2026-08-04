@@ -7,6 +7,7 @@ interface ErrorPayload {
   title?: string;
   code?: string;
   errors?: Record<string, string[]>;
+  redirectToMembership?: boolean; // Add this
 }
 
 export class ApiRequestError extends Error implements ApiError {
@@ -14,6 +15,7 @@ export class ApiRequestError extends Error implements ApiError {
   public readonly code?: string;
   public readonly errors?: Record<string, string[]>;
   public readonly retryAfterSeconds?: number;
+  public readonly redirectToMembership?: boolean; // Add this
 
   public constructor(apiError: ApiError) {
     super(apiError.message);
@@ -22,6 +24,7 @@ export class ApiRequestError extends Error implements ApiError {
     this.code = apiError.code;
     this.errors = apiError.errors;
     this.retryAfterSeconds = apiError.retryAfterSeconds;
+    this.redirectToMembership = apiError.redirectToMembership; // Add this
   }
 }
 
@@ -73,16 +76,21 @@ export const transformApiError = (error: unknown): ApiError => {
             ? 'The service is temporarily unavailable. Please try again later.'
             : undefined;
 
+  // Check if the response data contains redirectToMembership
+  const responseData = error.response.data;
+  const redirectToMembership = responseData?.redirectToMembership === true;
+
   return {
     message:
       safeStatusMessage ??
-      error.response.data?.message ??
-      error.response.data?.title ??
+      responseData?.message ??
+      responseData?.title ??
       'The request could not be completed.',
     status,
-    code: error.response.data?.code,
-    errors: error.response.data?.errors,
+    code: responseData?.code,
+    errors: responseData?.errors,
     retryAfterSeconds,
+    redirectToMembership, // Add this
   };
 };
 

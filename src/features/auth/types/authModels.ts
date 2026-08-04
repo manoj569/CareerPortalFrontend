@@ -1,46 +1,57 @@
 export interface RegisterRequest {
+  fullName: string;
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
   phoneNumber: string;
   hasAcceptedTermsAndPrivacy: boolean;
 }
 
-export interface RegistrationResponse {
+export interface RegistrationChallengeResponse {
+  challengeId: string;
+  message: string;
+  expiresAtUtc: string;
+}
+
+export interface VerifyRegistrationOtpRequest {
+  challengeId: string;
+  otp: string;
+}
+
+export interface ResendRegistrationOtpRequest {
+  challengeId: string;
+}
+
+export interface MessageResponse {
   message: string;
 }
 
 export interface LoginRequest {
-  email: string;
+  identifier: string;
   password: string;
 }
 
-export interface VerifyEmailRequest {
+export interface RequestLoginOtpRequest {
+  phoneNumber: string;
+}
+
+export interface LoginWithOtpRequest {
+  phoneNumber: string;
+  otp: string;
+}
+
+export interface RequestPasswordResetRequest {
+  email: string;
+}
+
+export interface CompletePasswordResetRequest {
   email: string;
   token: string;
-}
-
-export interface ResendVerificationRequest {
-  email: string;
-}
-
-export interface VerificationResponse {
-  message: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export interface RefreshTokenRequest {
   refreshToken: string;
-}
-
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
-  email: string;
-  token: string;
-  newPassword: string;
 }
 
 export interface LogoutRequest {

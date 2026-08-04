@@ -3,6 +3,7 @@ import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import PublishOutlinedIcon from '@mui/icons-material/PublishOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
@@ -59,6 +60,7 @@ import {
   useUnpublishAdminJobMutation,
 } from '@/features/admin/api/adminApi';
 import { AdminJobStatusBadge } from '@/features/admin/components/AdminStatusBadge';
+import { AdminCsvImportDialog } from '@/features/admin/components/AdminCsvImportDialog';
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
 import { JobStatus, type AdminJob, type AdminJobsQuery } from '@/features/admin/types/adminModels';
 import { formatAdminDate, getAdminJobStatusLabel } from '@/features/admin/utils/adminFormatting';
@@ -131,6 +133,7 @@ export const AdminJobsPage = () => {
   const [searchInput, setSearchInput] = useState(searchParams.get('search') ?? '');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(searchInput, 350);
 
   useEffect(() => {
@@ -346,14 +349,23 @@ export const AdminJobsPage = () => {
     <Stack spacing={3}>
       <DashboardPageHeader
         actions={
-          <Button
-            component={Link}
-            startIcon={<AddOutlinedIcon />}
-            to={ROUTES.ADMIN_JOB_CREATE}
-            variant="contained"
-          >
-            Create job
-          </Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              onClick={() => setIsImportOpen(true)}
+              startIcon={<FileUploadOutlinedIcon />}
+              variant="outlined"
+            >
+              Import CSV
+            </Button>
+            <Button
+              component={Link}
+              startIcon={<AddOutlinedIcon />}
+              to={ROUTES.ADMIN_JOB_CREATE}
+              variant="contained"
+            >
+              Create job
+            </Button>
+          </Stack>
         }
         description="Search, filter, publish, archive, feature, hide, and soft-delete backend jobs."
         eyebrow="Administration"
@@ -672,6 +684,11 @@ export const AdminJobsPage = () => {
         onConfirm={() => void runAction()}
         open={Boolean(pendingAction)}
         title={pendingAction ? actionCopy[pendingAction.action].label : 'Confirm action'}
+      />
+      <AdminCsvImportDialog
+        kind="jobs"
+        onClose={() => setIsImportOpen(false)}
+        open={isImportOpen}
       />
     </Stack>
   );

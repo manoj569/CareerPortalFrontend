@@ -4,7 +4,12 @@ import { authTokenStore } from '@/services/authTokenStore';
 import type { AuthenticatedSession, AuthenticatedUser, AuthenticationResponse } from '@/types';
 import { getAuthenticationErrorMessage } from '../services/authErrorMapper';
 import { authService } from '../services/authService';
-import type { LoginRequest, RegisterRequest, RegistrationResponse } from '../types/authModels';
+import type {
+  LoginRequest,
+  LoginWithOtpRequest,
+  RegisterRequest,
+  RegistrationChallengeResponse,
+} from '../types/authModels';
 
 export type AuthenticationStatus = 'idle' | 'initializing' | 'authenticated' | 'unauthenticated';
 
@@ -55,16 +60,29 @@ export const login = createAsyncThunk<AuthenticationResponse, LoginRequest, Auth
   },
 );
 
-export const register = createAsyncThunk<RegistrationResponse, RegisterRequest, AuthThunkConfig>(
-  'auth/register',
-  async (request, { rejectWithValue }) => {
-    try {
-      return await authService.register(request);
-    } catch (error: unknown) {
-      return rejectWithValue(getAuthenticationErrorMessage(error));
-    }
-  },
-);
+export const loginWithOtp = createAsyncThunk<
+  AuthenticationResponse,
+  LoginWithOtpRequest,
+  AuthThunkConfig
+>('auth/loginWithOtp', async (request, { rejectWithValue }) => {
+  try {
+    return await authService.loginWithOtp(request);
+  } catch (error: unknown) {
+    return rejectWithValue(getAuthenticationErrorMessage(error));
+  }
+});
+
+export const register = createAsyncThunk<
+  RegistrationChallengeResponse,
+  RegisterRequest,
+  AuthThunkConfig
+>('auth/register', async (request, { rejectWithValue }) => {
+  try {
+    return await authService.register(request);
+  } catch (error: unknown) {
+    return rejectWithValue(getAuthenticationErrorMessage(error));
+  }
+});
 
 export const logout = createAsyncThunk<void, void, AuthThunkConfig>(
   'auth/logout',
@@ -130,6 +148,18 @@ const authSlice = createSlice({
         applyAuthentication(state, action.payload);
       })
       .addCase(login.rejected, (state, action) => {
+        state.isSubmitting = false;
+        state.error = action.payload ?? 'Unable to log in.';
+      })
+      .addCase(loginWithOtp.pending, (state) => {
+        state.isSubmitting = true;
+        state.error = null;
+      })
+      .addCase(loginWithOtp.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        applyAuthentication(state, action.payload);
+      })
+      .addCase(loginWithOtp.rejected, (state, action) => {
         state.isSubmitting = false;
         state.error = action.payload ?? 'Unable to log in.';
       })

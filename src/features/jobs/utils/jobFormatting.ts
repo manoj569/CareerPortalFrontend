@@ -37,3 +37,17 @@ export const formatSalary = (
 
 export const isJobExpired = (job: Pick<PublicJobDetails, 'expiresAtUtc'>): boolean =>
   Boolean(job.expiresAtUtc && dayjs(job.expiresAtUtc).isBefore(dayjs()));
+
+export const formatExperienceRange = (
+  minimumYears: number | null,
+  maximumYears: number | null,
+): string | null => {
+  if (minimumYears === null && maximumYears === null) return null;
+  if (minimumYears !== null && maximumYears !== null) {
+    return minimumYears === maximumYears
+      ? `${minimumYears} ${minimumYears === 1 ? 'year' : 'years'} experience`
+      : `${minimumYears}–${maximumYears} years experience`;
+  }
+  if (minimumYears !== null) return `${minimumYears}+ years experience`;
+  return `Up to ${maximumYears} years experience`;
+};

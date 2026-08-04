@@ -13,7 +13,7 @@ import { sessionExpired } from '@/features/auth/store/authSlice';
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import { createAppStore } from '@/store/store';
 import { UserRole } from '@/types';
-import { adminApi, downloadAdminApplicationResume } from './adminApi';
+import { adminApi, downloadAdminApplicationResume, downloadAdminImportTemplate } from './adminApi';
 import {
   AdminApplicationStatus,
   JobStatus,
@@ -24,6 +24,12 @@ import {
 } from '../types/adminModels';
 
 const { mockRequest } = vi.hoisted(() => ({ mockRequest: vi.fn() }));
+
+interface CapturedRequestConfig {
+  data?: unknown;
+  method?: string;
+  url?: string;
+}
 
 vi.mock('@/api/apiClient', () => ({
   apiClient: { request: mockRequest },
@@ -76,6 +82,20 @@ const publicQuery: PublicJobQuery = {
   pageSize: 12,
   sortBy: 'publishedAt',
   sortDirection: 'desc',
+};
+
+const importResult = {
+  canCommit: true,
+  duplicateRows: 1,
+  importedRows: 2,
+  invalidRows: 0,
+  rows: [
+    { errors: [], rowNumber: 2, status: 'Valid' },
+    { errors: [], rowNumber: 3, status: 'Skip duplicate' },
+  ],
+  skippedRows: 1,
+  totalRows: 3,
+  validRows: 2,
 };
 
 describe('admin API cache consistency', () => {
@@ -239,6 +259,63 @@ describe('admin API cache consistency', () => {
     await store.dispatch(adminApi.endpoints.getAdminCategoryOptions.initiate());
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ url: '/admin/categories/options' }),
+    );
+  });
+
+  it('sends exactly one file field to every CSV preview and commit endpoint', async () => {
+    const store = createAppStore();
+    const file = new File(['name\nNorthstar Labs'], 'companies.csv', { type: 'text/csv' });
+    mockRequest.mockResolvedValue({ data: { data: importResult } });
+
+    const requests = [
+      adminApi.endpoints.previewAdminCompaniesImport.initiate(file),
+      adminApi.endpoints.commitAdminCompaniesImport.initiate(file),
+      adminApi.endpoints.previewAdminJobsImport.initiate(file),
+      adminApi.endpoints.commitAdminJobsImport.initiate(file),
+    ];
+    for (const requestAction of requests) {
+      await store.dispatch(requestAction).unwrap();
+    }
+
+    const requestConfigs = mockRequest.mock.calls.map(
+      ([requestConfig]) => requestConfig as CapturedRequestConfig,
+    );
+    expect(mockRequest).toHaveBeenCalledTimes(4);
+    expect(requestConfigs.map((requestConfig) => requestConfig.url)).toEqual([
+      '/admin/imports/companies/preview',
+      '/admin/imports/companies/commit',
+      '/admin/imports/jobs/preview',
+      '/admin/imports/jobs/commit',
+    ]);
+    for (const requestConfig of requestConfigs) {
+      expect(requestConfig.method).toBe('POST');
+      expect(requestConfig.data).toBeInstanceOf(FormData);
+      expect(Array.from((requestConfig.data as FormData).entries())).toEqual([['file', file]]);
+    }
+  });
+
+  it('downloads the backend CSV template for each import type', async () => {
+    const template = new Blob(['header\nvalue'], { type: 'text/csv' });
+    mockRequest.mockResolvedValue({ data: template });
+
+    await expect(downloadAdminImportTemplate('companies')).resolves.toBe(template);
+    await expect(downloadAdminImportTemplate('jobs')).resolves.toBe(template);
+
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        method: 'GET',
+        responseType: 'blob',
+        url: '/admin/imports/templates/companies',
+      }),
+    );
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        method: 'GET',
+        responseType: 'blob',
+        url: '/admin/imports/templates/jobs',
+      }),
     );
   });
 

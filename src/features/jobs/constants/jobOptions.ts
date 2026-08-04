@@ -1,10 +1,38 @@
 import {
+  CompanyType,
   EmploymentType,
   ExperienceLevel,
+  PostedByType,
+  PublicJobSort,
   WorkplaceType,
   type JobSortField,
   type SortDirection,
 } from '../types/jobModels';
+
+export const companyTypeOptions = [
+  { label: 'Startup', value: CompanyType.Startup, slug: 'startup' },
+  { label: 'Corporate', value: CompanyType.Corporate, slug: 'corporate' },
+  { label: 'Indian MNC', value: CompanyType.IndianMnc, slug: 'indian-mnc' },
+  { label: 'Foreign MNC', value: CompanyType.ForeignMnc, slug: 'foreign-mnc' },
+  { label: 'Consultant/Staffing', value: CompanyType.Consultant, slug: 'consultant' },
+] as const;
+
+export const postedByTypeOptions = [
+  { label: 'Company Jobs', value: PostedByType.Company, slug: 'company' },
+  { label: 'Consultant Jobs', value: PostedByType.Consultant, slug: 'consultant' },
+] as const;
+
+export const candidateJobSortOptions = [
+  { label: 'Recommended', value: 'recommended', sortBy: PublicJobSort.Recommended },
+  { label: 'Latest published', value: 'latest', sortBy: PublicJobSort.LatestPublished },
+  { label: 'Newest added', value: 'newest', sortBy: PublicJobSort.NewestAdded },
+  { label: 'Closing soon', value: 'closing', sortBy: PublicJobSort.ClosingSoon },
+  {
+    label: 'Salary: high to low',
+    value: 'salary-high-to-low',
+    sortBy: PublicJobSort.SalaryHighToLow,
+  },
+] as const;
 
 export const employmentTypeOptions = [
   { label: 'Full time', value: EmploymentType.FullTime, slug: 'full-time' },
@@ -68,3 +96,9 @@ export const getWorkplaceTypeLabel = (value: WorkplaceType): string =>
 
 export const getExperienceLevelLabel = (value: ExperienceLevel): string =>
   experienceLevelOptions.find((option) => option.value === value)?.label ?? 'Other';
+
+export const getCompanyTypeLabel = (value: CompanyType): string =>
+  companyTypeOptions.find((option) => option.value === value)?.label ?? 'Other';
+
+export const getPostedByTypeLabel = (value: PostedByType): string =>
+  postedByTypeOptions.find((option) => option.value === value)?.label ?? 'Other';

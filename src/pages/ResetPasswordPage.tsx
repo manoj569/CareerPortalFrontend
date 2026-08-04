@@ -1,105 +1,157 @@
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Alert, Button, Link as MuiLink, Stack } from '@mui/material';
-import { enqueueSnackbar } from 'notistack';
-import { useState } from 'react';
+import { Alert, Button, Link as MuiLink, Stack, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { applyApiValidationErrors } from '@/api/formErrors';
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { PasswordField } from '@/features/auth/components/PasswordField';
 import { getAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
 import { authService } from '@/features/auth/services/authService';
 import {
-  resetPasswordSchema,
-  type ResetPasswordFormValues,
+  completePasswordResetSchema,
+  type CompletePasswordResetFormValues,
 } from '@/features/auth/validation/authSchemas';
+import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 export const ResetPasswordPage = () => {
+  useDocumentMetadata(
+    'Choose a new password | Career Portal',
+    'Choose a new password for your Career Portal account.',
+  );
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const email = searchParams.get('email')?.trim() ?? '';
-  const token = searchParams.get('token')?.trim() ?? '';
-  const hasValidLinkParameters = Boolean(email && token);
+  const token = searchParams.get('token') ?? '';
+  const hasResetLink = email.length > 0 && token.length > 0;
+  const [isComplete, setIsComplete] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
     register,
+    reset,
+    setError,
     setFocus,
-  } = useForm<ResetPasswordFormValues>({
+  } = useForm<CompletePasswordResetFormValues>({
     defaultValues: { confirmPassword: '', newPassword: '' },
     mode: 'onTouched',
-    resolver: yupResolver(resetPasswordSchema),
+    resolver: yupResolver(completePasswordResetSchema),
   });
 
-  const submitReset = async (values: ResetPasswordFormValues) => {
-    if (!hasValidLinkParameters) return;
-    setServerError(null);
-
-    try {
-      await authService.resetPassword({ email, newPassword: values.newPassword, token });
-      enqueueSnackbar('Your password has been reset.', { variant: 'success' });
-      await navigate(ROUTES.LOGIN, {
+  useEffect(() => {
+    if (!isComplete) return;
+    const timeoutId = window.setTimeout(() => {
+      void navigate(ROUTES.LOGIN, {
         replace: true,
-        state: { message: 'Your password has been reset. You can now log in.' },
+        state: { message: 'Password changed successfully. Please log in.' },
       });
+    }, 5_000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isComplete, navigate]);
+
+  const completeReset = async (values: CompletePasswordResetFormValues) => {
+    if (!hasResetLink) return;
+    setServerError(null);
+    try {
+      await authService.completePasswordReset({
+        confirmPassword: values.confirmPassword,
+        email,
+        newPassword: values.newPassword,
+        token,
+      });
+      reset();
+      setIsComplete(true);
     } catch (error: unknown) {
-      setServerError(getAuthenticationErrorMessage(error));
+      const hasFieldError = applyApiValidationErrors(
+        error,
+        ['newPassword', 'confirmPassword'] as const,
+        setError,
+      );
+      if (!hasFieldError) setServerError(getAuthenticationErrorMessage(error));
     }
   };
+
+  if (!hasResetLink) {
+    return (
+      <Stack spacing={3}>
+        <AuthPageHeader
+          description="This reset link is incomplete. Request a new link and try again."
+          title="Reset link unavailable"
+        />
+        <Alert aria-live="assertive" severity="error">
+          The password reset link is missing required information.
+        </Alert>
+        <Button component={Link} to={ROUTES.LOGIN} variant="contained">
+          Log in
+        </Button>
+      </Stack>
+    );
+  }
+
+  if (isComplete) {
+    return (
+      <Alert
+        aria-live="polite"
+        icon={<CheckCircleIcon fontSize="large" />}
+        severity="success"
+        sx={{ alignItems: 'center', py: 3 }}
+      >
+        <Typography component="h1" fontWeight={700} variant="h5">
+          Password changed successfully. Redirecting you to login…
+        </Typography>
+      </Alert>
+    );
+  }
 
   return (
     <Stack spacing={3}>
       <AuthPageHeader
-        description="Choose a strong new password for your Career Portal account."
-        title="Create a new password"
+        description="Enter and confirm the new password for your account."
+        title="Choose a new password"
       />
 
-      {!hasValidLinkParameters ? (
+      {serverError ? (
         <Alert aria-live="assertive" severity="error">
-          This password reset link is incomplete or invalid. Request a new link to continue.
+          {serverError}
         </Alert>
-      ) : (
-        <Stack
-          component="form"
-          noValidate
-          onSubmit={(event) => {
-            void handleSubmit(submitReset, (formErrors) => {
-              const firstField = Object.keys(formErrors)[0] as
-                keyof ResetPasswordFormValues | undefined;
-              if (firstField) setFocus(firstField);
-            })(event);
-          }}
-          spacing={2.5}
-        >
-          {serverError ? (
-            <Alert aria-live="assertive" severity="error">
-              {serverError}
-            </Alert>
-          ) : null}
-          <PasswordField
-            autoComplete="new-password"
-            disabled={isSubmitting}
-            errorMessage={
-              errors.newPassword?.message ??
-              'Use 12–128 characters with uppercase, lowercase, number, and symbol.'
-            }
-            label="New password"
-            registration={register('newPassword')}
-          />
-          <PasswordField
-            autoComplete="new-password"
-            disabled={isSubmitting}
-            errorMessage={errors.confirmPassword?.message}
-            label="Confirm new password"
-            registration={register('confirmPassword')}
-          />
-          <Button disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained">
-            {isSubmitting ? 'Resetting password…' : 'Reset password'}
-          </Button>
-        </Stack>
-      )}
+      ) : null}
+
+      <Stack
+        component="form"
+        noValidate
+        onSubmit={(event) =>
+          void handleSubmit(completeReset, (formErrors) => {
+            const firstField = Object.keys(formErrors)[0] as
+              keyof CompletePasswordResetFormValues | undefined;
+            if (firstField) setFocus(firstField);
+          })(event)
+        }
+        spacing={2.5}
+      >
+        <PasswordField
+          autoComplete="new-password"
+          disabled={isSubmitting}
+          errorMessage={errors.newPassword?.message}
+          label="New password"
+          placeholder="Minimum 6 characters"
+          registration={register('newPassword')}
+        />
+        <PasswordField
+          autoComplete="new-password"
+          disabled={isSubmitting}
+          errorMessage={errors.confirmPassword?.message}
+          label="Confirm password"
+          registration={register('confirmPassword')}
+        />
+        <Button disabled={isSubmitting} type="submit" variant="contained">
+          {isSubmitting ? 'Changing password…' : 'Change password'}
+        </Button>
+      </Stack>
 
       <MuiLink alignSelf="center" component={Link} to={ROUTES.LOGIN}>
         Back to login

@@ -104,10 +104,10 @@ const authSlice = createSlice({
     clearAuthError: (state) => {
       state.error = null;
     },
-    profileUpdated: (state, action: PayloadAction<{ firstName: string; lastName: string }>) => {
+    profileUpdated: (state, action: PayloadAction<{ firstName: string }>) => {
       if (!state.user) return;
       state.user.firstName = action.payload.firstName;
-      state.user.lastName = action.payload.lastName;
+      // state.user.lastName = action.payload.lastName;
     },
   },
   extraReducers: (builder) => {

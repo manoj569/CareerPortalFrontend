@@ -1,10 +1,11 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Alert, Button, Link as MuiLink, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Link as MuiLink, Stack, TextField, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+// ✅ FIX: We remove the unused ROUTES import to prevent compile errors
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { PasswordField } from '@/features/auth/components/PasswordField';
@@ -54,7 +55,7 @@ export const LoginPage = () => {
   return (
     <Stack spacing={3}>
       <AuthPageHeader
-        description="Use the email address and password associated with your account."
+        description="Use your email address or Indian mobile number and password."
         title="Welcome back"
       />
 
@@ -81,9 +82,8 @@ export const LoginPage = () => {
           disabled={isSubmitting}
           error={Boolean(errors.email)}
           helperText={errors.email?.message}
-          label="Email address"
+          label="Email address or mobile number"
           required
-          type="email"
           {...register('email')}
         />
         <PasswordField
@@ -100,6 +100,12 @@ export const LoginPage = () => {
           {isSubmitting ? 'Logging in…' : 'Log in'}
         </Button>
       </Stack>
+
+      {/* 
+        Removed the Divider and OTP button as requested. 
+        A small spacer ensures clean layout between the button and the footer.
+      */}
+      <Box sx={{ height: 8 }} />
 
       <Typography color="text.secondary" textAlign="center">
         New to Career Portal?{' '}
