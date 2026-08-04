@@ -7,7 +7,7 @@
     "analyze": "node scripts/report-bundle.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "vercel-build": "npm install && npm run build",
+    "vercel-build": "pnpm install --frozen-lockfile && pnpm run build",
     "build:analyze": "npm run build && npm run analyze",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",
