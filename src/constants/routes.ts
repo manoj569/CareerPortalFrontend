@@ -3,7 +3,6 @@ export const ROUTES = {
   JOBS: '/jobs',
   JOB_DETAILS: '/jobs/:slug',
   LOGIN: '/login',
-  // MOBILE_OTP_LOGIN: '/login/mobile-otp',
   REGISTER: '/register',
   VERIFY_REGISTRATION_MOBILE: '/register/verify-mobile',
   FORGOT_PASSWORD: '/forgot-password',

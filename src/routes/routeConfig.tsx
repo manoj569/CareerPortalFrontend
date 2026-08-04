@@ -72,10 +72,6 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(() => import('@/pages/LoginPage'), 'LoginPage'),
               },
               {
-                path: ROUTES.MOBILE_OTP_LOGIN,
-                element: lazyPage(() => import('@/pages/MobileOtpLoginPage'), 'MobileOtpLoginPage'),
-              },
-              {
                 path: ROUTES.REGISTER,
                 element: lazyPage(() => import('@/pages/RegisterPage'), 'RegisterPage'),
               },
