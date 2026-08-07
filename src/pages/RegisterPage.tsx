@@ -223,9 +223,17 @@ export const RegisterPage = () => {
         setHasValidationErrors(true);
         return;
       }
-      setServerError(getAuthenticationErrorMessage(error));
+
+      // ✅ NEW: Check for a JSON error response from the backend
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'conflict') {
+        const apiError = error as { code: string; message: string };
+        setServerError(apiError.message || 'An account with this email or phone number already exists.');
+      } else {
+        setServerError(getAuthenticationErrorMessage(error));
+      }
     }
   };
+
   return (
     <Stack spacing={{ xs: 3, md: 4 }}>
       <RegistrationHeader />
