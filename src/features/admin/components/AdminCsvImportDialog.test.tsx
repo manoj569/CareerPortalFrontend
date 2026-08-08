@@ -8,10 +8,8 @@ import { renderWithProviders } from '@/test/renderWithProviders';
 import { AdminCsvImportDialog } from './AdminCsvImportDialog';
 
 const mocks = vi.hoisted(() => ({
-  commitCompanies: vi.fn(),
   commitJobs: vi.fn(),
   downloadTemplate: vi.fn(),
-  previewCompanies: vi.fn(),
   previewJobs: vi.fn(),
 }));
 
@@ -21,9 +19,7 @@ vi.mock('@/features/admin/api/adminApi', async (importOriginal) => {
   return {
     ...actual,
     downloadAdminImportTemplate: mocks.downloadTemplate,
-    useCommitAdminCompaniesImportMutation: () => [mocks.commitCompanies, mutationState],
     useCommitAdminJobsImportMutation: () => [mocks.commitJobs, mutationState],
-    usePreviewAdminCompaniesImportMutation: () => [mocks.previewCompanies, mutationState],
     usePreviewAdminJobsImportMutation: () => [mocks.previewJobs, mutationState],
   };
 });
@@ -47,11 +43,7 @@ const triggerResult = <T,>(result: T) => ({ unwrap: vi.fn().mockResolvedValue(re
 describe('Administrator CSV import dialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.previewCompanies.mockImplementation(() => triggerResult(validPreview));
     mocks.previewJobs.mockImplementation(() => triggerResult(validPreview));
-    mocks.commitCompanies.mockImplementation(() =>
-      triggerResult({ ...validPreview, importedRows: 2 }),
-    );
     mocks.commitJobs.mockImplementation(() => triggerResult({ ...validPreview, importedRows: 2 }));
     mocks.downloadTemplate.mockResolvedValue(new Blob(['header\nvalue'], { type: 'text/csv' }));
   });
@@ -59,13 +51,13 @@ describe('Administrator CSV import dialog', () => {
   it('previews and commits the same selected file after backend approval', async () => {
     const onClose = vi.fn();
     const file = new File(['title\nFrontend Engineer'], 'jobs.csv', { type: 'text/csv' });
-    renderWithProviders(<AdminCsvImportDialog kind="jobs" onClose={onClose} open />);
+    renderWithProviders(<AdminCsvImportDialog onClose={onClose} open />);
 
-    await userEvent.upload(screen.getByLabelText('Select jobs CSV file'), file);
+    await userEvent.upload(screen.getByLabelText('Select Job CSV file'), file);
     expect(screen.getByText('jobs.csv')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Commit import' })).toBeDisabled();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview import' }));
     expect(mocks.previewJobs).toHaveBeenCalledWith(file);
     expect(await screen.findByText('Preview passed. This file is ready to import.')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Commit import' })).toBeEnabled();
@@ -77,29 +69,29 @@ describe('Administrator CSV import dialog', () => {
   });
 
   it('blocks invalid file types and files larger than 5 MB before upload', async () => {
-    renderWithProviders(<AdminCsvImportDialog kind="companies" onClose={vi.fn()} open />);
-    const input = screen.getByLabelText('Select companies CSV file');
+    renderWithProviders(<AdminCsvImportDialog onClose={vi.fn()} open />);
+    const input = screen.getByLabelText('Select Job CSV file');
 
     await userEvent.upload(input, new File(['not csv'], 'companies.txt', { type: 'text/plain' }), {
       applyAccept: false,
     });
     expect(screen.getByText('Select a file with a .csv extension.')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Preview' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Preview import' })).toBeDisabled();
 
     const oversizedFile = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'companies.csv', {
       type: 'text/csv',
     });
     await userEvent.upload(input, oversizedFile);
     expect(screen.getByText('The CSV file must be 5 MB or smaller.')).toBeVisible();
-    expect(mocks.previewCompanies).not.toHaveBeenCalled();
+    expect(mocks.previewJobs).not.toHaveBeenCalled();
   });
 
   it('clears a previous preview when a new file is selected', async () => {
-    renderWithProviders(<AdminCsvImportDialog kind="companies" onClose={vi.fn()} open />);
-    const input = screen.getByLabelText('Select companies CSV file');
+    renderWithProviders(<AdminCsvImportDialog onClose={vi.fn()} open />);
+    const input = screen.getByLabelText('Select Job CSV file');
 
     await userEvent.upload(input, new File(['name\nOne'], 'one.csv', { type: 'text/csv' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview import' }));
     expect(await screen.findByText('Preview passed. This file is ready to import.')).toBeVisible();
 
     await userEvent.upload(input, new File(['name\nTwo'], 'two.csv', { type: 'text/csv' }));
@@ -122,13 +114,13 @@ describe('Administrator CSV import dialog', () => {
       validRows: 0,
     };
     mocks.previewJobs.mockImplementation(() => triggerResult(invalidPreview));
-    renderWithProviders(<AdminCsvImportDialog kind="jobs" onClose={vi.fn()} open />);
+    renderWithProviders(<AdminCsvImportDialog onClose={vi.fn()} open />);
 
     await userEvent.upload(
-      screen.getByLabelText('Select jobs CSV file'),
+      screen.getByLabelText('Select Job CSV file'),
       new File(['title\n'], 'jobs.csv', { type: 'text/csv' }),
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview import' }));
 
     expect(await screen.findByRole('table', { name: 'CSV row errors' })).toBeVisible();
     expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeVisible();
@@ -147,10 +139,10 @@ describe('Administrator CSV import dialog', () => {
     const click = vi
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => undefined);
-    renderWithProviders(<AdminCsvImportDialog kind="companies" onClose={vi.fn()} open />);
+    renderWithProviders(<AdminCsvImportDialog onClose={vi.fn()} open />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Download template' }));
-    await waitFor(() => expect(mocks.downloadTemplate).toHaveBeenCalledWith('companies'));
+    await userEvent.click(screen.getByRole('button', { name: 'Download job CSV template' }));
+    await waitFor(() => expect(mocks.downloadTemplate).toHaveBeenCalledWith('jobs'));
     expect(createObjectUrl).toHaveBeenCalledOnce();
     expect(click).toHaveBeenCalledOnce();
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:template');

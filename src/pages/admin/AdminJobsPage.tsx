@@ -50,8 +50,6 @@ import {
   useArchiveAdminJobMutation,
   useCloseAdminJobMutation,
   useFeatureAdminJobMutation,
-  useGetAdminCategoryOptionsQuery,
-  useGetAdminCompanyOptionsQuery,
   useGetAdminJobsQuery,
   usePublishAdminJobMutation,
   useSetAdminJobHiddenMutation,
@@ -153,8 +151,6 @@ export const AdminJobsPage = () => {
     EmploymentType,
   );
   const workplaceType = parseEnum<WorkplaceType>(searchParams.get('workplaceType'), WorkplaceType);
-  const categoryId = searchParams.get('categoryId') || undefined;
-  const companyId = searchParams.get('companyId') || undefined;
   const sortValue = searchParams.get('sort') ?? 'createdAt-desc';
   const [sortByValue, sortDirectionValue] = sortValue.split('-');
   const supportedSorts: AdminJobsQuery['sortBy'][] = [
@@ -175,8 +171,6 @@ export const AdminJobsPage = () => {
 
   const query = useMemo<AdminJobsQuery>(
     () => ({
-      categoryId,
-      companyId,
       employmentType,
       isDeleted,
       pageNumber,
@@ -188,8 +182,6 @@ export const AdminJobsPage = () => {
       workplaceType,
     }),
     [
-      categoryId,
-      companyId,
       employmentType,
       isDeleted,
       pageNumber,
@@ -201,8 +193,6 @@ export const AdminJobsPage = () => {
     ],
   );
   const jobs = useGetAdminJobsQuery(query);
-  const categories = useGetAdminCategoryOptionsQuery();
-  const companies = useGetAdminCompanyOptionsQuery();
   const [publishJob, publishState] = usePublishAdminJobMutation();
   const [unpublishJob, unpublishState] = useUnpublishAdminJobMutation();
   const [closeJob, closeState] = useCloseAdminJobMutation();
@@ -404,42 +394,6 @@ export const AdminJobsPage = () => {
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2 }}>
             <FormControl fullWidth size="small">
-              <InputLabel id="job-category-filter-label">Category</InputLabel>
-              <Select
-                label="Category"
-                labelId="job-category-filter-label"
-                onChange={(event) => setFilter('categoryId', event.target.value)}
-                value={categoryId ?? ''}
-              >
-                <MenuItem value="">All categories</MenuItem>
-                {categories.data?.map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="job-company-filter-label">Company</InputLabel>
-              <Select
-                label="Company"
-                labelId="job-company-filter-label"
-                onChange={(event) => setFilter('companyId', event.target.value)}
-                value={companyId ?? ''}
-              >
-                <MenuItem value="">All companies</MenuItem>
-                {companies.data?.map((company) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <FormControl fullWidth size="small">
               <InputLabel id="job-type-filter-label">Job type</InputLabel>
               <Select
                 label="Job type"
@@ -509,13 +463,6 @@ export const AdminJobsPage = () => {
           </Grid>
         </Grid>
       </Paper>
-
-      {categories.isError || companies.isError ? (
-        <Alert severity="warning">
-          Company or category filter options could not be loaded; existing URL filters remain
-          active.
-        </Alert>
-      ) : null}
 
       {jobs.isLoading ? (
         <Stack aria-label="Loading admin jobs" role="status" spacing={2}>
@@ -685,11 +632,7 @@ export const AdminJobsPage = () => {
         open={Boolean(pendingAction)}
         title={pendingAction ? actionCopy[pendingAction.action].label : 'Confirm action'}
       />
-      <AdminCsvImportDialog
-        kind="jobs"
-        onClose={() => setIsImportOpen(false)}
-        open={isImportOpen}
-      />
+      <AdminCsvImportDialog onClose={() => setIsImportOpen(false)} open={isImportOpen} />
     </Stack>
   );
 };

@@ -28,6 +28,8 @@ import type {
   AdminCsvImportResult,
   AdminJob,
   AdminJobRequest,
+  ComposeJobRequest,
+  ComposeJobResponse,
   AdminJobsPage,
   AdminJobsQuery,
   AdminOption,
@@ -198,6 +200,14 @@ export const adminApi = createApi({
     createAdminJob: builder.mutation<AdminJob, AdminJobRequest>({
       query: (data) => ({ data, method: 'POST', url: API_ENDPOINTS.ADMIN.JOBS }),
       transformResponse: (response: ApiResponse<AdminJob>) => response.data,
+      invalidatesTags: ['Statistics', 'Charts', { id: 'LIST', type: 'AdminJobs' }],
+      onQueryStarted: (_, { dispatch, queryFulfilled }) => {
+        void refreshPublicJobs(queryFulfilled, dispatch);
+      },
+    }),
+    composeAdminJob: builder.mutation<ComposeJobResponse, ComposeJobRequest>({
+      query: (data) => ({ data, method: 'POST', url: API_ENDPOINTS.ADMIN.JOBS_COMPOSE }),
+      transformResponse: (response: ApiResponse<ComposeJobResponse>) => response.data,
       invalidatesTags: ['Statistics', 'Charts', { id: 'LIST', type: 'AdminJobs' }],
       onQueryStarted: (_, { dispatch, queryFulfilled }) => {
         void refreshPublicJobs(queryFulfilled, dispatch);
@@ -506,6 +516,7 @@ export const adminApi = createApi({
 export const {
   useArchiveAdminJobMutation,
   useCloseAdminJobMutation,
+  useComposeAdminJobMutation,
   useCommitAdminCompaniesImportMutation,
   useCommitAdminJobsImportMutation,
   useCreateAdminCategoryMutation,

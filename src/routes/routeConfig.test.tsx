@@ -64,8 +64,6 @@ describe('release route structure', () => {
     expect(adminPaths).toEqual(
       expect.arrayContaining([
         ROUTES.ADMIN,
-        ROUTES.ADMIN_COMPANIES,
-        ROUTES.ADMIN_CATEGORIES,
         ROUTES.ADMIN_JOBS,
         ROUTES.ADMIN_APPLICATIONS,
         ROUTES.ADMIN_AUDIT_LOGS,
@@ -73,6 +71,14 @@ describe('release route structure', () => {
     );
     expect(candidatePaths).not.toEqual(expect.arrayContaining(adminPaths));
     expect(adminPaths).not.toContain(ROUTES.DASHBOARD);
+    expect(adminPaths).not.toEqual(
+      expect.arrayContaining([
+        ROUTES.ADMIN_COMPANIES,
+        ROUTES.ADMIN_COMPANY_CREATE,
+        ROUTES.ADMIN_CATEGORIES,
+        ROUTES.ADMIN_CATEGORY_CREATE,
+      ]),
+    );
   });
 
   it('retains route-level error recovery and the unknown-route fallback', () => {

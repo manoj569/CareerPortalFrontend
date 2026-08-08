@@ -7,6 +7,7 @@ import type * as AdminApiModule from '@/features/admin/api/adminApi';
 import {
   useArchiveAdminJobMutation,
   useCloseAdminJobMutation,
+  useComposeAdminJobMutation,
   useCreateAdminJobMutation,
   useFeatureAdminJobMutation,
   useGetAdminApplicationsQuery,
@@ -57,6 +58,7 @@ vi.mock('@/features/admin/api/adminApi', async (importOriginal) => {
     ...actual,
     useArchiveAdminJobMutation: vi.fn(),
     useCloseAdminJobMutation: vi.fn(),
+    useComposeAdminJobMutation: vi.fn(),
     useCreateAdminJobMutation: vi.fn(),
     useFeatureAdminJobMutation: vi.fn(),
     useGetAdminApplicationsQuery: vi.fn(),
@@ -85,6 +87,7 @@ const mockCharts = vi.mocked(useGetAdminChartsQuery);
 const mockJobs = vi.mocked(useGetAdminJobsQuery);
 const mockJob = vi.mocked(useGetAdminJobQuery);
 const mockCreate = vi.mocked(useCreateAdminJobMutation);
+const mockCompose = vi.mocked(useComposeAdminJobMutation);
 const mockUpdate = vi.mocked(useUpdateAdminJobMutation);
 const mockPublish = vi.mocked(usePublishAdminJobMutation);
 const mockArchive = vi.mocked(useArchiveAdminJobMutation);
@@ -255,6 +258,15 @@ beforeEach(() => {
   mockCreate.mockReturnValue(
     mutationResult(job).tuple as unknown as ReturnType<typeof useCreateAdminJobMutation>,
   );
+  mockCompose.mockReturnValue(
+    mutationResult({
+      id: job.id,
+      slug: job.slug,
+      status: JobStatus.Draft,
+      company: { id: companyId, name: 'Northstar Labs', created: false },
+      category: { id: categoryId, name: 'Engineering', created: false },
+    }).tuple as unknown as ReturnType<typeof useComposeAdminJobMutation>,
+  );
   mockUpdate.mockReturnValue(
     mutationResult(job).tuple as unknown as ReturnType<typeof useUpdateAdminJobMutation>,
   );
@@ -339,8 +351,14 @@ describe('admin jobs', () => {
   it('opens the jobs CSV import dialog beside the create action', async () => {
     renderPage(<AdminJobsPage />);
     expect(screen.getByRole('link', { name: 'Create job' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: /Manage companies|Manage categories/ })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: /Company|Category/ })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Import CSV' }));
     expect(screen.getByRole('dialog', { name: 'Import jobs CSV' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Download job CSV template' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Preview import' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Commit import' })).toBeDisabled();
+    expect(screen.queryByText(/companies CSV|categories CSV/i)).toBeNull();
   });
 
   it('preserves search and pagination in URL-backed filters', async () => {
@@ -457,14 +475,20 @@ describe('admin job forms', () => {
   it('shows create-job validation errors', async () => {
     renderPage(<AdminCreateJobPage />);
     await userEvent.click(screen.getByRole('button', { name: 'Create draft' }));
-    expect(await screen.findByText('Title is required.')).toBeInTheDocument();
-    expect(screen.getByText('Description is required.')).toBeInTheDocument();
+    expect(await screen.findByText('Job title is required.')).toBeInTheDocument();
+    expect(screen.queryByText('Description is required.')).not.toBeInTheDocument();
   });
 
   it('creates a valid backend draft once', async () => {
-    const mutation = mutationResult(job);
-    mockCreate.mockReturnValue(
-      mutation.tuple as unknown as ReturnType<typeof useCreateAdminJobMutation>,
+    const mutation = mutationResult({
+      id: job.id,
+      slug: job.slug,
+      status: JobStatus.Draft,
+      company: { id: companyId, name: 'Northstar Labs', created: false },
+      category: { id: categoryId, name: 'Engineering', created: false },
+    });
+    mockCompose.mockReturnValue(
+      mutation.tuple as unknown as ReturnType<typeof useComposeAdminJobMutation>,
     );
     const router = createMemoryRouter(
       [
@@ -475,19 +499,8 @@ describe('admin job forms', () => {
     );
     renderWithProviders(<RouterProvider router={router} />);
     await userEvent.type(screen.getByRole('textbox', { name: /job title/i }), 'Frontend Engineer');
-    await userEvent.type(
-      screen.getByRole('textbox', { name: /description/i }),
-      'Build accessible products.',
-    );
-    await userEvent.clear(screen.getByRole('textbox', { name: /application url/i }));
-    await userEvent.type(
-      screen.getByRole('textbox', { name: /application url/i }),
-      'https://apply.example.com',
-    );
-    await userEvent.click(screen.getByRole('combobox', { name: /company/i }));
-    await userEvent.click(await screen.findByRole('option', { name: 'Northstar Labs' }));
-    await userEvent.click(screen.getByRole('combobox', { name: /category/i }));
-    await userEvent.click(await screen.findByRole('option', { name: 'Engineering' }));
+    await userEvent.type(screen.getByRole('textbox', { name: /company name/i }), 'Northstar Labs');
+    await userEvent.type(screen.getByRole('textbox', { name: /category name/i }), 'Engineering');
     await userEvent.click(screen.getByRole('button', { name: 'Create draft' }));
     expect(await screen.findByText('Edit destination')).toBeInTheDocument();
     expect(mutation.trigger).toHaveBeenCalledOnce();

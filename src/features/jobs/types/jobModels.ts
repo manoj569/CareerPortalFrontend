@@ -47,8 +47,8 @@ export interface PublicJobQuery {
   pageNumber: number;
   pageSize: number;
   search?: string;
-  companyId?: string;
-  categoryId?: string;
+  companyName?: string;
+  categoryName?: string;
   employmentType?: EmploymentType;
   workplaceType?: WorkplaceType;
   experienceLevel?: ExperienceLevel;
@@ -70,7 +70,6 @@ export interface PublicJobQuery {
   flexibleDuration?: boolean;
   educationRequirements?: string[];
   companyTypes?: CompanyType[];
-  companyIds?: string[];
   industries?: string[];
   postedByTypes?: PostedByType[];
   freshnessDays?: number;

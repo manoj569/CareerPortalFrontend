@@ -33,7 +33,8 @@ export interface CandidateJobSearchState {
   educationRequirements: string[];
   postedByTypes: PostedByType[];
   industries: string[];
-  companyIds: string[];
+  companyName: string;
+  categoryName: string;
   freshnessDays?: number;
   locations: string[];
   featuredOnly?: boolean;
@@ -77,13 +78,9 @@ const readEnumArray = <TValue extends number>(
       .filter((value): value is TValue => value !== undefined),
   );
 
-const readIdentifiers = (params: URLSearchParams, name: string): string[] =>
-  unique(params.getAll(name)).filter((value) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value),
-  );
-
 export const emptyCandidateJobSearchState = (): CandidateJobSearchState => ({
-  companyIds: [],
+  categoryName: '',
+  companyName: '',
   companyTypes: [],
   departments: [],
   educationRequirements: [],
@@ -122,7 +119,8 @@ export const parseCandidateJobSearchParams = (params: URLSearchParams): Candidat
 
   return {
     ...state,
-    companyIds: readIdentifiers(params, 'company'),
+    categoryName: readText(params.get('categoryName')),
+    companyName: readText(params.get('companyName')),
     companyTypes: readEnumArray(params, 'companyType', companyTypeOptions),
     departments: readStringArray(params, 'department', 150),
     educationRequirements: readStringArray(params, 'education', 200),
@@ -193,7 +191,9 @@ export const serializeCandidateJobSearchState = (
   appendStrings('education', state.educationRequirements);
   appendEnumSlugs('postedBy', state.postedByTypes, postedByTypeOptions);
   appendStrings('industry', state.industries);
-  appendStrings('company', state.companyIds);
+  if ((state.companyName ?? '').trim()) params.set('companyName', (state.companyName ?? '').trim());
+  if ((state.categoryName ?? '').trim())
+    params.set('categoryName', (state.categoryName ?? '').trim());
   if (state.freshnessDays !== undefined) params.set('freshness', String(state.freshnessDays));
   appendStrings('location', state.locations);
   if (state.featuredOnly) params.set('featured', 'true');
@@ -204,7 +204,8 @@ export const serializeCandidateJobSearchState = (
 };
 
 export const toCandidatePublicJobQuery = (state: CandidateJobSearchState): PublicJobQuery => ({
-  companyIds: state.companyIds.length ? state.companyIds : undefined,
+  categoryName: (state.categoryName ?? '').trim() || undefined,
+  companyName: (state.companyName ?? '').trim() || undefined,
   companyTypes: state.companyTypes.length ? state.companyTypes : undefined,
   departments: state.departments.length ? state.departments : undefined,
   educationRequirements: state.educationRequirements.length
@@ -245,7 +246,8 @@ export const countCandidateJobFilters = (state: CandidateJobSearchState): number
   state.educationRequirements.length +
   state.postedByTypes.length +
   state.industries.length +
-  state.companyIds.length +
+  Number(Boolean((state.companyName ?? '').trim())) +
+  Number(Boolean((state.categoryName ?? '').trim())) +
   state.locations.length +
   Number(state.minExperienceYears !== undefined || state.maxExperienceYears !== undefined) +
   Number(state.minAmount !== undefined || state.maxAmount !== undefined) +

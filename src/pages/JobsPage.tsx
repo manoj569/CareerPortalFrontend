@@ -23,7 +23,7 @@ import { useGetPopularCompaniesQuery, useSearchJobsQuery } from '@/features/jobs
 import { JobDiscoveryHighlights } from '@/features/jobs/components/JobDiscoveryHighlights';
 import { JobCard } from '@/features/jobs/components/JobCard';
 import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
-import { JobFilters, type JobFilterOption } from '@/features/jobs/components/JobFilters';
+import { JobFilters } from '@/features/jobs/components/JobFilters';
 import { SearchInput } from '@/features/jobs/components/SearchInput';
 import {
   employmentTypeOptions,
@@ -109,31 +109,12 @@ export const JobsPage = () => {
     state.search,
   ]);
 
-  const companyOptions = useMemo<JobFilterOption[]>(() => {
-    const options = new Map<string, string>();
-    popularCompanies?.forEach((company) => options.set(company.id, company.name));
-    data?.items.forEach((job) => options.set(job.companyId, job.companyName));
-    if (state.companyId && !options.has(state.companyId)) {
-      options.set(state.companyId, 'Selected company');
-    }
-    return Array.from(options, ([id, name]) => ({ id, name }));
-  }, [data?.items, popularCompanies, state.companyId]);
-
-  const categoryOptions = useMemo<JobFilterOption[]>(() => {
-    const options = new Map<string, string>();
-    data?.items.forEach((job) => options.set(job.categoryId, job.categoryName));
-    if (state.categoryId && !options.has(state.categoryId)) {
-      options.set(state.categoryId, 'Selected category');
-    }
-    return Array.from(options, ([id, name]) => ({ id, name }));
-  }, [data?.items, state.categoryId]);
-
   const hasDiscoveryContext =
     state.page === 1 &&
     !state.search &&
     !state.location &&
-    !state.companyId &&
-    !state.categoryId &&
+    !state.companyName &&
+    !state.categoryName &&
     !state.employmentType &&
     !state.workplaceType &&
     !state.experienceLevel &&
@@ -142,20 +123,16 @@ export const JobsPage = () => {
     !state.isFeatured;
 
   const activeFilters = [
-    state.companyId
+    state.companyName
       ? {
-          key: 'companyId',
-          label:
-            companyOptions.find((option) => option.id === state.companyId)?.name ??
-            'Selected company',
+          key: 'companyName',
+          label: `Company: ${state.companyName}`,
         }
       : null,
-    state.categoryId
+    state.categoryName
       ? {
-          key: 'categoryId',
-          label:
-            categoryOptions.find((option) => option.id === state.categoryId)?.name ??
-            'Selected category',
+          key: 'categoryName',
+          label: `Category: ${state.categoryName}`,
         }
       : null,
     state.employmentType
@@ -198,8 +175,6 @@ export const JobsPage = () => {
 
   const filterPanel = (
     <JobFilters
-      categories={categoryOptions}
-      companies={companyOptions}
       onChange={(changes) => applyChanges(changes)}
       onClear={clearAllFilters}
       state={state}
@@ -320,7 +295,7 @@ export const JobsPage = () => {
                   clickable
                   key={company.id}
                   label={`${company.name} (${company.activeJobCount})`}
-                  onClick={() => applyChanges({ companyId: company.id })}
+                  onClick={() => applyChanges({ companyName: company.name })}
                 />
               ))}
             </Stack>

@@ -6,6 +6,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Drawer,
   FormControl,
   Grid,
@@ -204,6 +205,23 @@ export const CandidateBrowseJobsPage = () => {
       </Paper>
 
       <ApplicationQuotaIndicator />
+
+      {state.companyName || state.categoryName ? (
+        <Stack aria-label="Active filters" direction="row" flexWrap="wrap" gap={1}>
+          {state.companyName ? (
+            <Chip
+              label={`Company: ${state.companyName}`}
+              onDelete={() => applyChanges({ companyName: '' })}
+            />
+          ) : null}
+          {state.categoryName ? (
+            <Chip
+              label={`Category: ${state.categoryName}`}
+              onDelete={() => applyChanges({ categoryName: '' })}
+            />
+          ) : null}
+        </Stack>
+      ) : null}
 
       {jobs.isFetching && !jobs.isLoading ? (
         <LinearProgress aria-label="Updating job results" />

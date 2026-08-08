@@ -26,30 +26,12 @@ import { useMemo, useState } from 'react';
 import {
   downloadAdminImportTemplate,
   isAdminApiError,
-  useCommitAdminCompaniesImportMutation,
   useCommitAdminJobsImportMutation,
-  usePreviewAdminCompaniesImportMutation,
   usePreviewAdminJobsImportMutation,
 } from '@/features/admin/api/adminApi';
-import type { AdminCsvImportKind, AdminCsvImportResult } from '@/features/admin/types/adminModels';
+import type { AdminCsvImportResult } from '@/features/admin/types/adminModels';
 
 const MAXIMUM_CSV_SIZE_BYTES = 5 * 1024 * 1024;
-
-const copyByKind: Record<
-  AdminCsvImportKind,
-  { entityLabel: string; fileName: string; title: string }
-> = {
-  companies: {
-    entityLabel: 'companies',
-    fileName: 'companies-template.csv',
-    title: 'Import companies CSV',
-  },
-  jobs: {
-    entityLabel: 'jobs',
-    fileName: 'jobs-template.csv',
-    title: 'Import jobs CSV',
-  },
-};
 
 const validateCsvFile = (file: File): string | null => {
   if (!file.name.toLowerCase().endsWith('.csv')) return 'Select a file with a .csv extension.';
@@ -59,26 +41,20 @@ const validateCsvFile = (file: File): string | null => {
 };
 
 interface AdminCsvImportDialogProps {
-  kind: AdminCsvImportKind;
   onClose: () => void;
   open: boolean;
 }
 
-export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDialogProps) => {
+export const AdminCsvImportDialog = ({ onClose, open }: AdminCsvImportDialogProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [preview, setPreview] = useState<AdminCsvImportResult | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [previewCompanies, previewCompaniesState] = usePreviewAdminCompaniesImportMutation();
-  const [commitCompanies, commitCompaniesState] = useCommitAdminCompaniesImportMutation();
   const [previewJobs, previewJobsState] = usePreviewAdminJobsImportMutation();
   const [commitJobs, commitJobsState] = useCommitAdminJobsImportMutation();
-  const copy = copyByKind[kind];
-  const isPreviewing =
-    kind === 'companies' ? previewCompaniesState.isLoading : previewJobsState.isLoading;
-  const isCommitting =
-    kind === 'companies' ? commitCompaniesState.isLoading : commitJobsState.isLoading;
+  const isPreviewing = previewJobsState.isLoading;
+  const isCommitting = commitJobsState.isLoading;
   const isBusy = isPreviewing || isCommitting || isDownloading;
   const errorRows = useMemo(
     () => preview?.rows.filter((row) => row.errors.length > 0) ?? [],
@@ -116,10 +92,7 @@ export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDial
     if (!selectedFile || isBusy) return;
     setRequestError(null);
     try {
-      const result =
-        kind === 'companies'
-          ? await previewCompanies(selectedFile).unwrap()
-          : await previewJobs(selectedFile).unwrap();
+      const result = await previewJobs(selectedFile).unwrap();
       setPreview(result);
     } catch (error: unknown) {
       setPreview(null);
@@ -136,10 +109,7 @@ export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDial
 
     setRequestError(null);
     try {
-      const result =
-        kind === 'companies'
-          ? await commitCompanies(selectedFile).unwrap()
-          : await commitJobs(selectedFile).unwrap();
+      const result = await commitJobs(selectedFile).unwrap();
       enqueueSnackbar(
         `CSV import complete: ${result.importedRows} imported, ${result.skippedRows} skipped.`,
         { variant: 'success' },
@@ -160,11 +130,11 @@ export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDial
     setRequestError(null);
     setIsDownloading(true);
     try {
-      const blob = await downloadAdminImportTemplate(kind);
+      const blob = await downloadAdminImportTemplate('jobs');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = copy.fileName;
+      link.download = 'jobs-template.csv';
       link.click();
       URL.revokeObjectURL(url);
     } catch (error: unknown) {
@@ -186,13 +156,13 @@ export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDial
       onClose={closeDialog}
       open={open}
     >
-      <DialogTitle>{copy.title}</DialogTitle>
+      <DialogTitle>Import jobs CSV</DialogTitle>
       {(isPreviewing || isCommitting) && <LinearProgress aria-label="CSV import in progress" />}
       <DialogContent dividers>
         <Stack spacing={3}>
           <Typography color="text.secondary" id="admin-csv-import-description">
-            Download the template, add your {copy.entityLabel}, then preview every row before
-            importing. The file must be UTF-8 CSV and no larger than 5 MB.
+            Download the Job CSV template, add job, company, category, and recruiter data, then
+            preview every row before importing. The file must be UTF-8 CSV and no larger than 5 MB.
           </Typography>
 
           <Stack
@@ -206,10 +176,10 @@ export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDial
               startIcon={<UploadFileOutlinedIcon />}
               variant="outlined"
             >
-              Select CSV file
+              Select Job CSV file
               <input
                 accept=".csv,text/csv"
-                aria-label={`Select ${copy.entityLabel} CSV file`}
+                aria-label="Select Job CSV file"
                 hidden
                 onChange={(event) => {
                   selectFile(event.target.files?.[0]);
@@ -223,7 +193,7 @@ export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDial
               onClick={() => void downloadTemplate()}
               startIcon={<DownloadOutlinedIcon />}
             >
-              Download template
+              Download job CSV template
             </Button>
             <Typography
               aria-live="polite"
@@ -272,6 +242,10 @@ export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDial
                 <Alert severity="info">The backend has not approved this file for import.</Alert>
               )}
 
+              <Alert severity="info">
+                Company/category action: Create or Reuse. The backend resolves each CSV row.
+              </Alert>
+
               {errorRows.length > 0 ? (
                 <TableContainer sx={{ maxHeight: 320 }}>
                   <Table aria-label="CSV row errors" size="small" stickyHeader>
@@ -307,7 +281,7 @@ export const AdminCsvImportDialog = ({ kind, onClose, open }: AdminCsvImportDial
           Cancel
         </Button>
         <Button disabled={!selectedFile || isBusy} onClick={() => void previewFile()}>
-          Preview
+          Preview import
         </Button>
         <Button
           disabled={!selectedFile || !preview?.canCommit || preview.invalidRows > 0 || isBusy}

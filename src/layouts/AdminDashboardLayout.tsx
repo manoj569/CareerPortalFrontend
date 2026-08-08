@@ -4,19 +4,17 @@ import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
-import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
-import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import PolicyOutlinedIcon from '@mui/icons-material/PolicyOutlined';
 
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
 import { ROUTES } from '@/constants/routes';
 
-const navigationItems: NavigationItem[] = [
+// Exported to keep the navigation contract directly testable.
+// eslint-disable-next-line react-refresh/only-export-components
+export const adminNavigationItems: NavigationItem[] = [
   { label: 'Dashboard', path: ROUTES.ADMIN, icon: DashboardOutlinedIcon, end: true },
   { label: 'Jobs', path: ROUTES.ADMIN_JOBS, icon: WorkOutlineIcon },
-  { label: 'Companies', path: ROUTES.ADMIN_COMPANIES, icon: BusinessOutlinedIcon },
-  { label: 'Categories', path: ROUTES.ADMIN_CATEGORIES, icon: CategoryOutlinedIcon },
   { label: 'Users', path: ROUTES.ADMIN_USERS, icon: PeopleOutlineIcon },
   { label: 'Applications', path: ROUTES.ADMIN_APPLICATIONS, icon: AssignmentOutlinedIcon },
   { label: 'Payments', path: ROUTES.ADMIN_PAYMENTS, icon: PaymentsOutlinedIcon },
@@ -25,5 +23,5 @@ const navigationItems: NavigationItem[] = [
 ];
 
 export const AdminDashboardLayout = () => (
-  <DashboardLayoutShell areaLabel="Administration" navigationItems={navigationItems} />
+  <DashboardLayoutShell areaLabel="Administration" navigationItems={adminNavigationItems} />
 );

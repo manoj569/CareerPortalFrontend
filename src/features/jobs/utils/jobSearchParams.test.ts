@@ -7,13 +7,13 @@ describe('job search query parameters', () => {
   it('parses and sanitizes supported filters', () => {
     const state = parseJobSearchParams(
       new URLSearchParams(
-        'q=engineer&location=Pune&companyId=11111111-1111-4111-8111-111111111111&categoryId=22222222-2222-4222-8222-222222222222&featured=true&employmentType=full-time&workplaceType=remote&experienceLevel=senior&page=2&pageSize=20&sort=title-asc',
+        'q=engineer&location=Pune&companyName=HARMAN&categoryName=Artificial%20Intelligence&featured=true&employmentType=full-time&workplaceType=remote&experienceLevel=senior&page=2&pageSize=20&sort=title-asc',
       ),
     );
 
     expect(state).toMatchObject({
-      categoryId: '22222222-2222-4222-8222-222222222222',
-      companyId: '11111111-1111-4111-8111-111111111111',
+      categoryName: 'Artificial Intelligence',
+      companyName: 'HARMAN',
       employmentType: EmploymentType.FullTime,
       experienceLevel: ExperienceLevel.Senior,
       isFeatured: true,
@@ -25,8 +25,8 @@ describe('job search query parameters', () => {
       workplaceType: WorkplaceType.Remote,
     });
     expect(toPublicJobQuery(state)).toMatchObject({
-      categoryId: '22222222-2222-4222-8222-222222222222',
-      companyId: '11111111-1111-4111-8111-111111111111',
+      categoryName: 'Artificial Intelligence',
+      companyName: 'HARMAN',
       isFeatured: true,
       pageNumber: 2,
       sortBy: 'title',
@@ -37,12 +37,14 @@ describe('job search query parameters', () => {
   it('rejects unsupported enum, sort, page, and page-size values', () => {
     const state = parseJobSearchParams(
       new URLSearchParams(
-        'companyId=not-a-guid&categoryId=also-invalid&employmentType=executive-only&sort=unknown&page=-5&pageSize=1000&minimumSalary=-1',
+        'companyId=11111111-1111-4111-8111-111111111111&categoryId=22222222-2222-4222-8222-222222222222&employmentType=executive-only&sort=unknown&page=-5&pageSize=1000&minimumSalary=-1',
       ),
     );
 
-    expect(state.categoryId).toBeUndefined();
-    expect(state.companyId).toBeUndefined();
+    expect(state.categoryName).toBe('');
+    expect(state.companyName).toBe('');
+    expect(toPublicJobQuery(state)).not.toHaveProperty('companyId');
+    expect(toPublicJobQuery(state)).not.toHaveProperty('categoryId');
     expect(state.employmentType).toBeUndefined();
     expect(state.minimumSalary).toBeUndefined();
     expect(state.page).toBe(1);
@@ -67,5 +69,19 @@ describe('job search query parameters', () => {
     const serialized = serializeJobSearchState(initial);
 
     expect(parseJobSearchParams(serialized)).toEqual(initial);
+  });
+
+  it('trims name filters and omits whitespace-only values', () => {
+    const state = {
+      ...parseJobSearchParams(new URLSearchParams()),
+      companyName: '  HARMAN  ',
+      categoryName: '   ',
+    };
+    expect(serializeJobSearchState(state).toString()).toContain('companyName=HARMAN');
+    expect(serializeJobSearchState(state).has('categoryName')).toBe(false);
+    expect(toPublicJobQuery(state)).toMatchObject({
+      companyName: 'HARMAN',
+      categoryName: undefined,
+    });
   });
 });

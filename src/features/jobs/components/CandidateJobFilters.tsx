@@ -23,6 +23,7 @@ import {
   type SupplementalJobFilterCounts,
 } from '../types/jobModels';
 import type { CandidateJobSearchState } from '../utils/candidateJobSearchParams';
+import { JobNameFilters } from './JobNameFilters';
 
 interface FilterOption {
   count?: number;
@@ -168,6 +169,12 @@ export const CandidateJobFilters = ({
         Clear all
       </Button>
       <Divider />
+
+      <JobNameFilters
+        categoryName={state.categoryName}
+        companyName={state.companyName}
+        onChange={onChange}
+      />
 
       <FacetCheckboxGroup
         label="Work mode"
@@ -323,17 +330,6 @@ export const CandidateJobFilters = ({
           label: option.value,
         }))}
         selected={state.industries}
-      />
-
-      <FacetCheckboxGroup
-        label="Top companies"
-        onToggle={(key) => onChange({ companyIds: toggleValue(state.companyIds, key) })}
-        options={options.companies.map((option) => ({
-          count: option.count,
-          key: option.id,
-          label: option.name,
-        }))}
-        selected={state.companyIds}
       />
 
       <FacetCheckboxGroup

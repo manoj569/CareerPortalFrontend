@@ -212,6 +212,71 @@ export interface AdminJobRequest {
   expiresAtUtc: string | null;
 }
 
+export type ComposeRelationshipRequest<TNew> = {
+  existingId: string | null;
+  new: TNew | null;
+};
+
+export interface ComposeNewCompanyRequest {
+  name: string;
+  slug: string | null;
+  description: string | null;
+  websiteUrl: string | null;
+  logoUrl: string | null;
+  industry: string | null;
+  location: string | null;
+  employeeCount: number | null;
+  isVerified: boolean;
+}
+
+export interface ComposeNewCategoryRequest {
+  name: string;
+  slug: string | null;
+  description: string | null;
+  displayOrder: number;
+  parentCategoryId: string | null;
+}
+
+export interface ComposeJobDraftRequest {
+  title: string;
+  description: string | null;
+  applicationUrl: string | null;
+  employmentType: EmploymentType | null;
+  workMode: WorkplaceType | null;
+  experienceLevel: ExperienceLevel | null;
+  location: string | null;
+  minimumSalary: number | null;
+  maximumSalary: number | null;
+  currency: string | null;
+  closingDateUtc: string | null;
+  responsibilities: string | null;
+  requirements: string | null;
+  benefits: string | null;
+}
+
+export interface ComposeJobRequest {
+  job: ComposeJobDraftRequest;
+  company: ComposeRelationshipRequest<ComposeNewCompanyRequest>;
+  category: ComposeRelationshipRequest<ComposeNewCategoryRequest>;
+  recruiterContact: ComposeRecruiterContactRequest | null;
+}
+
+export interface ComposeRecruiterContactRequest {
+  name: string | null;
+  role: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  sharingApproved: boolean;
+}
+
+export interface ComposeJobResponse {
+  id: string;
+  slug: string;
+  status: JobStatus;
+  company: { id: string; name: string; created: boolean };
+  category: { id: string; name: string; created: boolean };
+}
+
 export interface UpdateAdminJobArgs {
   jobId: string;
   request: AdminJobRequest;

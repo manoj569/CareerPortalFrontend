@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -286,6 +286,41 @@ describe('Candidate Browse jobs', () => {
       keyword: 'react',
       pageNumber: 1,
     });
+  });
+
+  it('uses free-text company and category filters on desktop and mobile', async () => {
+    renderPage('/dashboard/jobs?page=3');
+    expect(screen.queryByRole('checkbox', { name: /Northstar Labs/ })).not.toBeInTheDocument();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Company name' }), ' HARMAN ');
+    await waitFor(
+      () => expect(screen.getByTestId('location')).toHaveTextContent('companyName=HARMAN'),
+      { timeout: 1_500 },
+    );
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Category name' }),
+      'Artificial Intelligence',
+    );
+    await waitFor(
+      () => {
+        const location = screen.getByTestId('location').textContent ?? '';
+        expect(location).toContain('companyName=HARMAN');
+        expect(location).toContain('categoryName=Artificial+Intelligence');
+        expect(location).not.toContain('page=3');
+      },
+      { timeout: 1_500 },
+    );
+    expect(screen.getByText('Company: HARMAN')).toBeVisible();
+    expect(screen.getByText('Category: Artificial Intelligence')).toBeVisible();
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      companyName: 'HARMAN',
+      categoryName: 'Artificial Intelligence',
+      pageNumber: 1,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters (2)' }));
+    const mobileFilters = screen.getByLabelText('Candidate job filters');
+    expect(within(mobileFilters).getByRole('textbox', { name: 'Company name' })).toBeVisible();
+    expect(within(mobileFilters).getByRole('textbox', { name: 'Category name' })).toBeVisible();
   });
 
   it('opens and closes the responsive filter drawer', async () => {

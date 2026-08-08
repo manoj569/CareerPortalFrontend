@@ -10,12 +10,14 @@ import {
 describe('Candidate job search URL state', () => {
   it('round-trips supported multi-select filters and pagination', () => {
     const params = new URLSearchParams(
-      'q=react&workMode=remote&workMode=hybrid&companyType=startup&employmentType=internship&department=Engineering&location=Pune&minExperience=1&maxExperience=3&freshness=7&featured=true&sort=closing&page=2',
+      'q=react&companyName=HARMAN&categoryName=Artificial%20Intelligence&workMode=remote&workMode=hybrid&companyType=startup&employmentType=internship&department=Engineering&location=Pune&minExperience=1&maxExperience=3&freshness=7&featured=true&sort=closing&page=2',
     );
     const state = parseCandidateJobSearchParams(params);
 
     expect(state).toMatchObject({
       companyTypes: [CompanyType.Startup],
+      companyName: 'HARMAN',
+      categoryName: 'Artificial Intelligence',
       departments: ['Engineering'],
       employmentTypes: [EmploymentType.Internship],
       featuredOnly: true,
@@ -33,6 +35,20 @@ describe('Candidate job search URL state', () => {
       'remote',
       'hybrid',
     ]);
+    expect(serializeCandidateJobSearchState(state).get('companyName')).toBe('HARMAN');
+    expect(serializeCandidateJobSearchState(state).get('categoryName')).toBe(
+      'Artificial Intelligence',
+    );
+  });
+
+  it('sends trimmed name filters together and omits legacy IDs', () => {
+    const state = parseCandidateJobSearchParams(
+      new URLSearchParams('companyName=%20HARMAN%20&categoryName=%20AI%20&company=legacy-id'),
+    );
+    const query = toCandidatePublicJobQuery(state);
+    expect(query).toMatchObject({ companyName: 'HARMAN', categoryName: 'AI', pageNumber: 1 });
+    expect(query).not.toHaveProperty('companyIds');
+    expect(serializeCandidateJobSearchState(state).has('company')).toBe(false);
   });
 
   it('maps URL state to the completed backend search contract', () => {

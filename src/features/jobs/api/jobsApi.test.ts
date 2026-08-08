@@ -35,7 +35,8 @@ describe('public jobs advanced search API', () => {
     await store
       .dispatch(
         jobsApi.endpoints.searchJobs.initiate({
-          companyIds: ['11111111-1111-4111-8111-111111111111'],
+          companyName: 'HARMAN',
+          categoryName: 'Artificial Intelligence',
           companyTypes: [CompanyType.Startup, CompanyType.Corporate],
           departments: ['Engineering', 'Design'],
           educationRequirements: ['B.Tech'],
@@ -69,6 +70,11 @@ describe('public jobs advanced search API', () => {
     expect(request?.params?.getAll('departments')).toEqual(['Engineering', 'Design']);
     expect(request?.params?.getAll('locations')).toEqual(['Pune', 'Bengaluru']);
     expect(request?.params?.get('keyword')).toBe('react');
+    expect(request?.params?.get('companyName')).toBe('HARMAN');
+    expect(request?.params?.get('categoryName')).toBe('Artificial Intelligence');
+    expect(request?.params?.has('companyId')).toBe(false);
+    expect(request?.params?.has('companyIds')).toBe(false);
+    expect(request?.params?.has('categoryId')).toBe(false);
     expect(request?.params?.get('freshnessDays')).toBe('7');
     expect(request?.params?.get('featuredOnly')).toBe('true');
     expect(request?.params?.get('pageNumber')).toBe('2');
