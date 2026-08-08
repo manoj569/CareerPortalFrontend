@@ -1,7 +1,6 @@
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import {
   Button,
   Card,
@@ -43,7 +42,6 @@ import {
   useGetAdminCompaniesQuery,
 } from '@/features/admin/api/adminApi';
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
-import { AdminCsvImportDialog } from '@/features/admin/components/AdminCsvImportDialog';
 import type { AdminCompany } from '@/features/admin/types/adminModels';
 import { formatAdminDate } from '@/features/admin/utils/adminFormatting';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
@@ -58,7 +56,6 @@ export const AdminCompaniesPage = () => {
   const [search, setSearch] = useState(params.get('search') ?? '');
   const [deleting, setDeleting] = useState<AdminCompany | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isImportOpen, setIsImportOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 350);
   const pageNumber = Math.max(1, Number(params.get('page')) || 1);
   const verified = params.get('verified');
@@ -143,13 +140,6 @@ export const AdminCompaniesPage = () => {
       <DashboardPageHeader
         actions={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button
-              onClick={() => setIsImportOpen(true)}
-              startIcon={<FileUploadOutlinedIcon />}
-              variant="outlined"
-            >
-              Import companies CSV
-            </Button>
             <Button
               component={Link}
               startIcon={<AddOutlinedIcon />}
@@ -295,11 +285,6 @@ export const AdminCompaniesPage = () => {
         onConfirm={() => void confirmDelete()}
         open={Boolean(deleting)}
         title="Delete company"
-      />
-      <AdminCsvImportDialog
-        kind="companies"
-        onClose={() => setIsImportOpen(false)}
-        open={isImportOpen}
       />
     </Stack>
   );
