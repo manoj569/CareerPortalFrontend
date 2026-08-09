@@ -123,7 +123,7 @@ export const authService = {
   ): Promise<MessageResponse> {
     const response = await apiClient.post<MessageResponse>(
       API_ENDPOINTS.AUTH.COMPLETE_PASSWORD_RESET,
-      request,
+      { newPassword: request.newPassword, token: request.token },
       { signal },
     );
     return response.data;

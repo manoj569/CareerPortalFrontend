@@ -24,9 +24,8 @@ export const ResetPasswordPage = () => {
   );
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const email = searchParams.get('email')?.trim() ?? '';
-  const token = searchParams.get('token') ?? '';
-  const hasResetLink = email.length > 0 && token.length > 0;
+  const token = searchParams.get('token')?.trim() ?? '';
+  const hasResetLink = token.length > 0;
   const [isComplete, setIsComplete] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -59,8 +58,6 @@ export const ResetPasswordPage = () => {
     setServerError(null);
     try {
       await authService.completePasswordReset({
-        confirmPassword: values.confirmPassword,
-        email,
         newPassword: values.newPassword,
         token,
       });
@@ -80,14 +77,14 @@ export const ResetPasswordPage = () => {
     return (
       <Stack spacing={3}>
         <AuthPageHeader
-          description="This reset link is incomplete. Request a new link and try again."
+          description="This password reset link is invalid or incomplete. Request a new link."
           title="Reset link unavailable"
         />
         <Alert aria-live="assertive" severity="error">
-          The password reset link is missing required information.
+          This password reset link is invalid or incomplete. Request a new link.
         </Alert>
-        <Button component={Link} to={ROUTES.LOGIN} variant="contained">
-          Log in
+        <Button component={Link} to={ROUTES.FORGOT_PASSWORD} variant="contained">
+          Request a new link
         </Button>
       </Stack>
     );

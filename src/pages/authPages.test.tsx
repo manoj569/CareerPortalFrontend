@@ -328,11 +328,17 @@ describe('mobile authentication pages', () => {
     renderAuthRoute(ROUTES.RESET_PASSWORD, <ResetPasswordPage />);
 
     expect(screen.getByRole('heading', { name: 'Reset link unavailable' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Log in' })).toBeVisible();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'This password reset link is invalid or incomplete. Request a new link.',
+    );
+    expect(screen.getByRole('link', { name: 'Request a new link' })).toHaveAttribute(
+      'href',
+      ROUTES.FORGOT_PASSWORD,
+    );
     expect(screen.queryByLabelText(/^new password/i)).not.toBeInTheDocument();
   });
 
-  it('completes an email-link password reset and redirects after five seconds', async () => {
+  it('completes a token-only password reset and redirects after five seconds', async () => {
     vi.useFakeTimers();
     mockedAuthService.completePasswordReset.mockResolvedValue({
       message: 'Password changed successfully. Please log in.',
@@ -340,7 +346,7 @@ describe('mobile authentication pages', () => {
     renderAuthRoute(
       ROUTES.RESET_PASSWORD,
       <ResetPasswordPage />,
-      `${ROUTES.RESET_PASSWORD}?email=candidate%40example.com&token=raw-reset-token`,
+      `${ROUTES.RESET_PASSWORD}?token=raw-reset-token`,
     );
     act(() => {
       fireEvent.change(screen.getByLabelText(/^new password/i), {
@@ -356,8 +362,6 @@ describe('mobile authentication pages', () => {
     });
 
     expect(mockedAuthService.completePasswordReset.mock.calls[0]?.[0]).toEqual({
-      confirmPassword: 'simple pass',
-      email: 'candidate@example.com',
       newPassword: 'simple pass',
       token: 'raw-reset-token',
     });
@@ -375,7 +379,7 @@ describe('mobile authentication pages', () => {
     renderAuthRoute(
       ROUTES.RESET_PASSWORD,
       <ResetPasswordPage />,
-      `${ROUTES.RESET_PASSWORD}?email=candidate%40example.com&token=raw-reset-token`,
+      `${ROUTES.RESET_PASSWORD}?token=raw-reset-token`,
     );
     const user = userEvent.setup();
     await user.type(screen.getByLabelText(/^new password/i), 'simple pass');

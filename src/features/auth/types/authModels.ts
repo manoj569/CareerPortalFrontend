@@ -44,10 +44,8 @@ export interface RequestPasswordResetRequest {
 }
 
 export interface CompletePasswordResetRequest {
-  email: string;
   token: string;
   newPassword: string;
-  confirmPassword: string;
 }
 
 export interface RefreshTokenRequest {
