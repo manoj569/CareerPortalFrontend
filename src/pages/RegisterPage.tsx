@@ -164,7 +164,7 @@ export const RegisterPage = () => {
   const [serverError, setServerError] = useState<string | null>(null);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  
+
   const {
     control,
     formState: { errors, isSubmitting },
@@ -183,7 +183,7 @@ export const RegisterPage = () => {
     mode: 'onTouched',
     resolver: yupResolver(registrationSchema),
   });
-  
+
   const fullNameField = register('fullName');
   const mobileField = register('phoneNumber');
 
@@ -200,7 +200,7 @@ export const RegisterPage = () => {
         password: values.password,
         phoneNumber: values.phoneNumber,
       });
-      
+
       // 👇 Show success message and popup
       setIsSuccess(true);
       enqueueSnackbar('Account created successfully! Redirecting to login...', {
@@ -212,7 +212,6 @@ export const RegisterPage = () => {
       setTimeout(() => {
         void navigate(ROUTES.LOGIN, { replace: true });
       }, 3000);
-
     } catch (error: unknown) {
       const hasFieldErrors = applyApiValidationErrors(
         error,
@@ -227,7 +226,9 @@ export const RegisterPage = () => {
       // ✅ NEW: Check for a JSON error response from the backend
       if (error && typeof error === 'object' && 'code' in error && error.code === 'conflict') {
         const apiError = error as { code: string; message: string };
-        setServerError(apiError.message || 'An account with this email or phone number already exists.');
+        setServerError(
+          apiError.message || 'An account with this email or phone number already exists.',
+        );
       } else {
         setServerError(getAuthenticationErrorMessage(error));
       }
@@ -252,12 +253,11 @@ export const RegisterPage = () => {
               {isSuccess ? (
                 <Alert aria-live="polite" severity="success">
                   <Stack>
-                    <Typography fontWeight={600}>
-                      Account created successfully!
-                    </Typography>
+                    <Typography fontWeight={600}>Account created successfully!</Typography>
                     <Typography variant="body2">
-                      We've sent a verification link to <strong>{control._defaultValues.email}</strong>. 
-                      You will be redirected to login in a few seconds.
+                      We've sent a verification link to{' '}
+                      <strong>{control._defaultValues.email}</strong>. You will be redirected to
+                      login in a few seconds.
                     </Typography>
                   </Stack>
                 </Alert>
@@ -379,11 +379,19 @@ export const RegisterPage = () => {
                         label={
                           <Typography variant="body2">
                             I agree to the{' '}
-                            <MuiLink component={Link} to={ROUTES.TERMS_OF_USE}>
+                            <MuiLink
+                              component={Link}
+                              onClick={(event) => event.stopPropagation()}
+                              to={ROUTES.TERMS_OF_USE}
+                            >
                               Terms of Use
                             </MuiLink>{' '}
                             and{' '}
-                            <MuiLink component={Link} to={ROUTES.PRIVACY_POLICY}>
+                            <MuiLink
+                              component={Link}
+                              onClick={(event) => event.stopPropagation()}
+                              to={ROUTES.PRIVACY_POLICY}
+                            >
                               Privacy Policy
                             </MuiLink>
                             .
@@ -403,7 +411,11 @@ export const RegisterPage = () => {
                   type="submit"
                   variant="contained"
                 >
-                  {isSuccess ? 'Success! Redirecting...' : isSubmitting ? 'Creating account…' : 'Create account'}
+                  {isSuccess
+                    ? 'Success! Redirecting...'
+                    : isSubmitting
+                      ? 'Creating account…'
+                      : 'Create account'}
                 </Button>
               </Stack>
             </Stack>

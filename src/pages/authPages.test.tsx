@@ -130,6 +130,23 @@ describe('mobile authentication pages', () => {
     expect(await screen.findByText('Enter a valid email address.')).toBeInTheDocument();
   });
 
+  it('links separately to both legal pages without toggling consent', () => {
+    renderAuthRoute(ROUTES.REGISTER, <RegisterPage />);
+    const checkbox = screen.getByRole('checkbox', { name: /terms of use/i });
+    const termsLink = screen.getByRole('link', { name: 'Terms of Use' });
+    const privacyLink = screen.getByRole('link', { name: 'Privacy Policy' });
+
+    expect(termsLink).toHaveAttribute('href', ROUTES.TERMS_OF_USE);
+    expect(privacyLink).toHaveAttribute('href', ROUTES.PRIVACY_POLICY);
+    expect(termsLink).not.toHaveAttribute('target');
+    expect(privacyLink).not.toHaveAttribute('target');
+    termsLink.addEventListener('click', (event) => event.preventDefault());
+    privacyLink.addEventListener('click', (event) => event.preventDefault());
+    fireEvent.click(termsLink);
+    fireEvent.click(privacyLink);
+    expect(checkbox).not.toBeChecked();
+  });
+
   it('submits the exact registration contract and goes to mobile verification without a session', async () => {
     mockedAuthService.register.mockResolvedValue({
       challengeId,

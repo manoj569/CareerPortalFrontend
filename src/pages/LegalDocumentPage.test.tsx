@@ -1,82 +1,58 @@
-import { legalService } from '@/features/legal/services/legalService';
-import { renderWithProviders } from '@/test/renderWithProviders';
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+import { renderWithProviders } from '@/test/renderWithProviders';
 import { PrivacyPolicyPage, TermsOfUsePage } from './LegalDocumentPage';
 
-vi.mock('@/features/legal/services/legalService', () => ({
-  legalService: {
-    getPrivacyPolicy: vi.fn(),
-    getTermsOfUse: vi.fn(),
-  },
+const legalMocks = vi.hoisted(() => ({
+  getPrivacyPolicy: vi.fn(),
+  getTermsOfUse: vi.fn(),
 }));
 
-const mockedLegalService = vi.mocked(legalService);
-const document = {
-  content: 'Use Career Portal lawfully.\nKeep your credentials secure.',
-  contentType: 'text/plain',
-  effectiveDate: '2026-08-01',
-  title: 'Terms of Use',
-  version: '2026-08-01',
-};
+vi.mock('@/features/legal/services/legalService', () => ({
+  legalService: legalMocks,
+}));
 
-describe('legal document pages', () => {
-  beforeEach(() => vi.clearAllMocks());
+const renderPage = (page: React.ReactNode) =>
+  renderWithProviders(<MemoryRouter>{page}</MemoryRouter>);
 
-  it('renders terms content and metadata as safe text', async () => {
-    mockedLegalService.getTermsOfUse.mockResolvedValue(document);
-    renderWithProviders(
-      <MemoryRouter>
-        <TermsOfUsePage />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByRole('heading', { name: 'Terms of Use' })).toBeVisible();
-    expect(screen.getByText(/Use Career Portal lawfully/)).toBeVisible();
-    expect(screen.getByText(/Version 2026-08-01/)).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Back to Register' })).toHaveAttribute(
+describe('static legal document pages', () => {
+  it('renders the original Terms of Use independently without an API request', () => {
+    renderPage(<TermsOfUsePage />);
+
+    expect(screen.getByRole('heading', { name: 'Terms of Use' })).toBeVisible();
+    expect(screen.getByText('Last updated: 9 August 2026')).toBeVisible();
+    expect(screen.getByRole('heading', { name: '1. Purpose of Career Harbor' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: '7. Prohibited conduct' })).toBeVisible();
+    expect(screen.queryByText(/Information we collect/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Back to registration' })).toHaveAttribute(
       'href',
       '/register',
     );
+    expect(legalMocks.getTermsOfUse).not.toHaveBeenCalled();
+    expect(legalMocks.getPrivacyPolicy).not.toHaveBeenCalled();
   });
 
-  it('renders the privacy policy endpoint response', async () => {
-    mockedLegalService.getPrivacyPolicy.mockResolvedValue({
-      ...document,
-      content: 'Passwords and one-time passwords are never stored in plain text.',
-      title: 'Privacy Policy',
-    });
-    renderWithProviders(
-      <MemoryRouter>
-        <PrivacyPolicyPage />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByRole('heading', { name: 'Privacy Policy' })).toBeVisible();
-    expect(screen.getByText(/never stored in plain text/i)).toBeVisible();
+  it('renders the original Privacy Policy independently with different content', () => {
+    renderPage(<PrivacyPolicyPage />);
+
+    expect(screen.getByRole('heading', { name: 'Privacy Policy' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: '1. Information we collect' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: '4. Resume privacy' })).toBeVisible();
+    expect(screen.queryByText(/Purpose of Career Harbor/)).toBeNull();
+    expect(legalMocks.getTermsOfUse).not.toHaveBeenCalled();
+    expect(legalMocks.getPrivacyPolicy).not.toHaveBeenCalled();
   });
 
-  it('shows an error state and retries', async () => {
-    mockedLegalService.getTermsOfUse
-      .mockRejectedValueOnce(new Error('Network detail'))
-      .mockResolvedValueOnce(document);
-    renderWithProviders(
-      <MemoryRouter>
-        <TermsOfUsePage />
-      </MemoryRouter>,
+  it('provides separate in-page tables of contents', () => {
+    renderPage(<TermsOfUsePage />);
+    expect(
+      screen.getByRole('navigation', { name: 'Terms of Use table of contents' }),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Acceptable use' })).toHaveAttribute(
+      'href',
+      '#acceptable-use',
     );
-    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('heading', { name: 'Terms of Use' })).toBeVisible();
-    expect(mockedLegalService.getTermsOfUse.mock.calls).toHaveLength(2);
-  });
-
-  it('shows an empty state for missing content', async () => {
-    mockedLegalService.getTermsOfUse.mockResolvedValue({ ...document, content: '  ' });
-    renderWithProviders(
-      <MemoryRouter>
-        <TermsOfUsePage />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText('Terms of Use unavailable')).toBeVisible();
   });
 });
