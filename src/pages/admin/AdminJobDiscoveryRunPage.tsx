@@ -58,6 +58,18 @@ export const AdminJobDiscoveryRunPage = () => {
     [details.data?.items],
   );
   const validIds = useMemo(() => items.filter(isImportable).map((item) => item.id), [items]);
+  const selectedItems = useMemo(
+    () => items.filter((item) => isImportable(item) && selected.includes(item.id)),
+    [items, selected],
+  );
+  const previewValidIds = useMemo(() => {
+    if (!preview) return [];
+    return preview.rows.flatMap((row) => {
+      if (row.status.toLowerCase() !== 'valid') return [];
+      const item = selectedItems[row.rowNumber - 2];
+      return item ? [item.id] : [];
+    });
+  }, [preview, selectedItems]);
   const invalidatePreview = (next: string[]) => {
     setSelected(next);
     setPreview(null);
@@ -75,7 +87,7 @@ export const AdminJobDiscoveryRunPage = () => {
   };
   const handleCommit = async () => {
     try {
-      setCommitted(await commitImport({ request: { itemIds: selected }, runId }).unwrap());
+      setCommitted(await commitImport({ request: { itemIds: previewValidIds }, runId }).unwrap());
       setConfirmOpen(false);
       void details.refetch();
     } catch {
@@ -102,7 +114,11 @@ export const AdminJobDiscoveryRunPage = () => {
   const invalid = items.filter(
     (item) => !['candidate', 'duplicate', 'imported'].includes(item.status.toLowerCase()),
   ).length;
-  const previewSucceeded = Boolean(preview?.canCommit && preview.invalidRows === 0);
+  const previewSucceeded = previewValidIds.length > 0;
+  const skippedInvalidCount = preview?.invalidRows ?? 0;
+  const importSummary = preview
+    ? `${previewValidIds.length} ${previewValidIds.length === 1 ? 'job' : 'jobs'} will be imported as Drafts. ${skippedInvalidCount} ${skippedInvalidCount === 1 ? 'invalid job' : 'invalid jobs'} will be skipped.`
+    : '';
 
   return (
     <Stack spacing={3}>
@@ -164,14 +180,19 @@ export const AdminJobDiscoveryRunPage = () => {
           <Typography component="h2" variant="h6">Import preview</Typography>
           <Typography color="text.secondary" sx={{ my: 1 }}>{preview.validRows} valid · {preview.invalidRows} invalid · {preview.duplicateRows} duplicates</Typography>
           {preview.rows.map((row) => <Box key={row.rowNumber} sx={{ borderTop: 1, borderColor: 'divider', py: 1.5 }}><Typography fontWeight={600}>Row {row.rowNumber}: {row.status}</Typography><Typography color="text.secondary">Company: {row.companyResolution ?? 'No resolution supplied'} · Category: {row.categoryResolution ?? 'No resolution supplied'}</Typography>{row.errors.map((error) => <Typography color="error" key={`${error.field}-${error.message}`}>{error.field}: {error.message}</Typography>)}</Box>)}
-          <Alert severity="info" sx={{ my: 2 }}>Selected jobs will be imported as Draft and require separate review before publishing.</Alert>
+          <Alert severity={previewSucceeded ? 'info' : 'warning'} sx={{ my: 2 }}>
+            {previewSucceeded
+              ? importSummary
+              : 'No preview-valid jobs are available to import. Fix the validation errors or change the selection and preview again.'}
+            {' '}Imported jobs require separate review before publishing.
+          </Alert>
           <Button disabled={!previewSucceeded || commitState.isLoading} onClick={() => setConfirmOpen(true)} variant="contained">Import selected as drafts</Button>
         </Paper>
       ) : null}
 
       {committed ? <Alert action={<Button component={Link} to={ROUTES.ADMIN_JOBS}>Back to Manage jobs</Button>} severity="success">{committed.import.importedRows} jobs imported as Draft. {committed.import.skippedRows} skipped; {committed.import.invalidRows} invalid.</Alert> : null}
 
-      <ConfirmActionDialog actionLabel="Import selected as drafts" description="Selected jobs will be imported as Draft and require separate review before publishing." error={commitState.error ? errorMessage(commitState.error, 'Unable to import the selected jobs.') : null} isProcessing={commitState.isLoading} onClose={() => setConfirmOpen(false)} onConfirm={() => void handleCommit()} open={confirmOpen} title="Confirm draft import" />
+      <ConfirmActionDialog actionLabel="Import selected as drafts" description={`${importSummary} Imported jobs require separate review before publishing.`} error={commitState.error ? errorMessage(commitState.error, 'Unable to import the selected jobs.') : null} isProcessing={commitState.isLoading} onClose={() => setConfirmOpen(false)} onConfirm={() => void handleCommit()} open={confirmOpen} title="Confirm draft import" />
     </Stack>
   );
 };

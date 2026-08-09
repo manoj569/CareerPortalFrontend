@@ -96,4 +96,59 @@ describe('admin job discovery pages', () => {
     expect(screen.getByText('Discovery run was not found.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
+
+  it('commits only 49 preview-valid IDs when one of 50 rows is invalid', async () => {
+    const candidates = Array.from({ length: 50 }, (_, index) => ({
+      ...candidate,
+      id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      sourceJobId: `source-${index + 1}`,
+      title: `Job ${index + 1}`,
+    }));
+    const invalidIndex = 41;
+    const mixedPreview = {
+      ...preview,
+      canCommit: false,
+      invalidRows: 1,
+      rows: candidates.map((_, index) => ({
+        errors: index === invalidIndex ? [{ field: 'employmentType', message: 'Unsupported value' }] : [],
+        rowNumber: index + 2,
+        status: index === invalidIndex ? 'Invalid' : 'Valid',
+      })),
+      totalRows: 50,
+      validRows: 49,
+    };
+    mocks.detailsResult = { data: { ...run, candidateCount: 50, items: candidates }, error: undefined, isError: false, isLoading: false, refetch: vi.fn() };
+    mocks.preview.mockReturnValue({ unwrap: () => Promise.resolve(mixedPreview) });
+    mocks.commit.mockReturnValue({ unwrap: () => Promise.resolve({ import: { ...mixedPreview, importedRows: 49, invalidRows: 0 }, selected: 49 }) });
+    render(<MemoryRouter initialEntries={[`/admin/jobs/discovery/${run.id}`]}><Routes><Route path="/admin/jobs/discovery/:runId" element={<AdminJobDiscoveryRunPage />} /></Routes></MemoryRouter>);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all valid' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview selected import' }));
+    expect(await screen.findByText('49 jobs will be imported as Drafts. 1 invalid job will be skipped. Imported jobs require separate review before publishing.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Import selected as drafts' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Import selected as drafts' }));
+    await waitFor(() => expect(mocks.commit).toHaveBeenCalled());
+    const committedRequest = mocks.commit.mock.calls[0]?.[0] as
+      | { request: { itemIds: string[] } }
+      | undefined;
+    const committedIds = committedRequest?.request.itemIds ?? [];
+    expect(committedIds).toHaveLength(49);
+    expect(committedIds).not.toContain(candidates[invalidIndex]?.id);
+  });
+
+  it('keeps commit disabled when every preview row is invalid', async () => {
+    const invalidPreview = { ...preview, canCommit: false, invalidRows: 1, rows: [{ errors: [{ field: 'employmentType', message: 'Unsupported value' }], rowNumber: 2, status: 'Invalid' }], validRows: 0 };
+    mocks.preview.mockReturnValue({ unwrap: () => Promise.resolve(invalidPreview) });
+    render(<MemoryRouter initialEntries={[`/admin/jobs/discovery/${run.id}`]}><Routes><Route path="/admin/jobs/discovery/:runId" element={<AdminJobDiscoveryRunPage />} /></Routes></MemoryRouter>);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Frontend Engineer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview selected import' }));
+    expect(await screen.findByText(/No preview-valid jobs are available to import/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import selected as drafts' })).toBeDisabled();
+  });
+
+  it('keeps preview and commit disabled for an empty selection', () => {
+    render(<MemoryRouter initialEntries={[`/admin/jobs/discovery/${run.id}`]}><Routes><Route path="/admin/jobs/discovery/:runId" element={<AdminJobDiscoveryRunPage />} /></Routes></MemoryRouter>);
+    expect(screen.getByRole('button', { name: 'Preview selected import' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Import selected as drafts' })).not.toBeInTheDocument();
+  });
 });
