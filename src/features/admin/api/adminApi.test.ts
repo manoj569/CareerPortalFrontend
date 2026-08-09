@@ -307,7 +307,7 @@ describe('admin API cache consistency', () => {
     mockRequest
       .mockResolvedValueOnce({ data: { data: run } })
       .mockResolvedValueOnce({ data: { data: [run] } })
-      .mockResolvedValueOnce({ data: { data: { items: [], run } } })
+      .mockResolvedValueOnce({ data: { data: { ...run, items: [] } } })
       .mockResolvedValueOnce({ data: { data: importResult } })
       .mockResolvedValueOnce({ data: { data: { import: importResult, selected: 1 } } });
 

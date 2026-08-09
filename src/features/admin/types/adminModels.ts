@@ -84,6 +84,7 @@ export interface JobDiscoveryItem {
   applicationUrl: string;
   categoryName: string;
   companyName: string;
+  createdAtUtc: string;
   description: string | null;
   duplicateReason: string | null;
   employmentType: string | null;
@@ -93,15 +94,22 @@ export interface JobDiscoveryItem {
   location: string | null;
   provider: string;
   publishedAtUtc: string | null;
-  runId: string;
   sourceJobId: string;
   status: string;
   title: string;
 }
 
 export interface JobDiscoveryRunDetails {
-  items: JobDiscoveryItem[];
-  run: JobDiscoveryRunSummary;
+  candidateCount: number;
+  completedAtUtc: string | null;
+  duplicateCount: number;
+  errorSummary: string | null;
+  id: string;
+  importedCount: number;
+  items?: JobDiscoveryItem[] | null;
+  startedAtUtc: string;
+  status: string;
+  trigger: string;
 }
 
 export interface JobDiscoverySelectionRequest {

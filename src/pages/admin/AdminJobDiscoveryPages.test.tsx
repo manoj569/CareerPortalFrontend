@@ -30,9 +30,9 @@ const run = {
 };
 const candidate = {
   applicationUrl: 'https://jobs.example/one', categoryName: 'Engineering', companyName: 'HARMAN',
-  description: null, duplicateReason: null, employmentType: null, existingJobId: null,
+  createdAtUtc: '2026-08-10T10:00:30Z', description: null, duplicateReason: null, employmentType: null, existingJobId: null,
   id: '11111111-1111-4111-8111-111111111111', importedJobId: null, location: 'Pune',
-  provider: 'ApprovedProvider', publishedAtUtc: null, runId: run.id, sourceJobId: 'source-1',
+  provider: 'ApprovedProvider', publishedAtUtc: null, sourceJobId: 'source-1',
   status: 'Candidate', title: 'Frontend Engineer',
 };
 const duplicate = { ...candidate, duplicateReason: 'Application URL already exists', id: '22222222-2222-4222-8222-222222222222', status: 'Duplicate', title: 'Duplicate role' };
@@ -43,7 +43,7 @@ describe('admin job discovery pages', () => {
     mocks.run.mockReset(); mocks.preview.mockReset(); mocks.commit.mockReset();
     mocks.runState = { error: undefined, isLoading: false };
     mocks.runsResult = { data: [], isError: false, isLoading: false, refetch: vi.fn() };
-    mocks.detailsResult = { data: { items: [candidate, duplicate], run }, error: undefined, isError: false, isLoading: false, refetch: vi.fn() };
+    mocks.detailsResult = { data: { ...run, items: [candidate, duplicate] }, error: undefined, isError: false, isLoading: false, refetch: vi.fn() };
   });
 
   it('navigates to review after a successful run and renders backend provider failures', async () => {
@@ -74,5 +74,26 @@ describe('admin job discovery pages', () => {
     await waitFor(() => expect(mocks.commit).toHaveBeenCalledWith({ request: { itemIds: [candidate.id] }, runId: run.id }));
     expect(await screen.findByText(/1 jobs imported as Draft/)).toBeInTheDocument();
     expect(screen.queryByText(/Published/)).not.toBeInTheDocument();
+  });
+
+  it('renders the current flat DTO safely when items and optional values are absent', () => {
+    mocks.detailsResult = {
+      data: { ...run, completedAtUtc: null, errorSummary: null, items: undefined },
+      error: undefined, isError: false, isLoading: false, refetch: vi.fn(),
+    };
+    render(<MemoryRouter initialEntries={[`/admin/jobs/discovery/${run.id}`]}><Routes><Route path="/admin/jobs/discovery/:runId" element={<AdminJobDiscoveryRunPage />} /></Routes></MemoryRouter>);
+    expect(screen.getByRole('heading', { name: `Review run ${run.id.slice(0, 8)}` })).toBeInTheDocument();
+    expect(screen.getByText('No discovery items were returned for this run.')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('shows a retryable API error state', () => {
+    mocks.detailsResult = {
+      data: undefined, error: { message: 'Discovery run was not found.' },
+      isError: true, isLoading: false, refetch: vi.fn(),
+    };
+    render(<MemoryRouter initialEntries={[`/admin/jobs/discovery/${run.id}`]}><Routes><Route path="/admin/jobs/discovery/:runId" element={<AdminJobDiscoveryRunPage />} /></Routes></MemoryRouter>);
+    expect(screen.getByText('Discovery run was not found.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

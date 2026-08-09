@@ -36,6 +36,7 @@ import type {
   JobDiscoveryCommitResult,
   JobDiscoveryItem,
 } from '@/features/admin/types/adminModels';
+import { formatAdminDate } from '@/features/admin/utils/adminFormatting';
 
 const errorMessage = (error: unknown, fallback: string) =>
   isAdminApiError(error) ? error.message : fallback;
@@ -52,7 +53,10 @@ export const AdminJobDiscoveryRunPage = () => {
   const [committed, setCommitted] = useState<JobDiscoveryCommitResult | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const items = useMemo(() => details.data?.items ?? [], [details.data?.items]);
+  const items = useMemo(
+    () => (Array.isArray(details.data?.items) ? details.data.items : []),
+    [details.data?.items],
+  );
   const validIds = useMemo(() => items.filter(isImportable).map((item) => item.id), [items]);
   const invalidatePreview = (next: string[]) => {
     setSelected(next);
@@ -79,7 +83,14 @@ export const AdminJobDiscoveryRunPage = () => {
     }
   };
 
-  if (details.isLoading) return <CircularProgress aria-label="Loading discovery run" />;
+  if (details.isLoading) {
+    return (
+      <Stack alignItems="center" spacing={2} sx={{ py: 8 }}>
+        <CircularProgress aria-label="Loading discovery run" />
+        <Typography color="text.secondary">Loading discovery run…</Typography>
+      </Stack>
+    );
+  }
   if (details.isError || !details.data) {
     return (
       <Alert action={<Button onClick={() => void details.refetch()}>Retry</Button>} severity="error">
@@ -88,7 +99,6 @@ export const AdminJobDiscoveryRunPage = () => {
     );
   }
 
-  const duplicates = items.filter((item) => item.status.toLowerCase() === 'duplicate').length;
   const invalid = items.filter(
     (item) => !['candidate', 'duplicate', 'imported'].includes(item.status.toLowerCase()),
   ).length;
@@ -100,18 +110,27 @@ export const AdminJobDiscoveryRunPage = () => {
         actions={<Button component={Link} startIcon={<ArrowBackOutlinedIcon />} to={ROUTES.ADMIN_JOB_DISCOVERY}>All runs</Button>}
         description="Review discovered jobs and import only valid selections as drafts."
         eyebrow="Discover jobs"
-        title={`Review run ${details.data.run.id.slice(0, 8)}`}
+        title={`Review run ${details.data.id.slice(0, 8)}`}
       />
 
+      <Paper component="section" sx={{ p: { xs: 2, sm: 3 } }}>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}><Typography color="text.secondary">Status</Typography><Chip label={details.data.status} size="small" /></Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}><Typography color="text.secondary">Started</Typography><Typography>{formatAdminDate(details.data.startedAtUtc)}</Typography></Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}><Typography color="text.secondary">Completed</Typography><Typography>{formatAdminDate(details.data.completedAtUtc)}</Typography></Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}><Typography color="text.secondary">Imported</Typography><Typography>{details.data.importedCount}</Typography></Grid>
+        </Grid>
+      </Paper>
+
       <Grid container spacing={2}>
-        {[['Found', details.data.run.candidateCount], ['New', validIds.length], ['Duplicates', duplicates], ['Invalid', invalid]].map(([label, value]) => (
+        {[['Found', details.data.candidateCount], ['New', validIds.length], ['Duplicates', details.data.duplicateCount], ['Invalid', invalid]].map(([label, value]) => (
           <Grid key={label} size={{ xs: 12, sm: 6, md: 3 }}>
             <Paper sx={{ p: 2.5 }}><Typography color="text.secondary">{label}</Typography><Typography variant="h4">{value}</Typography></Paper>
           </Grid>
         ))}
       </Grid>
 
-      {details.data.run.errorSummary ? <Alert severity="warning">{details.data.run.errorSummary}</Alert> : null}
+      {details.data.errorSummary ? <Alert severity="warning">{details.data.errorSummary}</Alert> : null}
 
       <Paper component="section" sx={{ p: { xs: 2, sm: 3 } }}>
         <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
@@ -125,6 +144,9 @@ export const AdminJobDiscoveryRunPage = () => {
         </Stack>
 
         {previewState.error ? <Alert severity="error" sx={{ mb: 2 }}>{errorMessage(previewState.error, 'Unable to preview the selected jobs.')}</Alert> : null}
+        {items.length === 0 ? (
+          <Alert severity="info">No discovery items were returned for this run.</Alert>
+        ) : (
         <TableContainer sx={{ overflowX: 'auto' }}>
           <Table aria-label="Discovered jobs" size="small">
             <TableHead><TableRow><TableCell padding="checkbox" /><TableCell>Title</TableCell><TableCell>Company</TableCell><TableCell>Category</TableCell><TableCell>Location</TableCell><TableCell>Source provider</TableCell><TableCell>Source URL</TableCell><TableCell>Duplicate status</TableCell><TableCell>Validation status</TableCell></TableRow></TableHead>
@@ -134,6 +156,7 @@ export const AdminJobDiscoveryRunPage = () => {
             })}</TableBody>
           </Table>
         </TableContainer>
+        )}
       </Paper>
 
       {preview ? (
