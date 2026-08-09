@@ -55,9 +55,62 @@ export interface AdminCsvImportFieldError {
 }
 
 export interface AdminCsvImportRow {
+  categoryResolution?: string | null;
+  companyResolution?: string | null;
   rowNumber: number;
   status: string;
   errors: AdminCsvImportFieldError[];
+}
+
+export interface JobDiscoveryCriteria {
+  country?: string | null;
+  location?: string | null;
+  query?: string | null;
+}
+
+export interface JobDiscoveryRunSummary {
+  candidateCount: number;
+  completedAtUtc: string | null;
+  duplicateCount: number;
+  errorSummary: string | null;
+  id: string;
+  importedCount: number;
+  startedAtUtc: string;
+  status: string;
+  trigger: string;
+}
+
+export interface JobDiscoveryItem {
+  applicationUrl: string;
+  categoryName: string;
+  companyName: string;
+  description: string | null;
+  duplicateReason: string | null;
+  employmentType: string | null;
+  existingJobId: string | null;
+  id: string;
+  importedJobId: string | null;
+  location: string | null;
+  provider: string;
+  publishedAtUtc: string | null;
+  runId: string;
+  sourceJobId: string;
+  status: string;
+  title: string;
+}
+
+export interface JobDiscoveryRunDetails {
+  items: JobDiscoveryItem[];
+  run: JobDiscoveryRunSummary;
+}
+
+export interface JobDiscoverySelectionRequest {
+  itemIds: string[];
+}
+
+export interface JobDiscoveryCommitResult {
+  import: AdminCsvImportResult;
+  selected: number;
 }
 
 export interface AdminCsvImportResult {

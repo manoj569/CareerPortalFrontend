@@ -209,6 +209,20 @@ export const appRoutes: RouteObject[] = [
                 ),
               },
               {
+                path: ROUTES.ADMIN_JOB_DISCOVERY,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminJobDiscoveryPage'),
+                  'AdminJobDiscoveryPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_JOB_DISCOVERY_RUN,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminJobDiscoveryRunPage'),
+                  'AdminJobDiscoveryRunPage',
+                ),
+              },
+              {
                 path: ROUTES.ADMIN_JOB_EDIT,
                 element: lazyPage(
                   () => import('@/pages/admin/AdminEditJobPage'),

@@ -41,6 +41,11 @@ import type {
   UpdateAdminCompanyArgs,
   UpdateAdminJobArgs,
   AdminRecruiterContact,
+  JobDiscoveryCommitResult,
+  JobDiscoveryCriteria,
+  JobDiscoveryRunDetails,
+  JobDiscoveryRunSummary,
+  JobDiscoverySelectionRequest,
   UpdateAdminRecruiterContactArgs,
 } from '../types/adminModels';
 
@@ -91,6 +96,7 @@ export const adminApi = createApi({
     'AdminApplications',
     'AdminAuditLogs',
     'RecruiterContact',
+    'JobDiscoveryRuns',
   ],
   endpoints: (builder) => ({
     getAdminStatistics: builder.query<AdminDashboardStatistics, void>({
@@ -157,6 +163,52 @@ export const adminApi = createApi({
       }),
       transformResponse: (response: ApiResponse<AdminCsvImportResult>) => response.data,
       invalidatesTags: ['Statistics', 'Charts', { id: 'LIST', type: 'AdminJobs' }],
+      onQueryStarted: (_, { dispatch, queryFulfilled }) => {
+        void refreshPublicJobs(queryFulfilled, dispatch);
+      },
+    }),
+    runAdminJobDiscovery: builder.mutation<JobDiscoveryRunSummary, JobDiscoveryCriteria>({
+      query: (data) => ({ data, method: 'POST', url: API_ENDPOINTS.ADMIN.JOB_DISCOVERY_RUN }),
+      transformResponse: (response: ApiResponse<JobDiscoveryRunSummary>) => response.data,
+      invalidatesTags: ['JobDiscoveryRuns'],
+    }),
+    getAdminJobDiscoveryRuns: builder.query<JobDiscoveryRunSummary[], number>({
+      query: (take) => ({ params: { take }, url: API_ENDPOINTS.ADMIN.JOB_DISCOVERY_RUNS }),
+      transformResponse: (response: ApiResponse<JobDiscoveryRunSummary[]>) => response.data,
+      providesTags: ['JobDiscoveryRuns'],
+    }),
+    getAdminJobDiscoveryRun: builder.query<JobDiscoveryRunDetails, string>({
+      query: (runId) => ({ url: API_ENDPOINTS.ADMIN.JOB_DISCOVERY_RUN_DETAILS(runId) }),
+      transformResponse: (response: ApiResponse<JobDiscoveryRunDetails>) => response.data,
+      providesTags: (_, __, runId) => [{ id: runId, type: 'JobDiscoveryRuns' }],
+    }),
+    previewAdminJobDiscovery: builder.mutation<
+      AdminCsvImportResult,
+      { request: JobDiscoverySelectionRequest; runId: string }
+    >({
+      query: ({ request, runId }) => ({
+        data: request,
+        method: 'POST',
+        url: API_ENDPOINTS.ADMIN.JOB_DISCOVERY_PREVIEW(runId),
+      }),
+      transformResponse: (response: ApiResponse<AdminCsvImportResult>) => response.data,
+    }),
+    commitAdminJobDiscovery: builder.mutation<
+      JobDiscoveryCommitResult,
+      { request: JobDiscoverySelectionRequest; runId: string }
+    >({
+      query: ({ request, runId }) => ({
+        data: request,
+        method: 'POST',
+        url: API_ENDPOINTS.ADMIN.JOB_DISCOVERY_COMMIT(runId),
+      }),
+      transformResponse: (response: ApiResponse<JobDiscoveryCommitResult>) => response.data,
+      invalidatesTags: [
+        'Statistics',
+        'Charts',
+        'JobDiscoveryRuns',
+        { id: 'LIST', type: 'AdminJobs' },
+      ],
       onQueryStarted: (_, { dispatch, queryFulfilled }) => {
         void refreshPublicJobs(queryFulfilled, dispatch);
       },
@@ -519,6 +571,7 @@ export const {
   useComposeAdminJobMutation,
   useCommitAdminCompaniesImportMutation,
   useCommitAdminJobsImportMutation,
+  useCommitAdminJobDiscoveryMutation,
   useCreateAdminCategoryMutation,
   useCreateAdminCompanyMutation,
   useCreateAdminJobMutation,
@@ -536,6 +589,8 @@ export const {
   useGetAdminCompanyOptionsQuery,
   useGetAdminCompanyQuery,
   useGetAdminJobQuery,
+  useGetAdminJobDiscoveryRunQuery,
+  useGetAdminJobDiscoveryRunsQuery,
   useGetAdminJobsQuery,
   useGetAdminRecentPaymentsQuery,
   useGetAdminRecentUsersQuery,
@@ -543,6 +598,8 @@ export const {
   usePublishAdminJobMutation,
   usePreviewAdminCompaniesImportMutation,
   usePreviewAdminJobsImportMutation,
+  usePreviewAdminJobDiscoveryMutation,
+  useRunAdminJobDiscoveryMutation,
   useSetAdminJobFeaturedMutation,
   useSetAdminJobHiddenMutation,
   useSoftDeleteAdminJobMutation,

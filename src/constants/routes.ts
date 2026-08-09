@@ -29,6 +29,8 @@ export const ROUTES = {
   ADMIN: '/admin',
   ADMIN_JOBS: '/admin/jobs',
   ADMIN_JOB_CREATE: '/admin/jobs/create',
+  ADMIN_JOB_DISCOVERY: '/admin/jobs/discovery',
+  ADMIN_JOB_DISCOVERY_RUN: '/admin/jobs/discovery/:runId',
   ADMIN_JOB_DETAILS: '/admin/jobs/:jobId',
   ADMIN_JOB_EDIT: '/admin/jobs/:jobId/edit',
   ADMIN_COMPANIES: '/admin/companies',
@@ -59,6 +61,9 @@ export const buildAdminJobEditPath = (jobId: string): string =>
 
 export const buildAdminJobDetailsPath = (jobId: string): string =>
   ROUTES.ADMIN_JOB_DETAILS.replace(':jobId', encodeURIComponent(jobId));
+
+export const buildAdminJobDiscoveryRunPath = (runId: string): string =>
+  ROUTES.ADMIN_JOB_DISCOVERY_RUN.replace(':runId', encodeURIComponent(runId));
 
 export const buildAdminCompanyDetailsPath = (companyId: string): string =>
   ROUTES.ADMIN_COMPANY_DETAILS.replace(':companyId', encodeURIComponent(companyId));

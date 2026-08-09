@@ -48,6 +48,14 @@ export const API_ENDPOINTS = {
     DASHBOARD_CHARTS: '/admin/dashboard/charts',
     JOBS: '/admin/jobs',
     JOBS_COMPOSE: '/admin/jobs/compose',
+    JOB_DISCOVERY_RUN: '/admin/job-discovery/run',
+    JOB_DISCOVERY_RUNS: '/admin/job-discovery/runs',
+    JOB_DISCOVERY_RUN_DETAILS: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}`,
+    JOB_DISCOVERY_PREVIEW: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}/preview`,
+    JOB_DISCOVERY_COMMIT: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}/commit`,
     JOB: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}`,
     JOB_PUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/publish`,
     JOB_UNPUBLISH: (jobId: string) =>

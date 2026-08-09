@@ -28,6 +28,7 @@ const { mockRequest } = vi.hoisted(() => ({ mockRequest: vi.fn() }));
 interface CapturedRequestConfig {
   data?: unknown;
   method?: string;
+  params?: unknown;
   url?: string;
 }
 
@@ -292,6 +293,40 @@ describe('admin API cache consistency', () => {
       expect(requestConfig.data).toBeInstanceOf(FormData);
       expect(Array.from((requestConfig.data as FormData).entries())).toEqual([['file', file]]);
     }
+  });
+
+  it('uses relative discovery URLs and sends selected item IDs only', async () => {
+    const store = createAppStore();
+    const runId = 'a4f14bb7-d7af-447a-863c-17fb036ad9ac';
+    const itemId = 'c4bdc15b-6293-426c-b0a9-c46a08d4c518';
+    const run = {
+      candidateCount: 1, completedAtUtc: null, duplicateCount: 0, errorSummary: null,
+      id: runId, importedCount: 0, startedAtUtc: '2026-08-10T10:00:00Z',
+      status: 'Completed', trigger: 'Manual',
+    };
+    mockRequest
+      .mockResolvedValueOnce({ data: { data: run } })
+      .mockResolvedValueOnce({ data: { data: [run] } })
+      .mockResolvedValueOnce({ data: { data: { items: [], run } } })
+      .mockResolvedValueOnce({ data: { data: importResult } })
+      .mockResolvedValueOnce({ data: { data: { import: importResult, selected: 1 } } });
+
+    await store.dispatch(adminApi.endpoints.runAdminJobDiscovery.initiate({})).unwrap();
+    await store.dispatch(adminApi.endpoints.getAdminJobDiscoveryRuns.initiate(25)).unwrap();
+    await store.dispatch(adminApi.endpoints.getAdminJobDiscoveryRun.initiate(runId)).unwrap();
+    const request = { itemIds: [itemId] };
+    await store.dispatch(adminApi.endpoints.previewAdminJobDiscovery.initiate({ request, runId })).unwrap();
+    await store.dispatch(adminApi.endpoints.commitAdminJobDiscovery.initiate({ request, runId })).unwrap();
+
+    const configs = mockRequest.mock.calls.map(([config]) => config as CapturedRequestConfig);
+    expect(configs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ data: {}, method: 'POST', url: '/admin/job-discovery/run' }),
+      expect.objectContaining({ params: { take: 25 }, url: '/admin/job-discovery/runs' }),
+      expect.objectContaining({ url: `/admin/job-discovery/runs/${runId}` }),
+      expect.objectContaining({ data: request, method: 'POST', url: `/admin/job-discovery/runs/${runId}/preview` }),
+      expect.objectContaining({ data: request, method: 'POST', url: `/admin/job-discovery/runs/${runId}/commit` }),
+    ]));
+    expect(configs.every((config) => !config.url?.startsWith('/api/'))).toBe(true);
   });
 
   it('downloads the backend CSV template for each import type', async () => {

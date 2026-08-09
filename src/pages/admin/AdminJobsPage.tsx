@@ -4,6 +4,7 @@ import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
+import TravelExploreOutlinedIcon from '@mui/icons-material/TravelExploreOutlined';
 import PublishOutlinedIcon from '@mui/icons-material/PublishOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
@@ -340,6 +341,14 @@ export const AdminJobsPage = () => {
       <DashboardPageHeader
         actions={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              component={Link}
+              startIcon={<TravelExploreOutlinedIcon />}
+              to={ROUTES.ADMIN_JOB_DISCOVERY}
+              variant="outlined"
+            >
+              Discover jobs
+            </Button>
             <Button
               onClick={() => setIsImportOpen(true)}
               startIcon={<FileUploadOutlinedIcon />}

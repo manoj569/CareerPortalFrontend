@@ -65,6 +65,8 @@ describe('release route structure', () => {
       expect.arrayContaining([
         ROUTES.ADMIN,
         ROUTES.ADMIN_JOBS,
+        ROUTES.ADMIN_JOB_DISCOVERY,
+        ROUTES.ADMIN_JOB_DISCOVERY_RUN,
         ROUTES.ADMIN_APPLICATIONS,
         ROUTES.ADMIN_AUDIT_LOGS,
       ]),
