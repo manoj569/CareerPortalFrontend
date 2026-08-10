@@ -1,4 +1,4 @@
-import type { EmploymentType } from '@/features/jobs/types/jobModels';
+import type { EmploymentType, ExperienceLevel, WorkplaceType } from '@/features/jobs/types/jobModels';
 import type { PaginatedResponse } from '@/types';
 
 export interface ResumeMetadata {
@@ -6,6 +6,52 @@ export interface ResumeMetadata {
   contentType: string;
   sizeBytes: number;
   uploadedAtUtc: string;
+}
+
+export enum ResumeExtractionStatus {
+  NotStarted = 0,
+  Processing,
+  Ready,
+  Failed,
+}
+
+export interface ResumeStatusResponse {
+  extractedAtUtc: string | null;
+  extractionStatus: ResumeExtractionStatus;
+  hasResume: boolean;
+  message: string;
+}
+
+export interface RecommendedJob {
+  categoryId: string;
+  categoryName: string;
+  companyId: string;
+  companyLogoUrl: string | null;
+  companyName: string;
+  companySlug: string;
+  employmentType: EmploymentType;
+  experienceLevel: ExperienceLevel;
+  expiresAtUtc: string | null;
+  id: string;
+  isFeatured: boolean;
+  location: string | null;
+  matchReasons: string[];
+  matchScore: number;
+  publishedAtUtc: string;
+  referenceNumber: string;
+  slug: string;
+  title: string;
+  workplaceType: WorkplaceType;
+}
+
+export interface RecommendedJobsResponse {
+  extractionStatus: ResumeExtractionStatus;
+  items: RecommendedJob[];
+  message: string;
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 }
 
 export interface CandidateProfile {

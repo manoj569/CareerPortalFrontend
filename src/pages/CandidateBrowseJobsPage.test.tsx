@@ -6,11 +6,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
 import {
   useGetApplicationQuotaQuery,
+  useGetProfileQuery,
+  useGetRecommendedJobsQuery,
+  useGetResumeStatusQuery,
   useGetMembershipsQuery,
   useGetSavedJobsQuery,
   useRemoveSavedJobMutation,
   useSaveJobMutation,
   useSubmitApplicationMutation,
+  useUploadResumeMutation,
 } from '@/features/dashboard/api/dashboardApi';
 import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
 import {
@@ -51,11 +55,15 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
   return {
     ...actual,
     useGetApplicationQuotaQuery: vi.fn(),
+    useGetProfileQuery: vi.fn(),
+    useGetRecommendedJobsQuery: vi.fn(),
+    useGetResumeStatusQuery: vi.fn(),
     useGetMembershipsQuery: vi.fn(),
     useGetSavedJobsQuery: vi.fn(),
     useRemoveSavedJobMutation: vi.fn(),
     useSaveJobMutation: vi.fn(),
     useSubmitApplicationMutation: vi.fn(),
+    useUploadResumeMutation: vi.fn(),
   };
 });
 
@@ -64,6 +72,10 @@ const mockFetchJobApplicationUrl = vi.mocked(fetchJobApplicationUrl);
 const mockFilterOptions = vi.mocked(useGetJobFilterOptionsQuery);
 const mockSupplementalCounts = vi.mocked(useGetSupplementalJobFilterCountsQuery);
 const mockQuota = vi.mocked(useGetApplicationQuotaQuery);
+const mockProfile = vi.mocked(useGetProfileQuery);
+const mockRecommended = vi.mocked(useGetRecommendedJobsQuery);
+const mockResumeStatus = vi.mocked(useGetResumeStatusQuery);
+const mockUploadResume = vi.mocked(useUploadResumeMutation);
 const mockMemberships = vi.mocked(useGetMembershipsQuery);
 const mockSavedJobs = vi.mocked(useGetSavedJobsQuery);
 const mockSaveJob = vi.mocked(useSaveJobMutation);
@@ -224,6 +236,14 @@ beforeEach(() => {
       usedApplications: 3,
     }) as ReturnType<typeof useGetApplicationQuotaQuery>,
   );
+  mockProfile.mockReturnValue(queryResult({ resume: null }) as ReturnType<typeof useGetProfileQuery>);
+  mockResumeStatus.mockReturnValue(
+    queryResult({ extractedAtUtc: null, extractionStatus: 0, hasResume: false, message: 'Upload a resume.' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
+  );
+  mockRecommended.mockReturnValue(
+    queryResult({ extractionStatus: 2, items: [], message: '', pageNumber: 1, pageSize: 20, totalCount: 0, totalPages: 0 }) as ReturnType<typeof useGetRecommendedJobsQuery>,
+  );
+  mockUploadResume.mockReturnValue(mutationResult() as unknown as ReturnType<typeof useUploadResumeMutation>);
   mockMemberships.mockReturnValue(queryResult([]) as ReturnType<typeof useGetMembershipsQuery>);
   mockSavedJobs.mockReturnValue(
     queryResult({
@@ -431,6 +451,7 @@ describe('Candidate Browse jobs', () => {
       auth: candidateAuth,
     });
     expect(screen.getAllByRole('link', { name: 'Browse jobs' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: 'Resume' })).toBeNull();
     candidateView.unmount();
 
     const adminRouter = createMemoryRouter(
@@ -447,5 +468,69 @@ describe('Candidate Browse jobs', () => {
       auth: { ...candidateAuth, user: { ...candidateAuth.user!, role: UserRole.Administrator } },
     });
     expect(screen.queryByRole('link', { name: 'Browse jobs' })).toBeNull();
+  });
+
+  it('shows resume states and uploads through the existing secure mutation', async () => {
+    const upload = mutationResult();
+    const refetchStatus = vi.fn().mockResolvedValue(undefined);
+    mockUploadResume.mockReturnValue(upload as unknown as ReturnType<typeof useUploadResumeMutation>);
+    mockResumeStatus.mockReturnValue(
+      queryResult({ extractedAtUtc: null, extractionStatus: 0, hasResume: false, message: '' }, { fulfilledTimeStamp: Date.now(), refetch: refetchStatus }) as ReturnType<typeof useGetResumeStatusQuery>,
+    );
+    renderPage();
+    expect(screen.getByText('Upload your resume to receive personalized job recommendations')).toBeVisible();
+    await userEvent.upload(screen.getByLabelText('Choose resume'), new File(['resume'], 'resume.pdf', { type: 'application/pdf' }));
+    expect(upload[0]).toHaveBeenCalledOnce();
+    await waitFor(() => expect(refetchStatus).toHaveBeenCalledOnce());
+  });
+
+  it('uses recommendation mode without sending All jobs filters', () => {
+    mockResumeStatus.mockReturnValue(
+      queryResult({ extractedAtUtc: '2026-08-10T00:00:00Z', extractionStatus: 2, hasResume: true, message: 'Ready' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
+    );
+    mockProfile.mockReturnValue(queryResult({ resume: { fileName: 'career.pdf' } }) as ReturnType<typeof useGetProfileQuery>);
+    mockRecommended.mockReturnValue(
+      queryResult({ extractionStatus: 2, items: [{
+        categoryId: job.categoryId, categoryName: job.categoryName, companyId: job.companyId,
+        companyLogoUrl: null, companyName: job.companyName, companySlug: job.companySlug,
+        employmentType: job.employmentType, experienceLevel: job.experienceLevel,
+        expiresAtUtc: job.expiresAtUtc, id: job.id, isFeatured: job.isFeatured,
+        location: job.location, matchReasons: ['Matches skills: React'], matchScore: 92,
+        publishedAtUtc: job.publishedAtUtc, referenceNumber: job.referenceNumber,
+        slug: job.slug, title: job.title, workplaceType: job.workplaceType,
+      }], message: 'Personalized recommendations based on your resume.', pageNumber: 1, pageSize: 20, totalCount: 1, totalPages: 1 }) as ReturnType<typeof useGetRecommendedJobsQuery>,
+    );
+    renderPage('/dashboard/jobs?mode=recommended&companyName=Ignored&page=3');
+    expect(screen.getByText('Resume match 92%')).toBeVisible();
+    expect(screen.getByText('• Matches skills: React')).toBeVisible();
+    expect(mockRecommended).toHaveBeenCalledWith({ pageNumber: 3, pageSize: 20 }, { skip: false });
+    expect(mockSearchJobs.mock.calls.at(-1)?.[1]).toEqual({ skip: true });
+  });
+
+  it('shows a View all jobs action when recommendations are empty', async () => {
+    mockResumeStatus.mockReturnValue(
+      queryResult({ extractedAtUtc: null, extractionStatus: 2, hasResume: true, message: 'Ready' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
+    );
+    renderPage('/dashboard/jobs?mode=recommended');
+    await userEvent.click(screen.getByRole('button', { name: 'View all jobs' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('mode=all');
+  });
+
+  it('shows safe Processing and Failed resume states without internal details', () => {
+    mockResumeStatus.mockReturnValue(
+      queryResult({ extractedAtUtc: null, extractionStatus: 1, hasResume: true, message: 'Internal processing detail' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
+    );
+    const processing = renderPage();
+    expect(screen.getByText('Processing')).toBeVisible();
+    expect(screen.queryByText('Internal processing detail')).toBeNull();
+    processing.unmount();
+
+    mockResumeStatus.mockReturnValue(
+      queryResult({ extractedAtUtc: null, extractionStatus: 3, hasResume: true, message: 'Private parser error' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
+    );
+    renderPage();
+    expect(screen.getByText(/Failed — your resume is stored/)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Replace resume' })).toBeVisible();
+    expect(screen.queryByText('Private parser error')).toBeNull();
   });
 });

@@ -5,7 +5,6 @@ import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNone
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
-import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
@@ -21,7 +20,6 @@ const navigationItems: NavigationItem[] = [
   { label: 'Browse jobs', path: ROUTES.DASHBOARD_JOBS, icon: WorkOutlineIcon },
   { label: 'Profile', path: ROUTES.PROFILE, icon: PersonOutlineIcon },
   { label: 'Career preferences', path: ROUTES.ONBOARDING, icon: TuneOutlinedIcon },
-  { label: 'Resume', path: ROUTES.RESUME, icon: ArticleOutlinedIcon },
   { label: 'Saved jobs', path: ROUTES.SAVED_JOBS, icon: BookmarkBorderIcon },
   { label: 'Applications', path: ROUTES.APPLICATIONS, icon: DescriptionOutlinedIcon },
   { label: 'Membership', path: ROUTES.MEMBERSHIP, icon: WorkspacePremiumOutlinedIcon },

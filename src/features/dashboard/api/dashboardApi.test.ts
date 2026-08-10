@@ -167,6 +167,17 @@ describe('Candidate API integration', () => {
     expect('downloadResume' in dashboardApi.endpoints).toBe(false);
   });
 
+  it('uses the resume-status and pagination-only recommendation contracts', async () => {
+    const store = createAppStore();
+    mockRequest
+      .mockResolvedValueOnce({ data: { data: { extractedAtUtc: null, extractionStatus: 2, hasResume: true, message: 'Ready' } } })
+      .mockResolvedValueOnce({ data: { data: { extractionStatus: 2, items: [], message: '', pageNumber: 2, pageSize: 20, totalCount: 0, totalPages: 0 } } });
+    await store.dispatch(dashboardApi.endpoints.getResumeStatus.initiate()).unwrap();
+    await store.dispatch(dashboardApi.endpoints.getRecommendedJobs.initiate({ pageNumber: 2, pageSize: 20 })).unwrap();
+    expect(mockRequest).toHaveBeenNthCalledWith(1, expect.objectContaining({ url: '/candidate/resume/status' }));
+    expect(mockRequest).toHaveBeenNthCalledWith(2, expect.objectContaining({ params: { pageNumber: 2, pageSize: 20 }, url: '/candidate/jobs/recommended' }));
+  });
+
   it('uses Candidate saved-job endpoints for save and removal', async () => {
     const store = createAppStore();
     mockRequest.mockResolvedValue({ data: undefined });

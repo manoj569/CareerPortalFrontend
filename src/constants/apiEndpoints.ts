@@ -107,6 +107,8 @@ export const API_ENDPOINTS = {
     PROFILE: '/candidate/profile',
     ONBOARDING: '/candidate/onboarding',
     RESUME: '/candidate/resume',
+    RESUME_STATUS: '/candidate/resume/status',
+    RECOMMENDED_JOBS: '/candidate/jobs/recommended',
     SAVED_JOBS: '/candidate/saved-jobs',
     APPLICATION_QUOTA: '/candidate/application-quota',
     SAVED_JOB: (jobId: string) => `/candidate/saved-jobs/${encodeURIComponent(jobId)}`,

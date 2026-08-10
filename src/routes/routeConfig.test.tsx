@@ -1,6 +1,6 @@
 import { isValidElement } from 'react';
 import { describe, expect, it } from 'vitest';
-import type { RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { AdminRoute } from './AdminRoute';
@@ -87,5 +87,14 @@ describe('release route structure', () => {
     expect(rootRoute.errorElement).toBeTruthy();
     expect(rootRoute.children?.some((route) => route.path === '*')).toBe(true);
     expect(rootRoute.children?.some((route) => route.path === ROUTES.UNAUTHORIZED)).toBe(true);
+  });
+
+  it('redirects the legacy resume route to Browse jobs', () => {
+    const candidateGroup = findGuardedGroup(CandidateRoute);
+    const resumeRoute = candidateGroup.children?.flatMap((route) => route.children ?? []).find((route) => route.path === ROUTES.RESUME);
+    expect(isValidElement(resumeRoute?.element)).toBe(true);
+    if (!isValidElement(resumeRoute?.element)) throw new Error('Resume redirect was not found.');
+    expect(resumeRoute.element.type).toBe(Navigate);
+    expect(resumeRoute.element.props).toMatchObject({ replace: true, to: ROUTES.DASHBOARD_JOBS });
   });
 });

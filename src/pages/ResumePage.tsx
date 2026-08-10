@@ -26,25 +26,8 @@ import {
 } from '@/features/dashboard/api/dashboardApi';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { formatDashboardDate } from '@/features/dashboard/utils/dashboardFormatting';
+import { isAllowedResumeExtension, validateResume } from '@/features/dashboard/utils/resumeValidation';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
-
-const MAXIMUM_RESUME_BYTES = 5 * 1024 * 1024;
-const ALLOWED_RESUMES: Record<string, string> = {
-  '.doc': 'application/msword',
-  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  '.pdf': 'application/pdf',
-};
-
-const validateResume = (file: File): string | null => {
-  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-  if (!ALLOWED_RESUMES[extension] || ALLOWED_RESUMES[extension] !== file.type) {
-    return 'Choose a PDF, DOC, or DOCX file.';
-  }
-  if (file.size <= 0 || file.size > MAXIMUM_RESUME_BYTES) {
-    return 'Resume size must be between 1 byte and 5 MB.';
-  }
-  return null;
-};
 
 const formatFileSize = (sizeBytes: number): string =>
   sizeBytes < 1024 * 1024
@@ -53,7 +36,7 @@ const formatFileSize = (sizeBytes: number): string =>
 
 const safeDownloadName = (value: string): string => {
   const extension = value.slice(value.lastIndexOf('.')).toLowerCase();
-  return Object.hasOwn(ALLOWED_RESUMES, extension) ? `resume${extension}` : 'resume.pdf';
+  return isAllowedResumeExtension(value) ? `resume${extension}` : 'resume.pdf';
 };
 
 export const ResumePage = () => {

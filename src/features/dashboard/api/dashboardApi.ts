@@ -17,6 +17,8 @@ import type {
   Membership,
   NotificationPage,
   ResumeMetadata,
+  RecommendedJobsResponse,
+  ResumeStatusResponse,
   SavedJobsPage,
   UpdateCandidateProfileRequest,
   UpdateCandidateOnboardingRequest,
@@ -88,6 +90,18 @@ export const dashboardApi = createApi({
       },
       transformResponse: (response: ApiResponse<ResumeMetadata>) => response.data,
       invalidatesTags: ['Profile', 'Resume'],
+    }),
+    getResumeStatus: builder.query<ResumeStatusResponse, void>({
+      query: () => ({ url: API_ENDPOINTS.CANDIDATE.RESUME_STATUS }),
+      transformResponse: (response: ApiResponse<ResumeStatusResponse>) => response.data,
+      providesTags: ['Resume'],
+    }),
+    getRecommendedJobs: builder.query<
+      RecommendedJobsResponse,
+      { pageNumber: number; pageSize: number }
+    >({
+      query: (params) => ({ params, url: API_ENDPOINTS.CANDIDATE.RECOMMENDED_JOBS }),
+      transformResponse: (response: ApiResponse<RecommendedJobsResponse>) => response.data,
     }),
 
     deleteResume: builder.mutation<void, void>({
@@ -221,6 +235,8 @@ export const {
   useGetOnboardingQuery,
   useGetNotificationsQuery,
   useGetProfileQuery,
+  useGetRecommendedJobsQuery,
+  useGetResumeStatusQuery,
   useGetSavedJobsQuery,
   useLazyGetRecruiterContactQuery,
   useMarkAllNotificationsReadMutation,

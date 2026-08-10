@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
-import type { RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from 'react-router-dom';
 
 import { RouteAccessibility } from '@/components/accessibility/RouteAccessibility';
 import { RouteLoadingFallback } from '@/components/feedback/RouteLoadingFallback';
@@ -126,7 +126,7 @@ export const appRoutes: RouteObject[] = [
               },
               {
                 path: ROUTES.RESUME,
-                element: lazyPage(() => import('@/pages/ResumePage'), 'ResumePage'),
+                element: <Navigate replace to={ROUTES.DASHBOARD_JOBS} />,
               },
               {
                 path: ROUTES.SAVED_JOBS,
