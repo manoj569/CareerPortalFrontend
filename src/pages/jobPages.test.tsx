@@ -371,13 +371,13 @@ describe('jobs listing page', () => {
     );
 
     renderJobsPage(
-      `/jobs?q=react&location=Pune&companyId=${job.companyId}&categoryId=${job.categoryId}&featured=true&workplaceType=remote&page=2&pageSize=20&sort=title-asc`,
+      `/jobs?q=react&location=Pune&companyName=${encodeURIComponent(job.companyName)}&categoryName=${encodeURIComponent(job.categoryName)}&featured=true&workplaceType=remote&page=2&pageSize=20&sort=title-asc`,
     );
 
     await waitFor(() => {
       expect(mockSearchJobs.mock.calls[0]?.[0]).toMatchObject({
-        categoryId: job.categoryId,
-        companyId: job.companyId,
+        categoryName: job.categoryName,
+        companyName: job.companyName,
         isFeatured: true,
         location: 'Pune',
         pageNumber: 2,
@@ -388,6 +388,52 @@ describe('jobs listing page', () => {
         workplaceType: WorkplaceType.Remote,
       });
     });
+  });
+
+  it('applies and clears free-text company and category filters', async () => {
+    renderJobsPage('/jobs?page=2');
+    const visibleInput = (name: string) =>
+      screen
+        .getAllByRole('textbox', { name })
+        .find((element) => !element.closest('[aria-hidden="true"]'))!;
+
+    await userEvent.type(visibleInput('Company name'), '  HARMAN  ');
+    await waitFor(
+      () => expect(screen.getByTestId('location')).toHaveTextContent('companyName=HARMAN'),
+      {
+        timeout: 1_500,
+      },
+    );
+    await userEvent.type(visibleInput('Category name'), 'Artificial Intelligence');
+    await waitFor(
+      () => {
+        const location = screen.getByTestId('location').textContent ?? '';
+        expect(location).toContain('companyName=HARMAN');
+        expect(location).toContain('categoryName=Artificial+Intelligence');
+        expect(location).not.toContain('page=2');
+      },
+      { timeout: 1_500 },
+    );
+    expect(screen.getByText('Company: HARMAN')).toBeVisible();
+    expect(screen.getByText('Category: Artificial Intelligence')).toBeVisible();
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      companyName: 'HARMAN',
+      categoryName: 'Artificial Intelligence',
+      pageNumber: 1,
+    });
+
+    await userEvent.click(screen.getByText('Company: HARMAN').parentElement!.querySelector('svg')!);
+    await waitFor(() => {
+      const location = screen.getByTestId('location').textContent ?? '';
+      expect(location).not.toContain('companyName');
+      expect(location).toContain('categoryName=Artificial+Intelligence');
+    });
+
+    const clearAll = screen
+      .getAllByRole('button', { name: 'Clear all' })
+      .find((element) => !element.closest('[aria-hidden="true"]'))!;
+    await userEvent.click(clearAll);
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/jobs'));
   });
 });
 
@@ -488,7 +534,8 @@ describe('job details page', () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
     submitApplicationUnwrap.mockRejectedValue({
       code: 'MONTHLY_JOB_LIMIT_REACHED',
-      message: "You've reached your monthly application limit of 10 jobs. Upgrade to Premium for more applications.",
+      message:
+        "You've reached your monthly application limit of 10 jobs. Upgrade to Premium for more applications.",
       redirectToMembership: true,
       status: 403,
     });

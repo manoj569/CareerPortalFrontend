@@ -9,7 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -37,12 +37,18 @@ export const LoginPage = () => {
     formState: { errors, isSubmitting },
     handleSubmit,
     register,
+    reset,
     setFocus,
   } = useForm<LoginFormValues>({
     defaultValues: { identifier: '', password: '' },
     mode: 'onTouched',
     resolver: yupResolver(loginSchema),
   });
+
+  // ✅ Clear the form on page load so it's always empty
+  useEffect(() => {
+    reset({ identifier: '', password: '' });
+  }, [reset]);
 
   const submitLogin = async (values: LoginFormValues) => {
     setServerError(null);
@@ -87,7 +93,7 @@ export const LoginPage = () => {
         spacing={2.5}
       >
         <TextField
-          autoComplete="username"
+          autoComplete="off"
           disabled={isSubmitting}
           error={Boolean(errors.identifier)}
           helperText={errors.identifier?.message}
@@ -96,7 +102,7 @@ export const LoginPage = () => {
           {...register('identifier')}
         />
         <PasswordField
-          autoComplete="current-password"
+          autoComplete="current-password" // ✅ FIXED: Pass the required prop
           disabled={isSubmitting}
           errorMessage={errors.password?.message}
           label="Password"
@@ -110,10 +116,6 @@ export const LoginPage = () => {
         </Button>
       </Stack>
 
-      {/* 
-        Removed the Divider and OTP button as requested for production.
-        A small spacer is added below to maintain clean layout.
-      */}
       <Box sx={{ height: 8 }} />
 
       <Typography color="text.secondary" textAlign="center">

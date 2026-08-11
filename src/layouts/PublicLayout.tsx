@@ -4,41 +4,41 @@ import {
   Box,
   Button,
   Container,
+  Divider,
   Drawer,
+  Grid,
   IconButton,
   Stack,
   Toolbar,
   Typography,
 } from '@mui/material';
 import { useRef, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { AppBrand } from '@/components/navigation/AppBrand';
 import { NavigationList } from '@/components/navigation/NavigationList';
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
 import { ROUTES } from '@/constants/routes';
+import { PUBLIC_PAGE_CONTAINER_MAX_WIDTH, PUBLIC_PAGE_GUTTER } from '@/constants/publicLayout';
 import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { UserRole } from '@/types';
 
-const publicNavigation: NavigationItem[] = [
-  { label: 'Home', path: ROUTES.HOME, end: true },
-  { label: 'Jobs', path: ROUTES.JOBS },
-];
-
 export const PublicLayout = () => {
+  const location = useLocation();
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
   const authenticatedHome =
     currentUser?.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD;
+  const isHomePage = location.pathname === ROUTES.HOME;
   const mobileNavigation: NavigationItem[] = isAuthenticated
-    ? [...publicNavigation, { label: 'Dashboard', path: authenticatedHome }]
+    ? [{ label: 'Dashboard', path: authenticatedHome }]
     : [
-        ...publicNavigation,
         { label: 'Log in', path: ROUTES.LOGIN },
         { label: 'Register', path: ROUTES.REGISTER },
+        { label: 'Find jobs', path: ROUTES.JOBS },
       ];
 
   const closeMobileNavigation = (restoreFocus = true) => {
@@ -47,40 +47,19 @@ export const PublicLayout = () => {
   };
 
   return (
-    <Box display="flex" flexDirection="column" minHeight="100vh">
+    <Box display="flex" flexDirection="column" minHeight="100vh" sx={{ overflowX: 'clip' }}>
       <AppBar
         color="inherit"
         elevation={0}
         position="sticky"
-        sx={{ borderBottom: 1, borderColor: 'divider' }}
+        sx={{ bgcolor: 'rgba(255,255,255,.97)', borderBottom: '1px solid rgba(15,23,42,.08)', backdropFilter: 'blur(14px)' }}
       >
-        <Container maxWidth="lg">
-          <Toolbar disableGutters>
+        <Container maxWidth={false} sx={{ maxWidth: PUBLIC_PAGE_CONTAINER_MAX_WIDTH, paddingInline: `${PUBLIC_PAGE_GUTTER} !important` }}>
+          <Toolbar disableGutters sx={{ minHeight: { xs: 74, md: 88 } }}>
             <AppBrand />
             <Stack
-              alignItems="center"
               direction="row"
-              spacing={0.5}
-              sx={{ display: { xs: 'none', md: 'flex' }, ml: 5 }}
-            >
-              {publicNavigation.map(({ end, label, path }) => (
-                <Button
-                  color="inherit"
-                  component={NavLink}
-                  end={end}
-                  key={path}
-                  sx={{
-                    '&.active': { color: 'primary.main', bgcolor: 'action.selected' },
-                  }}
-                  to={path}
-                >
-                  {label}
-                </Button>
-              ))}
-            </Stack>
-            <Stack
-              direction="row"
-              spacing={1}
+              spacing={1.25}
               sx={{ display: { xs: 'none', md: 'flex' }, ml: 'auto' }}
             >
               {isAuthenticated ? (
@@ -89,11 +68,14 @@ export const PublicLayout = () => {
                 </Button>
               ) : (
                 <>
-                  <Button component={NavLink} to={ROUTES.LOGIN}>
+                  <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.LOGIN}>
                     Log in
                   </Button>
-                  <Button component={NavLink} to={ROUTES.REGISTER} variant="contained">
+                  <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.REGISTER}>
                     Register
+                  </Button>
+                  <Button component={NavLink} size="large" sx={{ minHeight: 48, px: 3 }} to={ROUTES.JOBS} variant="contained">
+                    Find jobs
                   </Button>
                 </>
               )}
@@ -141,22 +123,31 @@ export const PublicLayout = () => {
         component="main"
         id="main-content"
         maxWidth="lg"
-        sx={{ flex: 1, minWidth: 0, py: { xs: 4, md: 6 } }}
+        sx={{ flex: 1, minWidth: 0, py: isHomePage ? 0 : { xs: 4, md: 6 } }}
         tabIndex={-1}
       >
         <Outlet />
       </Container>
 
-      <Box
-        component="footer"
-        sx={{ bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider', py: 3 }}
-      >
+      <Box component="footer" sx={{ bgcolor: '#111827', color: 'common.white', mt: { xs: 6, md: 8 }, py: { xs: 6, md: 8 } }}>
         <Container maxWidth="lg">
-          <Typography color="text.secondary" variant="body2">
-            © {new Date().getFullYear()} Career Portal. Build your next chapter.
-          </Typography>
+          <Grid container spacing={{ xs: 4, md: 7 }}>
+            <Grid size={{ xs: 12, md: 5 }}><AppBrand inverse /><Typography sx={{ color: 'rgba(255,255,255,.68)', lineHeight: 1.7, maxWidth: 420, mt: 2 }}>A focused place to discover active jobs, prepare your candidate profile, and manage your job search.</Typography></Grid>
+            <Grid size={{ xs: 6, sm: 4, md: 2 }}><FooterGroup links={[["Browse jobs", ROUTES.JOBS]]} title="Jobs" /></Grid>
+            <Grid size={{ xs: 6, sm: 4, md: 2 }}><FooterGroup links={isAuthenticated && currentUser?.role !== UserRole.Administrator ? [["Dashboard", ROUTES.DASHBOARD], ["Saved jobs", ROUTES.SAVED_JOBS], ["Applications", ROUTES.APPLICATIONS], ["Membership", ROUTES.MEMBERSHIP]] : [["Create account", ROUTES.REGISTER], ["Log in", ROUTES.LOGIN]]} title="Candidates" /></Grid>
+            <Grid size={{ xs: 12, sm: 4, md: 3 }}><FooterGroup links={[["Terms of Use", ROUTES.TERMS_OF_USE], ["Privacy Policy", ROUTES.PRIVACY_POLICY]]} title="Legal" /></Grid>
+          </Grid>
+          <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 4 }} />
+          <Typography sx={{ color: 'rgba(255,255,255,.58)' }} variant="body2">© {new Date().getFullYear()} Career Harbor. All rights reserved.</Typography>
         </Container>
       </Box>
     </Box>
   );
 };
+
+const FooterGroup = ({ links, title }: { links: Array<[string, string]>; title: string }) => (
+  <Stack spacing={1.25}>
+    <Typography fontWeight={800}>{title}</Typography>
+    {links.map(([label, path]) => <Typography component={Link} key={path} sx={{ '&:hover': { color: 'common.white' }, color: 'rgba(255,255,255,.68)', textDecoration: 'none' }} to={path} variant="body2">{label}</Typography>)}
+  </Stack>
+);
