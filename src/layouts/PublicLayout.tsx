@@ -36,9 +36,10 @@ export const PublicLayout = () => {
   const mobileNavigation: NavigationItem[] = isAuthenticated
     ? [{ label: 'Dashboard', path: authenticatedHome }]
     : [
+        { label: 'Home', path: ROUTES.HOME },
+        { label: 'Jobs', path: ROUTES.JOBS },
         { label: 'Log in', path: ROUTES.LOGIN },
         { label: 'Register', path: ROUTES.REGISTER },
-        { label: 'Find jobs', path: ROUTES.JOBS },
       ];
 
   const closeMobileNavigation = (restoreFocus = true) => {
@@ -68,14 +69,17 @@ export const PublicLayout = () => {
                 </Button>
               ) : (
                 <>
+                  <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.HOME}>
+                    Home
+                  </Button>
+                  <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.JOBS}>
+                    Jobs
+                  </Button>
                   <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.LOGIN}>
                     Log in
                   </Button>
-                  <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.REGISTER}>
+                  <Button component={NavLink} size="large" sx={{ minHeight: 48, px: 3 }} to={ROUTES.REGISTER} variant="contained">
                     Register
-                  </Button>
-                  <Button component={NavLink} size="large" sx={{ minHeight: 48, px: 3 }} to={ROUTES.JOBS} variant="contained">
-                    Find jobs
                   </Button>
                 </>
               )}

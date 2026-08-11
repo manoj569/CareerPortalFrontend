@@ -157,8 +157,9 @@ const BenefitsPanel = () => (
 
 export const RegisterPage = () => {
   useDocumentMetadata(
-    'Create a Candidate account | Career Portal',
-    'Register for verified internships and jobs with Career Portal.',
+    'Create Your Career Harbor Account | Career Harbor',
+    'Create a Career Harbor candidate account to save jobs, upload your resume, apply to roles, and track applications.',
+    { canonicalPath: ROUTES.REGISTER, noIndex: false },
   );
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);

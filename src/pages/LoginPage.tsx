@@ -20,6 +20,7 @@ import { login } from '@/features/auth/store/authSlice';
 import { getSafeRedirectPath } from '@/features/auth/utils/safeRedirect';
 import { loginSchema, type LoginFormValues } from '@/features/auth/validation/authSchemas';
 import { useAppDispatch } from '@/hooks/reduxHooks';
+import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { UserRole } from '@/types';
 
 interface LoginLocationState {
@@ -28,6 +29,11 @@ interface LoginLocationState {
 }
 
 export const LoginPage = () => {
+  useDocumentMetadata(
+    'Log in to Your Account | Career Harbor',
+    'Log in to Career Harbor to manage your profile, saved jobs, applications, resume, and personalized recommendations.',
+    { canonicalPath: ROUTES.LOGIN, noIndex: false },
+  );
   const dispatch = useAppDispatch();
   const location = useLocation();
   const navigate = useNavigate();
@@ -119,7 +125,7 @@ export const LoginPage = () => {
       <Box sx={{ height: 8 }} />
 
       <Typography color="text.secondary" textAlign="center">
-        New to Career Portal?{' '}
+        New to Career Harbor?{' '}
         <MuiLink component={Link} to={ROUTES.REGISTER}>
           Create an account
         </MuiLink>

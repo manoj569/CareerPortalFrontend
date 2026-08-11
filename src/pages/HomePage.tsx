@@ -45,6 +45,7 @@ import type { PopularCompany, PublicJobSummary } from '@/features/jobs/types/job
 import { emptyJobSearchState, serializeJobSearchState } from '@/features/jobs/utils/jobSearchParams';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { useStructuredData } from '@/hooks/useStructuredData';
 import { UserRole } from '@/types';
 
 const featurePanels = [
@@ -83,12 +84,31 @@ const companyShowcase: PopularCompany[] = [
 const wideSectionStyles = { left: 'calc((100% - 100vw) / 2)', position: 'relative' as const, width: '100vw' };
 const wideContainerStyles = { maxWidth: PUBLIC_PAGE_CONTAINER_MAX_WIDTH, paddingInline: `${PUBLIC_PAGE_GUTTER} !important` };
 
+const homeStructuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      alternateName: 'Career Portal',
+      name: 'Career Harbor',
+      url: 'https://careerharbor.in/',
+    },
+    {
+      '@type': 'Organization',
+      logo: 'https://careerharbor.in/favicon.svg',
+      name: 'Career Harbor',
+      url: 'https://careerharbor.in/',
+    },
+  ],
+};
+
 export const HomePage = () => {
   useDocumentMetadata(
-    'Career Harbor | Search jobs and build your career',
-    'Discover active jobs across India, filter opportunities by your goals, and manage your candidate profile, resume, saved jobs, and applications.',
-    { canonicalPath: ROUTES.HOME },
+    'Career Harbor | Find Jobs and Build Your Career',
+    'Discover verified job opportunities, upload your resume, get personalized recommendations, and track applications with Career Harbor.',
+    { canonicalPath: ROUTES.HOME, noIndex: false },
   );
+  useStructuredData('career-harbor-home-structured-data', homeStructuredData);
   const navigate = useNavigate();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectCurrentUser);

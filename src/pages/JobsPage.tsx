@@ -42,9 +42,9 @@ import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 export const JobsPage = () => {
   useDocumentMetadata(
-    'Find jobs | Career Portal',
-    'Search published career opportunities by keyword, location, job type, work mode, and experience level.',
-    { canonicalPath: ROUTES.JOBS },
+    'Find Jobs and Career Opportunities | Career Harbor',
+    'Search active jobs by keyword, company, category, location, work mode, employment type, and experience level at Career Harbor.',
+    { canonicalPath: ROUTES.JOBS, noIndex: false },
   );
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -188,7 +188,7 @@ export const JobsPage = () => {
           Find your next opportunity
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1 }}>
-          Search active, published roles from employers across the Career Portal.
+          Search active, published roles from employers across Career Harbor.
         </Typography>
       </Box>
 

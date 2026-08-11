@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -45,6 +45,41 @@ describe('premium public homepage', () => {
     expect(screen.getByRole('link', { name: 'View details for React Engineer at Northstar Labs' })).toHaveAttribute('href', '/jobs/react-engineer');
     expect(screen.getAllByRole('link', { name: /Northstar Labs/ })[0]).toHaveAttribute('href', '/jobs?companyName=Northstar%20Labs');
     expect(screen.queryByText(/AI interviewer|proof.of.work|candidate ranking/i)).toBeNull();
+  });
+
+  it('publishes the preferred homepage metadata and structured brand data', async () => {
+    const router = createMemoryRouter([{ path: '/', element: <HomePage /> }], { initialEntries: ['/'] });
+    const view = renderWithProviders(<RouterProvider router={router} />);
+
+    await waitFor(() =>
+      expect(document.title).toBe('Career Harbor | Find Jobs and Build Your Career'),
+    );
+    expect(document.querySelector('meta[name="description"]')).toHaveAttribute(
+      'content',
+      'Discover verified job opportunities, upload your resume, get personalized recommendations, and track applications with Career Harbor.',
+    );
+    const script = document.getElementById('career-harbor-home-structured-data');
+    expect(script).toHaveAttribute('type', 'application/ld+json');
+    expect(JSON.parse(script?.textContent ?? '{}')).toEqual({
+      '@context': 'https://schema.org',
+      '@graph': [
+        expect.objectContaining({
+          '@type': 'WebSite',
+          alternateName: 'Career Portal',
+          name: 'Career Harbor',
+          url: 'https://careerharbor.in/',
+        }),
+        expect.objectContaining({
+          '@type': 'Organization',
+          logo: 'https://careerharbor.in/favicon.svg',
+          name: 'Career Harbor',
+          url: 'https://careerharbor.in/',
+        }),
+      ],
+    });
+
+    view.unmount();
+    expect(document.getElementById('career-harbor-home-structured-data')).toBeNull();
   });
 
   it('keeps the wide discovery panel complete when the job API is unavailable', () => {

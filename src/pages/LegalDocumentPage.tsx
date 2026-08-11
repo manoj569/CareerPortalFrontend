@@ -178,13 +178,15 @@ const privacySections: LegalSection[] = [
 ];
 
 interface LegalDocumentPageProps {
+  canonicalPath: string;
+  description: string;
   title: string;
   introduction: string;
   sections: LegalSection[];
 }
 
-const LegalDocumentPage = ({ introduction, sections, title }: LegalDocumentPageProps) => {
-  useDocumentMetadata(`${title} | Career Harbor`, `Read the Career Harbor ${title}.`);
+const LegalDocumentPage = ({ canonicalPath, description, introduction, sections, title }: LegalDocumentPageProps) => {
+  useDocumentMetadata(`${title} | Career Harbor`, description, { canonicalPath, noIndex: false });
 
   return (
     <Stack spacing={3} sx={{ maxWidth: 900, mx: 'auto' }}>
@@ -242,6 +244,8 @@ const LegalDocumentPage = ({ introduction, sections, title }: LegalDocumentPageP
 
 export const TermsOfUsePage = () => (
   <LegalDocumentPage
+    canonicalPath={ROUTES.TERMS_OF_USE}
+    description="Read the terms that govern Career Harbor candidate accounts, job applications, acceptable use, membership, and platform access."
     introduction="Please read these original Career Harbor Terms before creating or using an account."
     sections={termsSections}
     title="Terms of Use"
@@ -250,6 +254,8 @@ export const TermsOfUsePage = () => (
 
 export const PrivacyPolicyPage = () => (
   <LegalDocumentPage
+    canonicalPath={ROUTES.PRIVACY_POLICY}
+    description="Learn how Career Harbor collects, uses, stores, and shares candidate information, resumes, applications, and essential account data."
     introduction="This Policy explains how Career Harbor handles personal information when you use the portal."
     sections={privacySections}
     title="Privacy Policy"

@@ -146,11 +146,10 @@ describe('Step 9 accessibility and navigation smoke checks', () => {
     const trigger = screen.getByRole('button', { name: 'Open main navigation' });
     const header = screen.getByRole('banner');
     expect(within(header).getByRole('link', { name: 'Career Harbor home' })).toHaveAttribute('href', '/');
-    expect(within(header).queryByRole('link', { name: 'Home' })).toBeNull();
-    expect(within(header).queryByRole('link', { name: 'Jobs' })).toBeNull();
+    expect(within(header).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(within(header).getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/jobs');
     expect(within(header).getByRole('link', { name: 'Log in' })).toBeInTheDocument();
     expect(within(header).getByRole('link', { name: 'Register' })).toBeInTheDocument();
-    expect(within(header).getByRole('link', { name: 'Find jobs' })).toBeInTheDocument();
     await user.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByLabelText('Main navigation drawer')).toContainElement(
@@ -176,7 +175,7 @@ describe('Step 9 accessibility and navigation smoke checks', () => {
 
     await user.click(screen.getByRole('button', { name: 'Open main navigation' }));
     const mobileNavigation = screen.getByLabelText('Main navigation drawer');
-    await user.click(within(mobileNavigation).getByRole('link', { name: 'Find jobs' }));
+    await user.click(within(mobileNavigation).getByRole('link', { name: 'Jobs' }));
 
     const heading = await screen.findByRole('heading', { level: 1, name: 'Jobs listing' });
     expect(screen.getByRole('button', { name: 'Open main navigation' })).toHaveAttribute(

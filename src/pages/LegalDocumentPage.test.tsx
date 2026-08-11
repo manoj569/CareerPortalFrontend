@@ -32,6 +32,11 @@ describe('static legal document pages', () => {
     );
     expect(legalMocks.getTermsOfUse).not.toHaveBeenCalled();
     expect(legalMocks.getPrivacyPolicy).not.toHaveBeenCalled();
+    expect(document.title).toBe('Terms of Use | Career Harbor');
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://careerharbor.in/terms-of-use',
+    );
   });
 
   it('renders the original Privacy Policy independently with different content', () => {
@@ -43,6 +48,7 @@ describe('static legal document pages', () => {
     expect(screen.queryByText(/Purpose of Career Harbor/)).toBeNull();
     expect(legalMocks.getTermsOfUse).not.toHaveBeenCalled();
     expect(legalMocks.getPrivacyPolicy).not.toHaveBeenCalled();
+    expect(document.title).toBe('Privacy Policy | Career Harbor');
   });
 
   it('provides separate in-page tables of contents', () => {
