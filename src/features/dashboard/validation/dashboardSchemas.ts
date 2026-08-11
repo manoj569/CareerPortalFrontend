@@ -2,6 +2,7 @@ import * as yup from 'yup';
 
 import { passwordSchema } from '@/features/auth/validation/authSchemas';
 import { EmploymentType } from '@/features/jobs/types/jobModels';
+import type { CandidateSkillProficiency } from '../types/dashboardModels';
 
 export interface ProfileFormValues {
   headline: string;
@@ -15,11 +16,67 @@ export interface ProfileFormValues {
   preferredJobTypes: EmploymentType[];
 }
 
+export type AdditionalProfileFormValues = Omit<ProfileFormValues, 'bio' | 'headline'>;
+
 export interface ChangePasswordFormValues {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
+
+export interface CandidateAboutFormValues {
+  profileSummary: string;
+  resumeHeadline: string;
+}
+
+export interface CandidateSkillFormValues {
+  name: string;
+  proficiency: '' | CandidateSkillProficiency;
+  yearsOfExperience: string;
+}
+
+export const candidateAboutSchema: yup.ObjectSchema<CandidateAboutFormValues> = yup.object({
+  profileSummary: yup
+    .string()
+    .defined()
+    .trim()
+    .max(2000, 'Profile summary must be no more than 2,000 characters.'),
+  resumeHeadline: yup
+    .string()
+    .defined()
+    .trim()
+    .max(180, 'Resume headline must be no more than 180 characters.'),
+});
+
+const skillProficiencies: CandidateSkillFormValues['proficiency'][] = [
+  '',
+  'Beginner',
+  'Intermediate',
+  'Advanced',
+  'Expert',
+];
+
+export const candidateSkillSchema: yup.ObjectSchema<CandidateSkillFormValues> = yup.object({
+  name: yup
+    .string()
+    .defined()
+    .trim()
+    .required('Skill name is required.')
+    .max(100, 'Skill name must be no more than 100 characters.'),
+  proficiency: yup
+    .mixed<CandidateSkillFormValues['proficiency']>()
+    .oneOf(skillProficiencies)
+    .defined(),
+  yearsOfExperience: yup
+    .string()
+    .defined()
+    .test('number', 'Enter a valid number.', (value) => !value || Number.isFinite(Number(value)))
+    .test('range', 'Years of experience must be between 0 and 50.', (value) => {
+      if (!value) return true;
+      const years = Number(value);
+      return years >= 0 && years <= 50;
+    }),
+});
 
 const isOptionalHttpUrl = (value?: string): boolean => {
   if (!value?.trim()) return true;
@@ -91,6 +148,9 @@ export const profileSchema: yup.ObjectSchema<ProfileFormValues> = yup.object({
     .defined()
     .max(10, 'Select no more than 10 job types'),
 });
+
+export const additionalProfileSchema: yup.ObjectSchema<AdditionalProfileFormValues> =
+  profileSchema.omit(['bio', 'headline']);
 
 export const splitLines = (value: string): string[] =>
   value

@@ -11,6 +11,9 @@ import type {
   ApplicationsPage,
   ApplicationsQuery,
   CandidateOnboarding,
+  CandidateProfileCompletion,
+  CandidateAboutResponse,
+  CandidateSkill,
   ChangePasswordRequest,
   CreateJobApplicationRequest,
   DashboardQuery,
@@ -22,7 +25,9 @@ import type {
   ResumeStatusResponse,
   SavedJobsPage,
   UpdateCandidateProfileRequest,
+  UpdateCandidateAboutRequest,
   UpdateCandidateOnboardingRequest,
+  UpsertCandidateSkillRequest,
   UserProfile,
 } from '../types/dashboardModels';
 
@@ -36,6 +41,8 @@ export const dashboardApi = createApi({
   keepUnusedDataFor: 120,
   tagTypes: [
     'Profile',
+    'ProfileCompletion',
+    'ProfileSkills',
     'Onboarding',
     'Resume',
     'SavedJobs',
@@ -59,7 +66,60 @@ export const dashboardApi = createApi({
         url: API_ENDPOINTS.CANDIDATE.PROFILE,
       }),
       transformResponse: (response: ApiResponse<UserProfile>) => response.data,
-      invalidatesTags: ['Profile'],
+      invalidatesTags: ['Profile', 'ProfileCompletion'],
+    }),
+
+    updateCandidateAbout: builder.mutation<CandidateAboutResponse, UpdateCandidateAboutRequest>({
+      query: (data) => ({
+        data,
+        method: 'PUT',
+        url: API_ENDPOINTS.CANDIDATE.PROFILE_ABOUT,
+      }),
+      transformResponse: (response: ApiResponse<CandidateAboutResponse>) => response.data,
+      invalidatesTags: ['Profile', 'ProfileCompletion'],
+    }),
+
+    getCandidateSkills: builder.query<CandidateSkill[], void>({
+      query: () => ({ url: API_ENDPOINTS.CANDIDATE.PROFILE_SKILLS }),
+      transformResponse: (response: ApiResponse<CandidateSkill[]>) => response.data,
+      providesTags: ['ProfileSkills'],
+    }),
+
+    addCandidateSkill: builder.mutation<CandidateSkill, UpsertCandidateSkillRequest>({
+      query: (data) => ({
+        data,
+        method: 'POST',
+        url: API_ENDPOINTS.CANDIDATE.PROFILE_SKILLS,
+      }),
+      transformResponse: (response: ApiResponse<CandidateSkill>) => response.data,
+      invalidatesTags: ['ProfileSkills', 'ProfileCompletion'],
+    }),
+
+    updateCandidateSkill: builder.mutation<
+      CandidateSkill,
+      { data: UpsertCandidateSkillRequest; skillId: string }
+    >({
+      query: ({ data, skillId }) => ({
+        data,
+        method: 'PUT',
+        url: API_ENDPOINTS.CANDIDATE.PROFILE_SKILL(skillId),
+      }),
+      transformResponse: (response: ApiResponse<CandidateSkill>) => response.data,
+      invalidatesTags: ['ProfileSkills', 'ProfileCompletion'],
+    }),
+
+    deleteCandidateSkill: builder.mutation<void, string>({
+      query: (skillId) => ({
+        method: 'DELETE',
+        url: API_ENDPOINTS.CANDIDATE.PROFILE_SKILL(skillId),
+      }),
+      invalidatesTags: ['ProfileSkills', 'ProfileCompletion'],
+    }),
+
+    getProfileCompletion: builder.query<CandidateProfileCompletion, void>({
+      query: () => ({ url: API_ENDPOINTS.CANDIDATE.PROFILE_COMPLETION }),
+      transformResponse: (response: ApiResponse<CandidateProfileCompletion>) => response.data,
+      providesTags: ['ProfileCompletion'],
     }),
 
     getOnboarding: builder.query<CandidateOnboarding, void>({
@@ -75,7 +135,7 @@ export const dashboardApi = createApi({
         url: API_ENDPOINTS.CANDIDATE.ONBOARDING,
       }),
       transformResponse: (response: ApiResponse<CandidateOnboarding>) => response.data,
-      invalidatesTags: ['Onboarding', 'Profile'],
+      invalidatesTags: ['Onboarding', 'Profile', 'ProfileCompletion'],
     }),
 
     uploadResume: builder.mutation<ResumeMetadata, File>({
@@ -90,7 +150,7 @@ export const dashboardApi = createApi({
         };
       },
       transformResponse: (response: ApiResponse<ResumeMetadata>) => response.data,
-      invalidatesTags: ['Profile', 'Resume'],
+      invalidatesTags: ['Profile', 'Resume', 'ProfileCompletion'],
     }),
     getResumeStatus: builder.query<ResumeStatusResponse, void>({
       query: () => ({ url: API_ENDPOINTS.CANDIDATE.RESUME_STATUS }),
@@ -110,7 +170,7 @@ export const dashboardApi = createApi({
         method: 'DELETE',
         url: API_ENDPOINTS.CANDIDATE.RESUME,
       }),
-      invalidatesTags: ['Profile', 'Resume'],
+      invalidatesTags: ['Profile', 'Resume', 'ProfileCompletion'],
     }),
 
     getMemberships: builder.query<Membership[], void>({
@@ -227,15 +287,19 @@ export const dashboardApi = createApi({
 });
 
 export const {
+  useAddCandidateSkillMutation,
   useChangePasswordMutation,
+  useDeleteCandidateSkillMutation,
   useDeleteResumeMutation,
   useGetApplicationQuery,
   useGetApplicationQuotaQuery,
   useGetApplicationsQuery,
+  useGetCandidateSkillsQuery,
   useGetMembershipsQuery,
   useGetOnboardingQuery,
   useGetNotificationsQuery,
   useGetProfileQuery,
+  useGetProfileCompletionQuery,
   useGetRecommendedJobsQuery,
   useGetResumeStatusQuery,
   useGetSavedJobsQuery,
@@ -246,6 +310,8 @@ export const {
   useSaveJobMutation,
   useSubmitApplicationMutation,
   useUpdateOnboardingMutation,
+  useUpdateCandidateAboutMutation,
+  useUpdateCandidateSkillMutation,
   useUpdateProfileMutation,
   useUploadResumeMutation,
   useWithdrawApplicationMutation,

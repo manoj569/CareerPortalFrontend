@@ -105,6 +105,11 @@ export const API_ENDPOINTS = {
   },
   CANDIDATE: {
     PROFILE: '/candidate/profile',
+    PROFILE_ABOUT: '/candidate/profile/about',
+    PROFILE_SKILLS: '/candidate/profile/skills',
+    PROFILE_SKILL: (skillId: string) =>
+      `/candidate/profile/skills/${encodeURIComponent(skillId)}`,
+    PROFILE_COMPLETION: '/candidate/profile/completion',
     ONBOARDING: '/candidate/onboarding',
     RESUME: '/candidate/resume',
     RESUME_STATUS: '/candidate/resume/status',

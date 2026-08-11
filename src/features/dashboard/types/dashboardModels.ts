@@ -83,6 +83,46 @@ export interface UpdateCandidateProfileRequest {
   preferredJobTypes: EmploymentType[];
 }
 
+export interface CandidateAboutResponse {
+  profileSummary: string | null;
+  resumeHeadline: string | null;
+}
+
+export interface UpdateCandidateAboutRequest {
+  profileSummary: string | null;
+  resumeHeadline: string | null;
+}
+
+export type CandidateSkillProficiency = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+
+export interface CandidateSkill {
+  createdAtUtc: string;
+  id: string;
+  name: string;
+  proficiency: CandidateSkillProficiency | null;
+  updatedAtUtc: string | null;
+  yearsOfExperience: number | null;
+}
+
+export interface UpsertCandidateSkillRequest {
+  name: string;
+  proficiency: CandidateSkillProficiency | null;
+  yearsOfExperience: number | null;
+}
+
+export interface ProfileSectionCompletion {
+  isCompleted: boolean;
+  section: string;
+  weight: number;
+}
+
+export interface CandidateProfileCompletion {
+  completedSections: string[];
+  completionPercentage: number;
+  missingSections: string[];
+  sections: ProfileSectionCompletion[];
+}
+
 export enum CareerStage {
   Student = 1,
   Fresher,

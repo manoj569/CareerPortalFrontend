@@ -1,17 +1,25 @@
 import {
   downloadCandidateResume,
+  useAddCandidateSkillMutation,
   useChangePasswordMutation,
+  useDeleteCandidateSkillMutation,
   useDeleteResumeMutation,
   useGetApplicationQuery,
   useGetApplicationsQuery,
+  useGetCandidateSkillsQuery,
   useGetMembershipsQuery,
+  useGetOnboardingQuery,
   useGetNotificationsQuery,
   useGetProfileQuery,
+  useGetProfileCompletionQuery,
+  useGetResumeStatusQuery,
   useGetSavedJobsQuery,
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   useRemoveSavedJobMutation,
   useSaveJobMutation,
+  useUpdateCandidateAboutMutation,
+  useUpdateCandidateSkillMutation,
   useUploadResumeMutation,
   useUpdateProfileMutation,
   useWithdrawApplicationMutation,
@@ -55,18 +63,26 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
   return {
     ...actual,
     downloadCandidateResume: vi.fn(),
+    useAddCandidateSkillMutation: vi.fn(),
     useChangePasswordMutation: vi.fn(),
+    useDeleteCandidateSkillMutation: vi.fn(),
     useDeleteResumeMutation: vi.fn(),
     useGetApplicationQuery: vi.fn(),
     useGetApplicationsQuery: vi.fn(),
+    useGetCandidateSkillsQuery: vi.fn(),
     useGetMembershipsQuery: vi.fn(),
+    useGetOnboardingQuery: vi.fn(),
     useGetNotificationsQuery: vi.fn(),
     useGetProfileQuery: vi.fn(),
+    useGetProfileCompletionQuery: vi.fn(),
+    useGetResumeStatusQuery: vi.fn(),
     useGetSavedJobsQuery: vi.fn(),
     useMarkAllNotificationsReadMutation: vi.fn(),
     useMarkNotificationReadMutation: vi.fn(),
     useRemoveSavedJobMutation: vi.fn(),
     useSaveJobMutation: vi.fn(),
+    useUpdateCandidateAboutMutation: vi.fn(),
+    useUpdateCandidateSkillMutation: vi.fn(),
     useUploadResumeMutation: vi.fn(),
     useUpdateProfileMutation: vi.fn(),
     useWithdrawApplicationMutation: vi.fn(),
@@ -74,12 +90,20 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
 });
 
 const mockProfile = vi.mocked(useGetProfileQuery);
+const mockCompletion = vi.mocked(useGetProfileCompletionQuery);
+const mockCandidateSkills = vi.mocked(useGetCandidateSkillsQuery);
+const mockOnboarding = vi.mocked(useGetOnboardingQuery);
+const mockResumeStatus = vi.mocked(useGetResumeStatusQuery);
 const mockApplication = vi.mocked(useGetApplicationQuery);
 const mockSavedJobs = vi.mocked(useGetSavedJobsQuery);
 const mockApplications = vi.mocked(useGetApplicationsQuery);
 const mockMemberships = vi.mocked(useGetMembershipsQuery);
 const mockNotifications = vi.mocked(useGetNotificationsQuery);
 const mockUpdateProfile = vi.mocked(useUpdateProfileMutation);
+const mockUpdateAbout = vi.mocked(useUpdateCandidateAboutMutation);
+const mockAddSkill = vi.mocked(useAddCandidateSkillMutation);
+const mockUpdateSkill = vi.mocked(useUpdateCandidateSkillMutation);
+const mockDeleteSkill = vi.mocked(useDeleteCandidateSkillMutation);
 const mockUploadResume = vi.mocked(useUploadResumeMutation);
 const mockDownloadResume = vi.mocked(downloadCandidateResume);
 const mockDeleteResume = vi.mocked(useDeleteResumeMutation);
@@ -236,6 +260,30 @@ const renderApplicationDetails = () =>
 beforeEach(() => {
   refetch.mockReset();
   mockProfile.mockReturnValue(queryResult({ data: profile }));
+  mockCompletion.mockReturnValue(
+    queryResult({
+      data: {
+        completedSections: ['basicDetails', 'resumeHeadline', 'profileSummary', 'skills'],
+        completionPercentage: 60,
+        missingSections: ['resume', 'careerPreferences'],
+        sections: [
+          { isCompleted: true, section: 'basicDetails', weight: 15 },
+          { isCompleted: true, section: 'resumeHeadline', weight: 10 },
+          { isCompleted: true, section: 'profileSummary', weight: 15 },
+          { isCompleted: true, section: 'skills', weight: 20 },
+          { isCompleted: false, section: 'resume', weight: 20 },
+          { isCompleted: false, section: 'careerPreferences', weight: 20 },
+        ],
+      },
+    }),
+  );
+  mockCandidateSkills.mockReturnValue(queryResult({ data: [] }));
+  mockOnboarding.mockReturnValue(queryResult());
+  mockResumeStatus.mockReturnValue(
+    queryResult({
+      data: { extractedAtUtc: null, extractionStatus: 0, hasResume: false, message: '' },
+    }),
+  );
   mockSavedJobs.mockReturnValue(
     queryResult({
       data: { items: [], pageNumber: 1, pageSize: 12, totalCount: 0, totalPages: 0 },
@@ -258,6 +306,18 @@ beforeEach(() => {
   );
   mockUpdateProfile.mockReturnValue(
     mutationResult(profile).tuple as unknown as ReturnType<typeof useUpdateProfileMutation>,
+  );
+  mockUpdateAbout.mockReturnValue(
+    mutationResult().tuple as unknown as ReturnType<typeof useUpdateCandidateAboutMutation>,
+  );
+  mockAddSkill.mockReturnValue(
+    mutationResult().tuple as unknown as ReturnType<typeof useAddCandidateSkillMutation>,
+  );
+  mockUpdateSkill.mockReturnValue(
+    mutationResult().tuple as unknown as ReturnType<typeof useUpdateCandidateSkillMutation>,
+  );
+  mockDeleteSkill.mockReturnValue(
+    mutationResult().tuple as unknown as ReturnType<typeof useDeleteCandidateSkillMutation>,
   );
   mockUploadResume.mockReturnValue(
     mutationResult().tuple as unknown as ReturnType<typeof useUploadResumeMutation>,
@@ -332,22 +392,22 @@ describe('candidate dashboard pages', () => {
     expect(screen.getByLabelText('Loading candidate dashboard')).toBeInTheDocument();
   });
 
-  it('updates candidate profile fields through the Candidate API', async () => {
-    const updated = { ...profile, headline: 'Principal frontend engineer' };
+  it('keeps existing additional profile updates through the Candidate API', async () => {
+    const updated = { ...profile, location: 'Bengaluru' };
     const mutation = mutationResult(updated);
     mockUpdateProfile.mockReturnValue(
       mutation.tuple as unknown as ReturnType<typeof useUpdateProfileMutation>,
     );
     renderPage(<ProfilePage />);
 
-    const headline = screen.getByRole('textbox', { name: 'Professional headline' });
-    await userEvent.clear(headline);
-    await userEvent.type(headline, 'Principal frontend engineer');
-    await userEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+    const location = screen.getByRole('textbox', { name: 'Current location' });
+    await userEvent.clear(location);
+    await userEvent.type(location, 'Bengaluru');
+    await userEvent.click(screen.getByRole('button', { name: 'Save additional details' }));
 
     await waitFor(() => {
       expect(mutation.trigger).toHaveBeenCalledWith(
-        expect.objectContaining({ headline: 'Principal frontend engineer' }),
+        expect.objectContaining({ location: 'Bengaluru' }),
       );
     });
   });

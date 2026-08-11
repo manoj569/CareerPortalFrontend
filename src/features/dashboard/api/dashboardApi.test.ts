@@ -81,6 +81,113 @@ describe('Candidate API integration', () => {
     );
   });
 
+  it('uses the exact Candidate about and completion contracts', async () => {
+    const store = createAppStore();
+    mockRequest
+      .mockResolvedValueOnce({
+        data: { data: { profileSummary: 'Builds accessible products.', resumeHeadline: 'Frontend engineer' } },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          data: {
+            completedSections: ['basicDetails'],
+            completionPercentage: 15,
+            missingSections: ['resumeHeadline'],
+            sections: [{ isCompleted: true, section: 'basicDetails', weight: 15 }],
+          },
+        },
+      });
+
+    await store
+      .dispatch(
+        dashboardApi.endpoints.updateCandidateAbout.initiate({
+          profileSummary: 'Builds accessible products.',
+          resumeHeadline: 'Frontend engineer',
+        }),
+      )
+      .unwrap();
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: {
+          profileSummary: 'Builds accessible products.',
+          resumeHeadline: 'Frontend engineer',
+        },
+        method: 'PUT',
+        url: '/candidate/profile/about',
+      }),
+    );
+
+    await store.dispatch(dashboardApi.endpoints.getProfileCompletion.initiate()).unwrap();
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ method: 'GET', url: '/candidate/profile/completion' }),
+    );
+  });
+
+  it('uses exact structured skill CRUD contracts and accepts an empty 204 delete response', async () => {
+    const store = createAppStore();
+    const skill = {
+      createdAtUtc: '2026-08-12T00:00:00Z',
+      id: 'skill-id',
+      name: 'ASP.NET Core',
+      proficiency: 'Advanced',
+      updatedAtUtc: null,
+      yearsOfExperience: 3.5,
+    };
+    const request = {
+      name: 'ASP.NET Core',
+      proficiency: 'Advanced' as const,
+      yearsOfExperience: 3.5,
+    };
+    mockRequest
+      .mockResolvedValueOnce({ data: { data: [skill] } })
+      .mockResolvedValueOnce({ data: { data: skill } })
+      .mockResolvedValueOnce({ data: { data: { ...skill, proficiency: 'Expert' } } })
+      .mockResolvedValueOnce({ data: undefined, status: 204 });
+
+    const skillsSubscription = store.dispatch(
+      dashboardApi.endpoints.getCandidateSkills.initiate(),
+    );
+    await skillsSubscription.unwrap();
+    skillsSubscription.unsubscribe();
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ method: 'GET', url: '/candidate/profile/skills' }),
+    );
+
+    await store.dispatch(dashboardApi.endpoints.addCandidateSkill.initiate(request)).unwrap();
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ data: request, method: 'POST', url: '/candidate/profile/skills' }),
+    );
+
+    await store
+      .dispatch(
+        dashboardApi.endpoints.updateCandidateSkill.initiate({
+          data: { ...request, proficiency: 'Expert' },
+          skillId: 'skill/id',
+        }),
+      )
+      .unwrap();
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        data: { ...request, proficiency: 'Expert' },
+        method: 'PUT',
+        url: '/candidate/profile/skills/skill%2Fid',
+      }),
+    );
+
+    await expect(
+      store.dispatch(dashboardApi.endpoints.deleteCandidateSkill.initiate('skill/id')).unwrap(),
+    ).resolves.toBeUndefined();
+    expect(mockRequest).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({ method: 'DELETE', url: '/candidate/profile/skills/skill%2Fid' }),
+    );
+  });
+
   it('loads and saves the real Candidate onboarding contract', async () => {
     const store = createAppStore();
     const onboarding = {

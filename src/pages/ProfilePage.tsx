@@ -1,339 +1,324 @@
-import { yupResolver } from '@hookform/resolvers/yup';
 import {
   Alert,
+  Box,
   Button,
   Chip,
-  FormControl,
-  FormHelperText,
-  Grid,
-  InputLabel,
-  MenuItem,
-  OutlinedInput,
+  LinearProgress,
   Paper,
-  Select,
   Skeleton,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
-import { enqueueSnackbar } from 'notistack';
-import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 
-import { applyApiValidationErrors } from '@/api/formErrors';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { ROUTES } from '@/constants/routes';
 import {
-  isDashboardApiError,
+  useGetOnboardingQuery,
+  useGetProfileCompletionQuery,
   useGetProfileQuery,
-  useUpdateProfileMutation,
 } from '@/features/dashboard/api/dashboardApi';
+import {
+  AdditionalProfileDetailsCard,
+  type AdditionalProfileDetailsCardHandle,
+} from '@/features/dashboard/components/AdditionalProfileDetailsCard';
+import {
+  CandidateAboutCard,
+  type CandidateAboutCardHandle,
+} from '@/features/dashboard/components/CandidateAboutCard';
+import {
+  CandidateResumeCard,
+  type CandidateResumeCardHandle,
+} from '@/features/dashboard/components/CandidateResumeCard';
+import {
+  CandidateSkillsCard,
+  type CandidateSkillsCardHandle,
+} from '@/features/dashboard/components/CandidateSkillsCard';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import {
-  profileSchema,
-  splitLines,
-  splitList,
-  type ProfileFormValues,
-} from '@/features/dashboard/validation/dashboardSchemas';
-import {
-  employmentTypeOptions,
-  getEmploymentTypeLabel,
-} from '@/features/jobs/constants/jobOptions';
+  CareerStage,
+  DesiredOpportunity,
+  WorkPreference,
+  type CandidateOnboarding,
+  type CandidateProfileCompletion,
+} from '@/features/dashboard/types/dashboardModels';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
-const emptyProfile: ProfileFormValues = {
-  bio: '',
-  education: '',
-  experience: '',
-  headline: '',
-  linkedInUrl: '',
-  location: '',
-  portfolioUrl: '',
-  preferredJobTypes: [],
-  skills: '',
+const sectionLabels: Record<string, string> = {
+  basicDetails: 'Basic candidate details',
+  careerPreferences: 'Career preferences',
+  profileSummary: 'Profile summary',
+  resume: 'Resume',
+  resumeHeadline: 'Resume headline',
+  skills: 'Key skills',
 };
 
 export const ProfilePage = () => {
   useDocumentMetadata(
-    'Candidate profile | Career Portal',
-    'Review and update your Career Portal candidate profile.',
+    'Candidate Profile | Career Harbor',
+    'Complete and maintain your Career Harbor candidate profile, resume, skills, and career preferences.',
   );
-  const { data: profile, isError, isLoading, refetch } = useGetProfileQuery();
-  const [updateProfile] = useUpdateProfileMutation();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const {
-    control,
-    formState: { errors, isDirty, isSubmitting },
-    handleSubmit,
-    register,
-    reset,
-    setError,
-    setFocus,
-  } = useForm<ProfileFormValues>({
-    defaultValues: emptyProfile,
-    mode: 'onTouched',
-    resolver: yupResolver(profileSchema),
-  });
+  const profile = useGetProfileQuery();
+  const completion = useGetProfileCompletionQuery();
+  const onboarding = useGetOnboardingQuery();
+  const aboutRef = useRef<CandidateAboutCardHandle>(null);
+  const skillsRef = useRef<CandidateSkillsCardHandle>(null);
+  const resumeRef = useRef<CandidateResumeCardHandle>(null);
+  const additionalDetailsRef = useRef<AdditionalProfileDetailsCardHandle>(null);
 
-  useEffect(() => {
-    if (!profile) return;
-    reset({
-      bio: profile.bio ?? '',
-      education: profile.education.join('\n'),
-      experience: profile.experience.join('\n'),
-      headline: profile.headline ?? '',
-      linkedInUrl: profile.linkedInUrl ?? '',
-      location: profile.location ?? '',
-      portfolioUrl: profile.portfolioUrl ?? '',
-      preferredJobTypes: profile.preferredJobTypes,
-      skills: profile.skills.join(', '),
-    });
-  }, [profile, reset]);
-
-  const submitProfile = async (values: ProfileFormValues) => {
-    setServerError(null);
-    try {
-      const updated = await updateProfile({
-        bio: values.bio.trim() || null,
-        education: splitLines(values.education),
-        experience: splitLines(values.experience),
-        headline: values.headline.trim() || null,
-        linkedInUrl: values.linkedInUrl.trim() || null,
-        location: values.location.trim() || null,
-        portfolioUrl: values.portfolioUrl.trim() || null,
-        preferredJobTypes: values.preferredJobTypes,
-        skills: splitList(values.skills),
-      }).unwrap();
-      reset({
-        bio: updated.bio ?? '',
-        education: updated.education.join('\n'),
-        experience: updated.experience.join('\n'),
-        headline: updated.headline ?? '',
-        linkedInUrl: updated.linkedInUrl ?? '',
-        location: updated.location ?? '',
-        portfolioUrl: updated.portfolioUrl ?? '',
-        preferredJobTypes: updated.preferredJobTypes,
-        skills: updated.skills.join(', '),
-      });
-      enqueueSnackbar('Profile updated successfully.', { variant: 'success' });
-    } catch (updateError: unknown) {
-      const hasFieldErrors = applyApiValidationErrors<ProfileFormValues>(
-        updateError,
-        [
-          'bio',
-          'education',
-          'experience',
-          'headline',
-          'linkedInUrl',
-          'location',
-          'portfolioUrl',
-          'preferredJobTypes',
-          'skills',
-        ],
-        setError,
-      );
-      setServerError(
-        hasFieldErrors
-          ? 'Review the highlighted profile fields and try again.'
-          : isDashboardApiError(updateError)
-            ? updateError.message
-            : 'Unable to update your profile. Please try again.',
-      );
-    }
-  };
-
-  if (isLoading) {
+  if (profile.isLoading) {
     return (
       <Stack aria-label="Loading profile" role="status" spacing={3}>
         <Skeleton height={76} variant="rounded" />
-        <Skeleton height={700} variant="rounded" />
+        <Skeleton height={220} variant="rounded" />
+        <Skeleton height={320} variant="rounded" />
       </Stack>
     );
   }
 
-  if (isError || !profile) {
-    return <ErrorState headingLevel="h1" onRetry={() => void refetch()} />;
+  if (profile.isError || !profile.data) {
+    return (
+      <ErrorState
+        description="Your candidate profile could not be loaded from the server."
+        headingLevel="h1"
+        onRetry={() => void profile.refetch()}
+        title="Profile is temporarily unavailable"
+      />
+    );
   }
 
+  const candidate = profile.data;
+  const percentage = completion.data?.completionPercentage;
+
   return (
-    <Stack spacing={4}>
+    <Stack spacing={3}>
       <DashboardPageHeader
-        actions={
-          <Button component={Link} to={ROUTES.RESUME} variant="outlined">
-            Manage resume
-          </Button>
-        }
-        description="Help employers understand your strengths, experience, and preferred opportunities."
+        description="Keep the details employers need and follow clear next steps to complete your profile."
         eyebrow="Candidate account"
         title="Candidate profile"
       />
 
-      <Paper sx={{ p: { xs: 3, md: 4 } }}>
-        <Stack spacing={0.5} sx={{ mb: 3 }}>
-          <Typography fontWeight={800}>
-            {profile.firstName} {profile.lastName}
-          </Typography>
-          <Typography color="text.secondary">{profile.email}</Typography>
-          <Typography color="text.secondary" variant="body2">
-            Your name and email are managed by your verified account.
-          </Typography>
-        </Stack>
-
+      <Paper component="section" sx={{ p: { xs: 2.5, sm: 3.5 } }}>
         <Stack
-          component="form"
-          noValidate
-          onSubmit={(event) => {
-            void handleSubmit(submitProfile, (formErrors) => {
-              const firstField = Object.keys(formErrors)[0] as keyof ProfileFormValues | undefined;
-              if (firstField && firstField !== 'preferredJobTypes') setFocus(firstField);
-            })(event);
-          }}
-          spacing={3}
+          alignItems={{ xs: 'flex-start', md: 'center' }}
+          direction={{ xs: 'column', md: 'row' }}
+          justifyContent="space-between"
+          spacing={2.5}
         >
-          {serverError ? (
-            <Alert aria-live="assertive" severity="error">
-              {serverError}
-            </Alert>
-          ) : null}
-
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 7 }}>
-              <TextField
-                disabled={isSubmitting}
-                error={Boolean(errors.headline)}
-                fullWidth
-                helperText={errors.headline?.message ?? 'Optional · maximum 250 characters'}
-                label="Professional headline"
-                {...register('headline')}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 5 }}>
-              <TextField
-                autoComplete="address-level2"
-                disabled={isSubmitting}
-                error={Boolean(errors.location)}
-                fullWidth
-                helperText={errors.location?.message ?? 'Optional'}
-                label="Location"
-                {...register('location')}
-              />
-            </Grid>
-          </Grid>
-
-          <TextField
-            disabled={isSubmitting}
-            error={Boolean(errors.bio)}
-            fullWidth
-            helperText={errors.bio?.message ?? 'Optional · maximum 4,000 characters'}
-            label="Professional bio"
-            minRows={5}
-            multiline
-            {...register('bio')}
-          />
-
-          <TextField
-            disabled={isSubmitting}
-            error={Boolean(errors.skills)}
-            fullWidth
-            helperText={errors.skills?.message ?? 'Separate up to 50 skills with commas.'}
-            label="Skills"
-            {...register('skills')}
-          />
-
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                disabled={isSubmitting}
-                error={Boolean(errors.education)}
-                fullWidth
-                helperText={errors.education?.message ?? 'One education entry per line.'}
-                label="Education"
-                minRows={5}
-                multiline
-                {...register('education')}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                disabled={isSubmitting}
-                error={Boolean(errors.experience)}
-                fullWidth
-                helperText={errors.experience?.message ?? 'One experience entry per line.'}
-                label="Experience"
-                minRows={5}
-                multiline
-                {...register('experience')}
-              />
-            </Grid>
-          </Grid>
-
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                disabled={isSubmitting}
-                error={Boolean(errors.linkedInUrl)}
-                fullWidth
-                helperText={errors.linkedInUrl?.message ?? 'Optional HTTPS URL'}
-                label="LinkedIn URL"
-                {...register('linkedInUrl')}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                disabled={isSubmitting}
-                error={Boolean(errors.portfolioUrl)}
-                fullWidth
-                helperText={errors.portfolioUrl?.message ?? 'Optional HTTPS URL'}
-                label="Portfolio URL"
-                {...register('portfolioUrl')}
-              />
-            </Grid>
-          </Grid>
-
-          <Controller
-            control={control}
-            name="preferredJobTypes"
-            render={({ field }) => (
-              <FormControl error={Boolean(errors.preferredJobTypes)} fullWidth>
-                <InputLabel id="preferred-job-types-label">Preferred job types</InputLabel>
-                <Select
-                  {...field}
-                  disabled={isSubmitting}
-                  input={<OutlinedInput label="Preferred job types" />}
-                  labelId="preferred-job-types-label"
-                  multiple
-                  renderValue={(selected) => (
-                    <Stack direction="row" flexWrap="wrap" gap={0.5}>
-                      {selected.map((value) => (
-                        <Chip key={value} label={getEmploymentTypeLabel(value)} size="small" />
-                      ))}
-                    </Stack>
-                  )}
-                >
-                  {employmentTypeOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-                <FormHelperText>
-                  {errors.preferredJobTypes?.message ?? 'Optional · choose all that apply'}
-                </FormHelperText>
-              </FormControl>
+          <Stack minWidth={0} spacing={0.5}>
+            <Typography component="h2" variant="h3">
+              {candidate.firstName} {candidate.lastName}
+            </Typography>
+            <Typography color="text.secondary">{candidate.email}</Typography>
+            {candidate.location ? (
+              <Typography color="text.secondary" variant="body2">
+                {candidate.location}
+              </Typography>
+            ) : null}
+            {candidate.headline ? (
+              <Typography fontWeight={700} sx={{ pt: 0.5 }}>
+                {candidate.headline}
+              </Typography>
+            ) : null}
+          </Stack>
+          <Stack alignItems={{ xs: 'flex-start', md: 'flex-end' }} spacing={1}>
+            {percentage === undefined ? (
+              <Typography color="text.secondary">Profile completion unavailable</Typography>
+            ) : (
+              <Typography fontWeight={850} variant="h3">
+                {percentage}% complete
+              </Typography>
             )}
-          />
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <Button disabled={isSubmitting || !isDirty} type="submit" variant="contained">
-              {isSubmitting ? 'Saving…' : 'Save profile'}
-            </Button>
-            <Button disabled={isSubmitting || !isDirty} onClick={() => reset()} variant="text">
-              Discard changes
+            <Button onClick={() => aboutRef.current?.openEditor()} variant="contained">
+              Edit headline and summary
             </Button>
           </Stack>
         </Stack>
       </Paper>
+
+      {completion.isLoading ? (
+        <Skeleton aria-label="Loading profile completion" height={230} variant="rounded" />
+      ) : completion.isError || !completion.data ? (
+        <Paper component="section" sx={{ p: { xs: 2.5, sm: 3 } }}>
+          <Stack alignItems="flex-start" spacing={1.5}>
+            <Alert severity="error">Profile completion guidance is temporarily unavailable.</Alert>
+            <Button onClick={() => void completion.refetch()} variant="outlined">
+              Retry profile completion
+            </Button>
+          </Stack>
+        </Paper>
+      ) : (
+        <ProfileCompletionCard
+          completion={completion.data}
+          onAbout={() => aboutRef.current?.openEditor()}
+          onBasicDetails={() => additionalDetailsRef.current?.focusEditor()}
+          onResume={() => resumeRef.current?.chooseFile()}
+          onSkills={() => skillsRef.current?.focusSection()}
+        />
+      )}
+
+      <CandidateAboutCard profile={candidate} ref={aboutRef} />
+      <CandidateSkillsCard ref={skillsRef} />
+      <CandidateResumeCard ref={resumeRef} resume={candidate.resume} />
+
+      <Paper component="section" sx={{ p: { xs: 2.5, sm: 3 } }}>
+        <Stack spacing={2}>
+          <Stack spacing={0.5}>
+            <Typography component="h2" variant="h3">
+              Career preferences
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              Keep the opportunities and work settings you are looking for up to date.
+            </Typography>
+          </Stack>
+          {onboarding.isLoading ? (
+            <Skeleton aria-label="Loading career preferences" height={72} variant="rounded" />
+          ) : onboarding.isError ? (
+            <Alert severity="warning">Your career-preferences summary is unavailable.</Alert>
+          ) : onboarding.data ? (
+            <CareerPreferencesSummary data={onboarding.data} />
+          ) : null}
+          <Button component={Link} sx={{ alignSelf: 'flex-start' }} to={ROUTES.ONBOARDING} variant="outlined">
+            Manage career preferences
+          </Button>
+        </Stack>
+      </Paper>
+
+      <AdditionalProfileDetailsCard profile={candidate} ref={additionalDetailsRef} />
     </Stack>
   );
+};
+
+interface ProfileCompletionCardProps {
+  completion: CandidateProfileCompletion;
+  onAbout: () => void;
+  onBasicDetails: () => void;
+  onResume: () => void;
+  onSkills: () => void;
+}
+
+const ProfileCompletionCard = ({
+  completion,
+  onAbout,
+  onBasicDetails,
+  onResume,
+  onSkills,
+}: ProfileCompletionCardProps) => (
+  <Paper component="section" sx={{ p: { xs: 2.5, sm: 3 } }}>
+    <Stack spacing={2.5}>
+      <Stack direction="row" justifyContent="space-between" spacing={2}>
+        <Box>
+          <Typography component="h2" variant="h3">
+            Profile completion
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">
+            {completion.completedSections.length} of {completion.sections.length} sections complete
+          </Typography>
+        </Box>
+        <Typography fontWeight={850}>{completion.completionPercentage}%</Typography>
+      </Stack>
+      <LinearProgress
+        aria-label={`Profile completion: ${completion.completionPercentage}%`}
+        value={completion.completionPercentage}
+        variant="determinate"
+      />
+      {completion.missingSections.length ? (
+        <Stack spacing={1.5}>
+          <Typography fontWeight={800}>Recommended next steps</Typography>
+          <Stack component="ul" spacing={1} sx={{ listStyle: 'none', m: 0, p: 0 }}>
+            {completion.missingSections.map((section) => (
+              <Stack
+                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                component="li"
+                direction={{ xs: 'column', sm: 'row' }}
+                justifyContent="space-between"
+                key={section}
+                spacing={1}
+                sx={{ bgcolor: 'action.hover', borderRadius: 2, p: 1.5 }}
+              >
+                <Typography>{sectionLabels[section] ?? section}</Typography>
+                <MissingSectionAction
+                  onAbout={onAbout}
+                  onBasicDetails={onBasicDetails}
+                  onResume={onResume}
+                  onSkills={onSkills}
+                  section={section}
+                />
+              </Stack>
+            ))}
+          </Stack>
+        </Stack>
+      ) : (
+        <Alert severity="success">Your Phase 1 candidate profile sections are complete.</Alert>
+      )}
+    </Stack>
+  </Paper>
+);
+
+const MissingSectionAction = ({
+  onAbout,
+  onBasicDetails,
+  onResume,
+  onSkills,
+  section,
+}: Omit<ProfileCompletionCardProps, 'completion'> & { section: string }) => {
+  if (section === 'resumeHeadline' || section === 'profileSummary') {
+    return <Button onClick={onAbout}>Edit about</Button>;
+  }
+  if (section === 'skills') return <Button onClick={onSkills}>Add skills</Button>;
+  if (section === 'resume') return <Button onClick={onResume}>Upload resume</Button>;
+  if (section === 'careerPreferences') {
+    return (
+      <Button component={Link} to={ROUTES.ONBOARDING}>
+        Add preferences
+      </Button>
+    );
+  }
+  if (section === 'basicDetails') {
+    return <Button onClick={onBasicDetails}>Review profile details</Button>;
+  }
+  return null;
+};
+
+const CareerPreferencesSummary = ({
+  data,
+}: {
+  data: CandidateOnboarding | undefined;
+}) => {
+  if (!data) return null;
+  const values = [
+    data.careerStage ? careerStageLabels[data.careerStage] : null,
+    data.city,
+    ...data.desiredOpportunities.map((value) => desiredOpportunityLabels[value]),
+    ...data.workPreferences.map((value) => workPreferenceLabels[value]),
+  ].filter((value): value is string => Boolean(value));
+
+  return values.length ? (
+    <Stack aria-label="Career preferences summary" direction="row" flexWrap="wrap" gap={1}>
+      {values.map((value) => (
+        <Chip key={value} label={value} />
+      ))}
+    </Stack>
+  ) : (
+    <Typography color="text.secondary">No career preferences have been completed yet.</Typography>
+  );
+};
+
+const careerStageLabels: Record<CareerStage, string> = {
+  [CareerStage.Student]: 'Student',
+  [CareerStage.Fresher]: 'Fresher',
+  [CareerStage.Experienced]: 'Experienced',
+};
+
+const desiredOpportunityLabels: Record<DesiredOpportunity, string> = {
+  [DesiredOpportunity.Internship]: 'Internships',
+  [DesiredOpportunity.FresherJob]: 'Fresher jobs',
+  [DesiredOpportunity.ExperiencedJob]: 'Experienced roles',
+};
+
+const workPreferenceLabels: Record<WorkPreference, string> = {
+  [WorkPreference.Remote]: 'Remote',
+  [WorkPreference.Hybrid]: 'Hybrid',
+  [WorkPreference.OnSite]: 'On-site',
 };
