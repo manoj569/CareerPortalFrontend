@@ -116,7 +116,7 @@ export const API_ENDPOINTS = {
     APPLICATION: (applicationId: string) =>
       `/candidate/applications/${encodeURIComponent(applicationId)}`,
     APPLY: (jobId: string) =>
-      `/candidate/jobs/${encodeURIComponent(jobId)}/applications`,
+      `/candidate/jobs/${encodeURIComponent(jobId)}/apply`,
     WITHDRAW_APPLICATION: (applicationId: string) =>
       `/candidate/applications/${encodeURIComponent(applicationId)}/withdraw`,
     RECRUITER_CONTACT: (jobId: string) =>

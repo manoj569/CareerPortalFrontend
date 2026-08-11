@@ -1,3 +1,4 @@
+import CheckOutlinedIcon from '@mui/icons-material/CheckOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { Alert, Button, Snackbar } from '@mui/material';
 import { useState } from 'react';
@@ -24,6 +25,7 @@ interface ApplyToJobButtonProps {
   jobSlug: string;
   label?: string;
   loadApplicationUrl?: () => Promise<string | null | undefined>;
+  onApplied?: (jobId: string) => void;
   size?: 'medium' | 'large' | 'small';
 }
 
@@ -39,6 +41,7 @@ export const ApplyToJobButton = ({
   jobSlug,
   label = 'Apply on company site',
   loadApplicationUrl,
+  onApplied,
   size = 'large',
 }: ApplyToJobButtonProps) => {
   const location = useLocation();
@@ -51,6 +54,7 @@ export const ApplyToJobButton = ({
   });
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isResolvingUrl, setIsResolvingUrl] = useState(false);
+  const [isApplied, setIsApplied] = useState(false);
   const safeApplicationUrl = getSafeExternalUrl(applicationUrl);
   const isAdministrator = user?.role === UserRole.Administrator;
   const isPending = isResolvingUrl || submitState.isLoading;
@@ -74,14 +78,15 @@ export const ApplyToJobButton = ({
     }
 
     try {
-      let destinationUrl = safeApplicationUrl;
-      if (!destinationUrl && loadApplicationUrl) {
+      let rawDestinationUrl = applicationUrl;
+      if (!rawDestinationUrl && loadApplicationUrl) {
         setIsResolvingUrl(true);
-        destinationUrl = getSafeExternalUrl(await loadApplicationUrl());
+        rawDestinationUrl = await loadApplicationUrl();
         setIsResolvingUrl(false);
       }
 
-      if (!destinationUrl) {
+      const destinationUrl = getSafeExternalUrl(rawDestinationUrl);
+      if (rawDestinationUrl?.trim() && !destinationUrl) {
         setFeedback({
           message: 'Application link is unavailable for this job.',
           severity: 'error',
@@ -89,14 +94,32 @@ export const ApplyToJobButton = ({
         return;
       }
 
-      await submitApplication({ coverLetter: null, jobId }).unwrap();
-      window.open(destinationUrl, '_blank', 'noopener,noreferrer');
-      setFeedback({ message: APPLICATION_OPENED_MESSAGE, severity: 'info' });
+      await submitApplication({
+        applicationMethod: destinationUrl ? 'External' : 'Portal',
+        jobId,
+      }).unwrap();
+      setIsApplied(true);
+      onApplied?.(jobId);
+      if (destinationUrl) {
+        window.open(destinationUrl, '_blank', 'noopener,noreferrer');
+        setFeedback({ message: APPLICATION_OPENED_MESSAGE, severity: 'info' });
+      } else {
+        setFeedback({
+          message: 'Application submitted. This job is now in Applied jobs.',
+          severity: 'info',
+        });
+      }
     } catch (error: unknown) {
       setIsResolvingUrl(false);
       const failure = getApplicationFailure(error);
       if (failure.kind === 'membership') {
         await navigate(buildMembershipPath(jobSlug));
+        return;
+      }
+      if (failure.kind === 'duplicate') {
+        setIsApplied(true);
+        onApplied?.(jobId);
+        setFeedback({ message: failure.message, severity: 'info' });
         return;
       }
       setFeedback({ message: failure.message, severity: 'error' });
@@ -107,13 +130,13 @@ export const ApplyToJobButton = ({
     <>
       <Button
         aria-describedby={ariaDescribedBy}
-        disabled={(!safeApplicationUrl && !loadApplicationUrl) || isAdministrator || isPending}
-        endIcon={<OpenInNewOutlinedIcon />}
+        disabled={isAdministrator || isPending || isApplied}
+        endIcon={isApplied ? <CheckOutlinedIcon /> : safeApplicationUrl ? <OpenInNewOutlinedIcon /> : undefined}
         onClick={() => void apply()}
         size={size}
         variant="contained"
       >
-        {isPending ? 'Processing application…' : label}
+        {isApplied ? 'Applied' : isPending ? 'Processing application…' : label}
       </Button>
       <Snackbar
         autoHideDuration={10_000}

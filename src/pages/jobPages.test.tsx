@@ -514,7 +514,7 @@ describe('job details page', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
 
-      expect(submitApplication).toHaveBeenCalledWith({ coverLetter: null, jobId: job.id });
+      expect(submitApplication).toHaveBeenCalledWith({ applicationMethod: 'External', jobId: job.id });
       expect(open).toHaveBeenCalledWith(
         'https://careers.example.com/jobs/senior-react-engineer',
         '_blank',
@@ -612,6 +612,7 @@ describe('job details page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
 
     expect(await screen.findByText('You have already applied for this job.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Applied' })).toBeDisabled();
     expect(open).not.toHaveBeenCalled();
     open.mockRestore();
   });
@@ -673,17 +674,34 @@ describe('job details page', () => {
     open.mockRestore();
   });
 
-  it.each([null, 'javascript:alert(1)', '/relative-application-path'])(
-    'disables Apply for a missing or unsafe application URL: %s',
-    (applicationUrl) => {
+  it.each(['javascript:alert(1)', '/relative-application-path'])(
+    'does not submit or open an unsafe application URL: %s',
+    async (applicationUrl) => {
       mockJobDetails.mockReturnValue(detailsResult({ data: { ...jobDetails, applicationUrl } }));
 
-      renderDetailsPage();
+      const open = vi.spyOn(window, 'open').mockReturnValue(null);
+      renderDetailsPage(authenticated);
 
-      expect(screen.getByRole('button', { name: 'Apply on company site' })).toBeDisabled();
-      expect(screen.getByText('Application link is unavailable for this job.')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+      expect(await screen.findByText('Application link is unavailable for this job.')).toBeVisible();
+      expect(submitApplication).not.toHaveBeenCalled();
+      expect(open).not.toHaveBeenCalled();
+      open.mockRestore();
     },
   );
+
+  it('submits a Portal application without opening a new tab when no application URL exists', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: { ...jobDetails, applicationUrl: null } }));
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    renderDetailsPage(authenticated);
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(submitApplication).toHaveBeenCalledWith({ applicationMethod: 'Portal', jobId: job.id });
+    expect(open).not.toHaveBeenCalled();
+    expect(await screen.findByText('Application submitted. This job is now in Applied jobs.')).toBeVisible();
+    open.mockRestore();
+  });
 
   it('keeps save, share, and recruiter-contact actions working', async () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
@@ -697,6 +715,11 @@ describe('job details page', () => {
       loadContact,
       { data: undefined, isFetching: false },
     ] as unknown as ReturnType<typeof useLazyGetRecruiterContactQuery>);
+    mockApplicationQuota.mockReturnValue({
+      data: { isPremium: true, limit: 35, plan: 'Premium', remainingApplications: 35, resetsAtUtc: '2099-01-02T00:00:00Z', usedApplications: 0 },
+      isError: false,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useGetApplicationQuotaQuery>);
     Object.defineProperty(navigator, 'share', { configurable: true, value: share });
 
     renderDetailsPage(authenticated);

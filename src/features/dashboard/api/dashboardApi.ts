@@ -7,6 +7,7 @@ import type { CandidateRecruiterContact } from '@/features/jobs/types/jobModels'
 import type { ApiResponse } from '@/types';
 import type {
   ApplicationQuota,
+  ApplyJobResponse,
   ApplicationsPage,
   ApplicationsQuery,
   CandidateOnboarding,
@@ -171,13 +172,13 @@ export const dashboardApi = createApi({
       ],
     }),
 
-    submitApplication: builder.mutation<JobApplication, CreateJobApplicationRequest>({
-      query: ({ coverLetter, jobId }) => ({
-        data: { coverLetter },
+    submitApplication: builder.mutation<ApplyJobResponse, CreateJobApplicationRequest>({
+      query: ({ applicationMethod, jobId }) => ({
+        data: { applicationMethod },
         method: 'POST',
         url: API_ENDPOINTS.CANDIDATE.APPLY(jobId),
       }),
-      transformResponse: (response: ApiResponse<JobApplication>) => response.data,
+      transformResponse: (response: ApiResponse<ApplyJobResponse>) => response.data,
       invalidatesTags: ['Applications', 'ApplicationQuota'],
     }),
 

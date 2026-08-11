@@ -21,7 +21,7 @@ const navigationItems: NavigationItem[] = [
   { label: 'Profile', path: ROUTES.PROFILE, icon: PersonOutlineIcon },
   { label: 'Career preferences', path: ROUTES.ONBOARDING, icon: TuneOutlinedIcon },
   { label: 'Saved jobs', path: ROUTES.SAVED_JOBS, icon: BookmarkBorderIcon },
-  { label: 'Applications', path: ROUTES.APPLICATIONS, icon: DescriptionOutlinedIcon },
+  { label: 'Applied jobs', path: ROUTES.APPLICATIONS, icon: DescriptionOutlinedIcon },
   { label: 'Membership', path: ROUTES.MEMBERSHIP, icon: WorkspacePremiumOutlinedIcon },
   { label: 'Notifications', path: ROUTES.NOTIFICATIONS, icon: NotificationsNoneOutlinedIcon },
   { label: 'Settings', path: ROUTES.SETTINGS, icon: SettingsOutlinedIcon },

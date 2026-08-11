@@ -200,16 +200,16 @@ describe('Candidate API integration', () => {
     await store
       .dispatch(
         dashboardApi.endpoints.submitApplication.initiate({
-          coverLetter: null,
+          applicationMethod: 'Portal',
           jobId: 'job-id',
         }),
       )
       .unwrap();
     expect(mockRequest).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        data: { coverLetter: null },
+        data: { applicationMethod: 'Portal' },
         method: 'POST',
-        url: '/candidate/jobs/job-id/applications',
+        url: '/candidate/jobs/job-id/apply',
       }),
     );
 
@@ -222,5 +222,19 @@ describe('Candidate API integration', () => {
         url: '/candidate/applications/application-id/withdraw',
       }),
     );
+  });
+
+  it('loads paginated applied jobs with the exact candidate query', async () => {
+    const store = createAppStore();
+    const page = { items: [application], pageNumber: 2, pageSize: 20, totalCount: 21, totalPages: 2 };
+    mockRequest.mockResolvedValue({ data: { data: page } });
+
+    await store.dispatch(dashboardApi.endpoints.getApplications.initiate({ pageNumber: 2, pageSize: 20 })).unwrap();
+
+    expect(mockRequest).toHaveBeenLastCalledWith(expect.objectContaining({
+      method: 'GET',
+      params: { pageNumber: 2, pageSize: 20 },
+      url: '/candidate/applications',
+    }));
   });
 });

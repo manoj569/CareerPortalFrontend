@@ -101,6 +101,7 @@ export const CandidateBrowseJobsPage = () => {
   const [keywordInput, setKeywordInput] = useState(state.keyword);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isDesktopFiltersOpen, setIsDesktopFiltersOpen] = useState(true);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(() => new Set());
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const debouncedKeyword = useDebouncedValue(keywordInput, 350);
   const profile = useGetProfileQuery();
@@ -199,10 +200,13 @@ export const CandidateBrowseJobsPage = () => {
     window.setTimeout(() => filterButtonRef.current?.focus(), 0);
   };
 
-  const displayedJobs = isRecommended
+  const sourceJobs = isRecommended
     ? recommended.data?.items.map(toJobSummary)
     : jobs.data?.items;
-  const displayedTotal = isRecommended ? recommended.data?.totalCount : jobs.data?.totalCount;
+  const displayedJobs = sourceJobs?.filter((job) => !appliedJobIds.has(job.id));
+  const removedFromPage = sourceJobs?.filter((job) => appliedJobIds.has(job.id)).length ?? 0;
+  const sourceTotal = isRecommended ? recommended.data?.totalCount : jobs.data?.totalCount;
+  const displayedTotal = sourceTotal === undefined ? undefined : Math.max(0, sourceTotal - removedFromPage);
   const displayedPages = isRecommended ? recommended.data?.totalPages : jobs.data?.totalPages;
   const resultsLoading = isRecommended ? recommended.isLoading : jobs.isLoading;
   const resultsError = isRecommended ? recommended.isError : jobs.isError;
@@ -435,12 +439,12 @@ export const CandidateBrowseJobsPage = () => {
           ) : displayedJobs?.length ? (
             <Stack spacing={3}>
               <Grid container spacing={2}>
-                {displayedJobs.map((job, index) => (
+                {displayedJobs.map((job) => (
                   <Grid key={job.id} size={{ xs: 12, xl: 6 }}>
                     {isRecommended ? (
                       <Stack sx={{ mb: 1 }} spacing={0.5}>
-                        <Chip color="primary" label={`Resume match ${recommended.data?.items[index]?.matchScore ?? 0}%`} size="small" sx={{ alignSelf: 'flex-start' }} />
-                        {(recommended.data?.items[index]?.matchReasons ?? []).slice(0, 3).map((reason) => <Typography color="text.secondary" key={reason} variant="body2">• {reason}</Typography>)}
+                        <Chip color="primary" label={`Resume match ${recommended.data?.items.find((item) => item.id === job.id)?.matchScore ?? 0}%`} size="small" sx={{ alignSelf: 'flex-start' }} />
+                        {(recommended.data?.items.find((item) => item.id === job.id)?.matchReasons ?? []).slice(0, 3).map((reason) => <Typography color="text.secondary" key={reason} variant="body2">• {reason}</Typography>)}
                       </Stack>
                     ) : null}
                     <JobCard
@@ -451,6 +455,7 @@ export const CandidateBrowseJobsPage = () => {
                           jobSlug={job.slug}
                           label="Apply"
                           loadApplicationUrl={() => fetchJobApplicationUrl(job.slug)}
+                          onApplied={(jobId) => setAppliedJobIds((current) => new Set(current).add(jobId))}
                           size="medium"
                         />
                       }

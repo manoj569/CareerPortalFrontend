@@ -8,7 +8,10 @@ export const DUPLICATE_APPLICATION_MESSAGE = 'You have already applied for this 
 export const DEFAULT_APPLICATION_ERROR_MESSAGE =
   'We could not process your application. Please try again.';
 
-export type ApplicationFailure = { kind: 'membership' } | { kind: 'message'; message: string };
+export type ApplicationFailure =
+  | { kind: 'duplicate'; message: string }
+  | { kind: 'membership' }
+  | { kind: 'message'; message: string };
 
 const includesAny = (value: string, fragments: readonly string[]): boolean =>
   fragments.some((fragment) => value.includes(fragment));
@@ -43,7 +46,7 @@ export const getApplicationFailure = (error: unknown): ApplicationFailure => {
     includesAny(normalizedMessage, ['already applied', 'application already exists']);
 
   if (isDuplicate) {
-    return { kind: 'message', message: DUPLICATE_APPLICATION_MESSAGE };
+    return { kind: 'duplicate', message: DUPLICATE_APPLICATION_MESSAGE };
   }
 
   const requiresMembership =

@@ -9,6 +9,7 @@ const statusColors: Record<JobApplicationStatus, ChipProps['color']> = {
   [JobApplicationStatus.Shortlisted]: 'success',
   [JobApplicationStatus.Rejected]: 'error',
   [JobApplicationStatus.Withdrawn]: 'default',
+  [JobApplicationStatus.ExternalApplicationStarted]: 'info',
 };
 
 export const ApplicationStatusChip = ({ status }: { status: JobApplicationStatus }) => (

@@ -418,10 +418,11 @@ export const JobDetailsPage = () => {
             <ApplicationQuotaIndicator />
             <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={1.25}>
               <ApplyToJobButton
-                applicationUrl={applicationUrl}
+                applicationUrl={job.applicationUrl}
                 ariaDescribedBy="application-action-help"
                 jobId={job.id}
                 jobSlug={job.slug}
+                label={applicationUrl ? 'Apply on company site' : 'Apply'}
               />
 
               <SaveJobButton jobId={job.id} jobTitle={job.title} />
@@ -442,9 +443,9 @@ export const JobDetailsPage = () => {
                 You will be redirected to the employer’s application page.
               </Typography>
             ) : (
-              <Alert id="application-action-help" severity="warning">
-                Application link is unavailable for this job.
-              </Alert>
+              <Typography color="text.secondary" id="application-action-help" variant="body2">
+                Your application will be submitted through Career Harbor.
+              </Typography>
             )}
           </Stack>
         </Stack>

@@ -165,16 +165,24 @@ const savedJob: SavedJob = {
 };
 
 const application: JobApplication = {
+  applicationMethod: 'Portal',
+  applicationUrl: null,
+  categoryName: job.categoryName,
+  closingDate: job.expiresAtUtc,
   companyName: job.companyName,
   coverLetter: 'I would love to join the team.',
   id: 'application-id',
+  employmentType: job.employmentType,
+  experienceLevel: job.experienceLevel,
   jobId: job.id,
   jobSlug: job.slug,
   jobTitle: job.title,
+  location: job.location,
   resumeFileName: 'resume.pdf',
   status: JobApplicationStatus.Submitted,
   submittedAtUtc: '2026-07-26T10:00:00Z',
   withdrawnAtUtc: null,
+  workMode: job.workplaceType,
 };
 
 const membership: Membership = {
@@ -419,6 +427,15 @@ describe('candidate dashboard pages', () => {
 
     expect(screen.getByText(job.title)).toBeInTheDocument();
     expect(screen.getByText('Submitted')).toBeInTheDocument();
+    expect(screen.getByText(job.categoryName)).toBeInTheDocument();
+    expect(screen.getByText('Full time')).toBeInTheDocument();
+    expect(screen.getByText('Hybrid')).toBeInTheDocument();
+    expect(screen.getByText('Senior')).toBeInTheDocument();
+    expect(screen.getByText('Portal')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /view job/i })).toHaveAttribute(
+      'href',
+      `/jobs/${job.slug}`,
+    );
   });
 
   it('withdraws a Submitted application after confirmation', async () => {

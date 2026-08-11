@@ -22,6 +22,7 @@ const applicationStatusLabels: Record<JobApplicationStatus, string> = {
   [JobApplicationStatus.Shortlisted]: 'Shortlisted',
   [JobApplicationStatus.Rejected]: 'Rejected',
   [JobApplicationStatus.Withdrawn]: 'Withdrawn',
+  [JobApplicationStatus.ExternalApplicationStarted]: 'External application started',
 };
 
 const notificationTypeLabels: Record<NotificationType, string> = {

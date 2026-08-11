@@ -146,7 +146,10 @@ export enum JobApplicationStatus {
   Shortlisted,
   Rejected,
   Withdrawn,
+  ExternalApplicationStarted,
 }
+
+export type ApplicationMethod = 'Portal' | 'External';
 
 export interface JobApplication {
   id: string;
@@ -159,6 +162,14 @@ export interface JobApplication {
   resumeFileName: string | null;
   submittedAtUtc: string;
   withdrawnAtUtc: string | null;
+  applicationMethod: ApplicationMethod;
+  categoryName: string | null;
+  location: string | null;
+  employmentType: EmploymentType | null;
+  workMode: WorkplaceType | null;
+  experienceLevel: ExperienceLevel | null;
+  applicationUrl: string | null;
+  closingDate: string | null;
 }
 
 export interface ApplicationsQuery extends DashboardQuery {
@@ -167,7 +178,15 @@ export interface ApplicationsQuery extends DashboardQuery {
 
 export interface CreateJobApplicationRequest {
   jobId: string;
-  coverLetter: string | null;
+  applicationMethod: ApplicationMethod;
+}
+
+export interface ApplyJobResponse {
+  applicationId: string;
+  jobId: string;
+  applicationStatus: JobApplicationStatus;
+  applicationMethod: ApplicationMethod;
+  appliedAtUtc: string;
 }
 
 export enum NotificationType {

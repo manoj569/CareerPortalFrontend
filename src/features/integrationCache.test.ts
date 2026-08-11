@@ -37,7 +37,7 @@ describe('cross-module cache consistency', () => {
       data: {
         data: {
           companyName: 'Northstar',
-          coverLetter: null,
+          applicationMethod: 'Portal',
           id: 'application-id',
           jobId: 'job-id',
           jobSlug: 'frontend-engineer',
@@ -53,7 +53,7 @@ describe('cross-module cache consistency', () => {
     await store
       .dispatch(
         dashboardApi.endpoints.submitApplication.initiate({
-          coverLetter: null,
+          applicationMethod: 'Portal',
           jobId: 'job-id',
         }),
       )

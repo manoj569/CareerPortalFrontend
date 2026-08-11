@@ -427,7 +427,8 @@ describe('Candidate Browse jobs', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(saveMutation[0]).toHaveBeenCalledWith(job.id);
     expect(mockFetchJobApplicationUrl).toHaveBeenCalledWith(job.slug);
-    expect(applicationMutation[0]).toHaveBeenCalledWith({ coverLetter: null, jobId: job.id });
+    expect(applicationMutation[0]).toHaveBeenCalledWith({ applicationMethod: 'External', jobId: job.id });
+    expect(screen.queryByText(job.title)).not.toBeInTheDocument();
     expect(open).toHaveBeenCalledWith(
       'https://careers.example.com/jobs/senior-react-engineer',
       '_blank',
@@ -451,6 +452,7 @@ describe('Candidate Browse jobs', () => {
       auth: candidateAuth,
     });
     expect(screen.getAllByRole('link', { name: 'Browse jobs' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Applied jobs' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Resume' })).toBeNull();
     candidateView.unmount();
 
@@ -468,6 +470,7 @@ describe('Candidate Browse jobs', () => {
       auth: { ...candidateAuth, user: { ...candidateAuth.user!, role: UserRole.Administrator } },
     });
     expect(screen.queryByRole('link', { name: 'Browse jobs' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Applied jobs' })).toBeNull();
   });
 
   it('shows resume states and uploads through the existing secure mutation', async () => {
@@ -484,7 +487,8 @@ describe('Candidate Browse jobs', () => {
     await waitFor(() => expect(refetchStatus).toHaveBeenCalledOnce());
   });
 
-  it('uses recommendation mode without sending All jobs filters', () => {
+  it('uses recommendation mode without sending All jobs filters and removes an applied recommendation', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
     mockResumeStatus.mockReturnValue(
       queryResult({ extractedAtUtc: '2026-08-10T00:00:00Z', extractionStatus: 2, hasResume: true, message: 'Ready' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
     );
@@ -505,6 +509,9 @@ describe('Candidate Browse jobs', () => {
     expect(screen.getByText('• Matches skills: React')).toBeVisible();
     expect(mockRecommended).toHaveBeenCalledWith({ pageNumber: 3, pageSize: 20 }, { skip: false });
     expect(mockSearchJobs.mock.calls.at(-1)?.[1]).toEqual({ skip: true });
+    await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(screen.queryByText(job.title)).not.toBeInTheDocument();
+    open.mockRestore();
   });
 
   it('shows a View all jobs action when recommendations are empty', async () => {
