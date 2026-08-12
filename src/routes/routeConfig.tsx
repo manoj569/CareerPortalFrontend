@@ -59,6 +59,10 @@ export const appRoutes: RouteObject[] = [
             path: ROUTES.PRIVACY_POLICY,
             element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'PrivacyPolicyPage'),
           },
+          {
+            path: ROUTES.PUBLIC_PORTFOLIO,
+            element: lazyPage(() => import('@/pages/PublicPortfolioPage'), 'PublicPortfolioPage'),
+          },
         ],
       },
       {
@@ -122,7 +126,11 @@ export const appRoutes: RouteObject[] = [
               },
               {
                 path: ROUTES.PROFILE,
-                element: lazyPage(() => import('@/pages/ProfilePage'), 'ProfilePage'),
+                element: <Navigate replace to={ROUTES.PORTFOLIO} />,
+              },
+              {
+                path: ROUTES.PORTFOLIO,
+                element: lazyPage(() => import('@/pages/PortfolioPage'), 'PortfolioPage'),
               },
               {
                 path: ROUTES.RESUME,

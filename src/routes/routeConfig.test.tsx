@@ -52,6 +52,7 @@ describe('release route structure', () => {
         ROUTES.ONBOARDING,
         ROUTES.DASHBOARD,
         ROUTES.DASHBOARD_JOBS,
+        ROUTES.PORTFOLIO,
         ROUTES.PROFILE,
         ROUTES.RESUME,
         ROUTES.SAVED_JOBS,
@@ -96,5 +97,21 @@ describe('release route structure', () => {
     if (!isValidElement(resumeRoute?.element)) throw new Error('Resume redirect was not found.');
     expect(resumeRoute.element.type).toBe(Navigate);
     expect(resumeRoute.element.props).toMatchObject({ replace: true, to: ROUTES.DASHBOARD_JOBS });
+  });
+
+  it('redirects the legacy profile route to the guarded Portfolio workspace', () => {
+    const candidateGroup = findGuardedGroup(CandidateRoute);
+    const profileRoute = candidateGroup.children?.flatMap((route) => route.children ?? []).find((route) => route.path === ROUTES.PROFILE);
+    expect(isValidElement(profileRoute?.element)).toBe(true);
+    if (!isValidElement(profileRoute?.element)) throw new Error('Profile redirect was not found.');
+    expect(profileRoute.element.type).toBe(Navigate);
+    expect(profileRoute.element.props).toMatchObject({ replace: true, to: ROUTES.PORTFOLIO });
+  });
+
+  it('keeps public portfolios anonymous and outside dashboard layouts', () => {
+    const candidatePaths = collectPaths(findGuardedGroup(CandidateRoute));
+    const allPublicPaths = rootRoute.children?.filter((route) => !isValidElement(route.element) || route.element.type !== CandidateRoute).flatMap(collectPaths) ?? [];
+    expect(allPublicPaths).toContain(ROUTES.PUBLIC_PORTFOLIO);
+    expect(candidatePaths).not.toContain(ROUTES.PUBLIC_PORTFOLIO);
   });
 });

@@ -384,6 +384,10 @@ describe('candidate dashboard pages', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Job Application Access')).toBeInTheDocument();
     expect(screen.getByText(job.title)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Edit profile' })).toHaveAttribute(
+      'href',
+      '/dashboard/portfolio',
+    );
   });
 
   it('renders the overview loading state', () => {

@@ -110,6 +110,18 @@ export const API_ENDPOINTS = {
     PROFILE_SKILL: (skillId: string) =>
       `/candidate/profile/skills/${encodeURIComponent(skillId)}`,
     PROFILE_COMPLETION: '/candidate/profile/completion',
+    PORTFOLIO: '/candidate/portfolio',
+    PORTFOLIO_SETTINGS: '/candidate/portfolio/settings',
+    PORTFOLIO_PREVIEW: '/candidate/portfolio/preview',
+    PORTFOLIO_PUBLISH: '/candidate/portfolio/publish',
+    PORTFOLIO_UNPUBLISH: '/candidate/portfolio/unpublish',
+    PORTFOLIO_COLLECTION: (collection: string) => `/candidate/portfolio/${collection}`,
+    PORTFOLIO_RECORD: (collection: string, recordId: string) =>
+      `/candidate/portfolio/${collection}/${encodeURIComponent(recordId)}`,
+    PORTFOLIO_CUSTOM_ITEMS: (sectionId: string) =>
+      `/candidate/portfolio/custom-sections/${encodeURIComponent(sectionId)}/items`,
+    PORTFOLIO_CUSTOM_ITEM: (sectionId: string, itemId: string) =>
+      `/candidate/portfolio/custom-sections/${encodeURIComponent(sectionId)}/items/${encodeURIComponent(itemId)}`,
     ONBOARDING: '/candidate/onboarding',
     RESUME: '/candidate/resume',
     RESUME_STATUS: '/candidate/resume/status',
@@ -126,5 +138,8 @@ export const API_ENDPOINTS = {
       `/candidate/applications/${encodeURIComponent(applicationId)}/withdraw`,
     RECRUITER_CONTACT: (jobId: string) =>
       `/candidate/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
+  },
+  PUBLIC: {
+    PORTFOLIO: (slug: string) => `/portfolios/${encodeURIComponent(slug)}`,
   },
 } as const;

@@ -59,6 +59,10 @@ export const ProfilePage = () => {
     'Candidate Profile | Career Harbor',
     'Complete and maintain your Career Harbor candidate profile, resume, skills, and career preferences.',
   );
+  return <CandidateProfileContent />;
+};
+
+export const CandidateProfileContent = () => {
   const profile = useGetProfileQuery();
   const completion = useGetProfileCompletionQuery();
   const onboarding = useGetOnboardingQuery();

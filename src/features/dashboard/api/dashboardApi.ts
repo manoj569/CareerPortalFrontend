@@ -43,6 +43,8 @@ export const dashboardApi = createApi({
     'Profile',
     'ProfileCompletion',
     'ProfileSkills',
+    'Portfolio',
+    'PortfolioPreview',
     'Onboarding',
     'Resume',
     'SavedJobs',

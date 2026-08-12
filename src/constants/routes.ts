@@ -13,7 +13,9 @@ export const ROUTES = {
   ONBOARDING: '/onboarding',
   DASHBOARD: '/dashboard',
   DASHBOARD_JOBS: '/dashboard/jobs',
+  PORTFOLIO: '/dashboard/portfolio',
   PROFILE: '/dashboard/profile',
+  PUBLIC_PORTFOLIO: '/p/:slug',
   RESUME: '/dashboard/resume',
   SAVED_JOBS: '/dashboard/saved-jobs',
   APPLICATIONS: '/dashboard/applications',
@@ -55,6 +57,9 @@ export const buildJobDetailsPath = (slug: string): string =>
 
 export const buildApplicationDetailsPath = (applicationId: string): string =>
   ROUTES.APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+
+export const buildPublicPortfolioPath = (slug: string): string =>
+  ROUTES.PUBLIC_PORTFOLIO.replace(':slug', encodeURIComponent(slug));
 
 export const buildAdminJobEditPath = (jobId: string): string =>
   ROUTES.ADMIN_JOB_EDIT.replace(':jobId', encodeURIComponent(jobId));

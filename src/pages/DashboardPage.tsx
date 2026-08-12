@@ -103,7 +103,7 @@ export const DashboardPage = () => {
     <Stack spacing={4}>
       <DashboardPageHeader
         actions={
-          <Button component={Link} to={ROUTES.PROFILE} variant="outlined">
+          <Button component={Link} to={ROUTES.PORTFOLIO} variant="outlined">
             Edit profile
           </Button>
         }
