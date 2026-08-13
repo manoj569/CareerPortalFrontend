@@ -5,10 +5,10 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID?: string;
 }
 
-interface GoogleCredentialResponse { credential: string }
-interface GoogleIdConfiguration { client_id: string; callback: (response: GoogleCredentialResponse) => void }
-interface GoogleButtonConfiguration { theme: 'outline'; size: 'large'; text: 'continue_with'; width?: number }
-interface Window { google?: { accounts: { id: { initialize: (configuration: GoogleIdConfiguration) => void; renderButton: (parent: HTMLElement, configuration: GoogleButtonConfiguration) => void } } } }
+interface GoogleCodeResponse { code?: string }
+interface GoogleCodeClientConfig { client_id: string; scope: string; ux_mode: 'popup'; include_granted_scopes: false; select_account: true; callback: (response: GoogleCodeResponse) => void; error_callback: (error: { type?: string }) => void }
+interface GoogleCodeClient { requestCode: () => void }
+interface Window { google?: { accounts: { oauth2: { initCodeClient: (configuration: GoogleCodeClientConfig) => GoogleCodeClient } } } }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;

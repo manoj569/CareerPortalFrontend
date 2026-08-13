@@ -9,14 +9,14 @@ export const getGoogleClientId = (): string | null => {
 };
 
 export const loadGoogleIdentityServices = (): Promise<void> => {
-  if (window.google?.accounts?.id) return Promise.resolve();
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
   if (scriptPromise) return scriptPromise;
 
   scriptPromise = new Promise<void>((resolve, reject) => {
     const existing = document.getElementById(GIS_SCRIPT_ID) as HTMLScriptElement | null;
     const script = existing ?? document.createElement('script');
     const finish = () =>
-      window.google?.accounts?.id ? resolve() : reject(new Error('Google Identity Services did not initialize.'));
+      window.google?.accounts?.oauth2 ? resolve() : reject(new Error('Google Identity Services did not initialize.'));
     script.addEventListener('load', finish, { once: true });
     script.addEventListener('error', () => reject(new Error('Google Identity Services could not be loaded.')), {
       once: true,

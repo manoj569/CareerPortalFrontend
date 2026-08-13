@@ -25,7 +25,7 @@ import { applyApiValidationErrors } from '@/api/formErrors';
 import { AppBrand } from '@/components/navigation/AppBrand';
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
-import { GoogleAuthenticationButton } from '@/features/auth/components/GoogleAuthenticationButton';
+import { GoogleAuthorizationCodeButton } from '@/features/auth/components/GoogleAuthorizationCodeButton';
 import { PasswordField } from '@/features/auth/components/PasswordField';
 import { getAuthenticationErrorMessage, getGoogleAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
 import { authService } from '@/features/auth/services/authService';
@@ -159,7 +159,7 @@ const BenefitsPanel = () => (
 );
 
 export const RegisterPage = () => {
-  const controlSx = { maxWidth: 400, mx: 'auto', width: '100%' };
+  const controlSx = { maxWidth: 440, mx: 'auto', width: '100%' };
   useDocumentMetadata(
     'Create Your Career Harbor Account | Career Harbor',
     'Create a Career Harbor candidate account to save jobs, upload your resume, apply to roles, and track applications.',
@@ -249,12 +249,12 @@ export const RegisterPage = () => {
     }
   };
 
-  const submitGoogleRegistration = async (credential: string) => {
+  const submitGoogleRegistration = async (code: string) => {
     if (isSubmitting || isGoogleSubmitting || isSuccess) return;
     setServerError(null);
     setIsGoogleSubmitting(true);
     try {
-      const response = await authService.googleAuthenticate({ credential, intent: 'Register', acceptTerms: true });
+      const response = await authService.googleAuthenticateWithCode({ code, intent: 'Register', acceptTerms: true });
       dispatch(sessionRefreshed(response));
       enqueueSnackbar('Account created successfully.', { variant: 'success' });
       const destination = response.user.role === UserRole.Candidate
@@ -267,7 +267,7 @@ export const RegisterPage = () => {
   };
 
   return (
-    <Stack spacing={{ xs: 3, md: 4 }} sx={{ minHeight: '100dvh' }}>
+    <Stack spacing={{ xs: 3, md: 4 }}>
       <RegistrationHeader />
       <Grid alignItems="stretch" container spacing={{ xs: 3, md: 4 }}>
         <Grid order={{ xs: 2, md: 1 }} size={{ xs: 12, md: 4 }}>
@@ -276,10 +276,7 @@ export const RegisterPage = () => {
         <Grid order={{ xs: 1, md: 2 }} size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: { xs: 2, sm: 4 } }}>
             <Stack spacing={3}>
-              <AuthPageHeader
-                description="Create one Candidate profile for internships, fresher roles, and experienced opportunities."
-                title="Create your account"
-              />
+              <AuthPageHeader title="Create your account" />
 
               {isSuccess ? (
                 <Alert aria-live="polite" severity="success">
@@ -411,7 +408,7 @@ export const RegisterPage = () => {
                 <Typography color="text.secondary" variant="body2">
                   By continuing with Google, you agree to the <MuiLink component={Link} to={ROUTES.TERMS_OF_USE}>Terms of Use</MuiLink> and <MuiLink component={Link} to={ROUTES.PRIVACY_POLICY}>Privacy Policy</MuiLink>.
                 </Typography>
-                <GoogleAuthenticationButton disabled={isSubmitting || isSuccess || isGoogleSubmitting} onCredential={(credential) => { void submitGoogleRegistration(credential); }} />
+                <GoogleAuthorizationCodeButton disabled={isSubmitting || isSuccess || isGoogleSubmitting} onCode={(code) => { void submitGoogleRegistration(code); }} onPopupError={setServerError} />
               </Stack>
             </Stack>
           </Paper>

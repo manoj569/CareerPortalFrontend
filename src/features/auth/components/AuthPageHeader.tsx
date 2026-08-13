@@ -2,7 +2,7 @@ import { Stack, Typography } from '@mui/material';
 
 interface AuthPageHeaderProps {
   title: string;
-  description: string;
+  description?: string;
 }
 
 export const AuthPageHeader = ({ title, description }: AuthPageHeaderProps) => (
@@ -10,6 +10,6 @@ export const AuthPageHeader = ({ title, description }: AuthPageHeaderProps) => (
     <Typography component="h1" variant="h2">
       {title}
     </Typography>
-    <Typography color="text.secondary">{description}</Typography>
+    {description ? <Typography color="text.secondary">{description}</Typography> : null}
   </Stack>
 );

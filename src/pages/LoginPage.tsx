@@ -15,7 +15,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
-import { GoogleAuthenticationButton } from '@/features/auth/components/GoogleAuthenticationButton';
+import { GoogleAuthorizationCodeButton } from '@/features/auth/components/GoogleAuthorizationCodeButton';
 import { PasswordField } from '@/features/auth/components/PasswordField';
 import { getGoogleAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
 import { authService } from '@/features/auth/services/authService';
@@ -32,7 +32,7 @@ interface LoginLocationState {
 }
 
 export const LoginPage = () => {
-  const controlSx = { maxWidth: 400, mx: 'auto', width: '100%' };
+  const controlSx = { maxWidth: 440, mx: 'auto', width: '100%' };
   useDocumentMetadata(
     'Log in to Your Account | Career Harbor',
     'Log in to Career Harbor to manage your profile, saved jobs, applications, resume, and personalized recommendations.',
@@ -80,12 +80,12 @@ export const LoginPage = () => {
     }
   };
 
-  const submitGoogleLogin = async (credential: string) => {
+  const submitGoogleLogin = async (code: string) => {
     if (isSubmitting || isGoogleSubmitting) return;
     setServerError(null);
     setIsGoogleSubmitting(true);
     try {
-      const response = await authService.googleAuthenticate({ credential, intent: 'Login', acceptTerms: false });
+      const response = await authService.googleAuthenticateWithCode({ code, intent: 'Login', acceptTerms: false });
       dispatch(sessionRefreshed(response));
       const requestedPath = getSafeRedirectPath(locationState?.from);
       const defaultPath = response.user.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD;
@@ -97,7 +97,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <Stack spacing={3} sx={{ minHeight: '100dvh' }}>
+    <Stack spacing={3}>
       <AuthPageHeader description="Sign in to continue" title="Welcome back" />
 
       {locationState?.message ? <Alert severity="success">{locationState.message}</Alert> : null}
@@ -144,7 +144,7 @@ export const LoginPage = () => {
       </Stack>
 
       <Divider aria-label="OR" sx={controlSx}>OR</Divider>
-      <Stack sx={controlSx}><GoogleAuthenticationButton disabled={isSubmitting || isGoogleSubmitting} onCredential={(credential) => { void submitGoogleLogin(credential); }} /></Stack>
+      <Stack sx={controlSx}><GoogleAuthorizationCodeButton disabled={isSubmitting || isGoogleSubmitting} onCode={(code) => { void submitGoogleLogin(code); }} onPopupError={setServerError} /></Stack>
 
       <Typography color="text.secondary" sx={controlSx} textAlign="center">
         New to Career Harbor?{' '}

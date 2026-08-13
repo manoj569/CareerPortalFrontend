@@ -6,6 +6,7 @@ import type {
   CompletePasswordResetRequest,
   LoginRequest,
   GoogleAuthenticationRequest,
+  GoogleAuthorizationCodeRequest,
   LoginWithOtpRequest,
   LogoutRequest,
   MessageResponse,
@@ -89,6 +90,18 @@ export const authService = {
     const response = await apiClient.post<AuthenticationResponse>(API_ENDPOINTS.AUTH.GOOGLE, request, {
       signal,
     });
+    return storeAuthentication(response.data);
+  },
+
+  async googleAuthenticateWithCode(
+    request: GoogleAuthorizationCodeRequest,
+    signal?: AbortSignal,
+  ): Promise<AuthenticationResponse> {
+    const response = await apiClient.post<AuthenticationResponse>(
+      API_ENDPOINTS.AUTH.GOOGLE_CODE,
+      request,
+      { headers: { 'X-CareerHarbor-Google-Code-Flow': '1' }, signal },
+    );
     return storeAuthentication(response.data);
   },
 

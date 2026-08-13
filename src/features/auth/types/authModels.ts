@@ -36,6 +36,12 @@ export interface GoogleAuthenticationRequest {
   acceptTerms: boolean;
 }
 
+export interface GoogleAuthorizationCodeRequest {
+  code: string;
+  intent: 'Login' | 'Register';
+  acceptTerms: boolean;
+}
+
 export interface RequestLoginOtpRequest {
   phoneNumber: string;
 }

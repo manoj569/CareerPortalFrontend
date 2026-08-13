@@ -7,17 +7,17 @@ import { authService } from './authService';
 
 describe('authService Google authentication', () => {
   afterEach(() => { post.mockReset(); sessionStorage.clear(); });
-  it('posts the opaque credential only to the relative Google endpoint', async () => {
+  it('posts the single-use code only to the relative code endpoint with the rollout header', async () => {
     post.mockResolvedValue({ data: {
       accessToken: 'career-harbor-access', accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
       refreshToken: 'career-harbor-refresh', refreshTokenExpiresAtUtc: '2099-02-01T00:00:00Z',
       user: { id: 'candidate', firstName: 'Avery', lastName: 'Patel', email: 'candidate@example.com', role: 'Candidate' },
     } });
-    await authService.googleAuthenticate({ credential: 'opaque-google-id-token', intent: 'Login', acceptTerms: false });
-    expect(post).toHaveBeenCalledWith('/auth/google', {
-      credential: 'opaque-google-id-token', intent: 'Login', acceptTerms: false,
-    }, { signal: undefined });
+    await authService.googleAuthenticateWithCode({ code: 'single-use-code', intent: 'Login', acceptTerms: false });
+    expect(post).toHaveBeenCalledWith('/auth/google/code', {
+      code: 'single-use-code', intent: 'Login', acceptTerms: false,
+    }, { headers: { 'X-CareerHarbor-Google-Code-Flow': '1' }, signal: undefined });
     expect(sessionStorage.getItem('careerPortal.refreshToken')).toBe('career-harbor-refresh');
-    expect(sessionStorage.getItem('opaque-google-id-token')).toBeNull();
+    expect(sessionStorage.getItem('single-use-code')).toBeNull();
   });
 });

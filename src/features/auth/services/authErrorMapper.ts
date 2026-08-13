@@ -1,6 +1,11 @@
 import { ApiRequestError, toApiRequestError } from '@/api/apiError';
 
 const messagesByCode: Record<string, string> = {
+  invalid_google_authorization_code: 'Google sign-in could not be verified. Please try again.',
+  google_authentication_unavailable: 'Google sign-in is temporarily unavailable. Please try again.',
+  google_origin_not_allowed: 'Google sign-in is temporarily unavailable. Please try again.',
+  invalid_google_code_request: 'Google sign-in could not be verified. Please try again.',
+  terms_acceptance_required: 'Please review the Terms of Use and Privacy Policy before continuing.',
   invalid_otp: 'The code is invalid, expired, or has already been used. Request a new code.',
   invalid_password_reset: 'This password reset link is invalid, expired, or has already been used.',
   validation_error: 'Please review the highlighted information and try again.',

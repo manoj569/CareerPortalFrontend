@@ -15,11 +15,11 @@ export const AuthLayout = () => {
       component="main"
       display="flex"
       id="main-content"
-      minHeight="100vh"
+      minHeight="100dvh"
       sx={{ bgcolor: 'background.default', minWidth: 0, py: { xs: 2, sm: 4 } }}
       tabIndex={-1}
     >
-      <Container maxWidth={isRegistration ? 'lg' : 'sm'}>
+      <Container maxWidth={isRegistration ? 'lg' : 'sm'} sx={{ display: 'flex', justifyContent: 'center' }}>
         <Stack alignItems="center" spacing={3}>
           {!isRegistration ? <AppBrand /> : null}
           {isRegistration ? (
@@ -27,7 +27,7 @@ export const AuthLayout = () => {
               <Outlet />
             </Box>
           ) : (
-            <Paper sx={{ minWidth: 0, p: { xs: 2, sm: 5 }, width: '100%' }}>
+            <Paper sx={{ minWidth: 0, p: { xs: 2, sm: 3 }, width: '100%' }}>
               <Outlet />
             </Paper>
           )}

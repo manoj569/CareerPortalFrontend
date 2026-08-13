@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
     RESEND_REGISTRATION_OTP: '/auth/resend-registration-otp',
     LOGIN: '/auth/login',
     GOOGLE: '/auth/google',
+    GOOGLE_CODE: '/auth/google/code',
     REQUEST_LOGIN_OTP: '/auth/request-login-otp',
     LOGIN_WITH_OTP: '/auth/login-with-otp',
     REFRESH_TOKEN: '/auth/refresh',
