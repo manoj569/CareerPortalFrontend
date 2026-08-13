@@ -10,11 +10,13 @@ import {
   useGetRecommendedJobsQuery,
   useGetResumeStatusQuery,
   useGetMembershipsQuery,
+  useGetNotificationsQuery,
   useGetSavedJobsQuery,
   useRemoveSavedJobMutation,
   useSaveJobMutation,
   useSubmitApplicationMutation,
   useUploadResumeMutation,
+  downloadCandidateResume,
 } from '@/features/dashboard/api/dashboardApi';
 import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
 import {
@@ -59,11 +61,13 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
     useGetRecommendedJobsQuery: vi.fn(),
     useGetResumeStatusQuery: vi.fn(),
     useGetMembershipsQuery: vi.fn(),
+    useGetNotificationsQuery: vi.fn(),
     useGetSavedJobsQuery: vi.fn(),
     useRemoveSavedJobMutation: vi.fn(),
     useSaveJobMutation: vi.fn(),
     useSubmitApplicationMutation: vi.fn(),
     useUploadResumeMutation: vi.fn(),
+    downloadCandidateResume: vi.fn(),
   };
 });
 
@@ -77,10 +81,12 @@ const mockRecommended = vi.mocked(useGetRecommendedJobsQuery);
 const mockResumeStatus = vi.mocked(useGetResumeStatusQuery);
 const mockUploadResume = vi.mocked(useUploadResumeMutation);
 const mockMemberships = vi.mocked(useGetMembershipsQuery);
+const mockNotifications = vi.mocked(useGetNotificationsQuery);
 const mockSavedJobs = vi.mocked(useGetSavedJobsQuery);
 const mockSaveJob = vi.mocked(useSaveJobMutation);
 const mockRemoveSavedJob = vi.mocked(useRemoveSavedJobMutation);
 const mockSubmitApplication = vi.mocked(useSubmitApplicationMutation);
+const mockDownloadResume = vi.mocked(downloadCandidateResume);
 const refetchJobs = vi.fn();
 const refetchFilters = vi.fn();
 
@@ -245,6 +251,10 @@ beforeEach(() => {
   );
   mockUploadResume.mockReturnValue(mutationResult() as unknown as ReturnType<typeof useUploadResumeMutation>);
   mockMemberships.mockReturnValue(queryResult([]) as ReturnType<typeof useGetMembershipsQuery>);
+  mockNotifications.mockReturnValue(
+    queryResult({ items: [], pageNumber: 1, pageSize: 1, totalCount: 0, totalPages: 0, unreadCount: 0 }) as ReturnType<typeof useGetNotificationsQuery>,
+  );
+  mockDownloadResume.mockResolvedValue(new Blob(['resume'], { type: 'application/pdf' }));
   mockSavedJobs.mockReturnValue(
     queryResult({
       items: [],
@@ -271,11 +281,14 @@ describe('Candidate Browse jobs', () => {
     renderPage('/dashboard/jobs?workMode=remote&page=2');
 
     expect(screen.getByRole('checkbox', { name: 'Remote (14)' })).toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: 'Freshness' }));
     expect(screen.getByRole('checkbox', { name: 'Last 24 hours (3)' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Featured' }));
     expect(screen.getByRole('checkbox', { name: 'Featured jobs only (6)' })).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Work from office (0)' })).toBeNull();
     expect(screen.getByText('Applied (1)')).toBeVisible();
     expect(screen.getByText('Free applications: 3 of 10 used this month')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Department' }));
     expect(screen.queryByRole('checkbox', { name: 'Marketing (4)' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'View more (1)' }));
     expect(screen.getByRole('checkbox', { name: 'Marketing (4)' })).toBeInTheDocument();
@@ -298,7 +311,7 @@ describe('Candidate Browse jobs', () => {
 
   it('debounces keyword search into shareable URL state', async () => {
     renderPage();
-    await userEvent.type(screen.getByRole('textbox', { name: 'Search jobs' }), 'react');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Skills, job title or company' }), 'react');
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('q=react'), {
       timeout: 1_500,
     });
@@ -329,8 +342,8 @@ describe('Candidate Browse jobs', () => {
       },
       { timeout: 1_500 },
     );
-    expect(screen.getByText('Company: HARMAN')).toBeVisible();
-    expect(screen.getByText('Category: Artificial Intelligence')).toBeVisible();
+    expect(screen.getAllByText('Company: HARMAN').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Category: Artificial Intelligence').length).toBeGreaterThan(0);
     expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
       companyName: 'HARMAN',
       categoryName: 'Artificial Intelligence',
@@ -454,6 +467,7 @@ describe('Candidate Browse jobs', () => {
     expect(screen.getAllByRole('link', { name: 'Browse jobs' }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: 'Applied jobs' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Resume' })).toBeNull();
+    expect(mockNotifications).toHaveBeenCalledWith({ pageNumber: 1, pageSize: 1 });
     candidateView.unmount();
 
     const adminRouter = createMemoryRouter(
@@ -481,7 +495,7 @@ describe('Candidate Browse jobs', () => {
       queryResult({ extractedAtUtc: null, extractionStatus: 0, hasResume: false, message: '' }, { fulfilledTimeStamp: Date.now(), refetch: refetchStatus }) as ReturnType<typeof useGetResumeStatusQuery>,
     );
     renderPage();
-    expect(screen.getByText('Upload your resume to receive personalized job recommendations')).toBeVisible();
+    expect(screen.getByText(/Upload your resume to receive personalized job recommendations/)).toBeVisible();
     await userEvent.upload(screen.getByLabelText('Choose resume'), new File(['resume'], 'resume.pdf', { type: 'application/pdf' }));
     expect(upload[0]).toHaveBeenCalledOnce();
     await waitFor(() => expect(refetchStatus).toHaveBeenCalledOnce());
@@ -528,7 +542,7 @@ describe('Candidate Browse jobs', () => {
       queryResult({ extractedAtUtc: null, extractionStatus: 1, hasResume: true, message: 'Internal processing detail' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
     );
     const processing = renderPage();
-    expect(screen.getByText('Processing')).toBeVisible();
+    expect(screen.getByText('Analyzing resume…')).toBeVisible();
     expect(screen.queryByText('Internal processing detail')).toBeNull();
     processing.unmount();
 
@@ -536,8 +550,96 @@ describe('Candidate Browse jobs', () => {
       queryResult({ extractedAtUtc: null, extractionStatus: 3, hasResume: true, message: 'Private parser error' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
     );
     renderPage();
-    expect(screen.getByText(/Failed — your resume is stored/)).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Replace resume' })).toBeVisible();
+    expect(screen.getByText(/Your resume is stored, but recommendations could not be prepared/)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
     expect(screen.queryByText('Private parser error')).toBeNull();
+  });
+
+  it('uses the approved compact modes and maps Internships to the supported API filter', async () => {
+    renderPage();
+
+    expect(screen.getByRole('tab', { name: 'All jobs' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Resume matches' })).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'Internships' })).toBeVisible();
+    expect(screen.queryByRole('tab', { name: 'Recommended for you' })).toBeNull();
+    expect(screen.queryByText(/Your resume helps us suggest roles/i)).toBeNull();
+    expect(
+      screen.queryByText(
+        'Search and filters apply to All jobs. Recommended jobs are ranked from your resume.',
+      ),
+    ).toBeNull();
+    expect(screen.getByRole('link', { name: `View job for ${job.title} at ${job.companyName}` })).toBeVisible();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Internships' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('employmentType=internship'),
+    );
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      employmentTypes: [EmploymentType.Internship],
+      pageNumber: 1,
+    });
+
+    await userEvent.click(screen.getByRole('tab', { name: 'All jobs' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).not.toHaveTextContent('employmentType=internship'),
+    );
+  });
+
+  it('collapses and restores the desktop filters without clearing selected values', async () => {
+    renderPage('/dashboard/jobs?workMode=remote');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Collapse job filters' }));
+    const expand = screen.getByRole('button', { name: 'Expand job filters' });
+    expect(expand).toHaveTextContent('Filters (1)');
+    expect(screen.getByText(job.title)).toBeVisible();
+
+    await userEvent.click(expand);
+    expect(screen.getByRole('checkbox', { name: 'Remote (14)' })).toBeChecked();
+  });
+
+  it('downloads a ready resume securely and revokes the temporary object URL', async () => {
+    const createObjectUrl = vi.fn().mockReturnValue('blob:career-harbor-resume');
+    const revokeObjectUrl = vi.fn();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectUrl });
+    mockResumeStatus.mockReturnValue(
+      queryResult(
+        {
+          extractedAtUtc: '2026-08-10T00:00:00Z',
+          extractionStatus: 2,
+          hasResume: true,
+          message: 'Ready',
+        },
+        { fulfilledTimeStamp: Date.now() },
+      ) as ReturnType<typeof useGetResumeStatusQuery>,
+    );
+    mockProfile.mockReturnValue(
+      queryResult({ resume: { fileName: 'career.pdf', uploadedAtUtc: '2026-08-09T12:00:00Z' } }) as ReturnType<typeof useGetProfileQuery>,
+    );
+
+    renderPage();
+    expect(screen.getByText('Resume analyzed')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Update resume' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Refresh matches' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Upload resume' })).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Download resume' }));
+    await waitFor(() => expect(mockDownloadResume).toHaveBeenCalledOnce());
+    expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:career-harbor-resume');
+    expect(anchorClick).toHaveBeenCalledOnce();
+    anchorClick.mockRestore();
+  });
+
+  it('does not announce a zero result count while jobs are loading', () => {
+    mockSearchJobs.mockReturnValue(
+      queryResult(undefined, { isLoading: true }) as ReturnType<typeof useSearchJobsQuery>,
+    );
+
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: 'Finding jobs…' })).toBeVisible();
+    expect(screen.queryByText(/0 (active )?jobs/i)).toBeNull();
   });
 });

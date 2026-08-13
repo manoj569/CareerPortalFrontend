@@ -1,4 +1,8 @@
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Checkbox,
@@ -24,6 +28,7 @@ import {
 } from '../types/jobModels';
 import type { CandidateJobSearchState } from '../utils/candidateJobSearchParams';
 import { JobNameFilters } from './JobNameFilters';
+import { ActiveFilterChips } from './candidateBrowse/ActiveFilterChips';
 
 interface FilterOption {
   count?: number;
@@ -32,13 +37,20 @@ interface FilterOption {
 }
 
 interface FacetCheckboxGroupProps {
+  collapsible?: boolean;
   label: string;
   onToggle: (key: string) => void;
   options: FilterOption[];
   selected: string[];
 }
 
-const FacetCheckboxGroup = ({ label, onToggle, options, selected }: FacetCheckboxGroupProps) => {
+const FacetCheckboxGroup = ({
+  collapsible = false,
+  label,
+  onToggle,
+  options,
+  selected,
+}: FacetCheckboxGroupProps) => {
   const [expanded, setExpanded] = useState(false);
   const visibleOptions = options.filter(
     (option) => (option.count ?? 1) > 0 || selected.includes(option.key),
@@ -47,11 +59,13 @@ const FacetCheckboxGroup = ({ label, onToggle, options, selected }: FacetCheckbo
 
   if (visibleOptions.length === 0) return null;
 
-  return (
+  const group = (
     <Box component="fieldset" sx={{ border: 0, m: 0, p: 0 }}>
-      <Typography component="legend" fontWeight={800} sx={{ mb: 0.75 }}>
-        {label}
-      </Typography>
+      {collapsible ? null : (
+        <Typography component="legend" fontWeight={800} sx={{ mb: 0.75 }}>
+          {label}
+        </Typography>
+      )}
       <FormGroup>
         {displayedOptions.map((option) => (
           <FormControlLabel
@@ -74,6 +88,22 @@ const FacetCheckboxGroup = ({ label, onToggle, options, selected }: FacetCheckbo
         </Button>
       ) : null}
     </Box>
+  );
+
+  if (!collapsible) return group;
+
+  return (
+    <Accordion
+      defaultExpanded={selected.length > 0}
+      disableGutters
+      elevation={0}
+      sx={{ '&::before': { display: 'none' } }}
+    >
+      <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 40, px: 0 }}>
+        <Typography fontWeight={800}>{label}</Typography>
+      </AccordionSummary>
+      <AccordionDetails sx={{ px: 0, pt: 0 }}>{group}</AccordionDetails>
+    </Accordion>
   );
 };
 
@@ -168,6 +198,13 @@ export const CandidateJobFilters = ({
       <Button disabled={appliedCount === 0} onClick={onClear} sx={{ alignSelf: 'flex-start' }}>
         Clear all
       </Button>
+      {appliedCount > 0 || state.keyword ? (
+        <ActiveFilterChips
+          onChange={onChange}
+          onKeywordClear={() => onChange({ keyword: '' })}
+          state={state}
+        />
+      ) : null}
       <Divider />
 
       <JobNameFilters
@@ -212,6 +249,7 @@ export const CandidateJobFilters = ({
       ) : null}
 
       <FacetCheckboxGroup
+        collapsible
         label="Department"
         onToggle={(key) => onChange({ departments: toggleValue(state.departments, key) })}
         options={options.departments.map((option) => ({
@@ -223,6 +261,7 @@ export const CandidateJobFilters = ({
       />
 
       <FacetCheckboxGroup
+        collapsible
         label="Role category"
         onToggle={(key) => onChange({ roleCategories: toggleValue(state.roleCategories, key) })}
         options={options.roleCategories.map((option) => ({
@@ -260,6 +299,7 @@ export const CandidateJobFilters = ({
       ) : null}
 
       <FacetCheckboxGroup
+        collapsible
         label="Company type"
         onToggle={(key) => onChange({ companyTypes: toggleValue(state.companyTypes, Number(key)) })}
         options={enumOptions(options.companyTypes, getCompanyTypeLabel)}
@@ -278,6 +318,7 @@ export const CandidateJobFilters = ({
       />
 
       <FacetCheckboxGroup
+        collapsible
         label="Internship duration"
         onToggle={(key) => {
           if (key === 'flexible') {
@@ -300,6 +341,7 @@ export const CandidateJobFilters = ({
       />
 
       <FacetCheckboxGroup
+        collapsible
         label="Education"
         onToggle={(key) =>
           onChange({ educationRequirements: toggleValue(state.educationRequirements, key) })
@@ -313,6 +355,7 @@ export const CandidateJobFilters = ({
       />
 
       <FacetCheckboxGroup
+        collapsible
         label="Posted by"
         onToggle={(key) =>
           onChange({ postedByTypes: toggleValue(state.postedByTypes, Number(key)) })
@@ -322,6 +365,7 @@ export const CandidateJobFilters = ({
       />
 
       <FacetCheckboxGroup
+        collapsible
         label="Industry"
         onToggle={(key) => onChange({ industries: toggleValue(state.industries, key) })}
         options={options.industries.map((option) => ({
@@ -333,6 +377,7 @@ export const CandidateJobFilters = ({
       />
 
       <FacetCheckboxGroup
+        collapsible
         label="Freshness"
         onToggle={(key) =>
           onChange({ freshnessDays: state.freshnessDays === Number(key) ? undefined : Number(key) })
@@ -359,6 +404,7 @@ export const CandidateJobFilters = ({
       />
 
       <FacetCheckboxGroup
+        collapsible
         label="Featured"
         onToggle={() => onChange({ featuredOnly: state.featuredOnly ? undefined : true })}
         options={[

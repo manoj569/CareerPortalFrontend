@@ -10,11 +10,11 @@ describe('candidate navigation', () => {
       'Portfolio',
       'Saved jobs',
       'Applied jobs',
-      'Notifications',
       'Membership',
       'Payments',
       'Settings',
     ]);
+    expect(candidateNavigationItems.map((item) => item.label)).not.toContain('Notifications');
     expect(candidateNavigationItems.map((item) => item.label)).not.toEqual(
       expect.arrayContaining(['Profile', 'Career preferences']),
     );

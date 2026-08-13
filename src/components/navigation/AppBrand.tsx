@@ -6,9 +6,10 @@ import { ROUTES } from '@/constants/routes';
 interface AppBrandProps {
   compact?: boolean;
   inverse?: boolean;
+  markOnly?: boolean;
 }
 
-export const AppBrand = ({ compact = false, inverse = false }: AppBrandProps) => (
+export const AppBrand = ({ compact = false, inverse = false, markOnly = false }: AppBrandProps) => (
   <Box
     aria-label="Career Harbor home"
     alignItems="center"
@@ -27,8 +28,10 @@ export const AppBrand = ({ compact = false, inverse = false }: AppBrandProps) =>
       <path d="M27.7 12.2a10.8 10.8 0 1 0 .1 15.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
       <path d="M17 20h14m-5-5 5 5-5 5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.2" />
     </Box>
-    <Typography component="span" fontSize={compact ? '1.05rem' : { xs: '1.15rem', md: '1.25rem' }} fontWeight={850} letterSpacing="-.025em">
-      Career Harbor
-    </Typography>
+    {markOnly ? null : (
+      <Typography component="span" fontSize={compact ? '1.05rem' : { xs: '1.15rem', md: '1.25rem' }} fontWeight={850} letterSpacing="-.025em">
+        Career Harbor
+      </Typography>
+    )}
   </Box>
 );

@@ -1,7 +1,6 @@
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
@@ -17,7 +16,6 @@ export const candidateNavigationItems: NavigationItem[] = [
   { label: 'Portfolio', path: ROUTES.PORTFOLIO, icon: WebOutlinedIcon },
   { label: 'Saved jobs', path: ROUTES.SAVED_JOBS, icon: BookmarkBorderIcon },
   { label: 'Applied jobs', path: ROUTES.APPLICATIONS, icon: DescriptionOutlinedIcon },
-  { label: 'Notifications', path: ROUTES.NOTIFICATIONS, icon: NotificationsNoneOutlinedIcon },
   { label: 'Membership', path: ROUTES.MEMBERSHIP, icon: WorkspacePremiumOutlinedIcon },
   { label: 'Payments', path: ROUTES.PAYMENTS, icon: PaymentsOutlinedIcon },
   { label: 'Settings', path: ROUTES.SETTINGS, icon: SettingsOutlinedIcon },

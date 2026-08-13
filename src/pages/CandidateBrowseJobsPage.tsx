@@ -1,29 +1,19 @@
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import SearchIcon from '@mui/icons-material/Search';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
-import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import {
   Alert,
   Box,
   Button,
   Chip,
   Drawer,
-  FormControl,
   Grid,
   IconButton,
-  InputAdornment,
-  InputLabel,
   LinearProgress,
-  MenuItem,
   Pagination,
   Paper,
-  Select,
   Skeleton,
   Stack,
-  Tab,
-  Tabs,
-  TextField,
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
@@ -41,6 +31,7 @@ import {
   useGetRecommendedJobsQuery,
   useGetResumeStatusQuery,
   useUploadResumeMutation,
+  downloadCandidateResume,
 } from '@/features/dashboard/api/dashboardApi';
 import {
   ResumeExtractionStatus,
@@ -56,7 +47,15 @@ import {
 import { CandidateJobFilters } from '@/features/jobs/components/CandidateJobFilters';
 import { JobCard } from '@/features/jobs/components/JobCard';
 import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
-import { candidateJobSortOptions } from '@/features/jobs/constants/jobOptions';
+import { ActiveFilterChips } from '@/features/jobs/components/candidateBrowse/ActiveFilterChips';
+import {
+  JobModeTabs,
+  type CandidateBrowseMode as BrowseMode,
+  type CandidateBrowseTab,
+} from '@/features/jobs/components/candidateBrowse/JobModeTabs';
+import { JobResultsHeader } from '@/features/jobs/components/candidateBrowse/JobResultsHeader';
+import { JobSearchBar } from '@/features/jobs/components/candidateBrowse/JobSearchBar';
+import { ResumeRecommendationCard } from '@/features/jobs/components/candidateBrowse/ResumeRecommendationCard';
 import {
   countCandidateJobFilters,
   emptyCandidateJobSearchState,
@@ -67,9 +66,7 @@ import {
 } from '@/features/jobs/utils/candidateJobSearchParams';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
-import type { PublicJobSummary } from '@/features/jobs/types/jobModels';
-
-type BrowseMode = 'all' | 'recommended';
+import { EmploymentType, type PublicJobSummary } from '@/features/jobs/types/jobModels';
 
 const toJobSummary = (job: RecommendedJob): PublicJobSummary => ({
   ...job,
@@ -99,6 +96,8 @@ export const CandidateBrowseJobsPage = () => {
   const state = useMemo(() => parseCandidateJobSearchParams(searchParams), [searchParams]);
   const query = useMemo(() => toCandidatePublicJobQuery(state), [state]);
   const [keywordInput, setKeywordInput] = useState(state.keyword);
+  const [locationInput, setLocationInput] = useState(state.locations.join(', '));
+  const [experienceInput, setExperienceInput] = useState(state.minExperienceYears?.toString() ?? '');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isDesktopFiltersOpen, setIsDesktopFiltersOpen] = useState(true);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(() => new Set());
@@ -127,6 +126,7 @@ export const CandidateBrowseJobsPage = () => {
   });
   const [uploadResume, uploadState] = useUploadResumeMutation();
   const [resumeError, setResumeError] = useState<string | null>(null);
+  const [isDownloadingResume, setIsDownloadingResume] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const appliedCount = countCandidateJobFilters(state);
 
@@ -145,6 +145,36 @@ export const CandidateBrowseJobsPage = () => {
     setSearchParams(next);
   };
 
+  const isInternshipTab =
+    !isRecommended &&
+    state.employmentTypes.length === 1 &&
+    state.employmentTypes[0] === EmploymentType.Internship;
+  const activeTab: CandidateBrowseTab = isRecommended
+    ? 'recommended'
+    : isInternshipTab
+      ? 'internships'
+      : 'all';
+
+  const setTab = (nextTab: CandidateBrowseTab) => {
+    if (nextTab === 'internships') {
+      const next = serializeCandidateJobSearchState({
+        ...state,
+        employmentTypes: [EmploymentType.Internship],
+        page: 1,
+      });
+      next.set('mode', 'all');
+      setSearchParams(next);
+      return;
+    }
+    if (nextTab === 'all' && isInternshipTab) {
+      const next = serializeCandidateJobSearchState({ ...state, employmentTypes: [], page: 1 });
+      next.set('mode', 'all');
+      setSearchParams(next);
+      return;
+    }
+    setMode(nextTab);
+  };
+
   const handleResume = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -161,6 +191,27 @@ export const CandidateBrowseJobsPage = () => {
       setResumeError(
         isDashboardApiError(error) ? error.message : 'Unable to upload your resume. Please try again.',
       );
+    }
+  };
+
+  const downloadResume = async () => {
+    if (isDownloadingResume) return;
+    setIsDownloadingResume(true);
+    try {
+      const blob = await downloadCandidateResume();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = profile.data?.resume?.fileName ?? 'career-harbor-resume';
+      try {
+        link.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      setResumeError('Your resume could not be downloaded. Please try again.');
+    } finally {
+      setIsDownloadingResume(false);
     }
   };
 
@@ -183,12 +234,17 @@ export const CandidateBrowseJobsPage = () => {
 
   const clearFilters = useCallback(() => {
     const empty = emptyCandidateJobSearchState();
-    setState({ ...empty, keyword: state.keyword, sort: state.sort });
-  }, [setState, state.keyword, state.sort]);
+    setKeywordInput('');
+    setLocationInput('');
+    setExperienceInput('');
+    setState({ ...empty, sort: state.sort });
+  }, [setState, state.sort]);
 
   useEffect(() => {
     setKeywordInput(state.keyword);
-  }, [state.keyword]);
+    setLocationInput(state.locations.join(', '));
+    setExperienceInput(state.minExperienceYears?.toString() ?? '');
+  }, [state.keyword, state.locations, state.minExperienceYears]);
 
   useEffect(() => {
     if (debouncedKeyword !== keywordInput || debouncedKeyword.trim() === state.keyword) return;
@@ -198,6 +254,22 @@ export const CandidateBrowseJobsPage = () => {
   const closeMobileFilters = () => {
     setIsMobileFiltersOpen(false);
     window.setTimeout(() => filterButtonRef.current?.focus(), 0);
+  };
+
+  const searchJobs = () => {
+    const locations = locationInput.split(',').map((value) => value.trim()).filter(Boolean).slice(0, 25);
+    const parsedExperience = experienceInput === '' ? undefined : Math.min(60, Math.max(0, Number(experienceInput)));
+    applyChanges({
+      keyword: keywordInput.trim().slice(0, 250),
+      locations,
+      minExperienceYears: Number.isFinite(parsedExperience) ? parsedExperience : undefined,
+    });
+  };
+
+  const refreshMatches = () => {
+    if (resumeStatus.isFetching || recommended.isFetching) return;
+    void resumeStatus.refetch();
+    if (isRecommended) void recommended.refetch();
   };
 
   const sourceJobs = isRecommended
@@ -250,117 +322,62 @@ export const CandidateBrowseJobsPage = () => {
     <Stack spacing={3}>
       <Box>
         <Typography component="h1" variant="h1">
-          Find your next opportunity
+          Browse jobs
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 0.75 }}>
-          Explore active jobs based on your career goals.
+          Find roles that match your skills and goals.
         </Typography>
       </Box>
 
-      <Paper component="section" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-          <Box minWidth={0}>
-            <Typography component="h2" variant="h3">Your resume</Typography>
-            {!resumeStatus.data?.hasResume ? (
-              <Typography color="text.secondary" sx={{ mt: 0.75 }}>Upload your resume to receive personalized job recommendations</Typography>
-            ) : (
-              <>
-                <Typography noWrap sx={{ mt: 0.75 }}>{profile.data?.resume?.fileName ?? 'Resume uploaded'}</Typography>
-                <Typography color={resumeStatus.data.extractionStatus === ResumeExtractionStatus.Failed ? 'error' : 'text.secondary'} variant="body2">
-                  {resumeStatus.data.extractionStatus === ResumeExtractionStatus.Processing ? 'Processing' : resumeStatus.data.extractionStatus === ResumeExtractionStatus.Ready ? 'Ready' : resumeStatus.data.extractionStatus === ResumeExtractionStatus.Failed ? 'Failed — your resume is stored, but recommendations could not be prepared.' : 'Preparing recommendations'}
-                </Typography>
-              </>
-            )}
-            {resumeError ? <Alert severity="error" sx={{ mt: 1 }}>{resumeError}</Alert> : null}
-            {resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Ready ? (
-              <Alert severity="success" sx={{ mt: 1 }}>Your resume is ready for personalized recommendations.</Alert>
-            ) : null}
-          </Box>
-          <Button disabled={uploadState.isLoading} onClick={() => fileInput.current?.click()} startIcon={<CloudUploadOutlinedIcon />} variant="outlined">
-            {uploadState.isLoading ? 'Uploading…' : resumeStatus.data?.hasResume ? 'Replace resume' : 'Upload resume'}
-          </Button>
-          <input accept=".pdf,.doc,.docx" aria-label="Choose resume" hidden onChange={(event) => void handleResume(event)} ref={fileInput} type="file" />
-        </Stack>
-        {isResumeReady ? (
-          <Tabs aria-label="Browse jobs mode" onChange={(_, value: BrowseMode) => setMode(value)} sx={{ mt: 2 }} value={mode} variant="scrollable">
-            <Tab label="All jobs" value="all" />
-            <Tab label="Recommended for you" value="recommended" />
-          </Tabs>
-        ) : null}
-      </Paper>
+      {!isRecommended ? (
+        <JobSearchBar
+          experience={experienceInput}
+          keyword={keywordInput}
+          location={locationInput}
+          onExperienceChange={setExperienceInput}
+          onKeywordChange={setKeywordInput}
+          onLocationChange={setLocationInput}
+          onSearch={searchJobs}
+        />
+      ) : null}
 
-      {!isRecommended ? <Paper component="section" sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Grid alignItems="stretch" container spacing={1.5}>
-          <Grid size={{ xs: 12, md: 7 }}>
-            <TextField
-              fullWidth
-              label="Search jobs"
-              onChange={(event) => setKeywordInput(event.target.value)}
-              placeholder="Title, company, category, or skill"
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-              value={keywordInput}
-            />
-          </Grid>
-          <Grid size={{ xs: 7, md: 3 }}>
-            <FormControl fullWidth>
-              <InputLabel id="candidate-jobs-sort-label">Sort jobs</InputLabel>
-              <Select
-                label="Sort jobs"
-                labelId="candidate-jobs-sort-label"
-                onChange={(event) => applyChanges({ sort: event.target.value })}
-                value={state.sort}
-              >
-                {candidateJobSortOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 5, md: 2 }}>
-            <Button
-              aria-controls="candidate-mobile-job-filters"
-              aria-expanded={isMobileFiltersOpen}
-              fullWidth
-              onClick={() => setIsMobileFiltersOpen(true)}
-              ref={filterButtonRef}
-              startIcon={<FilterListIcon />}
-              sx={{ display: { lg: 'none' }, height: '100%' }}
-              variant="outlined"
-            >
-              Filters{appliedCount ? ` (${appliedCount})` : ''}
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper> : <Alert severity="info">Search and filters apply to All jobs. Recommended jobs are ranked from your resume.</Alert>}
+      <JobModeTabs
+        mode={activeTab}
+        onChange={setTab}
+        resumeMatchesEnabled={isResumeReady}
+      />
+
+      <ResumeRecommendationCard
+        error={resumeError}
+        fileInputRef={fileInput}
+        fileName={profile.data?.resume?.fileName}
+        hasResume={resumeStatus.data?.hasResume ?? false}
+        isDownloading={isDownloadingResume}
+        isRefreshing={resumeStatus.isFetching || recommended.isFetching}
+        isUploading={uploadState.isLoading}
+        lastUpdatedUtc={profile.data?.resume?.uploadedAtUtc}
+        onDownload={() => void downloadResume()}
+        onFileChange={(event) => void handleResume(event)}
+        onRefresh={refreshMatches}
+        onUpload={() => fileInput.current?.click()}
+        status={resumeStatus.data?.extractionStatus}
+      />
+
+      {!isRecommended ? (
+        <Button
+          aria-controls="candidate-mobile-job-filters"
+          aria-expanded={isMobileFiltersOpen}
+          onClick={() => setIsMobileFiltersOpen(true)}
+          ref={filterButtonRef}
+          startIcon={<FilterListIcon />}
+          sx={{ alignSelf: 'flex-start', display: { lg: 'none' } }}
+          variant="outlined"
+        >
+          Filters{appliedCount ? ` (${appliedCount})` : ''}
+        </Button>
+      ) : null}
 
       <ApplicationQuotaIndicator />
-
-      {!isRecommended && (state.companyName || state.categoryName) ? (
-        <Stack aria-label="Active filters" direction="row" flexWrap="wrap" gap={1}>
-          {state.companyName ? (
-            <Chip
-              label={`Company: ${state.companyName}`}
-              onDelete={() => applyChanges({ companyName: '' })}
-            />
-          ) : null}
-          {state.categoryName ? (
-            <Chip
-              label={`Category: ${state.categoryName}`}
-              onDelete={() => applyChanges({ categoryName: '' })}
-            />
-          ) : null}
-        </Stack>
-      ) : null}
 
       {(isRecommended ? recommended.isFetching && !recommended.isLoading : jobs.isFetching && !jobs.isLoading) ? (
         <LinearProgress aria-label="Updating job results" />
@@ -375,10 +392,10 @@ export const CandidateBrowseJobsPage = () => {
               display: { xs: 'none', lg: 'block' },
               maxHeight: 'calc(100vh - 96px)',
               overflowY: 'auto',
-              p: 2.5,
+              p: 2,
               position: 'sticky',
               top: 88,
-              width: 300,
+              width: 272,
             }}
           >
             <Stack alignItems="center" direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
@@ -393,43 +410,47 @@ export const CandidateBrowseJobsPage = () => {
             {filterPanel}
           </Paper>
         ) : !isRecommended ? (
-          <Paper
-            component="aside"
-            sx={{ display: { xs: 'none', lg: 'block' }, p: 1, position: 'sticky', top: 88 }}
+          <Button
+            aria-label="Expand job filters"
+            onClick={() => setIsDesktopFiltersOpen(true)}
+            startIcon={<TuneOutlinedIcon />}
+            sx={{ display: { xs: 'none', lg: 'inline-flex' }, position: 'sticky', top: 88 }}
+            variant="outlined"
           >
-            <IconButton
-              aria-label="Expand job filters"
-              onClick={() => setIsDesktopFiltersOpen(true)}
-            >
-              <TuneOutlinedIcon />
-            </IconButton>
-          </Paper>
+            Filters{appliedCount ? ` (${appliedCount})` : ''}
+          </Button>
         ) : null}
 
         <Box component="section" minWidth={0} sx={{ flex: 1 }}>
-          <Stack
-            alignItems={{ xs: 'flex-start', sm: 'center' }}
-            direction={{ xs: 'column', sm: 'row' }}
-            justifyContent="space-between"
-            spacing={1}
-            sx={{ mb: 2 }}
-          >
-            <Typography component="h2" variant="h3">
-              {displayedTotal !== undefined
-                ? `${displayedTotal.toLocaleString()} ${isRecommended ? 'recommended jobs' : 'active jobs'}`
-                : isRecommended ? 'Recommended for you' : 'Active jobs'}
-            </Typography>
-            {appliedCount > 0 ? (
-              <Button onClick={clearFilters} size="small">
-                Clear all filters
-              </Button>
+          <Stack spacing={1.5} sx={{ mb: 2 }}>
+            <JobResultsHeader
+              count={displayedTotal}
+              isLoading={resultsLoading}
+              isRecommended={isRecommended}
+              onSortChange={(sort) => applyChanges({ sort })}
+              sort={state.sort}
+            />
+            {!isRecommended && (appliedCount > 0 || state.keyword) ? (
+              <Stack alignItems="flex-start" spacing={1}>
+                <ActiveFilterChips
+                  onChange={applyChanges}
+                  onKeywordClear={() => {
+                    setKeywordInput('');
+                    applyChanges({ keyword: '' });
+                  }}
+                  state={state}
+                />
+                <Button onClick={clearFilters} size="small">
+                  Clear all filters
+                </Button>
+              </Stack>
             ) : null}
           </Stack>
 
           {resultsLoading ? (
             <Grid aria-label="Loading Candidate jobs" container role="status" spacing={2}>
               {Array.from({ length: 4 }, (_, index) => (
-                <Grid key={index} size={{ xs: 12, xl: 6 }}>
+                <Grid key={index} size={{ xs: 12 }}>
                   <JobCardSkeleton />
                 </Grid>
               ))}
@@ -439,12 +460,17 @@ export const CandidateBrowseJobsPage = () => {
           ) : displayedJobs?.length ? (
             <Stack spacing={3}>
               <Grid container spacing={2}>
-                {displayedJobs.map((job) => (
-                  <Grid key={job.id} size={{ xs: 12, xl: 6 }}>
-                    {isRecommended ? (
+                {displayedJobs.map((job) => {
+                  const recommendation = isRecommended
+                    ? recommended.data?.items.find((item) => item.id === job.id)
+                    : undefined;
+
+                  return (
+                  <Grid key={job.id} size={{ xs: 12 }}>
+                    {recommendation ? (
                       <Stack sx={{ mb: 1 }} spacing={0.5}>
-                        <Chip color="primary" label={`Resume match ${recommended.data?.items.find((item) => item.id === job.id)?.matchScore ?? 0}%`} size="small" sx={{ alignSelf: 'flex-start' }} />
-                        {(recommended.data?.items.find((item) => item.id === job.id)?.matchReasons ?? []).slice(0, 3).map((reason) => <Typography color="text.secondary" key={reason} variant="body2">• {reason}</Typography>)}
+                        <Chip color="primary" label={`Resume match ${recommendation.matchScore}%`} size="small" sx={{ alignSelf: 'flex-start' }} />
+                        {recommendation.matchReasons.slice(0, 3).map((reason) => <Typography color="text.secondary" key={reason} variant="body2">• {reason}</Typography>)}
                       </Stack>
                     ) : null}
                     <JobCard
@@ -463,10 +489,13 @@ export const CandidateBrowseJobsPage = () => {
                       returnPath={ROUTES.DASHBOARD_JOBS}
                       returnSearch={searchParams.toString()}
                       secondaryAction={<SaveJobButton jobId={job.id} jobTitle={job.title} />}
+                      compact
                       showExtendedDetails
+                      viewActionLabel="View job"
                     />
                   </Grid>
-                ))}
+                  );
+                })}
               </Grid>
               {(displayedPages ?? 0) > 1 ? (
                 <Pagination
@@ -496,20 +525,27 @@ export const CandidateBrowseJobsPage = () => {
                     }
                   : undefined
               }
-              title={isRecommended ? 'No recommendations yet' : 'No jobs match your search'}
+              title={isRecommended ? 'No resume matches found' : 'No jobs match your search'}
             />
           )}
         </Box>
       </Stack>
 
       {!isRecommended ? <Drawer
+        anchor="bottom"
         id="candidate-mobile-job-filters"
         onClose={closeMobileFilters}
         open={isMobileFiltersOpen}
         slotProps={{
           paper: {
             'aria-label': 'Candidate job filters',
-            sx: { maxWidth: '92vw', p: 2.5, width: 360 },
+            sx: {
+              borderRadius: '20px 20px 0 0',
+              maxHeight: 'min(85dvh, 720px)',
+              overflowY: 'auto',
+              p: { xs: 2, sm: 2.5 },
+              width: '100%',
+            },
           },
         }}
         sx={{ display: { lg: 'none' } }}

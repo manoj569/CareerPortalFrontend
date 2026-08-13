@@ -1,10 +1,11 @@
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
-import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
+import { useGetMembershipsQuery, useGetNotificationsQuery } from '@/features/dashboard/api/dashboardApi';
 import { isMembershipActive } from '@/features/payments/utils/entitlement';
 import { candidateNavigationItems } from './candidateNavigation';
 
 export const UserDashboardLayout = () => {
   const memberships = useGetMembershipsQuery();
+  const notifications = useGetNotificationsQuery({ pageNumber: 1, pageSize: 1 });
   const activeAccessCount =
     memberships.data?.filter((membership) => isMembershipActive(membership)).length ?? 0;
   const accessStatus = memberships.isLoading
@@ -19,7 +20,10 @@ export const UserDashboardLayout = () => {
     <DashboardLayoutShell
       accessStatus={accessStatus}
       areaLabel="Candidate workspace"
+      collapsibleDesktop
       navigationItems={candidateNavigationItems}
+      notificationCount={notifications.data?.unreadCount ?? 0}
+      showNotifications
     />
   );
 };

@@ -28,20 +28,24 @@ import { CompanyLogoFallback } from './CompanyLogoFallback';
 
 interface JobCardProps {
   additionalAction?: ReactNode;
+  compact?: boolean;
   job: PublicJobSummary;
   returnPath?: string;
   returnSearch?: string;
   secondaryAction?: ReactNode;
   showExtendedDetails?: boolean;
+  viewActionLabel?: string;
 }
 
 export const JobCard = ({
   additionalAction,
+  compact = false,
   job,
   returnPath,
   returnSearch = '',
   secondaryAction,
   showExtendedDetails = false,
+  viewActionLabel = 'View details',
 }: JobCardProps) => {
   const publishedDate = formatJobDate(job.publishedAtUtc);
   const expiryDate = formatJobDate(job.expiresAtUtc);
@@ -52,8 +56,8 @@ export const JobCard = ({
 
   return (
     <Card component="article" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <CardContent sx={{ flex: 1, p: 3 }}>
-        <Stack spacing={2.25}>
+      <CardContent sx={{ flex: 1, p: compact ? { xs: 2, sm: 2.25 } : 3 }}>
+        <Stack spacing={compact ? 1.5 : 2.25}>
           <Stack alignItems="flex-start" direction="row" justifyContent="space-between" spacing={2}>
             <CompanyLogoFallback companyName={job.companyName} logoUrl={job.companyLogoUrl} />
             {job.isFeatured ? <Chip color="primary" label="Featured" size="small" /> : null}
@@ -125,15 +129,22 @@ export const JobCard = ({
           ) : null}
         </Stack>
       </CardContent>
-      <CardActions sx={{ flexWrap: 'wrap', px: 3, pb: 3, pt: 0 }}>
+      <CardActions
+        sx={{
+          flexWrap: 'wrap',
+          px: compact ? { xs: 2, sm: 2.25 } : 3,
+          pb: compact ? { xs: 2, sm: 2.25 } : 3,
+          pt: 0,
+        }}
+      >
         <Button
-          aria-label={`View details for ${job.title} at ${job.companyName}`}
+          aria-label={`${viewActionLabel} for ${job.title} at ${job.companyName}`}
           component={Link}
           state={{ jobsPath: returnPath, jobsSearch: returnSearch }}
           to={buildJobDetailsPath(job.slug)}
           variant="outlined"
         >
-          View details
+          {viewActionLabel}
         </Button>
         {secondaryAction}
         {additionalAction}
