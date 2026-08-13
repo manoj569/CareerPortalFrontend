@@ -21,6 +21,9 @@ describe('static search discovery files', () => {
     expect(indexHtml).toContain('<meta property="og:site_name" content="Career Harbor" />');
     expect(indexHtml).toContain('<meta property="og:url" content="https://careerharbor.in/" />');
     expect(indexHtml).toContain('<meta name="twitter:card" content="summary" />');
+    expect(indexHtml).toContain(
+      'Discover job opportunities and create a professional portfolio to showcase your skills, projects and experience with Career Harbor.',
+    );
   });
 
   it('allows public crawling and advertises the production sitemap', () => {

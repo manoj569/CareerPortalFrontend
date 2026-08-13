@@ -65,9 +65,11 @@ export const LoginPage = () => {
       const requestedPath = getSafeRedirectPath(locationState?.from);
       const defaultPath =
         response.user.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD;
+      const destination =
+        response.user.role === UserRole.Candidate ? requestedPath ?? defaultPath : defaultPath;
 
       enqueueSnackbar('Welcome back.', { variant: 'success' });
-      await navigate(requestedPath ?? defaultPath, { replace: true });
+      await navigate(destination, { replace: true });
     } catch (error: unknown) {
       setServerError(typeof error === 'string' ? error : 'Unable to log in. Please try again.');
     }

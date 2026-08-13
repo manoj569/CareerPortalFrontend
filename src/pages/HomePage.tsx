@@ -1,10 +1,15 @@
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BusinessCenterOutlinedIcon from '@mui/icons-material/BusinessCenterOutlined';
 import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import DevicesOutlinedIcon from '@mui/icons-material/DevicesOutlined';
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import SearchIcon from '@mui/icons-material/Search';
+import ViewQuiltOutlinedIcon from '@mui/icons-material/ViewQuiltOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import {
@@ -43,6 +48,7 @@ import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallb
 import { experienceLevelOptions, getExperienceLevelLabel, getWorkplaceTypeLabel } from '@/features/jobs/constants/jobOptions';
 import type { PopularCompany, PublicJobSummary } from '@/features/jobs/types/jobModels';
 import { emptyJobSearchState, serializeJobSearchState } from '@/features/jobs/utils/jobSearchParams';
+import { VERIFIED_PUBLIC_PORTFOLIO_DEMO_URL } from '@/features/portfolio/constants/portfolioDemo';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { useStructuredData } from '@/hooks/useStructuredData';
@@ -105,7 +111,7 @@ const homeStructuredData = {
 export const HomePage = () => {
   useDocumentMetadata(
     'Career Harbor | Find Jobs and Build Your Career',
-    'Discover verified job opportunities, upload your resume, get personalized recommendations, and track applications with Career Harbor.',
+    'Discover job opportunities and create a professional portfolio to showcase your skills, projects and experience with Career Harbor.',
     { canonicalPath: ROUTES.HOME, noIndex: false },
   );
   useStructuredData('career-harbor-home-structured-data', homeStructuredData);
@@ -123,6 +129,16 @@ export const HomePage = () => {
   const currentJobs = jobTab === 0 ? featured : latest;
   const selectedFeature = featurePanels[featureTab] ?? featurePanels[0];
   const candidateHome = user?.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD_JOBS;
+  const isCandidate = isAuthenticated && user?.role === UserRole.Candidate;
+  const portfolioCtaPath = isCandidate
+    ? ROUTES.PORTFOLIO
+    : isAuthenticated
+      ? ROUTES.ADMIN
+      : ROUTES.REGISTER;
+  const portfolioCtaState = isAuthenticated
+    ? undefined
+    : { from: { pathname: ROUTES.PORTFOLIO } };
+  const portfolioCtaLabel = isAuthenticated && !isCandidate ? 'Open administration' : 'Create portfolio';
 
   const submitSearch = () => {
     const params = serializeJobSearchState({
@@ -145,13 +161,13 @@ export const HomePage = () => {
                 Find the right<br />opportunity.<br /><Box component="span" color="primary.main">Build your career.</Box>
               </Typography>
               <Typography color="text.secondary" sx={{ fontSize: { xs: '1.05rem', lg: '1.16rem' }, lineHeight: 1.65, maxWidth: 650, mt: 2.75 }}>
-                Discover active opportunities from companies hiring across India. Search jobs by skills, experience, location and preferred way of working.
+                Discover relevant jobs and turn your skills, projects and experience into a professional portfolio you can share anywhere.
               </Typography>
               <HeroSearch experienceLevel={experienceLevel} location={location} onExperienceChange={setExperienceLevel} onLocationChange={setLocation} onSearchChange={setSearch} onSubmit={submitSearch} search={search} />
               <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2.25 }}>
-                <Button component={Link} endIcon={<ArrowForwardIcon />} size="large" sx={{ '&:hover': { boxShadow: 5, transform: 'translateY(-2px)' }, minHeight: 50, px: 3, transition: 'transform 160ms ease, box-shadow 160ms ease' }} to={ROUTES.JOBS} variant="contained">Explore jobs</Button>
-                <Button component={Link} endIcon={<ArrowForwardIcon />} size="large" sx={{ '&:hover': { bgcolor: 'rgba(37,99,235,.07)', transform: 'translateX(2px)' }, minHeight: 50, px: 2, transition: 'transform 160ms ease' }} to={isAuthenticated ? candidateHome : ROUTES.REGISTER} variant="text">
-                  {isAuthenticated ? 'Open your workspace' : 'Create your profile'}
+                <Button component={Link} endIcon={<ArrowForwardIcon />} size="large" sx={{ '&:hover': { boxShadow: 5, transform: 'translateY(-2px)' }, minHeight: 50, px: 3, transition: 'transform 160ms ease, box-shadow 160ms ease' }} to={ROUTES.JOBS} variant="contained">Browse jobs</Button>
+                <Button component={Link} endIcon={<ArrowForwardIcon />} size="large" state={portfolioCtaState} sx={{ '&:hover': { bgcolor: 'rgba(37,99,235,.07)', transform: 'translateX(2px)' }, minHeight: 50, px: 2, transition: 'transform 160ms ease' }} to={portfolioCtaPath} variant="text">
+                  {portfolioCtaLabel}
                 </Button>
               </Stack>
             </Grid>
@@ -162,6 +178,12 @@ export const HomePage = () => {
           <CompanyMarquee companies={companies} />
         </Container>
       </Box>
+
+      <PortfolioFeatureSection
+        ctaLabel={portfolioCtaLabel === 'Create portfolio' ? 'Create your portfolio' : portfolioCtaLabel}
+        ctaPath={portfolioCtaPath}
+        ctaState={portfolioCtaState}
+      />
 
       <Box aria-labelledby="opportunities-heading" component="section" sx={{ bgcolor: 'common.white', left: 'calc((100% - 100vw) / 2)', position: 'relative', width: '100vw' }}>
         <Container maxWidth={false} sx={{ ...wideContainerStyles, pb: { xs: 6, md: 8 }, pt: { xs: 6, md: 9 } }}>
@@ -236,6 +258,244 @@ export const HomePage = () => {
     </Stack>
   );
 };
+
+const portfolioBenefits = [
+  {
+    description: 'Choose a presentation that fits your career.',
+    icon: <ViewQuiltOutlinedIcon />,
+    title: 'Professional templates',
+  },
+  {
+    description: 'Share your public Career Harbor portfolio anywhere.',
+    icon: <LinkOutlinedIcon />,
+    title: 'One shareable link',
+  },
+  {
+    description: 'Present projects, experience, skills and certifications together.',
+    icon: <CheckCircleOutlineIcon />,
+    title: 'Career evidence',
+  },
+  {
+    description: 'Preview first and publish or unpublish when you choose.',
+    icon: <LockOutlinedIcon />,
+    title: 'Privacy controls',
+  },
+] as const;
+
+const portfolioSteps = [
+  {
+    description: 'Add your headline, summary, skills and resume.',
+    title: 'Complete your profile',
+  },
+  {
+    description: 'Add projects, experience, education and professional links.',
+    title: 'Build your portfolio',
+  },
+  {
+    description: 'Review your portfolio and share your public link.',
+    title: 'Preview and publish',
+  },
+] as const;
+
+interface PortfolioFeatureSectionProps {
+  ctaLabel: string;
+  ctaPath: string;
+  ctaState?: { from: { pathname: string } };
+}
+
+const PortfolioFeatureSection = ({
+  ctaLabel,
+  ctaPath,
+  ctaState,
+}: PortfolioFeatureSectionProps) => (
+  <Box
+    aria-labelledby="portfolio-feature-heading"
+    component="section"
+    sx={{ ...wideSectionStyles, bgcolor: '#f8fbff' }}
+  >
+    <Container
+      maxWidth={false}
+      sx={{ ...wideContainerStyles, py: { xs: 7, md: 10 } }}
+    >
+      <Grid alignItems="center" container spacing={{ xs: 5, md: 7, lg: 10 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Typography color="primary.main" fontWeight={850} letterSpacing=".12em" variant="overline">
+            Career portfolio
+          </Typography>
+          <Typography
+            component="h2"
+            id="portfolio-feature-heading"
+            sx={{
+              color: '#0b1739',
+              fontSize: { xs: '2.25rem', sm: '2.8rem', md: '3.2rem' },
+              fontWeight: 800,
+              letterSpacing: '-.04em',
+              lineHeight: 1.08,
+              mt: 1,
+            }}
+          >
+            Your career, presented through one professional link
+          </Typography>
+          <Typography
+            color="text.secondary"
+            sx={{ fontSize: { xs: '1rem', md: '1.12rem' }, lineHeight: 1.75, mt: 2 }}
+          >
+            Showcase your skills, projects, experience, education and certifications in a
+            portfolio designed to be shared with recruiters and professional connections.
+          </Typography>
+          <Grid component="ul" container spacing={2.5} sx={{ listStyle: 'none', mt: 2, p: 0 }}>
+            {portfolioBenefits.map((benefit) => (
+              <Grid component="li" key={benefit.title} size={{ xs: 12, sm: 6 }}>
+                <Stack alignItems="flex-start" direction="row" spacing={1.5}>
+                  <Box
+                    aria-hidden="true"
+                    sx={{
+                      alignItems: 'center',
+                      bgcolor: '#e8f1ff',
+                      borderRadius: 2,
+                      color: 'primary.main',
+                      display: 'flex',
+                      flex: '0 0 auto',
+                      height: 42,
+                      justifyContent: 'center',
+                      width: 42,
+                    }}
+                  >
+                    {benefit.icon}
+                  </Box>
+                  <Box>
+                    <Typography component="h3" fontSize="1rem" fontWeight={800}>
+                      {benefit.title}
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ lineHeight: 1.6, mt: 0.5 }} variant="body2">
+                      {benefit.description}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Grid>
+            ))}
+          </Grid>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <PortfolioDemoPreview />
+        </Grid>
+      </Grid>
+
+      <Box sx={{ borderTop: '1px solid rgba(15,23,42,.1)', mt: { xs: 6, md: 8 }, pt: { xs: 5, md: 6 } }}>
+        <Typography component="h3" sx={{ color: '#0b1739', fontSize: { xs: '1.75rem', md: '2.2rem' }, fontWeight: 800, textAlign: 'center' }}>
+          Create your portfolio in three steps
+        </Typography>
+        <Grid component="ol" container spacing={2.5} sx={{ listStyle: 'none', mt: 2, p: 0 }}>
+          {portfolioSteps.map((step, index) => (
+            <Grid component="li" key={step.title} size={{ xs: 12, md: 4 }}>
+              <Paper elevation={0} sx={{ bgcolor: 'common.white', height: '100%', p: 3 }}>
+                <Typography aria-hidden="true" color="primary.main" fontWeight={900}>
+                  {String(index + 1).padStart(2, '0')}
+                </Typography>
+                <Typography component="h4" sx={{ color: '#0b1739', fontSize: '1.2rem', fontWeight: 800, mt: 1 }}>
+                  <Box component="span" className="sr-only">
+                    Step {index + 1}:{' '}
+                  </Box>
+                  {step.title}
+                </Typography>
+                <Typography color="text.secondary" sx={{ lineHeight: 1.65, mt: 1 }}>
+                  {step.description}
+                </Typography>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+        <Stack alignItems="center" spacing={1.5} sx={{ mt: 4 }}>
+          <Button
+            component={Link}
+            endIcon={<ArrowForwardIcon />}
+            size="large"
+            state={ctaState}
+            to={ctaPath}
+            variant="contained"
+          >
+            {ctaLabel}
+          </Button>
+          {VERIFIED_PUBLIC_PORTFOLIO_DEMO_URL ? (
+            <Button component="a" href={VERIFIED_PUBLIC_PORTFOLIO_DEMO_URL} variant="text">
+              View example portfolio
+            </Button>
+          ) : null}
+        </Stack>
+      </Box>
+    </Container>
+  </Box>
+);
+
+const PortfolioDemoPreview = () => (
+  <Paper
+    aria-label="Illustrative Career Harbor portfolio preview for a fictional full stack developer"
+    role="img"
+    sx={{
+      background: 'linear-gradient(145deg, #0b1739 0%, #143979 100%)',
+      border: '1px solid rgba(37,99,235,.2)',
+      borderRadius: { xs: 3, sm: 4 },
+      boxShadow: '0 28px 65px rgba(23,49,97,.2)',
+      color: 'common.white',
+      overflow: 'hidden',
+      p: { xs: 2, sm: 3 },
+    }}
+  >
+    <Box aria-hidden="true">
+      <Stack alignItems="center" direction="row" spacing={2}>
+        <Box
+          sx={{
+            alignItems: 'center',
+            background: 'linear-gradient(145deg, #60a5fa, #2563eb)',
+            border: '3px solid rgba(255,255,255,.7)',
+            borderRadius: '50%',
+            display: 'flex',
+            flex: '0 0 auto',
+            fontSize: '1.1rem',
+            fontWeight: 900,
+            height: 64,
+            justifyContent: 'center',
+            width: 64,
+          }}
+        >
+          AM
+        </Box>
+        <Box>
+          <Typography component="p" sx={{ fontSize: { xs: '1.35rem', sm: '1.65rem' }, fontWeight: 850 }}>
+            Aarav Mehta
+          </Typography>
+          <Typography sx={{ color: 'rgba(255,255,255,.72)' }}>Full Stack Developer</Typography>
+        </Box>
+      </Stack>
+      <Paper elevation={0} sx={{ bgcolor: 'rgba(255,255,255,.97)', border: 0, mt: 3, p: { xs: 2, sm: 2.5 } }}>
+        <Typography color="#0b1739" fontWeight={850}>Skills</Typography>
+        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1.25 }}>
+          {['React', 'ASP.NET Core', 'PostgreSQL'].map((skill) => (
+            <Chip color="primary" key={skill} label={skill} size="small" variant="outlined" />
+          ))}
+        </Stack>
+        <Box sx={{ borderTop: '1px solid rgba(15,23,42,.09)', mt: 2.5, pt: 2.25 }}>
+          <Stack alignItems="center" direction="row" spacing={1}>
+            <DevicesOutlinedIcon color="primary" fontSize="small" />
+            <Typography color="#0b1739" fontWeight={850}>Featured project</Typography>
+          </Stack>
+          <Typography color="#0b1739" fontWeight={750} sx={{ mt: 1.25 }}>
+            Job Application Tracker
+          </Typography>
+          <Typography color="text.secondary" sx={{ lineHeight: 1.6, mt: 0.5 }} variant="body2">
+            A practical workspace for organizing job applications and follow-up activity.
+          </Typography>
+        </Box>
+      </Paper>
+      <Stack alignItems="center" direction="row" justifyContent="space-between" sx={{ mt: 2 }}>
+        <Typography sx={{ color: 'rgba(255,255,255,.7)' }} variant="caption">
+          careerharbor.in/p/your-name
+        </Typography>
+        <Chip label="Illustrative preview" size="small" sx={{ bgcolor: 'rgba(255,255,255,.12)', color: 'common.white' }} />
+      </Stack>
+    </Box>
+  </Paper>
+);
 
 const JobCollection = ({ jobs }: { jobs: { data?: { items: PublicJobSummary[] }; isError: boolean; isLoading: boolean } }) => {
   if (jobs.isLoading) return <Grid aria-label="Loading homepage jobs" container role="status" spacing={2}>{Array.from({ length: 2 }, (_, index) => <Grid key={index} size={{ xs: 12, sm: 6 }}><JobCardSkeleton /></Grid>)}</Grid>;

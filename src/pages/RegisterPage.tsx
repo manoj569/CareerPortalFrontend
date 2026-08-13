@@ -21,7 +21,7 @@ import {
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { applyApiValidationErrors } from '@/api/formErrors';
 import { AppBrand } from '@/components/navigation/AppBrand';
@@ -30,6 +30,7 @@ import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { PasswordField } from '@/features/auth/components/PasswordField';
 import { getAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
 import { authService } from '@/features/auth/services/authService';
+import { getSafeRedirectLocation } from '@/features/auth/utils/safeRedirect';
 import {
   registrationSchema,
   sanitizeFullNameInput,
@@ -162,6 +163,7 @@ export const RegisterPage = () => {
     { canonicalPath: ROUTES.REGISTER, noIndex: false },
   );
   const navigate = useNavigate();
+  const location = useLocation();
   const [serverError, setServerError] = useState<string | null>(null);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -187,6 +189,9 @@ export const RegisterPage = () => {
 
   const fullNameField = register('fullName');
   const mobileField = register('phoneNumber');
+  const safeReturnLocation = getSafeRedirectLocation(
+    (location.state as { from?: unknown } | null)?.from,
+  );
 
   const submitRegistration = async (values: RegistrationFormValues) => {
     setServerError(null);
@@ -211,7 +216,10 @@ export const RegisterPage = () => {
 
       // 👇 Wait 3 seconds, then redirect to Login (using replace to prevent back button)
       setTimeout(() => {
-        void navigate(ROUTES.LOGIN, { replace: true });
+        void navigate(ROUTES.LOGIN, {
+          replace: true,
+          ...(safeReturnLocation ? { state: { from: safeReturnLocation } } : {}),
+        });
       }, 3000);
     } catch (error: unknown) {
       const hasFieldErrors = applyApiValidationErrors(

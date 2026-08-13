@@ -5,7 +5,7 @@ import type { AuthState } from '@/features/auth/store/authSlice';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import type { AuthenticationResponse } from '@/types';
 import { UserRole } from '@/types';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -68,6 +68,7 @@ const renderAuthRoute = (
       { path: ROUTES.VERIFY_REGISTRATION_MOBILE, element: <RegistrationOtpPage /> },
       { path: ROUTES.RESET_PASSWORD, element: <ResetPasswordPage /> },
       { path: ROUTES.DASHBOARD, element: <p>Candidate dashboard</p> },
+      { path: ROUTES.PORTFOLIO, element: <p>Candidate portfolio</p> },
       { path: ROUTES.ADMIN, element: <p>Admin dashboard</p> },
     ],
     { initialEntries: [initialEntry] },
@@ -168,6 +169,27 @@ describe('mobile authentication pages', () => {
     expect(screen.getByText(/\+91 ••••••3210/)).toBeVisible();
     expect(store.getState().auth.status).toBe('unauthenticated');
     expect(store.getState().auth.user).toBeNull();
+  });
+
+  it('forwards a validated return destination from registration to Login without creating a session', async () => {
+    mockedAuthService.register.mockResolvedValue({
+      challengeId,
+      expiresAtUtc: '2099-01-01T00:05:00Z',
+      message: 'If registration can proceed, a mobile OTP has been sent.',
+    });
+    const { router, store } = renderAuthRoute(ROUTES.REGISTER, <RegisterPage />, {
+      pathname: ROUTES.REGISTER,
+      state: { from: { pathname: ROUTES.PORTFOLIO } },
+    });
+    await fillRegistration();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /create account/i }));
+      await Promise.resolve();
+    });
+    expect(store.getState().auth.status).toBe('unauthenticated');
+    await waitFor(() => expect(router.state.location.pathname).toBe(ROUTES.LOGIN), { timeout: 4_000 });
+    expect(router.state.location.state).toEqual({ from: { pathname: ROUTES.PORTFOLIO } });
   });
 
   it('keeps duplicate registration responses privacy-safe and prevents double submit', async () => {
@@ -284,6 +306,45 @@ describe('mobile authentication pages', () => {
     await user.type(screen.getByLabelText(/email address or mobile number/i), 'admin@example.com');
     await user.type(screen.getByLabelText(/^password/i), 'abc123');
     await user.click(screen.getByRole('button', { name: /^log in$/i }));
+    expect(await screen.findByText('Admin dashboard')).toBeVisible();
+  });
+
+  it('takes a Candidate to a safe internal return destination after Login', async () => {
+    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Candidate));
+    renderAuthRoute(ROUTES.LOGIN, <LoginPage />, {
+      pathname: ROUTES.LOGIN,
+      state: { from: { pathname: ROUTES.PORTFOLIO } },
+    });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/email address or mobile number/i), 'candidate@example.com');
+    await user.type(screen.getByLabelText(/^password/i), 'abc123');
+    await user.click(screen.getByRole('button', { name: /^log in$/i }));
+
+    expect(await screen.findByText('Candidate portfolio')).toBeVisible();
+  });
+
+  it('rejects untrusted Login return destinations and keeps Administrators on their default route', async () => {
+    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Candidate));
+    const { router } = renderAuthRoute(ROUTES.LOGIN, <LoginPage />, {
+      pathname: ROUTES.LOGIN,
+      state: { from: { pathname: '//evil.example' } },
+    });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/email address or mobile number/i), 'candidate@example.com');
+    await user.type(screen.getByLabelText(/^password/i), 'abc123');
+    await user.click(screen.getByRole('button', { name: /^log in$/i }));
+    expect(await screen.findByText('Candidate dashboard')).toBeVisible();
+    expect(router.state.location.pathname).toBe(ROUTES.DASHBOARD);
+
+    mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Administrator));
+    renderAuthRoute(ROUTES.LOGIN, <LoginPage />, {
+      pathname: ROUTES.LOGIN,
+      state: { from: { pathname: ROUTES.PORTFOLIO } },
+    });
+    const admin = userEvent.setup();
+    await admin.type(screen.getByLabelText(/email address or mobile number/i), 'admin@example.com');
+    await admin.type(screen.getByLabelText(/^password/i), 'abc123');
+    await admin.click(screen.getByRole('button', { name: /^log in$/i }));
     expect(await screen.findByText('Admin dashboard')).toBeVisible();
   });
 
