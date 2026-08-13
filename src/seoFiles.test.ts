@@ -11,6 +11,7 @@ const publicRoutes = [
   'https://careerharbor.in/register',
   'https://careerharbor.in/terms-of-use',
   'https://careerharbor.in/privacy-policy',
+  'https://careerharbor.in/cookie-policy',
 ];
 
 describe('static search discovery files', () => {

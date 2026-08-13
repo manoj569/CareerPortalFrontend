@@ -7,6 +7,7 @@ const INDEXABLE_STATIC_ROUTES = new Set([
   '/',
   '/login',
   '/privacy-policy',
+  '/cookie-policy',
   '/register',
   '/terms-of-use',
 ]);
@@ -19,6 +20,7 @@ const getDefaultTitle = (pathname: string): string => {
   if (pathname === '/register') return 'Create an Account | Career Harbor';
   if (pathname === '/terms-of-use') return 'Terms of Use | Career Harbor';
   if (pathname === '/privacy-policy') return 'Privacy Policy | Career Harbor';
+  if (pathname === '/cookie-policy') return 'Cookie Policy | Career Harbor';
   if (pathname.includes('password')) return 'Account Recovery | Career Harbor';
   if (pathname.startsWith('/dashboard')) return 'Candidate Dashboard | Career Harbor';
   if (pathname.startsWith('/admin')) return 'Administration | Career Harbor';

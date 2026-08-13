@@ -150,6 +150,9 @@ describe('Step 9 accessibility and navigation smoke checks', () => {
     expect(within(header).getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/jobs');
     expect(within(header).getByRole('link', { name: 'Log in' })).toBeInTheDocument();
     expect(within(header).getByRole('link', { name: 'Register' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Cookie Policy' }),
+    ).toHaveAttribute('href', '/cookie-policy');
     await user.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByLabelText('Main navigation drawer')).toContainElement(

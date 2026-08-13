@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from '@/test/renderWithProviders';
-import { PrivacyPolicyPage, TermsOfUsePage } from './LegalDocumentPage';
+import { CookiePolicyPage, PrivacyPolicyPage, TermsOfUsePage } from './LegalDocumentPage';
 
 const legalMocks = vi.hoisted(() => ({
   getPrivacyPolicy: vi.fn(),
@@ -59,6 +59,22 @@ describe('static legal document pages', () => {
     expect(screen.getByRole('link', { name: 'Acceptable use' })).toHaveAttribute(
       'href',
       '#acceptable-use',
+    );
+  });
+
+  it('renders the Cookie Policy independently with the actual browser-storage inventory', () => {
+    renderPage(<CookiePolicyPage />);
+
+    expect(screen.getByRole('heading', { name: 'Cookie Policy' })).toBeVisible();
+    expect(screen.getByText(/careerPortal\.refreshTokenExpiresAtUtc/)).toBeVisible();
+    expect(screen.getByText(/careerPortal\.registrationChallenge/)).toBeVisible();
+    expect(screen.getByText(/careerharbor_cookie_consent/)).toBeVisible();
+    expect(screen.getByText(/No analytics, advertising, remarketing/)).toBeVisible();
+    expect(screen.getByText(/never logs you out/)).toBeVisible();
+    expect(document.title).toBe('Cookie Policy | Career Harbor');
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://careerharbor.in/cookie-policy',
     );
   });
 });

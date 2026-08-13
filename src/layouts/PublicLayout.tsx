@@ -21,6 +21,7 @@ import type { NavigationItem } from '@/components/navigation/navigationTypes';
 import { ROUTES } from '@/constants/routes';
 import { PUBLIC_PAGE_CONTAINER_MAX_WIDTH, PUBLIC_PAGE_GUTTER } from '@/constants/publicLayout';
 import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
+import { CookieSettingsButton } from '@/features/cookieConsent/CookieSettingsButton';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { UserRole } from '@/types';
 
@@ -139,7 +140,14 @@ export const PublicLayout = () => {
             <Grid size={{ xs: 12, md: 5 }}><AppBrand inverse /><Typography sx={{ color: 'rgba(255,255,255,.68)', lineHeight: 1.7, maxWidth: 420, mt: 2 }}>A focused place to discover active jobs, prepare your candidate profile, and manage your job search.</Typography></Grid>
             <Grid size={{ xs: 6, sm: 4, md: 2 }}><FooterGroup links={[["Browse jobs", ROUTES.JOBS]]} title="Jobs" /></Grid>
             <Grid size={{ xs: 6, sm: 4, md: 2 }}><FooterGroup links={isAuthenticated && currentUser?.role !== UserRole.Administrator ? [["Dashboard", ROUTES.DASHBOARD], ["Saved jobs", ROUTES.SAVED_JOBS], ["Applications", ROUTES.APPLICATIONS], ["Membership", ROUTES.MEMBERSHIP]] : [["Create account", ROUTES.REGISTER], ["Log in", ROUTES.LOGIN]]} title="Candidates" /></Grid>
-            <Grid size={{ xs: 12, sm: 4, md: 3 }}><FooterGroup links={[["Terms of Use", ROUTES.TERMS_OF_USE], ["Privacy Policy", ROUTES.PRIVACY_POLICY]]} title="Legal" /></Grid>
+            <Grid size={{ xs: 12, sm: 4, md: 3 }}>
+              <FooterGroup links={[["Terms of Use", ROUTES.TERMS_OF_USE], ["Privacy Policy", ROUTES.PRIVACY_POLICY], ["Cookie Policy", ROUTES.COOKIE_POLICY]]} title="Legal" />
+              <CookieSettingsButton
+                color="inherit"
+                sx={{ color: 'rgba(255,255,255,.68)', justifyContent: 'flex-start', mt: 1, p: 0 }}
+                variant="text"
+              />
+            </Grid>
           </Grid>
           <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 4 }} />
           <Typography sx={{ color: 'rgba(255,255,255,.58)' }} variant="body2">© {new Date().getFullYear()} Career Harbor. All rights reserved.</Typography>

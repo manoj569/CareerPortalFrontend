@@ -60,6 +60,10 @@ export const appRoutes: RouteObject[] = [
             element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'PrivacyPolicyPage'),
           },
           {
+            path: ROUTES.COOKIE_POLICY,
+            element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'CookiePolicyPage'),
+          },
+          {
             path: ROUTES.PUBLIC_PORTFOLIO,
             element: lazyPage(() => import('@/pages/PublicPortfolioPage'), 'PublicPortfolioPage'),
           },

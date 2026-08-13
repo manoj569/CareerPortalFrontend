@@ -7,6 +7,7 @@ import { appConfig } from '@config/appConfig';
 import { SkipLink } from '@/components/accessibility/SkipLink';
 import { AppErrorBoundary } from '@/components/feedback/AppErrorBoundary';
 import { AuthInitializer } from '@/features/auth/components/AuthInitializer';
+import { CookieConsentProvider } from '@/features/cookieConsent/CookieConsentProvider';
 import { store } from '@/store/store';
 import { appTheme } from '@/theme/theme';
 
@@ -17,14 +18,16 @@ export const AppProviders = ({ children }: { children: ReactNode }) => (
         <CssBaseline enableColorScheme />
         <SkipLink />
         <AuthInitializer />
-        <SnackbarProvider
-          anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
-          autoHideDuration={appConfig.toastAutoHideDurationMs}
-          maxSnack={3}
-          preventDuplicate
-        >
-          {children}
-        </SnackbarProvider>
+        <CookieConsentProvider>
+          <SnackbarProvider
+            anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
+            autoHideDuration={appConfig.toastAutoHideDurationMs}
+            maxSnack={3}
+            preventDuplicate
+          >
+            {children}
+          </SnackbarProvider>
+        </CookieConsentProvider>
       </ThemeProvider>
     </ReduxProvider>
   </AppErrorBoundary>

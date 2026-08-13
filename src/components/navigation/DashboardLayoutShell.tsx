@@ -16,6 +16,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { logout, selectCurrentUser } from '@/features/auth/store/authSlice';
+import { CookieSettingsButton } from '@/features/cookieConsent/CookieSettingsButton';
 import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
 import { AppBrand } from './AppBrand';
 import { NavigationList } from './NavigationList';
@@ -95,6 +96,7 @@ export const DashboardLayoutShell = ({
             </Typography>
           </Box>
         ) : null}
+        <CookieSettingsButton fullWidth sx={{ mb: 1 }} variant="text" />
         <Button fullWidth onClick={handleLogout} variant="outlined">
           Log out
         </Button>

@@ -9,6 +9,7 @@ export const ROUTES = {
   RESET_PASSWORD: '/reset-password',
   TERMS_OF_USE: '/terms-of-use',
   PRIVACY_POLICY: '/privacy-policy',
+  COOKIE_POLICY: '/cookie-policy',
   UNAUTHORIZED: '/unauthorized',
   ONBOARDING: '/onboarding',
   DASHBOARD: '/dashboard',

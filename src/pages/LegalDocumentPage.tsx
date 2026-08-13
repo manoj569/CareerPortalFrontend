@@ -142,9 +142,9 @@ const privacySections: LegalSection[] = [
   },
   {
     id: 'cookies',
-    title: '7. Cookies and local storage',
+    title: '7. Essential browser storage',
     paragraphs: [
-      'Career Harbor uses cookies or local storage for login sessions, security, preferences, and other essential portal operation. These technologies help keep your session working and protect account access.',
+      'Career Harbor uses essential session storage and local storage for secure login, registration verification, privacy preferences, and other core portal operation. See the Cookie Policy for the current storage details.',
     ],
   },
   {
@@ -173,6 +173,68 @@ const privacySections: LegalSection[] = [
     title: '11. Contact support',
     paragraphs: [
       'Contact Career Harbor support through the support channel provided on the website for privacy questions, profile assistance, or data requests.',
+    ],
+  },
+];
+
+const cookieSections: LegalSection[] = [
+  {
+    id: 'scope',
+    title: '1. About this Cookie Policy',
+    paragraphs: [
+      'This Policy explains the essential browser storage used by Career Harbor. Although this page is called a Cookie Policy for clarity, the current frontend does not set cookies and does not load analytics, advertising, remarketing, or personalization technology.',
+    ],
+  },
+  {
+    id: 'login-storage',
+    title: '2. Secure login session storage',
+    paragraphs: [
+      'Career Harbor stores refresh-token information under careerPortal.refreshToken and its expiry under careerPortal.refreshTokenExpiresAtUtc in sessionStorage. These entries support secure session continuity and token renewal after login.',
+      'They remain available during the browser tab session until you log out, the token expires, the application clears invalid authentication data, or the tab session ends. The server-side token may have its own earlier expiry or revocation rules.',
+    ],
+  },
+  {
+    id: 'registration-storage',
+    title: '3. Registration-verification storage',
+    paragraphs: [
+      'Career Harbor stores the current registration-verification challenge under careerPortal.registrationChallenge in sessionStorage. It contains the challenge identifier, masked phone number, and challenge expiry so registration verification can continue safely across navigation.',
+      'The entry is removed after successful verification, when the flow is cleared, when invalid data is detected, or when the browser tab session ends. The challenge also becomes unusable after its recorded expiry.',
+    ],
+  },
+  {
+    id: 'preference-storage',
+    title: '4. Privacy-preference storage',
+    paragraphs: [
+      'Career Harbor stores careerharbor_cookie_consent in localStorage. This small versioned record remembers that the storage notice was acknowledged and records the currently supported consent-category values and the time of the update.',
+      'The frontend treats this record as valid for up to 180 days. It asks again when the record is missing, malformed, expired, or belongs to an older consent version.',
+    ],
+  },
+  {
+    id: 'optional-technologies',
+    title: '5. Optional technologies',
+    paragraphs: [
+      'No analytics, advertising, remarketing, or personalization technology is currently active in Career Harbor. The preferences interface therefore shows only strictly necessary storage and does not ask you to consent to an optional technology that is not in use.',
+    ],
+  },
+  {
+    id: 'settings',
+    title: '6. Cookie settings',
+    paragraphs: [
+      'You can reopen Cookie settings from the public footer or from the candidate and administration navigation areas. This lets you review the current storage information whenever you need it.',
+    ],
+  },
+  {
+    id: 'authentication',
+    title: '7. Authentication storage and privacy preferences',
+    paragraphs: [
+      'Authentication and registration-verification storage is strictly necessary. Opening or changing privacy preferences never logs you out and never removes necessary authentication or security storage.',
+    ],
+  },
+  {
+    id: 'changes-contact',
+    title: '8. Changes and contact',
+    paragraphs: [
+      'We will update this Policy if the browser storage or optional technologies used by Career Harbor change. Contact Career Harbor support through the support channel provided on the website if you have questions about these practices.',
     ],
   },
 ];
@@ -259,5 +321,15 @@ export const PrivacyPolicyPage = () => (
     introduction="This Policy explains how Career Harbor handles personal information when you use the portal."
     sections={privacySections}
     title="Privacy Policy"
+  />
+);
+
+export const CookiePolicyPage = () => (
+  <LegalDocumentPage
+    canonicalPath={ROUTES.COOKIE_POLICY}
+    description="Learn which essential session-storage and local-storage entries Career Harbor uses for secure login, registration verification, and privacy preferences."
+    introduction="This Policy provides an accurate account of Career Harbor’s current browser-storage practices."
+    sections={cookieSections}
+    title="Cookie Policy"
   />
 );

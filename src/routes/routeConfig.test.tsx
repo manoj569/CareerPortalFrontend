@@ -39,7 +39,7 @@ describe('release route structure', () => {
   it('keeps legal documents public', () => {
     const publicPaths = rootRoute.children?.flatMap((route) => collectPaths(route)) ?? [];
     expect(publicPaths).toEqual(
-      expect.arrayContaining([ROUTES.TERMS_OF_USE, ROUTES.PRIVACY_POLICY]),
+      expect.arrayContaining([ROUTES.TERMS_OF_USE, ROUTES.PRIVACY_POLICY, ROUTES.COOKIE_POLICY]),
     );
   });
 
