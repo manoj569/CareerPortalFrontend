@@ -30,6 +30,12 @@ privateCacheListener.startListening({
   matcher: isAnyOf(logout.fulfilled, logout.rejected, sessionExpired, sessionRefreshed),
   effect: (action, listenerApi) => {
     if (sessionRefreshed.match(action)) {
+      if (!action.payload?.user?.id) {
+        listenerApi.dispatch(dashboardApi.util.resetApiState());
+        listenerApi.dispatch(paymentsApi.util.resetApiState());
+        listenerApi.dispatch(adminApi.util.resetApiState());
+        return;
+      }
       const originalState = listenerApi.getOriginalState() as {
         auth: { user: { id: string; role: UserRole } | null };
       };

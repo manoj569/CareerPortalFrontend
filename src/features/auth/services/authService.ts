@@ -1,7 +1,7 @@
 import { apiClient } from '@/api';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import { authTokenStore } from '@/services/authTokenStore';
-import type { AuthenticationResponse } from '@/types';
+import type { ApiResponse, AuthenticationResponse } from '@/types';
 import type {
   CompletePasswordResetRequest,
   LoginRequest,
@@ -22,6 +22,22 @@ import type {
 const storeAuthentication = (response: AuthenticationResponse): AuthenticationResponse => {
   authTokenStore.set(response);
   return response;
+};
+
+const isAuthenticationResponse = (value: unknown): value is AuthenticationResponse => {
+  if (!value || typeof value !== 'object') return false;
+  const session = value as Partial<AuthenticationResponse>;
+  const user = session.user;
+  return typeof session.accessToken === 'string' &&
+    typeof session.accessTokenExpiresAtUtc === 'string' &&
+    typeof session.refreshToken === 'string' &&
+    typeof session.refreshTokenExpiresAtUtc === 'string' &&
+    user !== undefined && typeof user.id === 'string' && typeof user.role === 'string';
+};
+
+const unwrapGoogleAuthenticationResponse = (value: ApiResponse<AuthenticationResponse>): AuthenticationResponse => {
+  if (!isAuthenticationResponse(value.data)) throw new Error('Google sign-in returned an invalid session. Please try again.');
+  return value.data;
 };
 
 const refreshSession = async (signal?: AbortSignal): Promise<AuthenticationResponse> => {
@@ -97,12 +113,12 @@ export const authService = {
     request: GoogleAuthorizationCodeRequest,
     signal?: AbortSignal,
   ): Promise<AuthenticationResponse> {
-    const response = await apiClient.post<AuthenticationResponse>(
+    const response = await apiClient.post<ApiResponse<AuthenticationResponse>>(
       API_ENDPOINTS.AUTH.GOOGLE_CODE,
       request,
       { headers: { 'X-CareerHarbor-Google-Code-Flow': '1' }, signal },
     );
-    return storeAuthentication(response.data);
+    return storeAuthentication(unwrapGoogleAuthenticationResponse(response.data));
   },
 
   async requestLoginOtp(
