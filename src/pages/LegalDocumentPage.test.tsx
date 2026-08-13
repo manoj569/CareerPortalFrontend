@@ -70,6 +70,8 @@ describe('static legal document pages', () => {
     expect(screen.getByText(/careerPortal\.registrationChallenge/)).toBeVisible();
     expect(screen.getByText(/careerharbor_cookie_consent/)).toBeVisible();
     expect(screen.getByText(/No analytics, advertising, remarketing/)).toBeVisible();
+    expect(screen.getByText(/Google Identity Services is available only on the Login and Register pages/)).toBeVisible();
+    expect(screen.getByText(/does not store that Google credential/)).toBeVisible();
     expect(screen.getByText(/never logs you out/)).toBeVisible();
     expect(document.title).toBe('Cookie Policy | Career Harbor');
     expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(

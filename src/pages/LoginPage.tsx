@@ -1,8 +1,8 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
   Alert,
-  Box,
   Button,
+  Divider,
   Link as MuiLink,
   Stack,
   TextField,
@@ -15,9 +15,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
+import { GoogleAuthenticationButton } from '@/features/auth/components/GoogleAuthenticationButton';
 import { PasswordField } from '@/features/auth/components/PasswordField';
-import { login } from '@/features/auth/store/authSlice';
-import { getSafeRedirectPath } from '@/features/auth/utils/safeRedirect';
+import { getGoogleAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
+import { authService } from '@/features/auth/services/authService';
+import { login, sessionRefreshed } from '@/features/auth/store/authSlice';
+import { getSafeRedirectLocation, getSafeRedirectPath } from '@/features/auth/utils/safeRedirect';
 import { loginSchema, type LoginFormValues } from '@/features/auth/validation/authSchemas';
 import { useAppDispatch } from '@/hooks/reduxHooks';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
@@ -38,6 +41,7 @@ export const LoginPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const locationState = location.state as LoginLocationState | null;
   const {
     formState: { errors, isSubmitting },
@@ -75,12 +79,25 @@ export const LoginPage = () => {
     }
   };
 
+  const submitGoogleLogin = async (credential: string) => {
+    if (isSubmitting || isGoogleSubmitting) return;
+    setServerError(null);
+    setIsGoogleSubmitting(true);
+    try {
+      const response = await authService.googleAuthenticate({ credential, intent: 'Login', acceptTerms: false });
+      dispatch(sessionRefreshed(response));
+      const requestedPath = getSafeRedirectPath(locationState?.from);
+      const defaultPath = response.user.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD;
+      enqueueSnackbar('Welcome back.', { variant: 'success' });
+      await navigate(response.user.role === UserRole.Candidate ? requestedPath ?? defaultPath : defaultPath, { replace: true });
+    } catch (error: unknown) {
+      setServerError(getGoogleAuthenticationErrorMessage(error, 'Login'));
+    } finally { setIsGoogleSubmitting(false); }
+  };
+
   return (
     <Stack spacing={3}>
-      <AuthPageHeader
-        description="Use your email address or Indian mobile number and password."
-        title="Welcome back"
-      />
+      <AuthPageHeader description="Sign in to continue" title="Welcome back" />
 
       {locationState?.message ? <Alert severity="success">{locationState.message}</Alert> : null}
       {serverError ? (
@@ -102,7 +119,7 @@ export const LoginPage = () => {
       >
         <TextField
           autoComplete="off"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isGoogleSubmitting}
           error={Boolean(errors.identifier)}
           helperText={errors.identifier?.message}
           label="Email address or mobile number"
@@ -111,24 +128,25 @@ export const LoginPage = () => {
         />
         <PasswordField
           autoComplete="current-password" // ✅ FIXED: Pass the required prop
-          disabled={isSubmitting}
+          disabled={isSubmitting || isGoogleSubmitting}
           errorMessage={errors.password?.message}
           label="Password"
           registration={register('password')}
         />
-        <MuiLink alignSelf="flex-start" component={Link} to={ROUTES.FORGOT_PASSWORD}>
+        <MuiLink alignSelf="flex-end" component={Link} to={ROUTES.FORGOT_PASSWORD}>
           Forgot password?
         </MuiLink>
-        <Button disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained">
+        <Button disabled={isSubmitting || isGoogleSubmitting} fullWidth size="large" type="submit" variant="contained">
           {isSubmitting ? 'Logging in…' : 'Log in'}
         </Button>
       </Stack>
 
-      <Box sx={{ height: 8 }} />
+      <Divider aria-label="OR">OR</Divider>
+      <GoogleAuthenticationButton disabled={isSubmitting || isGoogleSubmitting} onCredential={(credential) => { void submitGoogleLogin(credential); }} />
 
       <Typography color="text.secondary" textAlign="center">
         New to Career Harbor?{' '}
-        <MuiLink component={Link} to={ROUTES.REGISTER}>
+        <MuiLink component={Link} state={getSafeRedirectLocation(locationState?.from) ? { from: getSafeRedirectLocation(locationState?.from) } : undefined} to={ROUTES.REGISTER}>
           Create an account
         </MuiLink>
       </Typography>

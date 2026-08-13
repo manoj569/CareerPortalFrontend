@@ -5,6 +5,7 @@ import type { AuthenticationResponse } from '@/types';
 import type {
   CompletePasswordResetRequest,
   LoginRequest,
+  GoogleAuthenticationRequest,
   LoginWithOtpRequest,
   LogoutRequest,
   MessageResponse,
@@ -78,6 +79,16 @@ export const authService = {
       request,
       { signal },
     );
+    return storeAuthentication(response.data);
+  },
+
+  async googleAuthenticate(
+    request: GoogleAuthenticationRequest,
+    signal?: AbortSignal,
+  ): Promise<AuthenticationResponse> {
+    const response = await apiClient.post<AuthenticationResponse>(API_ENDPOINTS.AUTH.GOOGLE, request, {
+      signal,
+    });
     return storeAuthentication(response.data);
   },
 

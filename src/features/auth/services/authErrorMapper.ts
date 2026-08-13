@@ -8,6 +8,24 @@ const messagesByCode: Record<string, string> = {
   data_conflict: 'We could not complete your request. Check your details and try again.',
 };
 
+export const getGoogleAuthenticationErrorMessage = (error: unknown, intent: 'Login' | 'Register') => {
+  const apiError = error instanceof ApiRequestError ? error : toApiRequestError(error);
+  switch (apiError.code) {
+    case 'google_account_not_registered':
+      return 'No Career Harbor account is connected to this Google account. Create an account first.';
+    case 'existing_account_requires_login':
+      return intent === 'Register'
+        ? 'An account with this email already exists. Log in using your existing method.'
+        : 'Please log in using your existing method.';
+    case 'invalid_google_credential':
+      return 'Google sign-in could not be verified. Please try again.';
+    case 'google_authentication_disabled':
+      return `Google ${intent === 'Login' ? 'sign-in' : 'registration'} is temporarily unavailable.`;
+    default:
+      return getAuthenticationErrorMessage(apiError);
+  }
+};
+
 export const getAuthenticationErrorMessage = (error: unknown): string => {
   const apiError = error instanceof ApiRequestError ? error : toApiRequestError(error);
 

@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from './apiEndpoints';
 describe('API endpoint paths', () => {
   it('keeps the API version segment exclusively in Axios baseURL', () => {
     expect(API_ENDPOINTS.AUTH.LOGIN).toBe('/auth/login');
+    expect(API_ENDPOINTS.AUTH.GOOGLE).toBe('/auth/google');
     expect(API_ENDPOINTS.ADMIN.JOBS_COMPOSE).toBe('/admin/jobs/compose');
     expect(API_ENDPOINTS.CANDIDATE.APPLY('job-id')).toBe('/candidate/jobs/job-id/apply');
 

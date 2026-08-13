@@ -30,6 +30,12 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface GoogleAuthenticationRequest {
+  credential: string;
+  intent: 'Login' | 'Register';
+  acceptTerms: boolean;
+}
+
 export interface RequestLoginOtpRequest {
   phoneNumber: string;
 }

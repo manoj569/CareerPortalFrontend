@@ -183,6 +183,7 @@ const cookieSections: LegalSection[] = [
     title: '1. About this Cookie Policy',
     paragraphs: [
       'This Policy explains the essential browser storage used by Career Harbor. Although this page is called a Cookie Policy for clarity, the current frontend does not set cookies and does not load analytics, advertising, remarketing, or personalization technology.',
+      'Google Identity Services is available only on the Login and Register pages as an optional authentication method. If you choose it, Google may process authentication-related information under its Privacy Policy. Career Harbor receives an identity credential only after you choose Google authentication; it does not store that Google credential or use the integration for analytics or advertising. See Google’s Privacy Policy at https://policies.google.com/privacy.',
     ],
   },
   {

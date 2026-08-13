@@ -8,6 +8,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Divider,
   FormControlLabel,
   FormHelperText,
   Grid,
@@ -27,9 +28,11 @@ import { applyApiValidationErrors } from '@/api/formErrors';
 import { AppBrand } from '@/components/navigation/AppBrand';
 import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
+import { GoogleAuthenticationButton } from '@/features/auth/components/GoogleAuthenticationButton';
 import { PasswordField } from '@/features/auth/components/PasswordField';
-import { getAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
+import { getAuthenticationErrorMessage, getGoogleAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
 import { authService } from '@/features/auth/services/authService';
+import { sessionRefreshed } from '@/features/auth/store/authSlice';
 import { getSafeRedirectLocation } from '@/features/auth/utils/safeRedirect';
 import {
   registrationSchema,
@@ -38,6 +41,8 @@ import {
   type RegistrationFormValues,
 } from '@/features/auth/validation/authSchemas';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { useAppDispatch } from '@/hooks/reduxHooks';
+import { UserRole } from '@/types';
 
 const benefits = [
   'Discover verified internships and jobs',
@@ -163,14 +168,17 @@ export const RegisterPage = () => {
     { canonicalPath: ROUTES.REGISTER, noIndex: false },
   );
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const location = useLocation();
   const [serverError, setServerError] = useState<string | null>(null);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const {
     control,
     formState: { errors, isSubmitting },
+    getValues,
     handleSubmit,
     register,
     setError,
@@ -244,6 +252,29 @@ export const RegisterPage = () => {
     }
   };
 
+  const submitGoogleRegistration = async (credential: string) => {
+    if (isSubmitting || isGoogleSubmitting || isSuccess) return;
+    const termsAccepted = getValues('termsAccepted');
+    if (!termsAccepted) {
+      setError('termsAccepted', { message: 'You must accept the Terms of Use and Privacy Policy.' });
+      setFocus('termsAccepted');
+      return;
+    }
+    setServerError(null);
+    setIsGoogleSubmitting(true);
+    try {
+      const response = await authService.googleAuthenticate({ credential, intent: 'Register', acceptTerms: true });
+      dispatch(sessionRefreshed(response));
+      enqueueSnackbar('Account created successfully.', { variant: 'success' });
+      const destination = response.user.role === UserRole.Candidate
+        ? `${safeReturnLocation?.pathname ?? ROUTES.DASHBOARD}${safeReturnLocation?.search ?? ''}${safeReturnLocation?.hash ?? ''}`
+        : ROUTES.ADMIN;
+      await navigate(destination, { replace: true });
+    } catch (error: unknown) {
+      setServerError(getGoogleAuthenticationErrorMessage(error, 'Register'));
+    } finally { setIsGoogleSubmitting(false); }
+  };
+
   return (
     <Stack spacing={{ xs: 3, md: 4 }}>
       <RegistrationHeader />
@@ -298,7 +329,7 @@ export const RegisterPage = () => {
               >
                 <TextField
                   autoComplete="name"
-                  disabled={isSubmitting || isSuccess}
+                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
                   error={Boolean(errors.fullName)}
                   helperText={errors.fullName?.message}
                   inputRef={fullNameField.ref}
@@ -318,7 +349,7 @@ export const RegisterPage = () => {
                 />
                 <TextField
                   autoComplete="email"
-                  disabled={isSubmitting || isSuccess}
+                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
                   error={Boolean(errors.email)}
                   helperText={errors.email?.message}
                   label="Email address"
@@ -329,7 +360,7 @@ export const RegisterPage = () => {
                 />
                 <PasswordField
                   autoComplete="new-password"
-                  disabled={isSubmitting || isSuccess}
+                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
                   errorMessage={errors.password?.message}
                   label="Password"
                   placeholder="Minimum 6 characters"
@@ -337,7 +368,7 @@ export const RegisterPage = () => {
                 />
                 <TextField
                   autoComplete="tel-national"
-                  disabled={isSubmitting || isSuccess}
+                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
                   error={Boolean(errors.phoneNumber)}
                   helperText={errors.phoneNumber?.message}
                   inputRef={mobileField.ref}
@@ -377,7 +408,7 @@ export const RegisterPage = () => {
                         control={
                           <Checkbox
                             checked={field.value}
-                            disabled={isSubmitting || isSuccess}
+                            disabled={isSubmitting || isSuccess || isGoogleSubmitting}
                             inputRef={field.ref}
                             name={field.name}
                             onBlur={field.onBlur}
@@ -414,7 +445,7 @@ export const RegisterPage = () => {
                   ) : null}
                 </Box>
                 <Button
-                  disabled={isSubmitting || isSuccess}
+                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
                   fullWidth
                   size="large"
                   type="submit"
@@ -426,6 +457,8 @@ export const RegisterPage = () => {
                       ? 'Creating account…'
                       : 'Create account'}
                 </Button>
+                <Divider aria-label="OR">OR</Divider>
+                <GoogleAuthenticationButton disabled={isSubmitting || isSuccess || isGoogleSubmitting} onCredential={(credential) => { void submitGoogleRegistration(credential); }} />
               </Stack>
             </Stack>
           </Paper>
