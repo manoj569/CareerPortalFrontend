@@ -7,10 +7,7 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
   Divider,
-  FormControlLabel,
-  FormHelperText,
   Grid,
   InputAdornment,
   Link as MuiLink,
@@ -21,7 +18,7 @@ import {
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { applyApiValidationErrors } from '@/api/formErrors';
@@ -162,6 +159,7 @@ const BenefitsPanel = () => (
 );
 
 export const RegisterPage = () => {
+  const controlSx = { maxWidth: 400, mx: 'auto', width: '100%' };
   useDocumentMetadata(
     'Create Your Career Harbor Account | Career Harbor',
     'Create a Career Harbor candidate account to save jobs, upload your resume, apply to roles, and track applications.',
@@ -176,7 +174,6 @@ export const RegisterPage = () => {
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const {
-    control,
     formState: { errors, isSubmitting },
     getValues,
     handleSubmit,
@@ -189,7 +186,7 @@ export const RegisterPage = () => {
       fullName: '',
       password: '',
       phoneNumber: '',
-      termsAccepted: false,
+      termsAccepted: true,
     },
     mode: 'onTouched',
     resolver: yupResolver(registrationSchema),
@@ -254,12 +251,6 @@ export const RegisterPage = () => {
 
   const submitGoogleRegistration = async (credential: string) => {
     if (isSubmitting || isGoogleSubmitting || isSuccess) return;
-    const termsAccepted = getValues('termsAccepted');
-    if (!termsAccepted) {
-      setError('termsAccepted', { message: 'You must accept the Terms of Use and Privacy Policy.' });
-      setFocus('termsAccepted');
-      return;
-    }
     setServerError(null);
     setIsGoogleSubmitting(true);
     try {
@@ -276,14 +267,14 @@ export const RegisterPage = () => {
   };
 
   return (
-    <Stack spacing={{ xs: 3, md: 4 }}>
+    <Stack spacing={{ xs: 3, md: 4 }} sx={{ minHeight: '100dvh' }}>
       <RegistrationHeader />
       <Grid alignItems="stretch" container spacing={{ xs: 3, md: 4 }}>
         <Grid order={{ xs: 2, md: 1 }} size={{ xs: 12, md: 4 }}>
           <BenefitsPanel />
         </Grid>
         <Grid order={{ xs: 1, md: 2 }} size={{ xs: 12, md: 8 }}>
-          <Paper sx={{ p: { xs: 2.5, sm: 4 } }}>
+          <Paper sx={{ p: { xs: 2, sm: 4 } }}>
             <Stack spacing={3}>
               <AuthPageHeader
                 description="Create one Candidate profile for internships, fresher roles, and experienced opportunities."
@@ -296,7 +287,7 @@ export const RegisterPage = () => {
                     <Typography fontWeight={600}>Account created successfully!</Typography>
                     <Typography variant="body2">
                       We've sent a verification link to{' '}
-                      <strong>{control._defaultValues.email}</strong>. You will be redirected to
+                      <strong>{getValues('email')}</strong>. You will be redirected to
                       login in a few seconds.
                     </Typography>
                   </Stack>
@@ -326,6 +317,7 @@ export const RegisterPage = () => {
                   })(event);
                 }}
                 spacing={2.5}
+                sx={controlSx}
               >
                 <TextField
                   autoComplete="name"
@@ -399,51 +391,9 @@ export const RegisterPage = () => {
                   }}
                   type="tel"
                 />
-                <Box>
-                  <Controller
-                    control={control}
-                    name="termsAccepted"
-                    render={({ field }) => (
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={field.value}
-                            disabled={isSubmitting || isSuccess || isGoogleSubmitting}
-                            inputRef={field.ref}
-                            name={field.name}
-                            onBlur={field.onBlur}
-                            onChange={(_, checked) => field.onChange(checked)}
-                            required
-                          />
-                        }
-                        label={
-                          <Typography variant="body2">
-                            I agree to the{' '}
-                            <MuiLink
-                              component={Link}
-                              onClick={(event) => event.stopPropagation()}
-                              to={ROUTES.TERMS_OF_USE}
-                            >
-                              Terms of Use
-                            </MuiLink>{' '}
-                            and{' '}
-                            <MuiLink
-                              component={Link}
-                              onClick={(event) => event.stopPropagation()}
-                              to={ROUTES.PRIVACY_POLICY}
-                            >
-                              Privacy Policy
-                            </MuiLink>
-                            .
-                          </Typography>
-                        }
-                      />
-                    )}
-                  />
-                  {errors.termsAccepted ? (
-                    <FormHelperText error>{errors.termsAccepted.message}</FormHelperText>
-                  ) : null}
-                </Box>
+                <Typography color="text.secondary" variant="body2">
+                  By creating an account, you agree to the <MuiLink component={Link} to={ROUTES.TERMS_OF_USE}>Terms of Use</MuiLink> and <MuiLink component={Link} to={ROUTES.PRIVACY_POLICY}>Privacy Policy</MuiLink>.
+                </Typography>
                 <Button
                   disabled={isSubmitting || isSuccess || isGoogleSubmitting}
                   fullWidth
@@ -458,6 +408,9 @@ export const RegisterPage = () => {
                       : 'Create account'}
                 </Button>
                 <Divider aria-label="OR">OR</Divider>
+                <Typography color="text.secondary" variant="body2">
+                  By continuing with Google, you agree to the <MuiLink component={Link} to={ROUTES.TERMS_OF_USE}>Terms of Use</MuiLink> and <MuiLink component={Link} to={ROUTES.PRIVACY_POLICY}>Privacy Policy</MuiLink>.
+                </Typography>
                 <GoogleAuthenticationButton disabled={isSubmitting || isSuccess || isGoogleSubmitting} onCredential={(credential) => { void submitGoogleRegistration(credential); }} />
               </Stack>
             </Stack>

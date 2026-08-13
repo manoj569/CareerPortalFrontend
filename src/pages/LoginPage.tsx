@@ -32,6 +32,7 @@ interface LoginLocationState {
 }
 
 export const LoginPage = () => {
+  const controlSx = { maxWidth: 400, mx: 'auto', width: '100%' };
   useDocumentMetadata(
     'Log in to Your Account | Career Harbor',
     'Log in to Career Harbor to manage your profile, saved jobs, applications, resume, and personalized recommendations.',
@@ -96,7 +97,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3} sx={{ minHeight: '100dvh' }}>
       <AuthPageHeader description="Sign in to continue" title="Welcome back" />
 
       {locationState?.message ? <Alert severity="success">{locationState.message}</Alert> : null}
@@ -116,6 +117,7 @@ export const LoginPage = () => {
           })(event);
         }}
         spacing={2.5}
+        sx={controlSx}
       >
         <TextField
           autoComplete="off"
@@ -141,10 +143,10 @@ export const LoginPage = () => {
         </Button>
       </Stack>
 
-      <Divider aria-label="OR">OR</Divider>
-      <GoogleAuthenticationButton disabled={isSubmitting || isGoogleSubmitting} onCredential={(credential) => { void submitGoogleLogin(credential); }} />
+      <Divider aria-label="OR" sx={controlSx}>OR</Divider>
+      <Stack sx={controlSx}><GoogleAuthenticationButton disabled={isSubmitting || isGoogleSubmitting} onCredential={(credential) => { void submitGoogleLogin(credential); }} /></Stack>
 
-      <Typography color="text.secondary" textAlign="center">
+      <Typography color="text.secondary" sx={controlSx} textAlign="center">
         New to Career Harbor?{' '}
         <MuiLink component={Link} state={getSafeRedirectLocation(locationState?.from) ? { from: getSafeRedirectLocation(locationState?.from) } : undefined} to={ROUTES.REGISTER}>
           Create an account
