@@ -113,6 +113,7 @@ describe('Candidate workspace shell', () => {
 
     expect(accountButton).toHaveTextContent('AP');
     expect(within(header).queryByRole('button', { name: 'Log out' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Log out' })).toBeNull();
 
     await userEvent.click(accountButton);
     const menu = screen.getByRole('menu', { name: 'Candidate account menu' });

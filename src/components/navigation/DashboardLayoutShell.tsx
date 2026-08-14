@@ -119,7 +119,7 @@ export const DashboardLayoutShell = ({
           </Box>
         ) : null}
         {compact ? null : <CookieSettingsButton fullWidth sx={{ mb: 1 }} variant="text" />}
-        {compact ? (
+        {accountMenuProfilePath ? null : compact ? (
           <Tooltip placement="right" title="Log out"><IconButton aria-label="Log out" onClick={handleLogout}><LogoutIcon /></IconButton></Tooltip>
         ) : <Button fullWidth onClick={handleLogout} variant="outlined">Log out</Button>}
       </Box>

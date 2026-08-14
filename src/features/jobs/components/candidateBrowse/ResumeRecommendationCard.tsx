@@ -45,7 +45,7 @@ export const ResumeRecommendationCard = ({
   const isProcessing = status === ResumeExtractionStatus.Processing;
   const isReady = status === ResumeExtractionStatus.Ready;
   const isFailed = status === ResumeExtractionStatus.Failed;
-  const displayFileName = sanitizeResumeFileName(fileName);
+  const displayFileName = fileName ? sanitizeResumeFileName(fileName, '') : '';
   const updatedDate = lastUpdatedUtc ? new Date(lastUpdatedUtc) : null;
   const lastUpdated = updatedDate && !Number.isNaN(updatedDate.valueOf())
     ? updatedDate.toLocaleString()
@@ -79,9 +79,11 @@ export const ResumeRecommendationCard = ({
             </Stack>
           ) : (
             <>
-              <Typography noWrap sx={{ mt: 0.75 }} title={displayFileName}>
-                {displayFileName}
-              </Typography>
+              {displayFileName ? (
+                <Typography noWrap sx={{ mt: 0.75 }} title={displayFileName}>
+                  {displayFileName}
+                </Typography>
+              ) : null}
               <Typography color={isFailed ? 'error' : 'text.secondary'} variant="body2">
                 {isProcessing ? 'Analyzing resume…' : isReady ? 'Resume analyzed' : isFailed ? 'Your resume is stored, but recommendations could not be prepared.' : 'Preparing recommendations'}
               </Typography>

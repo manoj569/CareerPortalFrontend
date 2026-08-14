@@ -171,6 +171,7 @@ export const CandidateBrowseJobsPage = () => {
   const [uploadResume, uploadState] = useUploadResumeMutation();
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [isDownloadingResume, setIsDownloadingResume] = useState(false);
+  const downloadInProgressRef = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const appliedCount = countCandidateJobFilters(state);
 
@@ -197,6 +198,7 @@ export const CandidateBrowseJobsPage = () => {
     setResumeError(null);
     try {
       await uploadResume(file).unwrap();
+      await profile.refetch();
       setPollAttempts(0);
       setPollingActive(true);
       await resumeStatus.refetch();
@@ -208,17 +210,20 @@ export const CandidateBrowseJobsPage = () => {
   };
 
   const downloadResume = async () => {
-    if (isDownloadingResume) return;
+    if (downloadInProgressRef.current) return;
+    const downloadFileName = sanitizeResumeFileName(profile.data?.resume?.fileName, '');
+    if (!downloadFileName) {
+      setResumeError('Your resume filename is unavailable. Refresh the page and try again.');
+      return;
+    }
+    downloadInProgressRef.current = true;
     setIsDownloadingResume(true);
     try {
       const blob = await downloadCandidateResume();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = sanitizeResumeFileName(
-        profile.data?.resume?.fileName,
-        'career-harbor-resume',
-      );
+      link.download = downloadFileName;
       try {
         link.click();
       } finally {
@@ -227,6 +232,7 @@ export const CandidateBrowseJobsPage = () => {
     } catch {
       setResumeError('Your resume could not be downloaded. Please try again.');
     } finally {
+      downloadInProgressRef.current = false;
       setIsDownloadingResume(false);
     }
   };
@@ -256,6 +262,17 @@ export const CandidateBrowseJobsPage = () => {
     },
     [activeTab, setState, state],
   );
+
+  useEffect(() => {
+    const normalized = serializeCandidateJobSearchState(state);
+    normalized.set('mode', activeTab);
+    const current = new URLSearchParams(searchParams);
+    normalized.sort();
+    current.sort();
+    if (normalized.toString() !== current.toString()) {
+      setSearchParams(normalized, { replace: true });
+    }
+  }, [activeTab, searchParams, setSearchParams, state]);
 
   const clearFilters = useCallback(() => {
     const empty = emptyCandidateJobSearchState();
@@ -288,7 +305,7 @@ export const CandidateBrowseJobsPage = () => {
 
   const searchJobs = () => {
     const locations = locationInput.split(',').map((value) => value.trim()).filter(Boolean).slice(0, 25);
-    const parsedExperience = experienceInput === '' ? undefined : Math.min(60, Math.max(0, Number(experienceInput)));
+    const parsedExperience = experienceInput === '' ? undefined : Math.min(45, Math.max(0, Number(experienceInput)));
     applyChanges({
       keyword: keywordInput.trim().slice(0, 250),
       locations,
@@ -424,8 +441,6 @@ export const CandidateBrowseJobsPage = () => {
             sx={{
               alignSelf: 'flex-start',
               display: { xs: 'none', lg: 'block' },
-              maxHeight: 'calc(100vh - 96px)',
-              overflowY: 'auto',
               p: 2,
               position: 'sticky',
               top: 88,

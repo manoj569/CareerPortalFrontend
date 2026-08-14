@@ -1,66 +1,80 @@
 import { describe, expect, it } from 'vitest';
 
-import { CompanyType, EmploymentType, PublicJobSort, WorkplaceType } from '../types/jobModels';
+import { CompanyType, PublicJobSort, WorkplaceType } from '../types/jobModels';
 import {
+  countCandidateJobFilters,
   parseCandidateJobSearchParams,
   serializeCandidateJobSearchState,
   toCandidatePublicJobQuery,
 } from './candidateJobSearchParams';
 
 describe('Candidate job search URL state', () => {
-  it('round-trips supported multi-select filters and pagination', () => {
+  it('round-trips the nine retained filter groups and pagination', () => {
     const params = new URLSearchParams(
-      'q=react&companyName=HARMAN&categoryName=Artificial%20Intelligence&workMode=remote&workMode=hybrid&companyType=startup&employmentType=internship&department=Engineering&location=Pune&minExperience=1&maxExperience=3&freshness=7&featured=true&sort=closing&page=2',
+      'q=react&categoryName=Artificial%20Intelligence&workMode=remote&workMode=hybrid&companyType=startup&department=Engineering&education=B.Tech&location=Pune&minExperience=1&maxExperience=3&minAmount=500000&maxAmount=2500000&freshness=7&sort=closing&page=2',
     );
     const state = parseCandidateJobSearchParams(params);
 
     expect(state).toMatchObject({
-      companyTypes: [CompanyType.Startup],
-      companyName: 'HARMAN',
       categoryName: 'Artificial Intelligence',
+      companyTypes: [CompanyType.Startup],
       departments: ['Engineering'],
-      employmentTypes: [EmploymentType.Internship],
-      featuredOnly: true,
+      educationRequirements: ['B.Tech'],
       freshnessDays: 7,
       keyword: 'react',
       locations: ['Pune'],
+      maxAmount: 2_500_000,
       maxExperienceYears: 3,
+      minAmount: 500_000,
       minExperienceYears: 1,
       page: 2,
       sort: 'closing',
       workModes: [WorkplaceType.Remote, WorkplaceType.Hybrid],
     });
-    expect(serializeCandidateJobSearchState(state).toString()).toContain('workMode=remote');
-    expect(serializeCandidateJobSearchState(state).getAll('workMode')).toEqual([
-      'remote',
-      'hybrid',
-    ]);
-    expect(serializeCandidateJobSearchState(state).get('companyName')).toBe('HARMAN');
-    expect(serializeCandidateJobSearchState(state).get('categoryName')).toBe(
-      'Artificial Intelligence',
-    );
+    const serialized = serializeCandidateJobSearchState(state);
+    expect(serialized.getAll('workMode')).toEqual(['remote', 'hybrid']);
+    expect(serialized.get('categoryName')).toBe('Artificial Intelligence');
+    expect(serialized.get('maxAmount')).toBe('2500000');
   });
 
-  it('sends trimmed name filters together and omits legacy IDs', () => {
+  it('removes stale URL values for filters deleted from Candidate Browse Jobs', () => {
     const state = parseCandidateJobSearchParams(
-      new URLSearchParams('companyName=%20HARMAN%20&categoryName=%20AI%20&company=legacy-id'),
+      new URLSearchParams(
+        'companyName=HARMAN&employmentType=internship&featured=true&duration=3&flexibleDuration=true&roleCategory=Software&postedBy=company&industry=Technology&categoryName=AI',
+      ),
     );
+    const serialized = serializeCandidateJobSearchState(state);
     const query = toCandidatePublicJobQuery(state);
-    expect(query).toMatchObject({ companyName: 'HARMAN', categoryName: 'AI', pageNumber: 1 });
-    expect(query).not.toHaveProperty('companyIds');
-    expect(serializeCandidateJobSearchState(state).has('company')).toBe(false);
+
+    expect(serialized.get('categoryName')).toBe('AI');
+    [
+      'companyName',
+      'employmentType',
+      'featured',
+      'duration',
+      'flexibleDuration',
+      'roleCategory',
+      'postedBy',
+      'industry',
+    ].forEach((name) => expect(serialized.has(name)).toBe(false));
+    expect(query).not.toHaveProperty('companyName');
+    expect(query).not.toHaveProperty('featuredOnly');
+    expect(query).not.toHaveProperty('roleCategories');
   });
 
-  it('maps URL state to the completed backend search contract', () => {
+  it('maps retained URL state to the backend query and de-duplicates text facets', () => {
     const query = toCandidatePublicJobQuery(
       parseCandidateJobSearchParams(
-        new URLSearchParams('q=react&workMode=remote&department=Engineering&sort=recommended'),
+        new URLSearchParams(
+          'q=react&workMode=remote&department=Engineering&department=%20engineering%20&location=Pune&location=%20pune%20&sort=recommended',
+        ),
       ),
     );
 
     expect(query).toMatchObject({
       departments: ['Engineering'],
       keyword: 'react',
+      locations: ['Pune'],
       pageNumber: 1,
       pageSize: 10,
       sortBy: PublicJobSort.Recommended,
@@ -71,15 +85,36 @@ describe('Candidate job search URL state', () => {
 
   it('drops unsupported values and invalid ranges instead of sending them to the backend', () => {
     const state = parseCandidateJobSearchParams(
-      new URLSearchParams(
-        'workMode=spaceship&duration=4&freshness=2&minExperience=10&maxExperience=2',
-      ),
+      new URLSearchParams('workMode=spaceship&freshness=2&minExperience=10&maxExperience=2'),
     );
 
     expect(state.workModes).toEqual([]);
-    expect(state.internshipDurationMonths).toEqual([]);
     expect(state.freshnessDays).toBeUndefined();
     expect(state.minExperienceYears).toBe(10);
     expect(state.maxExperienceYears).toBeUndefined();
+  });
+
+  it('normalizes the UI upper endpoints to unbounded backend maxima', () => {
+    const state = parseCandidateJobSearchParams(
+      new URLSearchParams('minExperience=2&maxExperience=45&minAmount=100000&maxAmount=5000000'),
+    );
+    const query = toCandidatePublicJobQuery(state);
+
+    expect(query.minExperienceYears).toBe(2);
+    expect(query.maxExperienceYears).toBeUndefined();
+    expect(query.minAmount).toBe(100_000);
+    expect(query.maxAmount).toBeUndefined();
+    expect(serializeCandidateJobSearchState(state).has('maxExperience')).toBe(false);
+    expect(serializeCandidateJobSearchState(state).has('maxAmount')).toBe(false);
+  });
+
+  it('counts only retained visible filters', () => {
+    const state = parseCandidateJobSearchParams(
+      new URLSearchParams(
+        'categoryName=AI&workMode=remote&companyType=startup&department=Engineering&education=B.Tech&location=Pune&minExperience=1&maxExperience=3&minAmount=500000&freshness=7',
+      ),
+    );
+
+    expect(countCandidateJobFilters(state)).toBe(9);
   });
 });

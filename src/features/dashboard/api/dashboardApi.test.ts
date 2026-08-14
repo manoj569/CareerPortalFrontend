@@ -234,12 +234,14 @@ describe('Candidate API integration', () => {
 
   it('uploads resumes as multipart form data to the secure candidate endpoint', async () => {
     const store = createAppStore();
-    const file = new File(['%PDF-resume'], 'candidate.pdf', { type: 'application/pdf' });
+    const file = new File(['%PDF-resume'], 'Manoj_Shekapure_DotNet_Resume.pdf', {
+      type: 'application/pdf',
+    });
     mockRequest.mockResolvedValue({
       data: {
         data: {
           contentType: 'application/pdf',
-          fileName: 'resume.pdf',
+          fileName: file.name,
           sizeBytes: file.size,
           uploadedAtUtc: '2026-07-29T00:00:00Z',
         },
@@ -257,6 +259,7 @@ describe('Candidate API integration', () => {
     expect(request.url).toBe('/candidate/resume');
     expect(request.data).toBeInstanceOf(FormData);
     expect(request.data.get('file')).toBe(file);
+    expect((request.data.get('file') as File).name).toBe('Manoj_Shekapure_DotNet_Resume.pdf');
   });
 
   it('downloads resumes through the authenticated client without caching binary data', async () => {
