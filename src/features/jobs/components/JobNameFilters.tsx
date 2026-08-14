@@ -6,10 +6,16 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 interface JobNameFiltersProps {
   categoryName: string;
   companyName: string;
+  fields?: 'both' | 'category' | 'company';
   onChange: (changes: { categoryName?: string; companyName?: string }) => void;
 }
 
-export const JobNameFilters = ({ categoryName, companyName, onChange }: JobNameFiltersProps) => {
+export const JobNameFilters = ({
+  categoryName,
+  companyName,
+  fields = 'both',
+  onChange,
+}: JobNameFiltersProps) => {
   const [companyInput, setCompanyInput] = useState(companyName ?? '');
   const [categoryInput, setCategoryInput] = useState(categoryName ?? '');
   const companyDirty = useRef(false);
@@ -36,8 +42,8 @@ export const JobNameFilters = ({ categoryName, companyName, onChange }: JobNameF
       companyDirty.current = false;
       categoryDirty.current = false;
       onChange({
-        categoryName: trimmedCategory || undefined,
-        companyName: trimmedCompany || undefined,
+        ...(fields !== 'company' ? { categoryName: trimmedCategory || undefined } : {}),
+        ...(fields !== 'category' ? { companyName: trimmedCompany || undefined } : {}),
       });
     }
   }, [
@@ -47,12 +53,13 @@ export const JobNameFilters = ({ categoryName, companyName, onChange }: JobNameF
     companyName,
     debouncedCategory,
     debouncedCompany,
+    fields,
     onChange,
   ]);
 
   return (
     <Stack spacing={2}>
-      <TextField
+      {fields !== 'category' ? <TextField
         label="Company name"
         onChange={(event) => {
           companyDirty.current = true;
@@ -61,8 +68,8 @@ export const JobNameFilters = ({ categoryName, companyName, onChange }: JobNameF
         placeholder="e.g. HARMAN"
         size="small"
         value={companyInput}
-      />
-      <TextField
+      /> : null}
+      {fields !== 'company' ? <TextField
         label="Category name"
         onChange={(event) => {
           categoryDirty.current = true;
@@ -71,7 +78,7 @@ export const JobNameFilters = ({ categoryName, companyName, onChange }: JobNameF
         placeholder="e.g. Software, AI, Marketing"
         size="small"
         value={categoryInput}
-      />
+      /> : null}
     </Stack>
   );
 };

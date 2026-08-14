@@ -1,3 +1,4 @@
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
   Accordion,
@@ -6,14 +7,17 @@ import {
   Box,
   Button,
   Checkbox,
-  Divider,
   FormControlLabel,
   FormGroup,
+  IconButton,
+  Radio,
+  RadioGroup,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import {
   getCompanyTypeLabel,
@@ -28,7 +32,6 @@ import {
 } from '../types/jobModels';
 import type { CandidateJobSearchState } from '../utils/candidateJobSearchParams';
 import { JobNameFilters } from './JobNameFilters';
-import { ActiveFilterChips } from './candidateBrowse/ActiveFilterChips';
 
 interface FilterOption {
   count?: number;
@@ -36,36 +39,54 @@ interface FilterOption {
   label: string;
 }
 
+interface FilterSectionProps {
+  children: ReactNode;
+  defaultExpanded?: boolean;
+  title: string;
+}
+
+const FilterSection = ({ children, defaultExpanded = false, title }: FilterSectionProps) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  return <Accordion
+    disableGutters
+    elevation={0}
+    expanded={expanded}
+    onChange={(_, nextExpanded) => setExpanded(nextExpanded)}
+    slotProps={{ transition: { unmountOnExit: false } }}
+    sx={{
+      borderBottom: 1,
+      borderColor: 'divider',
+      '&::before': { display: 'none' },
+      '&:last-of-type': { borderBottom: 0 },
+    }}
+  >
+    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 46, px: 0 }}>
+      <Typography fontWeight={800} variant="body2">{title}</Typography>
+    </AccordionSummary>
+    <AccordionDetails sx={{ px: 0, pb: 2, pt: 0 }}>{children}</AccordionDetails>
+  </Accordion>;
+};
+
 interface FacetCheckboxGroupProps {
-  collapsible?: boolean;
-  label: string;
   onToggle: (key: string) => void;
   options: FilterOption[];
   selected: string[];
 }
 
-const FacetCheckboxGroup = ({
-  collapsible = false,
-  label,
-  onToggle,
-  options,
-  selected,
-}: FacetCheckboxGroupProps) => {
-  const [expanded, setExpanded] = useState(false);
+const FacetCheckboxGroup = ({ onToggle, options, selected }: FacetCheckboxGroupProps) => {
+  const [showAll, setShowAll] = useState(false);
   const visibleOptions = options.filter(
     (option) => (option.count ?? 1) > 0 || selected.includes(option.key),
   );
-  const displayedOptions = expanded ? visibleOptions : visibleOptions.slice(0, 5);
+  const displayedOptions = showAll ? visibleOptions : visibleOptions.slice(0, 5);
 
-  if (visibleOptions.length === 0) return null;
+  if (visibleOptions.length === 0) {
+    return <Typography color="text.secondary" variant="body2">No options available.</Typography>;
+  }
 
-  const group = (
+  return (
     <Box component="fieldset" sx={{ border: 0, m: 0, p: 0 }}>
-      {collapsible ? null : (
-        <Typography component="legend" fontWeight={800} sx={{ mb: 0.75 }}>
-          {label}
-        </Typography>
-      )}
       <FormGroup>
         {displayedOptions.map((option) => (
           <FormControlLabel
@@ -78,32 +99,20 @@ const FacetCheckboxGroup = ({
             }
             key={option.key}
             label={`${option.label}${option.count === undefined ? '' : ` (${option.count})`}`}
-            sx={{ alignItems: 'flex-start', '& .MuiFormControlLabel-label': { pt: 0.5 } }}
+            sx={{
+              alignItems: 'flex-start',
+              m: 0,
+              '& .MuiFormControlLabel-label': { pt: 0.55 },
+            }}
           />
         ))}
       </FormGroup>
       {visibleOptions.length > 5 ? (
-        <Button onClick={() => setExpanded((value) => !value)} size="small" sx={{ mt: 0.5 }}>
-          {expanded ? 'View less' : `View more (${visibleOptions.length - 5})`}
+        <Button onClick={() => setShowAll((value) => !value)} size="small" sx={{ mt: 0.5 }}>
+          {showAll ? 'Show less' : `Show ${visibleOptions.length - 5} more`}
         </Button>
       ) : null}
     </Box>
-  );
-
-  if (!collapsible) return group;
-
-  return (
-    <Accordion
-      defaultExpanded={selected.length > 0}
-      disableGutters
-      elevation={0}
-      sx={{ '&::before': { display: 'none' } }}
-    >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 40, px: 0 }}>
-        <Typography fontWeight={800}>{label}</Typography>
-      </AccordionSummary>
-      <AccordionDetails sx={{ px: 0, pt: 0 }}>{group}</AccordionDetails>
-    </Accordion>
   );
 };
 
@@ -124,6 +133,7 @@ interface CandidateJobFiltersProps {
   appliedCount: number;
   onChange: (changes: Partial<CandidateJobSearchState>) => void;
   onClear: () => void;
+  onCollapse?: () => void;
   options: PublicJobFilterOptions;
   state: CandidateJobSearchState;
   supplementalCounts: SupplementalJobFilterCounts;
@@ -133,10 +143,17 @@ export const CandidateJobFilters = ({
   appliedCount,
   onChange,
   onClear,
+  onCollapse,
   options,
   state,
   supplementalCounts,
 }: CandidateJobFiltersProps) => {
+  const [locationInput, setLocationInput] = useState(state.locations.join(', '));
+
+  useEffect(() => {
+    setLocationInput(state.locations.join(', '));
+  }, [state.locations]);
+
   const updateExperience = (key: 'maxExperienceYears' | 'minExperienceYears', rawValue: string) => {
     const value = rawValue === '' ? undefined : Math.min(60, Math.max(0, Number(rawValue)));
     if (value !== undefined && !Number.isFinite(value)) return;
@@ -185,237 +202,257 @@ export const CandidateJobFilters = ({
     onChange({ [key]: value });
   };
 
+  const applyLocationInput = () => {
+    const locations = locationInput
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .slice(0, 25);
+    onChange({ locations });
+  };
+
+  const handleLocationKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    applyLocationInput();
+  };
+
   return (
-    <Stack spacing={2.25}>
-      <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}>
-        <Typography component="h2" variant="h3">
-          All filters
-        </Typography>
-        <Typography color="text.secondary" variant="body2">
-          Applied ({appliedCount})
-        </Typography>
+    <Stack spacing={0}>
+      <Stack alignItems="center" direction="row" gap={1} sx={{ pb: 1.5 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography component="h2" variant="h3">Filters</Typography>
+          <Typography color="text.secondary" variant="caption">
+            Applied ({appliedCount})
+          </Typography>
+        </Box>
+        <Button disabled={appliedCount === 0} onClick={onClear} size="small">
+          Clear all
+        </Button>
+        {onCollapse ? (
+          <Tooltip title="Collapse filters">
+            <IconButton aria-label="Collapse job filters" onClick={onCollapse} size="small">
+              <ChevronLeftIcon />
+            </IconButton>
+          </Tooltip>
+        ) : null}
       </Stack>
-      <Button disabled={appliedCount === 0} onClick={onClear} sx={{ alignSelf: 'flex-start' }}>
-        Clear all
-      </Button>
-      {appliedCount > 0 || state.keyword ? (
-        <ActiveFilterChips
-          onChange={onChange}
-          onKeywordClear={() => onChange({ keyword: '' })}
-          state={state}
-        />
-      ) : null}
-      <Divider />
 
-      <JobNameFilters
-        categoryName={state.categoryName}
-        companyName={state.companyName}
-        onChange={onChange}
-      />
-
-      <FacetCheckboxGroup
-        label="Work mode"
-        onToggle={(key) => onChange({ workModes: toggleValue(state.workModes, Number(key)) })}
-        options={enumOptions(options.workModes, (value) =>
-          value === WorkplaceType.OnSite ? 'Work from office' : getWorkplaceTypeLabel(value),
-        )}
-        selected={state.workModes.map(String)}
-      />
-
-      {options.experienceRange.count > 0 ? (
-        <Box component="fieldset" sx={{ border: 0, m: 0, p: 0 }}>
-          <Typography component="legend" fontWeight={800} sx={{ mb: 1 }}>
-            Experience ({options.experienceRange.count})
-          </Typography>
-          <Stack direction="row" spacing={1}>
-            <TextField
-              inputProps={{ max: 60, min: 0 }}
-              label="Minimum years"
-              onChange={(event) => updateExperience('minExperienceYears', event.target.value)}
-              size="small"
-              type="number"
-              value={state.minExperienceYears ?? ''}
-            />
-            <TextField
-              inputProps={{ max: 60, min: 0 }}
-              label="Maximum years"
-              onChange={(event) => updateExperience('maxExperienceYears', event.target.value)}
-              size="small"
-              type="number"
-              value={state.maxExperienceYears ?? ''}
-            />
-          </Stack>
-        </Box>
-      ) : null}
-
-      <FacetCheckboxGroup
-        collapsible
-        label="Department"
-        onToggle={(key) => onChange({ departments: toggleValue(state.departments, key) })}
-        options={options.departments.map((option) => ({
-          count: option.count,
-          key: option.value,
-          label: option.value,
-        }))}
-        selected={state.departments}
-      />
-
-      <FacetCheckboxGroup
-        collapsible
-        label="Role category"
-        onToggle={(key) => onChange({ roleCategories: toggleValue(state.roleCategories, key) })}
-        options={options.roleCategories.map((option) => ({
-          count: option.count,
-          key: option.value,
-          label: option.value,
-        }))}
-        selected={state.roleCategories}
-      />
-
-      {options.salaryRange.count > 0 ? (
-        <Box component="fieldset" sx={{ border: 0, m: 0, p: 0 }}>
-          <Typography component="legend" fontWeight={800} sx={{ mb: 1 }}>
-            Salary / Stipend ({options.salaryRange.count})
-          </Typography>
-          <Stack direction="row" spacing={1}>
-            <TextField
-              inputProps={{ min: 0 }}
-              label="Minimum amount"
-              onChange={(event) => updateAmount('minAmount', event.target.value)}
-              size="small"
-              type="number"
-              value={state.minAmount ?? ''}
-            />
-            <TextField
-              inputProps={{ min: 0 }}
-              label="Maximum amount"
-              onChange={(event) => updateAmount('maxAmount', event.target.value)}
-              size="small"
-              type="number"
-              value={state.maxAmount ?? ''}
-            />
-          </Stack>
-        </Box>
-      ) : null}
-
-      <FacetCheckboxGroup
-        collapsible
-        label="Company type"
-        onToggle={(key) => onChange({ companyTypes: toggleValue(state.companyTypes, Number(key)) })}
-        options={enumOptions(options.companyTypes, getCompanyTypeLabel)}
-        selected={state.companyTypes.map(String)}
-      />
-
-      <FacetCheckboxGroup
-        label="Employment type"
-        onToggle={(key) =>
-          onChange({
-            employmentTypes: toggleValue(state.employmentTypes, Number(key)),
-          })
-        }
-        options={enumOptions(options.employmentTypes, getEmploymentTypeLabel)}
-        selected={state.employmentTypes.map(String)}
-      />
-
-      <FacetCheckboxGroup
-        collapsible
-        label="Internship duration"
-        onToggle={(key) => {
-          if (key === 'flexible') {
-            onChange({ flexibleDuration: state.flexibleDuration ? undefined : true });
-            return;
+      <FilterSection defaultExpanded title="Date posted">
+        <RadioGroup
+          aria-label="Date posted"
+          onChange={(event) =>
+            onChange({ freshnessDays: event.target.value ? Number(event.target.value) : undefined })
           }
-          onChange({
-            internshipDurationMonths: toggleValue(state.internshipDurationMonths, Number(key)),
-          });
-        }}
-        options={options.internshipDurations.map((option) => ({
-          count: option.count,
-          key: option.isFlexible ? 'flexible' : String(option.months),
-          label: option.label,
-        }))}
-        selected={[
-          ...state.internshipDurationMonths.map(String),
-          ...(state.flexibleDuration ? ['flexible'] : []),
-        ]}
-      />
+          value={state.freshnessDays ? String(state.freshnessDays) : ''}
+        >
+          <FormControlLabel control={<Radio size="small" />} label="All dates" value="" />
+          {[
+            [1, 'Last 24 hours'],
+            [3, '3 days'],
+            [7, '7 days'],
+            [15, '15 days'],
+            [30, '30 days'],
+          ].map(([days, label]) => (
+            <FormControlLabel
+              control={<Radio size="small" />}
+              key={days}
+              label={`${label} (${supplementalCounts.freshness[days as 1 | 3 | 7 | 15 | 30]})`}
+              value={String(days)}
+            />
+          ))}
+        </RadioGroup>
+      </FilterSection>
 
-      <FacetCheckboxGroup
-        collapsible
-        label="Education"
-        onToggle={(key) =>
-          onChange({ educationRequirements: toggleValue(state.educationRequirements, key) })
-        }
-        options={options.educationRequirements.map((option) => ({
-          count: option.count,
-          key: option.value,
-          label: option.value,
-        }))}
-        selected={state.educationRequirements}
-      />
+      <FilterSection defaultExpanded title={`Experience (${options.experienceRange.count})`}>
+        <Stack direction="row" spacing={1}>
+          <TextField
+            fullWidth
+            inputProps={{ max: 60, min: 0 }}
+            label="Minimum years"
+            onChange={(event) => updateExperience('minExperienceYears', event.target.value)}
+            size="small"
+            type="number"
+            value={state.minExperienceYears ?? ''}
+          />
+          <TextField
+            fullWidth
+            inputProps={{ max: 60, min: 0 }}
+            label="Maximum years"
+            onChange={(event) => updateExperience('maxExperienceYears', event.target.value)}
+            size="small"
+            type="number"
+            value={state.maxExperienceYears ?? ''}
+          />
+        </Stack>
+      </FilterSection>
 
-      <FacetCheckboxGroup
-        collapsible
-        label="Posted by"
-        onToggle={(key) =>
-          onChange({ postedByTypes: toggleValue(state.postedByTypes, Number(key)) })
-        }
-        options={enumOptions(options.postedByTypes, getPostedByTypeLabel)}
-        selected={state.postedByTypes.map(String)}
-      />
+      <FilterSection defaultExpanded title="Work mode">
+        <FacetCheckboxGroup
+          onToggle={(key) => onChange({ workModes: toggleValue(state.workModes, Number(key)) })}
+          options={enumOptions(options.workModes, (value) =>
+            value === WorkplaceType.OnSite ? 'Work from office' : getWorkplaceTypeLabel(value),
+          )}
+          selected={state.workModes.map(String)}
+        />
+      </FilterSection>
 
-      <FacetCheckboxGroup
-        collapsible
-        label="Industry"
-        onToggle={(key) => onChange({ industries: toggleValue(state.industries, key) })}
-        options={options.industries.map((option) => ({
-          count: option.count,
-          key: option.value,
-          label: option.value,
-        }))}
-        selected={state.industries}
-      />
+      <FilterSection defaultExpanded title="Job type">
+        <FacetCheckboxGroup
+          onToggle={(key) =>
+            onChange({ employmentTypes: toggleValue(state.employmentTypes, Number(key)) })
+          }
+          options={enumOptions(options.employmentTypes, getEmploymentTypeLabel)}
+          selected={state.employmentTypes.map(String)}
+        />
+      </FilterSection>
 
-      <FacetCheckboxGroup
-        collapsible
-        label="Freshness"
-        onToggle={(key) =>
-          onChange({ freshnessDays: state.freshnessDays === Number(key) ? undefined : Number(key) })
-        }
-        options={[
-          { count: supplementalCounts.freshness[1], key: '1', label: 'Last 24 hours' },
-          { count: supplementalCounts.freshness[3], key: '3', label: '3 days' },
-          { count: supplementalCounts.freshness[7], key: '7', label: '7 days' },
-          { count: supplementalCounts.freshness[15], key: '15', label: '15 days' },
-          { count: supplementalCounts.freshness[30], key: '30', label: '30 days' },
-        ]}
-        selected={state.freshnessDays ? [String(state.freshnessDays)] : []}
-      />
+      <FilterSection defaultExpanded title={`Salary / Stipend (${options.salaryRange.count})`}>
+        <Stack direction="row" spacing={1}>
+          <TextField
+            fullWidth
+            inputProps={{ min: 0 }}
+            label="Minimum amount"
+            onChange={(event) => updateAmount('minAmount', event.target.value)}
+            size="small"
+            type="number"
+            value={state.minAmount ?? ''}
+          />
+          <TextField
+            fullWidth
+            inputProps={{ min: 0 }}
+            label="Maximum amount"
+            onChange={(event) => updateAmount('maxAmount', event.target.value)}
+            size="small"
+            type="number"
+            value={state.maxAmount ?? ''}
+          />
+        </Stack>
+      </FilterSection>
 
-      <FacetCheckboxGroup
-        label="Location"
-        onToggle={(key) => onChange({ locations: toggleValue(state.locations, key) })}
-        options={options.locations.map((option) => ({
-          count: option.count,
-          key: option.value,
-          label: option.value,
-        }))}
-        selected={state.locations}
-      />
+      <FilterSection defaultExpanded={Boolean(state.companyName)} title="Company">
+        <JobNameFilters
+          categoryName={state.categoryName}
+          companyName={state.companyName}
+          fields="company"
+          onChange={onChange}
+        />
+      </FilterSection>
 
-      <FacetCheckboxGroup
-        collapsible
-        label="Featured"
-        onToggle={() => onChange({ featuredOnly: state.featuredOnly ? undefined : true })}
-        options={[
-          {
-            count: supplementalCounts.featured,
-            key: 'featured',
-            label: 'Featured jobs only',
-          },
-        ]}
-        selected={state.featuredOnly ? ['featured'] : []}
-      />
+      <FilterSection defaultExpanded={Boolean(state.categoryName)} title="Category">
+        <JobNameFilters
+          categoryName={state.categoryName}
+          companyName={state.companyName}
+          fields="category"
+          onChange={onChange}
+        />
+      </FilterSection>
+
+      <FilterSection defaultExpanded={state.locations.length > 0} title="Location">
+        <Stack spacing={1.5}>
+          <TextField
+            helperText="Separate multiple locations with commas."
+            label="Location filter"
+            onBlur={applyLocationInput}
+            onChange={(event) => setLocationInput(event.target.value)}
+            onKeyDown={handleLocationKeyDown}
+            placeholder="e.g. Pune, Bengaluru"
+            size="small"
+            value={locationInput}
+          />
+          <FacetCheckboxGroup
+            onToggle={(key) => onChange({ locations: toggleValue(state.locations, key) })}
+            options={options.locations.map((option) => ({
+              count: option.count,
+              key: option.value,
+              label: option.value,
+            }))}
+            selected={state.locations}
+          />
+        </Stack>
+      </FilterSection>
+
+      <FilterSection defaultExpanded={state.departments.length > 0} title="Department">
+        <FacetCheckboxGroup
+          onToggle={(key) => onChange({ departments: toggleValue(state.departments, key) })}
+          options={options.departments.map((option) => ({ count: option.count, key: option.value, label: option.value }))}
+          selected={state.departments}
+        />
+      </FilterSection>
+
+      <FilterSection defaultExpanded={state.roleCategories.length > 0} title="Role category">
+        <FacetCheckboxGroup
+          onToggle={(key) => onChange({ roleCategories: toggleValue(state.roleCategories, key) })}
+          options={options.roleCategories.map((option) => ({ count: option.count, key: option.value, label: option.value }))}
+          selected={state.roleCategories}
+        />
+      </FilterSection>
+
+      <FilterSection defaultExpanded={state.companyTypes.length > 0} title="Company type">
+        <FacetCheckboxGroup
+          onToggle={(key) => onChange({ companyTypes: toggleValue(state.companyTypes, Number(key)) })}
+          options={enumOptions(options.companyTypes, getCompanyTypeLabel)}
+          selected={state.companyTypes.map(String)}
+        />
+      </FilterSection>
+
+      <FilterSection
+        defaultExpanded={state.internshipDurationMonths.length > 0 || Boolean(state.flexibleDuration)}
+        title="Internship duration"
+      >
+        <FacetCheckboxGroup
+          onToggle={(key) => {
+            if (key === 'flexible') {
+              onChange({ flexibleDuration: state.flexibleDuration ? undefined : true });
+              return;
+            }
+            onChange({
+              internshipDurationMonths: toggleValue(state.internshipDurationMonths, Number(key)),
+            });
+          }}
+          options={options.internshipDurations.map((option) => ({
+            count: option.count,
+            key: option.isFlexible ? 'flexible' : String(option.months),
+            label: option.label,
+          }))}
+          selected={[
+            ...state.internshipDurationMonths.map(String),
+            ...(state.flexibleDuration ? ['flexible'] : []),
+          ]}
+        />
+      </FilterSection>
+
+      <FilterSection defaultExpanded={state.educationRequirements.length > 0} title="Education">
+        <FacetCheckboxGroup
+          onToggle={(key) => onChange({ educationRequirements: toggleValue(state.educationRequirements, key) })}
+          options={options.educationRequirements.map((option) => ({ count: option.count, key: option.value, label: option.value }))}
+          selected={state.educationRequirements}
+        />
+      </FilterSection>
+
+      <FilterSection defaultExpanded={state.postedByTypes.length > 0} title="Posted by">
+        <FacetCheckboxGroup
+          onToggle={(key) => onChange({ postedByTypes: toggleValue(state.postedByTypes, Number(key)) })}
+          options={enumOptions(options.postedByTypes, getPostedByTypeLabel)}
+          selected={state.postedByTypes.map(String)}
+        />
+      </FilterSection>
+
+      <FilterSection defaultExpanded={state.industries.length > 0} title="Industry">
+        <FacetCheckboxGroup
+          onToggle={(key) => onChange({ industries: toggleValue(state.industries, key) })}
+          options={options.industries.map((option) => ({ count: option.count, key: option.value, label: option.value }))}
+          selected={state.industries}
+        />
+      </FilterSection>
+
+      <FilterSection defaultExpanded={Boolean(state.featuredOnly)} title="Featured">
+        <FacetCheckboxGroup
+          onToggle={() => onChange({ featuredOnly: state.featuredOnly ? undefined : true })}
+          options={[{ count: supplementalCounts.featured, key: 'featured', label: 'Featured jobs only' }]}
+          selected={state.featuredOnly ? ['featured'] : []}
+        />
+      </FilterSection>
     </Stack>
   );
 };

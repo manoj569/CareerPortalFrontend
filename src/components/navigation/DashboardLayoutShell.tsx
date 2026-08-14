@@ -27,6 +27,7 @@ import { logout, selectCurrentUser } from '@/features/auth/store/authSlice';
 import { CookieSettingsButton } from '@/features/cookieConsent/CookieSettingsButton';
 import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
 import { AppBrand } from './AppBrand';
+import { CandidateAccountMenu } from './CandidateAccountMenu';
 import { NavigationList } from './NavigationList';
 import type { NavigationItem } from './navigationTypes';
 
@@ -38,6 +39,7 @@ interface DashboardLayoutShellProps {
   areaLabel: string;
   navigationItems: NavigationItem[];
   collapsibleDesktop?: boolean;
+  accountMenuProfilePath?: string;
   notificationCount?: number;
   showNotifications?: boolean;
 }
@@ -46,6 +48,7 @@ export const DashboardLayoutShell = ({
   accessStatus,
   areaLabel,
   navigationItems,
+  accountMenuProfilePath,
   collapsibleDesktop = false,
   notificationCount = 0,
   showNotifications = false,
@@ -153,19 +156,38 @@ export const DashboardLayoutShell = ({
             {areaLabel}
           </Typography>
           {showNotifications ? (
-            <IconButton aria-label="Notifications" color="inherit" onClick={() => void navigate(ROUTES.NOTIFICATIONS)} sx={{ mr: 0.5 }}>
+            <IconButton
+              aria-label={
+                notificationCount > 0
+                  ? `Notifications, ${notificationCount} unread`
+                  : 'Notifications'
+              }
+              color="inherit"
+              onClick={() => void navigate(ROUTES.NOTIFICATIONS)}
+              sx={{ mr: 0.5 }}
+            >
               {notificationCount > 0 ? <Badge badgeContent={notificationCount} color="error" max={99}>
                 <NotificationsNoneOutlinedIcon />
               </Badge> : <NotificationsNoneOutlinedIcon />}
             </IconButton>
           ) : null}
-          <Button
-            color="inherit"
-            onClick={handleLogout}
-            sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-          >
-            Log out
-          </Button>
+          {accountMenuProfilePath ? (
+            <CandidateAccountMenu
+              email={currentUser?.email}
+              firstName={currentUser?.firstName}
+              lastName={currentUser?.lastName}
+              onLogout={handleLogout}
+              profilePath={accountMenuProfilePath}
+            />
+          ) : (
+            <Button
+              color="inherit"
+              onClick={handleLogout}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+            >
+              Log out
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
 

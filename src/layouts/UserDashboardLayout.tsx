@@ -1,4 +1,5 @@
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
+import { ROUTES } from '@/constants/routes';
 import { useGetMembershipsQuery, useGetNotificationsQuery } from '@/features/dashboard/api/dashboardApi';
 import { isMembershipActive } from '@/features/payments/utils/entitlement';
 import { candidateNavigationItems } from './candidateNavigation';
@@ -19,6 +20,7 @@ export const UserDashboardLayout = () => {
   return (
     <DashboardLayoutShell
       accessStatus={accessStatus}
+      accountMenuProfilePath={ROUTES.PORTFOLIO}
       areaLabel="Candidate workspace"
       collapsibleDesktop
       navigationItems={candidateNavigationItems}

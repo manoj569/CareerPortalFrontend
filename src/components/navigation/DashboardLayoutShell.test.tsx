@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-do
 import { describe, expect, it, vi } from 'vitest';
 
 import { ROUTES } from '@/constants/routes';
+import { authService } from '@/features/auth/services/authService';
 import type { AuthState } from '@/features/auth/store/authSlice';
 import { candidateNavigationItems } from '@/layouts/candidateNavigation';
 import { renderWithProviders } from '@/test/renderWithProviders';
@@ -36,6 +37,7 @@ const renderShell = (notificationCount: number) => {
         element: (
           <DashboardLayoutShell
             areaLabel="Candidate workspace"
+            accountMenuProfilePath={ROUTES.PORTFOLIO}
             collapsibleDesktop
             navigationItems={candidateNavigationItems}
             notificationCount={notificationCount}
@@ -45,6 +47,8 @@ const renderShell = (notificationCount: number) => {
         path: '/dashboard',
         children: [
           { path: 'jobs', element: <p>Browse jobs page</p> },
+          { path: 'portfolio', element: <><p>Profile page</p><LocationProbe /></> },
+          { path: 'settings', element: <><p>Settings page</p><LocationProbe /></> },
           {
             path: 'notifications',
             element: (
@@ -56,6 +60,7 @@ const renderShell = (notificationCount: number) => {
           },
         ],
       },
+      { path: '/', element: <><p>Home page</p><LocationProbe /></> },
     ],
     { initialEntries: [ROUTES.DASHBOARD_JOBS] },
   );
@@ -90,7 +95,7 @@ describe('Candidate workspace shell', () => {
 
   it('shows the real unread badge only above zero and opens Notifications from the header', async () => {
     const positive = renderShell(4);
-    const bell = screen.getByRole('button', { name: 'Notifications' });
+    const bell = screen.getByRole('button', { name: 'Notifications, 4 unread' });
     expect(within(bell).getByText('4')).toBeVisible();
 
     await userEvent.click(bell);
@@ -99,6 +104,51 @@ describe('Candidate workspace shell', () => {
 
     renderShell(0);
     expect(within(screen.getByRole('button', { name: 'Notifications' })).queryByText('0')).toBeNull();
+  });
+
+  it('replaces the header Logout control with a real-initials account menu', async () => {
+    renderShell(0);
+    const header = screen.getByRole('banner');
+    const accountButton = within(header).getByRole('button', { name: 'Open account menu' });
+
+    expect(accountButton).toHaveTextContent('AP');
+    expect(within(header).queryByRole('button', { name: 'Log out' })).toBeNull();
+
+    await userEvent.click(accountButton);
+    const menu = screen.getByRole('menu', { name: 'Candidate account menu' });
+    expect(within(menu).getByText('Avery Patel')).toBeVisible();
+    expect(within(menu).getByText('candidate@example.com')).toBeVisible();
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      expect.stringContaining('Profile'),
+      expect.stringContaining('Settings'),
+      expect.stringContaining('Log out'),
+    ]);
+  });
+
+  it('uses the existing Portfolio and Settings routes from the account menu', async () => {
+    renderShell(0);
+    const accountButton = screen.getByRole('button', { name: 'Open account menu' });
+
+    await userEvent.click(accountButton);
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Profile' }));
+    expect(await screen.findByTestId('location')).toHaveTextContent(ROUTES.PORTFOLIO);
+    expect(screen.queryByRole('menu', { name: 'Candidate account menu' })).toBeNull();
+
+    await userEvent.click(accountButton);
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
+    expect(await screen.findByTestId('location')).toHaveTextContent(ROUTES.SETTINGS);
+  });
+
+  it('uses the existing secure logout flow from the account menu', async () => {
+    const logout = vi.spyOn(authService, 'logout').mockResolvedValue(undefined);
+    renderShell(0);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open account menu' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Log out' }));
+
+    expect(logout).toHaveBeenCalledOnce();
+    expect(await screen.findByText('Home page')).toBeVisible();
+    logout.mockRestore();
   });
 
   it('defaults the desktop navigation to collapsed at the tablet breakpoint', () => {

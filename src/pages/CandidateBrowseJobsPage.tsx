@@ -37,7 +37,10 @@ import {
   ResumeExtractionStatus,
   type RecommendedJob,
 } from '@/features/dashboard/types/dashboardModels';
-import { validateResume } from '@/features/dashboard/utils/resumeValidation';
+import {
+  sanitizeResumeFileName,
+  validateResume,
+} from '@/features/dashboard/utils/resumeValidation';
 import {
   fetchJobApplicationUrl,
   useGetJobFilterOptionsQuery,
@@ -50,7 +53,6 @@ import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
 import { ActiveFilterChips } from '@/features/jobs/components/candidateBrowse/ActiveFilterChips';
 import {
   JobModeTabs,
-  type CandidateBrowseMode as BrowseMode,
   type CandidateBrowseTab,
 } from '@/features/jobs/components/candidateBrowse/JobModeTabs';
 import { JobResultsHeader } from '@/features/jobs/components/candidateBrowse/JobResultsHeader';
@@ -85,6 +87,41 @@ const toJobSummary = (job: RecommendedJob): PublicJobSummary => ({
   roleCategory: null,
 });
 
+const readBrowseTab = (value: string | null): CandidateBrowseTab =>
+  value === 'recommended' ||
+  value === 'internships' ||
+  value === 'fresher' ||
+  value === 'experienced'
+    ? value
+    : 'all';
+
+const applyTabFilters = (
+  state: CandidateJobSearchState,
+  tab: CandidateBrowseTab,
+): CandidateJobSearchState => {
+  if (tab === 'internships') {
+    return { ...state, employmentTypes: [EmploymentType.Internship] };
+  }
+  if (tab === 'fresher') {
+    return { ...state, maxExperienceYears: 1, minExperienceYears: 0 };
+  }
+  if (tab === 'experienced') {
+    return { ...state, maxExperienceYears: undefined, minExperienceYears: 2 };
+  }
+  return state;
+};
+
+const removeTabFilters = (
+  state: CandidateJobSearchState,
+  tab: CandidateBrowseTab,
+): CandidateJobSearchState => {
+  if (tab === 'internships') return { ...state, employmentTypes: [] };
+  if (tab === 'fresher' || tab === 'experienced') {
+    return { ...state, maxExperienceYears: undefined, minExperienceYears: undefined };
+  }
+  return state;
+};
+
 export const CandidateBrowseJobsPage = () => {
   useDocumentMetadata(
     'Browse jobs | Career Portal',
@@ -92,8 +129,12 @@ export const CandidateBrowseJobsPage = () => {
   );
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const mode: BrowseMode = searchParams.get('mode') === 'recommended' ? 'recommended' : 'all';
-  const state = useMemo(() => parseCandidateJobSearchParams(searchParams), [searchParams]);
+  const requestedTab = readBrowseTab(searchParams.get('mode'));
+  const parsedState = useMemo(() => parseCandidateJobSearchParams(searchParams), [searchParams]);
+  const state = useMemo(
+    () => applyTabFilters(parsedState, requestedTab),
+    [parsedState, requestedTab],
+  );
   const query = useMemo(() => toCandidatePublicJobQuery(state), [state]);
   const [keywordInput, setKeywordInput] = useState(state.keyword);
   const [locationInput, setLocationInput] = useState(state.locations.join(', '));
@@ -102,6 +143,7 @@ export const CandidateBrowseJobsPage = () => {
   const [isDesktopFiltersOpen, setIsDesktopFiltersOpen] = useState(true);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(() => new Set());
   const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFilterButtonFocusRef = useRef(false);
   const debouncedKeyword = useDebouncedValue(keywordInput, 350);
   const profile = useGetProfileQuery();
   const [pollAttempts, setPollAttempts] = useState(0);
@@ -111,7 +153,9 @@ export const CandidateBrowseJobsPage = () => {
     skipPollingIfUnfocused: true,
   });
   const isResumeReady = resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Ready;
-  const isRecommended = mode === 'recommended' && isResumeReady;
+  const isRecommended = requestedTab === 'recommended' && isResumeReady;
+  const activeTab: CandidateBrowseTab =
+    requestedTab === 'recommended' && !isResumeReady ? 'all' : requestedTab;
   const jobs = useSearchJobsQuery(query, { skip: isRecommended });
   const recommended = useGetRecommendedJobsQuery(
     { pageNumber: state.page, pageSize: 20 },
@@ -131,48 +175,17 @@ export const CandidateBrowseJobsPage = () => {
   const appliedCount = countCandidateJobFilters(state);
 
   const setState = useCallback(
-    (nextState: CandidateJobSearchState, replace = false) => {
+    (nextState: CandidateJobSearchState, replace = false, nextTab = activeTab) => {
       const next = serializeCandidateJobSearchState(nextState);
-      next.set('mode', mode);
+      next.set('mode', nextTab);
       setSearchParams(next, { replace });
     },
-    [mode, setSearchParams],
+    [activeTab, setSearchParams],
   );
 
-  const setMode = (nextMode: BrowseMode) => {
-    const next = serializeCandidateJobSearchState({ ...state, page: 1 });
-    next.set('mode', nextMode);
-    setSearchParams(next);
-  };
-
-  const isInternshipTab =
-    !isRecommended &&
-    state.employmentTypes.length === 1 &&
-    state.employmentTypes[0] === EmploymentType.Internship;
-  const activeTab: CandidateBrowseTab = isRecommended
-    ? 'recommended'
-    : isInternshipTab
-      ? 'internships'
-      : 'all';
-
   const setTab = (nextTab: CandidateBrowseTab) => {
-    if (nextTab === 'internships') {
-      const next = serializeCandidateJobSearchState({
-        ...state,
-        employmentTypes: [EmploymentType.Internship],
-        page: 1,
-      });
-      next.set('mode', 'all');
-      setSearchParams(next);
-      return;
-    }
-    if (nextTab === 'all' && isInternshipTab) {
-      const next = serializeCandidateJobSearchState({ ...state, employmentTypes: [], page: 1 });
-      next.set('mode', 'all');
-      setSearchParams(next);
-      return;
-    }
-    setMode(nextTab);
+    const compatibleState = removeTabFilters(state, activeTab);
+    setState(applyTabFilters({ ...compatibleState, page: 1 }, nextTab), false, nextTab);
   };
 
   const handleResume = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -202,7 +215,10 @@ export const CandidateBrowseJobsPage = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = profile.data?.resume?.fileName ?? 'career-harbor-resume';
+      link.download = sanitizeResumeFileName(
+        profile.data?.resume?.fileName,
+        'career-harbor-resume',
+      );
       try {
         link.click();
       } finally {
@@ -227,9 +243,18 @@ export const CandidateBrowseJobsPage = () => {
 
   const applyChanges = useCallback(
     (changes: Partial<CandidateJobSearchState>, replace = false) => {
-      setState({ ...state, ...changes, page: 1 }, replace);
+      const changesExperience =
+        Object.hasOwn(changes, 'minExperienceYears') ||
+        Object.hasOwn(changes, 'maxExperienceYears');
+      const changesEmploymentType = Object.hasOwn(changes, 'employmentTypes');
+      const leavesMode =
+        ((activeTab === 'fresher' || activeTab === 'experienced') && changesExperience) ||
+        (activeTab === 'internships' && changesEmploymentType);
+      const nextTab = leavesMode ? 'all' : activeTab;
+      const currentState = leavesMode ? removeTabFilters(state, activeTab) : state;
+      setState({ ...currentState, ...changes, page: 1 }, replace, nextTab);
     },
-    [setState, state],
+    [activeTab, setState, state],
   );
 
   const clearFilters = useCallback(() => {
@@ -251,9 +276,14 @@ export const CandidateBrowseJobsPage = () => {
     applyChanges({ keyword: debouncedKeyword.trim().slice(0, 250) }, true);
   }, [applyChanges, debouncedKeyword, keywordInput, state.keyword]);
 
+  useEffect(() => {
+    if (isMobileFiltersOpen || !restoreFilterButtonFocusRef.current) return;
+    restoreFilterButtonFocusRef.current = false;
+    filterButtonRef.current?.focus();
+  }, [isMobileFiltersOpen]);
+
   const closeMobileFilters = () => {
     setIsMobileFiltersOpen(false);
-    window.setTimeout(() => filterButtonRef.current?.focus(), 0);
   };
 
   const searchJobs = () => {
@@ -284,7 +314,7 @@ export const CandidateBrowseJobsPage = () => {
   const resultsError = isRecommended ? recommended.isError : jobs.isError;
   const refetchResults = isRecommended ? recommended.refetch : jobs.refetch;
 
-  const filterPanel =
+  const renderFilterPanel = (onCollapse?: () => void) =>
     filterOptions.isLoading || supplementalCounts.isLoading ? (
       <Stack aria-label="Loading job filters" role="status" spacing={2}>
         {Array.from({ length: 8 }, (_, index) => (
@@ -312,6 +342,7 @@ export const CandidateBrowseJobsPage = () => {
         appliedCount={appliedCount}
         onChange={applyChanges}
         onClear={clearFilters}
+        onCollapse={onCollapse}
         options={filterOptions.data}
         state={state}
         supplementalCounts={supplementalCounts.data}
@@ -367,7 +398,10 @@ export const CandidateBrowseJobsPage = () => {
         <Button
           aria-controls="candidate-mobile-job-filters"
           aria-expanded={isMobileFiltersOpen}
-          onClick={() => setIsMobileFiltersOpen(true)}
+          onClick={() => {
+            restoreFilterButtonFocusRef.current = true;
+            setIsMobileFiltersOpen(true);
+          }}
           ref={filterButtonRef}
           startIcon={<FilterListIcon />}
           sx={{ alignSelf: 'flex-start', display: { lg: 'none' } }}
@@ -398,16 +432,7 @@ export const CandidateBrowseJobsPage = () => {
               width: 272,
             }}
           >
-            <Stack alignItems="center" direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
-              <IconButton
-                aria-label="Collapse job filters"
-                onClick={() => setIsDesktopFiltersOpen(false)}
-                size="small"
-              >
-                <CloseIcon />
-              </IconButton>
-            </Stack>
-            {filterPanel}
+            {renderFilterPanel(() => setIsDesktopFiltersOpen(false))}
           </Paper>
         ) : !isRecommended ? (
           <Button
@@ -517,7 +542,7 @@ export const CandidateBrowseJobsPage = () => {
               description={isRecommended ? 'No resume-matched jobs are available right now.' : 'Try a broader keyword or remove one or more filters.'}
               onAction={
                 isRecommended
-                  ? () => setMode('all')
+                  ? () => setTab('all')
                   : appliedCount > 0 || state.keyword
                   ? () => {
                       setKeywordInput('');
@@ -558,7 +583,33 @@ export const CandidateBrowseJobsPage = () => {
             <CloseIcon />
           </IconButton>
         </Stack>
-        {filterPanel}
+        {renderFilterPanel()}
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            bgcolor: 'background.paper',
+            bottom: 0,
+            borderTop: 1,
+            borderColor: 'divider',
+            mt: 2,
+            pb: 0.5,
+            pt: 1.5,
+            position: 'sticky',
+          }}
+        >
+          <Button disabled={appliedCount === 0} fullWidth onClick={clearFilters} variant="outlined">
+            Clear all
+          </Button>
+          <Button
+            fullWidth
+            onClick={() => setIsMobileFiltersOpen(false)}
+            type="button"
+            variant="contained"
+          >
+            Apply filters
+          </Button>
+        </Stack>
       </Drawer> : null}
     </Stack>
   );

@@ -5,6 +5,27 @@ const ALLOWED_RESUMES: Record<string, string> = {
   '.pdf': 'application/pdf',
 };
 
+export const RESUME_UPLOAD_HELP_TEXT = 'PDF, DOC, or DOCX up to 5 MB.';
+
+export const sanitizeResumeFileName = (
+  value: string | null | undefined,
+  fallback = 'Resume uploaded',
+): string => {
+  const baseName = value?.split(/[\\/]/).at(-1)?.trim() ?? '';
+  const printableBaseName = Array.from(baseName)
+    .filter((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint >= 32 && codePoint !== 127;
+    })
+    .join('');
+  const safeName = printableBaseName
+    .replace(/[<>:"|?*]/g, '-')
+    .replace(/^\.+|\.+$/g, '')
+    .trim()
+    .slice(0, 180);
+  return safeName || fallback;
+};
+
 export const validateResume = (file: File): string | null => {
   const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
   if (!ALLOWED_RESUMES[extension] || ALLOWED_RESUMES[extension] !== file.type) {
