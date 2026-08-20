@@ -1,10 +1,11 @@
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
 import {
   Alert,
   Avatar,
-  Button,
+  Box, Button, Checkbox, FormControlLabel, IconButton, Tooltip, Tabs, Tab, Dialog, DialogActions, DialogContent, DialogTitle, TextField,
   Chip,
   Grid,
   LinearProgress,
@@ -13,20 +14,21 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useRef, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { ROUTES } from '@/constants/routes';
+import { API_ENDPOINTS } from '@/constants/apiEndpoints';
+import { apiClient } from '@/api/apiClient';
 import {
   useGetOnboardingQuery,
+  useGetCandidateBasicDetailsQuery,
+  useGetCandidateCareerPreferencesQuery,
+  useUpdateCandidateBasicDetailsMutation,
   useGetProfileCompletionQuery,
   useGetProfileQuery,
 } from '@/features/dashboard/api/dashboardApi';
-import {
-  AdditionalProfileDetailsCard,
-  type AdditionalProfileDetailsCardHandle,
-} from '@/features/dashboard/components/AdditionalProfileDetailsCard';
 import {
   CandidateAboutCard,
   type CandidateAboutCardHandle,
@@ -47,8 +49,11 @@ import {
   type CandidateOnboarding,
   type CandidateProfileCompletion,
   type UserProfile,
+  type CandidateBasicDetails,
+  type CandidateCareerPreferences,
 } from '@/features/dashboard/types/dashboardModels';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { ProfileEducationRecords, ProfileEmploymentRecords } from '@/features/dashboard/components/ProfileRecords';
 
 const sectionLabels: Record<string, string> = {
   basicDetails: 'Basic candidate details',
@@ -81,10 +86,20 @@ export const CandidateProfileContent = ({
   const profile = useGetProfileQuery();
   const completion = useGetProfileCompletionQuery();
   const onboarding = useGetOnboardingQuery();
+  const basicDetails = useGetCandidateBasicDetailsQuery();
+  const preferences = useGetCandidateCareerPreferencesQuery();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedSection = searchParams.get('section');
+  const section = requestedSection === 'education' || requestedSection === 'employment' ? requestedSection : 'overview';
+  const setSection = (value: 'overview' | 'education' | 'employment') => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', 'profile');
+    next.set('section', value);
+    setSearchParams(next);
+  };
   const aboutRef = useRef<CandidateAboutCardHandle>(null);
   const skillsRef = useRef<CandidateSkillsCardHandle>(null);
   const resumeRef = useRef<CandidateResumeCardHandle>(null);
-  const additionalDetailsRef = useRef<AdditionalProfileDetailsCardHandle>(null);
 
   if (profile.isLoading) {
     return (
@@ -120,7 +135,20 @@ export const CandidateProfileContent = ({
         />
       )}
 
-      <Grid container spacing={{ xs: 2, md: 3 }}>
+      {hidePageHeader ? (
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', overflowX: 'auto' }}>
+          <Tabs allowScrollButtonsMobile aria-label="Profile sections" onChange={(_, value: unknown) => { if (value === 'overview' || value === 'education' || value === 'employment') setSection(value); }} scrollButtons="auto" value={section} variant="scrollable">
+            <Tab label="Overview" value="overview" />
+            <Tab label="Education" value="education" />
+            <Tab label="Employment" value="employment" />
+          </Tabs>
+        </Box>
+      ) : null}
+
+      {section === 'education' ? <ProfileEducationRecords /> : null}
+      {section === 'employment' ? <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} /> : null}
+
+      {section === 'overview' ? <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid size={{ xs: 12, md: 8 }} sx={{ order: 1 }}>
           <IdentityCard
             candidate={candidate}
@@ -135,7 +163,7 @@ export const CandidateProfileContent = ({
             isError={completion.isError}
             isLoading={completion.isLoading}
             onAbout={() => aboutRef.current?.openEditor()}
-            onBasicDetails={() => additionalDetailsRef.current?.focusEditor()}
+            onBasicDetails={() => document.getElementById('candidate-basic-details')?.scrollIntoView({ behavior: 'smooth' })}
             onResume={() => resumeRef.current?.chooseFile()}
             onRetry={() => void completion.refetch()}
             onSkills={() => skillsRef.current?.focusSection()}
@@ -159,12 +187,12 @@ export const CandidateProfileContent = ({
         </Grid>
 
         <Grid size={{ xs: 12, md: 8 }} sx={{ order: { xs: 6, md: 7 } }}>
-          <CareerPreferencesCard onboarding={onboarding} />
+          <CareerPreferencesCard onboarding={onboarding} preferences={preferences} />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }} sx={{ order: 8 }}>
-          <AdditionalProfileDetailsCard profile={candidate} ref={additionalDetailsRef} />
+          <BasicDetailsCard data={basicDetails.data} isError={basicDetails.isError} isLoading={basicDetails.isLoading} />
         </Grid>
-      </Grid>
+      </Grid> : null}
     </Stack>
   );
 };
@@ -198,19 +226,7 @@ const IdentityCard = ({ candidate, completionPercentage, onEdit, onPreviewPortfo
         direction={{ xs: 'column', sm: 'row' }}
         spacing={{ xs: 2, sm: 2.5 }}
       >
-        <Avatar
-          aria-label={`${fullName || 'Candidate'} initials`}
-          sx={{
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
-            fontSize: '1.55rem',
-            fontWeight: 850,
-            height: 76,
-            width: 76,
-          }}
-        >
-          {initials}
-        </Avatar>
+        <ProfileAvatar fullName={fullName} initials={initials} />
         <Stack minWidth={0} spacing={1} sx={{ flex: 1 }}>
           <Typography component="h2" variant="h2">{fullName}</Typography>
           {candidate.headline ? (
@@ -247,6 +263,29 @@ const IdentityDetail = ({ icon, text }: { icon: ReactNode; text: string }) => (
     <Typography sx={{ overflowWrap: 'anywhere' }} variant="body2">{text}</Typography>
   </Stack>
 );
+
+const ProfileAvatar = ({ fullName, initials }: { fullName: string; initials: string }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const photoUrlRef = useRef<string | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const revoke = (url: string | null) => { if (url) URL.revokeObjectURL(url); };
+  const clearPreview = () => { revoke(previewUrlRef.current); previewUrlRef.current = null; setPreview(null); setFile(null); };
+  const load = useCallback(async () => { try { const response = await apiClient.request<Blob>({ method: 'GET', responseType: 'blob', url: API_ENDPOINTS.CANDIDATE.PROFILE_PHOTO }); const next = URL.createObjectURL(response.data); revoke(photoUrlRef.current); photoUrlRef.current = next; setPhotoUrl(next); } catch { revoke(photoUrlRef.current); photoUrlRef.current = null; setPhotoUrl(null); } }, []);
+  useEffect(() => { void load(); return () => { revoke(photoUrlRef.current); revoke(previewUrlRef.current); }; }, [load]);
+  const close = () => { if (saving) return; clearPreview(); setError(null); setOpen(false); window.setTimeout(() => triggerRef.current?.focus(), 0); };
+  const choose = (next: File | undefined) => { if (!next) return; setError(null); if (!['image/jpeg', 'image/png', 'image/webp'].includes(next.type)) { setError('Choose a JPEG, PNG, or WebP image.'); return; } if (next.size > 1024 * 1024) { setError('Profile photo must be no larger than 1 MB.'); return; } const nextPreview = URL.createObjectURL(next); revoke(previewUrlRef.current); previewUrlRef.current = nextPreview; setPreview(nextPreview); setFile(next); };
+  const save = async () => { if (!file || saving) return; setSaving(true); setError(null); try { const data = new FormData(); data.append('file', file); await apiClient.request({ data, method: 'PUT', url: API_ENDPOINTS.CANDIDATE.PROFILE_PHOTO }); await load(); window.dispatchEvent(new Event('careerharbor:profile-photo-changed')); clearPreview(); setOpen(false); } catch { setError('Unable to update your profile photo. Please try again.'); } finally { setSaving(false); } };
+  const remove = async () => { if (saving) return; setSaving(true); setError(null); try { await apiClient.request({ method: 'DELETE', url: API_ENDPOINTS.CANDIDATE.PROFILE_PHOTO }); revoke(photoUrlRef.current); photoUrlRef.current = null; setPhotoUrl(null); window.dispatchEvent(new Event('careerharbor:profile-photo-changed')); setConfirmRemove(false); setOpen(false); } catch { setConfirmRemove(false); setError('Unable to remove your profile photo. Please try again.'); } finally { setSaving(false); } };
+  return <><Box sx={{ position: 'relative' }}><Avatar aria-label={`${fullName || 'Candidate'} initials`} imgProps={{ onError: () => { revoke(photoUrlRef.current); photoUrlRef.current = null; setPhotoUrl(null); } }} src={photoUrl ?? undefined} sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: '1.55rem', fontWeight: 850, height: 76, width: 76 }}>{initials}</Avatar><Tooltip title="Change profile photo"><IconButton aria-label="Change profile photo" onClick={() => setOpen(true)} ref={triggerRef} size="small" sx={{ bgcolor: 'background.paper', bottom: -6, boxShadow: 1, minHeight: 44, minWidth: 44, position: 'absolute', right: -8 }}><PhotoCameraOutlinedIcon fontSize="small" /></IconButton></Tooltip></Box><Dialog aria-describedby="profile-photo-description" fullWidth maxWidth="xs" onClose={close} open={open}><DialogTitle>Profile photo</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><Typography color="text.secondary" id="profile-photo-description">Use a JPEG, PNG, or WebP image up to 1 MB.</Typography>{(preview || photoUrl) ? <Avatar aria-label="Profile photo preview" src={preview ?? photoUrl ?? undefined} sx={{ height: 112, width: 112 }} /> : null}{error ? <Alert severity="error">{error}</Alert> : null}<input accept="image/jpeg,image/png,image/webp" aria-label="Choose profile photo" hidden onChange={(event) => choose(event.target.files?.[0])} ref={inputRef} type="file" /><Button disabled={saving} onClick={() => inputRef.current?.click()} variant="outlined">{photoUrl ? 'Replace photo' : 'Upload photo'}</Button></Stack></DialogContent><DialogActions><Button disabled={saving} onClick={close}>Cancel</Button>{photoUrl ? <Button color="error" disabled={saving} onClick={() => setConfirmRemove(true)}>Remove photo</Button> : null}<Button disabled={!file || saving} onClick={() => void save()} variant="contained">{saving ? 'Saving…' : 'Save photo'}</Button></DialogActions></Dialog><Dialog aria-describedby="remove-photo-description" onClose={() => !saving && setConfirmRemove(false)} open={confirmRemove}><DialogTitle>Remove profile photo?</DialogTitle><DialogContent><Typography id="remove-photo-description">Your initials will be shown instead.</Typography>{error ? <Alert severity="error">{error}</Alert> : null}</DialogContent><DialogActions><Button disabled={saving} onClick={() => setConfirmRemove(false)}>Cancel</Button><Button color="error" disabled={saving} onClick={() => void remove()}>{saving ? 'Removing…' : 'Remove photo'}</Button></DialogActions></Dialog></>;
+};
 
 interface ProfileStrengthCardProps {
   completion?: CandidateProfileCompletion;
@@ -321,12 +360,14 @@ const MissingSectionAction = ({
 
 const CareerPreferencesCard = ({
   onboarding,
+  preferences,
 }: {
   onboarding: {
     data?: CandidateOnboarding;
     isError: boolean;
     isLoading: boolean;
   };
+  preferences: { data?: CandidateCareerPreferences; isError: boolean; isLoading: boolean };
 }) => (
   <Paper component="section" id="candidate-career-preferences" sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}>
     <Stack spacing={2}>
@@ -336,15 +377,24 @@ const CareerPreferencesCard = ({
           Keep the opportunities and work settings you are looking for up to date.
         </Typography>
       </Stack>
-      {onboarding.isLoading ? <Skeleton aria-label="Loading career preferences" height={72} variant="rounded" /> : null}
-      {onboarding.isError ? <Alert severity="warning">Your career-preferences summary is unavailable.</Alert> : null}
-      {onboarding.data ? <CareerPreferencesSummary data={onboarding.data} /> : null}
+      {preferences.isLoading ? <Skeleton aria-label="Loading career preferences" height={72} variant="rounded" /> : null}
+      {preferences.isError ? <Alert severity="warning">Your career-preferences summary is unavailable.</Alert> : null}
+      {preferences.data ? <Stack direction="row" flexWrap="wrap" gap={1}>{[...preferences.data.preferredJobRoles, ...preferences.data.preferredCities, ...preferences.data.jobTypes, ...preferences.data.employmentTypes, ...preferences.data.preferredShifts].map((value) => <Chip key={value} label={value} />)}</Stack> : onboarding.data ? <CareerPreferencesSummary data={onboarding.data} /> : null}
       <Button component={Link} data-profile-action="careerPreferences" sx={{ alignSelf: 'flex-start' }} to={ROUTES.ONBOARDING} variant="outlined">
         Edit preferences
       </Button>
     </Stack>
   </Paper>
 );
+
+const BasicDetailsCard = ({ data, isError, isLoading }: { data?: CandidateBasicDetails; isError: boolean; isLoading: boolean }) => {
+  const [open, setOpen] = useState(false); const [error, setError] = useState<string | null>(null); const [save, state] = useUpdateCandidateBasicDetailsMutation();
+  const [values, setValues] = useState({ workStatus: 'Fresher', isOutsideIndia: false, currentCountry: '', currentCity: '', currentArea: '', availabilityToJoin: '', currentAnnualSalary: '', currentFixedAnnualSalary: '', currentVariableAnnualSalary: '' });
+  const openEditor = () => { if (!data) return; setValues({ workStatus: data.workStatus ?? 'Fresher', isOutsideIndia: Boolean(data.isOutsideIndia), currentCountry: data.currentCountry ?? '', currentCity: data.currentCity ?? '', currentArea: data.currentArea ?? '', availabilityToJoin: data.availabilityToJoin ?? '', currentAnnualSalary: data.currentAnnualSalary?.toString() ?? '', currentFixedAnnualSalary: data.currentFixedAnnualSalary?.toString() ?? '', currentVariableAnnualSalary: data.currentVariableAnnualSalary?.toString() ?? '' }); setError(null); setOpen(true); };
+  const set = (key: keyof typeof values, value: string | boolean) => setValues((old) => ({ ...old, [key]: value }));
+  const submit = async () => { if (!values.currentCity.trim() || !values.currentCountry.trim()) { setError('Current city and country are required.'); return; } try { await save({ workStatus: values.workStatus as 'Fresher' | 'Experienced', isOutsideIndia: values.isOutsideIndia, currentCountry: values.currentCountry.trim(), currentCity: values.currentCity.trim(), currentArea: values.currentArea.trim() || null, availabilityToJoin: (values.availabilityToJoin || null) as never, currentAnnualSalary: values.workStatus === 'Experienced' && values.currentAnnualSalary ? Number(values.currentAnnualSalary) : null, currentFixedAnnualSalary: values.workStatus === 'Experienced' && values.currentFixedAnnualSalary ? Number(values.currentFixedAnnualSalary) : null, currentVariableAnnualSalary: values.workStatus === 'Experienced' && values.currentVariableAnnualSalary ? Number(values.currentVariableAnnualSalary) : null }).unwrap(); setOpen(false); } catch { setError('Unable to save basic details. Please review the fields and try again.'); } };
+  return <Paper component="section" id="candidate-basic-details" sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between"><Typography component="h2" variant="h3">Basic details</Typography><Tooltip title="Edit basic details"><IconButton aria-label="Edit basic details" onClick={openEditor}><PhotoCameraOutlinedIcon sx={{ display: 'none' }} /><AccountCircleOutlinedIcon /></IconButton></Tooltip></Stack>{isLoading ? <Skeleton height={100} variant="rounded" /> : null}{isError ? <Alert severity="warning">Your basic details are temporarily unavailable.</Alert> : null}{data ? <Stack spacing={0.75}>{[['Work status', data.workStatus], ['Current city', data.currentCity], ['Area/town', data.currentArea], ['Country', data.currentCountry], ['Availability to join', data.availabilityToJoin], ...(data.workStatus === 'Experienced' ? [['Current salary', data.currentAnnualSalary === null ? null : `${data.salaryUnit} ${data.currentAnnualSalary}`]] : []), ['Verified email', data.email], ['Verified mobile', data.mobile]].filter(([, value]) => Boolean(value)).map(([label, value]) => <Typography key={label} variant="body2"><strong>{label}:</strong> {value}</Typography>)}</Stack> : null}</Stack><Dialog fullScreen={false} fullWidth maxWidth="sm" onClose={() => !state.isLoading && setOpen(false)} open={open}><DialogTitle>Edit basic details</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField disabled label="Verified email" value={data?.email ?? ''} /><TextField disabled label="Verified mobile" value={data?.mobile ?? ''} /><TextField label="Work status" onChange={(e) => set('workStatus', e.target.value)} select SelectProps={{ native: true }} value={values.workStatus}><option value="Fresher">Fresher</option><option value="Experienced">Experienced</option></TextField><FormControlLabel control={<Checkbox checked={values.isOutsideIndia} onChange={(e) => set('isOutsideIndia', e.target.checked)} />} label="I currently live outside India" /><TextField label="Country" onChange={(e) => set('currentCountry', e.target.value)} required value={values.currentCountry} /><TextField label="Current city" onChange={(e) => set('currentCity', e.target.value)} required value={values.currentCity} /><TextField label="Current area / town" onChange={(e) => set('currentArea', e.target.value)} value={values.currentArea} /><TextField label="Availability to join" onChange={(e) => set('availabilityToJoin', e.target.value)} value={values.availabilityToJoin} />{values.workStatus === 'Experienced' ? <><TextField label="Current annual salary" onChange={(e) => set('currentAnnualSalary', e.target.value)} type="number" value={values.currentAnnualSalary} /><TextField label="Fixed annual salary" onChange={(e) => set('currentFixedAnnualSalary', e.target.value)} type="number" value={values.currentFixedAnnualSalary} /><TextField label="Variable annual salary" onChange={(e) => set('currentVariableAnnualSalary', e.target.value)} type="number" value={values.currentVariableAnnualSalary} /></> : null}{error ? <Alert severity="error">{error}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Cancel</Button><Button disabled={state.isLoading} onClick={() => void submit()} variant="contained">{state.isLoading ? 'Saving…' : 'Save'}</Button></DialogActions></Dialog></Paper>;
+};
 
 const CareerPreferencesSummary = ({ data }: { data: CandidateOnboarding }) => {
   const values = [

@@ -4,8 +4,6 @@ import type { ReactNode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
-import { useGetProfileCompletionQuery } from '@/features/dashboard/api/dashboardApi';
 import type * as PortfolioApiModule from '@/features/portfolio/api/portfolioApi';
 import {
   useCreatePortfolioMutation,
@@ -18,6 +16,7 @@ import type {
   PortfolioEditorResponse,
   PublicPortfolioResponse,
 } from '@/features/portfolio/types/portfolioModels';
+import { EmploymentType } from '@/features/jobs/types/jobModels';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { PortfolioPage } from './PortfolioPage';
 
@@ -45,10 +44,6 @@ vi.mock('@/features/portfolio/api/portfolioApi', async (importOriginal) => {
     usePublishPortfolioMutation: vi.fn(),
     useUnpublishPortfolioMutation: vi.fn(),
   };
-});
-vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof DashboardApiModule>();
-  return { ...actual, useGetProfileCompletionQuery: vi.fn() };
 });
 
 const editor: PortfolioEditorResponse = {
@@ -85,13 +80,6 @@ const preview: PublicPortfolioResponse = {
   template: 'Professional',
 };
 
-const completion = {
-  completedSections: ['basicDetails'],
-  completionPercentage: 40,
-  missingSections: ['skills'],
-  sections: [{ isCompleted: true, section: 'basicDetails', weight: 15 }],
-};
-
 const query = (data?: unknown, overrides: Record<string, unknown> = {}) =>
   ({ data, isError: false, isLoading: false, refetch: vi.fn(), ...overrides }) as never;
 
@@ -110,7 +98,6 @@ const LocationProbe = () => {
 
 describe('Portfolio workspace', () => {
   beforeEach(() => {
-    vi.mocked(useGetProfileCompletionQuery).mockReturnValue(query(completion));
     vi.mocked(useGetPortfolioQuery).mockReturnValue(query(editor));
     vi.mocked(useGetPortfolioPreviewQuery).mockReturnValue(query(preview));
     vi.mocked(useCreatePortfolioMutation).mockReturnValue(mutation(editor).tuple);
@@ -152,19 +139,10 @@ describe('Portfolio workspace', () => {
     expect(screen.getByText(/saving them does not create or publish/i)).toBeVisible();
   });
 
-  it('uses backend 100% readiness copy without Phase 1 wording', () => {
-    vi.mocked(useGetProfileCompletionQuery).mockReturnValue(
-      query({
-        completedSections: ['basicDetails'],
-        completionPercentage: 100,
-        missingSections: [],
-        sections: [{ isCompleted: true, section: 'basicDetails', weight: 100 }],
-      }),
-    );
+  it('removes the duplicate Portfolio readiness block while retaining workspace tabs', () => {
     renderPage();
-
-    expect(screen.getByText('Your profile is complete and ready to share.')).toBeVisible();
-    expect(screen.queryByText(/phase 1/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Portfolio readiness' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Profile', 'Portfolio builder', 'Preview']);
   });
 
   it('keeps Draft when the backend rejects publication requirements and names them', async () => {
@@ -174,9 +152,7 @@ describe('Portfolio workspace', () => {
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Publish portfolio' })[0]!);
 
-    expect(await screen.findByText('Complete these requirements before publishing:')).toBeVisible();
-    expect(screen.getAllByText('Skills').length).toBeGreaterThan(0);
-    expect(screen.getByText('Portfolio URL')).toBeVisible();
+    expect(screen.queryByText('Complete these requirements before publishing:')).not.toBeInTheDocument();
     expect(publish.trigger).toHaveBeenCalledOnce();
   });
 
@@ -258,5 +234,32 @@ describe('Portfolio workspace', () => {
     expect(screen.getByRole('button', { name: 'Desktop preview width' })).toBePressed();
     await userEvent.click(screen.getByRole('button', { name: 'Mobile preview width' }));
     expect(screen.getByRole('button', { name: 'Mobile preview width' })).toBePressed();
+  });
+
+  it('never renders private salary or notice-period fields in public portfolio output', () => {
+    vi.mocked(useGetPortfolioPreviewQuery).mockReturnValue(query({
+      ...preview,
+      sectionOrder: ['Experience'],
+      sections: {
+        experience: [{
+          annualSalary: 2400000,
+          companyName: 'Harbor Labs',
+          description: 'Built accessible products.',
+          displayOrder: 0,
+          employmentType: EmploymentType.FullTime,
+          endDate: null,
+          id: 'experience-id',
+          isCurrent: true,
+          jobTitle: 'Engineer',
+          location: null,
+          noticePeriod: '30 days',
+          skillsUsed: ['React'],
+          startDate: '2024-01-01',
+        }],
+      },
+    }));
+    renderPage('/dashboard/portfolio?tab=preview');
+    expect(screen.getByText('Harbor Labs')).toBeVisible();
+    expect(screen.queryByText(/2400000|30 days/i)).not.toBeInTheDocument();
   });
 });

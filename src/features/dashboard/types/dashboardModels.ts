@@ -69,7 +69,24 @@ export interface CandidateProfile {
   portfolioUrl: string | null;
   preferredJobTypes: EmploymentType[];
   resume: ResumeMetadata | null;
+  phoneNumber?: string | null;
+  hasProfilePhoto?: boolean;
+  profilePhotoVersion?: string | null;
+  basicDetails?: CandidateBasicDetails | null;
+  careerPreferences?: CandidateCareerPreferences | null;
+  totalExperienceYears?: number;
 }
+
+export type CandidateWorkStatus = 'Fresher' | 'Experienced';
+export type CandidateAvailability = 'Immediate' | 'Within15Days' | 'Within30Days' | 'Within60Days' | 'MoreThan60Days';
+export type CandidateJobType = 'Permanent' | 'Contractual';
+export type CandidateEmploymentPreference = 'FullTime' | 'PartTime';
+export type CandidateShiftPreference = 'Day' | 'Night' | 'Flexible';
+export interface CandidateBasicDetails { email: string; mobile: string | null; workStatus: CandidateWorkStatus | null; isOutsideIndia: boolean | null; currentCountry: string | null; currentCity: string | null; currentArea: string | null; availabilityToJoin: CandidateAvailability | null; currentAnnualSalary: number | null; currentFixedAnnualSalary: number | null; currentVariableAnnualSalary: number | null; salaryUnit: string; }
+export interface UpdateCandidateBasicDetailsRequest { workStatus: CandidateWorkStatus; isOutsideIndia: boolean; currentCountry: string; currentCity: string; currentArea: string | null; availabilityToJoin: CandidateAvailability | null; currentAnnualSalary: number | null; currentFixedAnnualSalary: number | null; currentVariableAnnualSalary: number | null; }
+export interface CandidateCareerPreferences { preferredJobRoles: string[]; preferredCities: string[]; expectedAnnualSalary: number | null; jobTypes: CandidateJobType[]; employmentTypes: CandidateEmploymentPreference[]; preferredShifts: CandidateShiftPreference[]; salaryUnit: string; }
+export type UpdateCandidateCareerPreferencesRequest = CandidateCareerPreferences;
+export interface ProfilePhotoMetadata { hasProfilePhoto: boolean; version: string | null; }
 
 export interface UpdateCandidateProfileRequest {
   headline: string | null;

@@ -11,10 +11,12 @@ import {
   MenuItem,
   Typography,
 } from '@mui/material';
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
+import { apiClient } from '@/api/apiClient';
+import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 
 interface CandidateAccountMenuProps {
   email?: string;
@@ -41,6 +43,31 @@ export const CandidateAccountMenu = ({
   const location = useLocation();
   const fullName = [firstName?.trim(), lastName?.trim()].filter(Boolean).join(' ');
   const open = Boolean(anchorElement);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const photoUrlRef = useRef<string | null>(null);
+  const loadPhoto = useCallback(async () => {
+    try {
+      const response = await apiClient.request<Blob>({ method: 'GET', responseType: 'blob', url: API_ENDPOINTS.CANDIDATE.PROFILE_PHOTO });
+      const next = URL.createObjectURL(response.data);
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+      photoUrlRef.current = next;
+      setPhotoUrl(next);
+    } catch {
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+      photoUrlRef.current = null;
+      setPhotoUrl(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPhoto();
+    const refresh = () => void loadPhoto();
+    window.addEventListener('careerharbor:profile-photo-changed', refresh);
+    return () => {
+      window.removeEventListener('careerharbor:profile-photo-changed', refresh);
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    };
+  }, [loadPhoto]);
 
   useEffect(() => {
     setAnchorElement(null);
@@ -65,6 +92,8 @@ export const CandidateAccountMenu = ({
       >
         <Avatar
           aria-hidden
+          imgProps={{ onError: () => { if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current); photoUrlRef.current = null; setPhotoUrl(null); } }}
+          src={photoUrl ?? undefined}
           sx={{ bgcolor: 'primary.main', fontSize: '0.9rem', fontWeight: 800, height: 36, width: 36 }}
         >
           {getInitials(firstName, lastName)}

@@ -49,6 +49,8 @@ export const portfolioApi = dashboardApi.injectEndpoints({
       query: (slug) => ({ url: API_ENDPOINTS.PUBLIC.PORTFOLIO(slug) }),
       transformResponse: (response: ApiResponse<PublicPortfolioResponse>) => response.data,
     }),
+    getPortfolioEducation: builder.query<PortfolioEducation[], void>({ query: () => ({ url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('education') }), transformResponse: (r: ApiResponse<PortfolioEducation[]>) => r.data, providesTags: portfolioTags }),
+    getPortfolioExperiences: builder.query<PortfolioExperience[], void>({ query: () => ({ url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('experiences') }), transformResponse: (r: ApiResponse<PortfolioExperience[]>) => r.data, providesTags: portfolioTags }),
 
     addPortfolioExperience: builder.mutation<PortfolioExperience, ExperienceRequest>({ query: (data) => collectionMutation('POST', API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('experiences'), data), transformResponse: (r: ApiResponse<PortfolioExperience>) => r.data, invalidatesTags: portfolioTags }),
     updatePortfolioExperience: builder.mutation<PortfolioExperience, { id: string; data: ExperienceRequest }>({ query: ({ id, data }) => collectionMutation('PUT', API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('experiences', id), data), transformResponse: (r: ApiResponse<PortfolioExperience>) => r.data, invalidatesTags: portfolioTags }),
@@ -83,6 +85,7 @@ export const {
   useDeletePortfolioEducationMutation, useDeletePortfolioExperienceMutation,
   useDeletePortfolioLinkMutation, useDeletePortfolioProjectMutation, useGetPortfolioPreviewQuery,
   useGetPortfolioQuery, useGetPublicPortfolioQuery, usePublishPortfolioMutation,
+  useGetPortfolioEducationQuery, useGetPortfolioExperiencesQuery,
   useUnpublishPortfolioMutation, useUpdatePortfolioCertificationMutation,
   useUpdatePortfolioCustomItemMutation, useUpdatePortfolioCustomSectionMutation,
   useUpdatePortfolioEducationMutation, useUpdatePortfolioExperienceMutation,

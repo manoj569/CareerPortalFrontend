@@ -108,6 +108,9 @@ export const API_ENDPOINTS = {
   CANDIDATE: {
     PROFILE: '/candidate/profile',
     PROFILE_ABOUT: '/candidate/profile/about',
+    PROFILE_BASIC_DETAILS: '/candidate/profile/basic-details',
+    PROFILE_CAREER_PREFERENCES: '/candidate/profile/career-preferences',
+    PROFILE_PHOTO: '/candidate/profile/photo',
     PROFILE_SKILLS: '/candidate/profile/skills',
     PROFILE_SKILL: (skillId: string) =>
       `/candidate/profile/skills/${encodeURIComponent(skillId)}`,

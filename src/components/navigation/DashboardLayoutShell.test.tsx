@@ -1,7 +1,7 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ROUTES } from '@/constants/routes';
 import { authService } from '@/features/auth/services/authService';
@@ -10,6 +10,9 @@ import { candidateNavigationItems } from '@/layouts/candidateNavigation';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { UserRole } from '@/types';
 import { DashboardLayoutShell } from './DashboardLayoutShell';
+const { apiRequestMock } = vi.hoisted(() => ({ apiRequestMock: vi.fn() }));
+
+vi.mock('@/api/apiClient', () => ({ apiClient: { request: apiRequestMock } }));
 
 const candidateAuth: AuthState = {
   accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
@@ -69,6 +72,19 @@ const renderShell = (notificationCount: number) => {
 };
 
 describe('Candidate workspace shell', () => {
+  beforeEach(() => {
+    apiRequestMock.mockReset().mockRejectedValue(new Error('No profile photo configured.'));
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn().mockReturnValue('blob:header-photo') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+  });
+
+  it('refreshes the private account-menu avatar after a profile photo change', async () => {
+    apiRequestMock.mockResolvedValue({ data: new Blob(['photo'], { type: 'image/png' }) });
+    renderShell(0);
+    await waitFor(() => expect(apiRequestMock).toHaveBeenCalledTimes(1));
+    window.dispatchEvent(new Event('careerharbor:profile-photo-changed'));
+    await waitFor(() => expect(apiRequestMock).toHaveBeenCalledTimes(2));
+  });
   it('collapses to accessible icon-only navigation and expands again', async () => {
     renderShell(0);
     const user = userEvent.setup();

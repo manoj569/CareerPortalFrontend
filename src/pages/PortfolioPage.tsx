@@ -9,7 +9,6 @@ import {
   Box,
   Button,
   Chip,
-  LinearProgress,
   Paper,
   Skeleton,
   Stack,
@@ -27,10 +26,8 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { buildPublicPortfolioPath } from '@/constants/routes';
 import {
   isDashboardApiError,
-  useGetProfileCompletionQuery,
 } from '@/features/dashboard/api/dashboardApi';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
-import type { CandidateProfileCompletion } from '@/features/dashboard/types/dashboardModels';
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
 import {
   useCreatePortfolioMutation,
@@ -53,17 +50,6 @@ import { CandidateProfileContent } from './ProfilePage';
 type TabValue = 'profile' | 'builder' | 'preview';
 type PreviewWidth = 'desktop' | 'mobile';
 
-const requirementLabels: Record<string, string> = {
-  basicDetails: 'Basic candidate details',
-  careerPreferences: 'Career preferences',
-  name: 'Candidate name',
-  profileSummary: 'Profile summary',
-  resume: 'Resume',
-  resumeHeadline: 'Resume headline',
-  skills: 'Skills',
-  slug: 'Portfolio URL',
-};
-
 const validTabs: TabValue[] = ['profile', 'builder', 'preview'];
 
 export const PortfolioPage = () => {
@@ -73,15 +59,12 @@ export const PortfolioPage = () => {
   );
   const [searchParams, setSearchParams] = useSearchParams();
   const portfolio = useGetPortfolioQuery();
-  const completion = useGetProfileCompletionQuery();
   const [createPortfolio, createState] = useCreatePortfolioMutation();
   const [publishPortfolio, publishState] = usePublishPortfolioMutation();
   const [unpublishPortfolio, unpublishState] = useUnpublishPortfolioMutation();
-  const [publicationMissing, setPublicationMissing] = useState<string[]>([]);
   const [publicationError, setPublicationError] = useState<string | null>(null);
   const [unpublishOpen, setUnpublishOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
-  const [pendingProfileSection, setPendingProfileSection] = useState<string | null>(null);
 
   const requestedTab = searchParams.get('tab');
   const tab: TabValue = validTabs.includes(requestedTab as TabValue)
@@ -107,20 +90,6 @@ export const PortfolioPage = () => {
     setSearchParams(next, { replace: true });
   }, [editor, searchParams, setSearchParams, tab]);
 
-  useEffect(() => {
-    if (tab !== 'profile' || !pendingProfileSection) return;
-    const target = Object.hasOwn(requirementLabels, pendingProfileSection)
-      ? document.querySelector<HTMLElement>(`[data-profile-action="${pendingProfileSection}"]`)
-      : null;
-    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    target?.focus();
-    setPendingProfileSection(null);
-  }, [pendingProfileSection, tab]);
-
-  const focusProfileSection = (section: string) => {
-    setPendingProfileSection(section);
-    setTab('profile');
-  };
 
   const copyLink = async () => {
     if (!publicUrl) return;
@@ -137,10 +106,9 @@ export const PortfolioPage = () => {
   const runPublish = async () => {
     if (publishState.isLoading || !isCreated) return;
     setPublicationError(null);
-    setPublicationMissing([]);
     try {
       const result = await publishPortfolio().unwrap();
-      handlePublishResult(result, setPublicationMissing);
+      handlePublishResult(result, () => undefined);
     } catch (error: unknown) {
       setPublicationError(
         isDashboardApiError(error)
@@ -230,17 +198,6 @@ export const PortfolioPage = () => {
         title="Portfolio"
       />
 
-      <ReadinessCard
-        completion={completion}
-        copyStatus={copyStatus}
-        editor={editor}
-        onCopy={() => void copyLink()}
-        onNextAction={focusProfileSection}
-        publicationError={publicationError}
-        publicationMissing={publicationMissing}
-        publicUrl={publicUrl}
-      />
-
       <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: '100%', overflow: 'hidden' }}>
         <Tabs
           allowScrollButtonsMobile
@@ -259,6 +216,8 @@ export const PortfolioPage = () => {
           <Tab disabled={!isCreated} label="Preview" value="preview" />
         </Tabs>
       </Box>
+
+      {publicationError ? <Alert aria-live="assertive" severity="error">{publicationError}</Alert> : null}
 
       {tab === 'profile' ? (
         <Stack spacing={2}>
@@ -294,93 +253,6 @@ export const PortfolioPage = () => {
         title="Unpublish your portfolio?"
       />
     </Stack>
-  );
-};
-
-const ReadinessCard = ({
-  completion,
-  copyStatus,
-  editor,
-  onCopy,
-  onNextAction,
-  publicationError,
-  publicationMissing,
-  publicUrl,
-}: {
-  completion: {
-    data?: CandidateProfileCompletion;
-    isError: boolean;
-    isLoading: boolean;
-    refetch: () => unknown;
-  };
-  copyStatus: 'idle' | 'copied';
-  editor: PortfolioEditorResponse;
-  onCopy: () => void;
-  onNextAction: (section: string) => void;
-  publicationError: string | null;
-  publicationMissing: string[];
-  publicUrl: string | null;
-}) => {
-  const nextSection = completion.data?.missingSections[0];
-  const status = editor.status === 'Published' ? 'Published' : 'Draft';
-
-  return (
-    <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, md: 3 } }}>
-      <Stack spacing={2}>
-        <Stack alignItems={{ xs: 'flex-start', md: 'center' }} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-          <Box sx={{ flex: 1, maxWidth: 620, minWidth: 0 }}>
-            <Typography component="h2" variant="h3">Portfolio readiness</Typography>
-            {completion.isLoading ? <Skeleton aria-label="Loading portfolio readiness" height={54} sx={{ mt: 1 }} variant="rounded" /> : null}
-            {completion.isError ? (
-              <Stack alignItems="flex-start" spacing={0.5}>
-                <Typography color="text.secondary" variant="body2">Profile completion is temporarily unavailable.</Typography>
-                <Button onClick={() => void completion.refetch()} size="small" variant="outlined">Retry readiness</Button>
-              </Stack>
-            ) : null}
-            {completion.data ? (
-              <>
-                <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">
-                  {completion.data.completedSections.length} of {completion.data.sections.length} private profile sections complete
-                </Typography>
-                <LinearProgress
-                  aria-label={`Portfolio readiness: ${completion.data.completionPercentage}%`}
-                  sx={{ mt: 1.5 }}
-                  value={completion.data.completionPercentage}
-                  variant="determinate"
-                />
-              </>
-            ) : null}
-          </Box>
-          <Chip color={status === 'Published' ? 'success' : 'warning'} label={status} variant="outlined" />
-        </Stack>
-
-        {completion.data?.completionPercentage === 100 ? (
-          <Typography fontWeight={750}>Your profile is complete and ready to share.</Typography>
-        ) : nextSection ? (
-          <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Typography color="text.secondary">Next: {requirementLabels[nextSection] ?? nextSection}</Typography>
-            <Button onClick={() => onNextAction(nextSection)} size="small" variant="outlined">Complete this section</Button>
-          </Stack>
-        ) : null}
-
-        {publicationMissing.length ? (
-          <Alert severity="warning">
-            <Typography fontWeight={800}>Complete these requirements before publishing:</Typography>
-            <Box component="ul" sx={{ mb: 0 }}>
-              {publicationMissing.map((item) => <li key={item}>{requirementLabels[item] ?? item}</li>)}
-            </Box>
-          </Alert>
-        ) : null}
-        {publicationError ? <Alert aria-live="assertive" severity="error">{publicationError}</Alert> : null}
-
-        {publicUrl ? (
-          <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Typography sx={{ overflowWrap: 'anywhere' }}>{publicUrl}</Typography>
-            <Button onClick={onCopy} startIcon={<ContentCopyOutlinedIcon />}>{copyStatus === 'copied' ? 'Link copied' : 'Copy link'}</Button>
-          </Stack>
-        ) : null}
-      </Stack>
-    </Paper>
   );
 };
 
