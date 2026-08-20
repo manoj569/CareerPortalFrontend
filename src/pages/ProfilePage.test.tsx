@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
 import {
+  downloadCandidateResume,
   useAddCandidateSkillMutation,
   useDeleteCandidateSkillMutation,
   useGetCandidateSkillsQuery,
@@ -33,6 +34,7 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
   const actual = await importOriginal<typeof DashboardApiModule>();
   return {
     ...actual,
+    downloadCandidateResume: vi.fn(),
     useAddCandidateSkillMutation: vi.fn(),
     useDeleteCandidateSkillMutation: vi.fn(),
     useGetCandidateSkillsQuery: vi.fn(),
@@ -120,6 +122,7 @@ const mocks = {
   updateProfile: vi.mocked(useUpdateProfileMutation),
   updateSkill: vi.mocked(useUpdateCandidateSkillMutation),
   uploadResume: vi.mocked(useUploadResumeMutation),
+  downloadResume: vi.mocked(downloadCandidateResume),
 };
 
 const renderPage = () => renderWithProviders(<MemoryRouter><ProfilePage /></MemoryRouter>);
@@ -160,22 +163,24 @@ beforeEach(() => {
   mocks.delete.mockReturnValue(mutationResult().tuple);
   mocks.uploadResume.mockReturnValue(mutationResult().tuple);
   mocks.updateProfile.mockReturnValue(mutationResult().tuple);
+  mocks.downloadResume.mockReset();
+  mocks.downloadResume.mockResolvedValue(new Blob(['resume'], { type: 'application/pdf' }));
 });
 
-describe('Candidate Profile Phase 1', () => {
+describe('Candidate profile workspace', () => {
   it('renders real profile data, backend completion, missing sections, and career navigation', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { name: 'Avery Patel' })).toBeVisible();
     expect(screen.getByText('avery@example.com')).toBeVisible();
-    expect(screen.getByText('40% complete')).toBeVisible();
+    expect(screen.getByText('40% profile completion')).toBeVisible();
     expect(screen.getByRole('progressbar', { name: 'Profile completion: 40%' })).toHaveAttribute(
       'aria-valuenow',
       '40',
     );
     expect(screen.getByText('3 of 6 sections complete')).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Key skills' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Manage career preferences' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Edit preferences' })).toHaveAttribute(
       'href',
       '/onboarding',
     );
@@ -186,7 +191,7 @@ describe('Candidate Profile Phase 1', () => {
     mocks.updateAbout.mockReturnValue(mutation.tuple);
     renderPage();
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Edit headline and summary' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Edit about' }));
     const headline = screen.getByRole('textbox', { name: 'Resume headline' });
     const summary = screen.getByRole('textbox', { name: 'Profile summary' });
     expect(headline).toHaveValue(profile.headline);
@@ -212,7 +217,7 @@ describe('Candidate Profile Phase 1', () => {
     const mutation = mutationResult();
     mocks.add.mockReturnValue(mutation.tuple);
     renderPage();
-    expect(screen.getByText(/add structured skills/i)).toBeVisible();
+    expect(screen.getByText(/add skills to help employers/i)).toBeVisible();
 
     await userEvent.click(screen.getByRole('button', { name: 'Add your first skill' }));
     await userEvent.type(screen.getByRole('textbox', { name: 'Skill name' }), '  TypeScript  ');
@@ -239,7 +244,7 @@ describe('Candidate Profile Phase 1', () => {
     renderPage();
 
     const skillsSection = screen.getByRole('heading', { name: 'Key skills' }).closest('section')!;
-    await userEvent.click(within(skillsSection).getByRole('button', { name: 'Edit' }));
+    await userEvent.click(within(skillsSection).getByRole('button', { name: 'Edit React' }));
     const name = screen.getByRole('textbox', { name: 'Skill name' });
     await userEvent.clear(name);
     await userEvent.type(name, 'React Native');
@@ -258,7 +263,7 @@ describe('Candidate Profile Phase 1', () => {
       .getByRole('heading', { name: 'Key skills' })
       .closest('section')!;
     await userEvent.click(
-      within(refreshedSkillsSection).getByRole('button', { name: 'Delete' }),
+      within(refreshedSkillsSection).getByRole('button', { name: 'Delete React' }),
     );
     const dialog = screen.getByRole('dialog', { name: 'Delete React?' });
     expect(within(dialog).getByText('Delete React from your key skills?')).toBeVisible();
@@ -284,7 +289,7 @@ describe('Candidate Profile Phase 1', () => {
     mocks.updateAbout.mockReturnValue(mutationResult({ isLoading: true }).tuple);
     const view = renderPage();
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Edit headline and summary' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Edit about' }));
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
 
     view.unmount();
@@ -310,6 +315,137 @@ describe('Candidate Profile Phase 1', () => {
     const file = new File(['%PDF'], 'resume.pdf', { type: 'application/pdf' });
     await userEvent.upload(input, file);
     await waitFor(() => expect(mutation.trigger).toHaveBeenCalledWith(file));
+  });
+
+  it('uses real-name initials and never renders a fabricated photo or verification badge', () => {
+    renderPage();
+
+    expect(screen.getByLabelText('Avery Patel initials')).toHaveTextContent('AP');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByText(/verified/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/phone|profile views|open to work/i)).not.toBeInTheDocument();
+  });
+
+  it('uses the completed profile copy without Phase 1 wording', () => {
+    mocks.getCompletion.mockReturnValue(
+      queryResult({
+        data: {
+          ...completion,
+          completedSections: completion.sections.map((section) => section.section),
+          completionPercentage: 100,
+          missingSections: [],
+          sections: completion.sections.map((section) => ({ ...section, isCompleted: true })),
+        },
+      }),
+    );
+    renderPage();
+
+    expect(screen.getByText('Your candidate profile is complete.')).toBeVisible();
+    expect(screen.queryByText(/phase 1/i)).not.toBeInTheDocument();
+  });
+
+  it('shows at most three backend missing-section actions', () => {
+    mocks.getCompletion.mockReturnValue(
+      queryResult({
+        data: {
+          ...completion,
+          missingSections: ['resumeHeadline', 'profileSummary', 'skills', 'resume', 'basicDetails'],
+        },
+      }),
+    );
+    renderPage();
+
+    const strength = screen.getByRole('heading', { name: 'Profile strength' }).closest('section')!;
+    expect(within(strength).getAllByRole('button')).toHaveLength(3);
+    expect(within(strength).queryByRole('button', { name: 'Upload resume' })).not.toBeInTheDocument();
+  });
+
+  it('renders processing and failed resume states without exposing internal errors', () => {
+    const resumeProfile = {
+      ...profile,
+      resume: {
+        contentType: 'application/pdf',
+        fileName: 'resume.pdf',
+        sizeBytes: 1000,
+        uploadedAtUtc: '2026-08-12T00:00:00Z',
+      },
+    };
+    mocks.getProfile.mockReturnValue(queryResult({ data: resumeProfile }));
+    mocks.getResumeStatus.mockReturnValue(
+      queryResult({
+        data: {
+          extractedAtUtc: null,
+          extractionStatus: ResumeExtractionStatus.Processing,
+          hasResume: true,
+          message: 'private parser detail',
+        },
+      }),
+    );
+    const processing = renderPage();
+    expect(screen.getByText('Processing')).toBeVisible();
+    expect(screen.getByRole('progressbar', { name: 'Processing resume' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Update resume' })).toBeDisabled();
+    expect(screen.queryByText('private parser detail')).not.toBeInTheDocument();
+
+    processing.unmount();
+    mocks.getResumeStatus.mockReturnValue(
+      queryResult({
+        data: {
+          extractedAtUtc: null,
+          extractionStatus: ResumeExtractionStatus.Failed,
+          hasResume: true,
+          message: 'private parser detail',
+        },
+      }),
+    );
+    renderPage();
+    expect(screen.getByText('Failed')).toBeVisible();
+    expect(screen.getByText(/resume is stored, but recommendations could not be prepared/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Update resume' })).toBeEnabled();
+  });
+
+  it('downloads the ready resume securely with a sanitized backend filename', async () => {
+    mocks.getProfile.mockReturnValue(
+      queryResult({
+        data: {
+          ...profile,
+          resume: {
+            contentType: 'application/pdf',
+            fileName: '../../team<lead>.pdf',
+            sizeBytes: 1000,
+            uploadedAtUtc: '2026-08-12T00:00:00Z',
+          },
+        },
+      }),
+    );
+    mocks.getResumeStatus.mockReturnValue(
+      queryResult({
+        data: {
+          extractedAtUtc: '2026-08-12T00:01:00Z',
+          extractionStatus: ResumeExtractionStatus.Ready,
+          hasResume: true,
+          message: '',
+        },
+      }),
+    );
+    const createObjectUrl = vi.fn().mockReturnValue('blob:resume');
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectUrl });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectUrl });
+    let downloadName = '';
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloadName = this.download;
+    });
+
+    renderPage();
+    expect(screen.getByText('team-lead-.pdf')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Download' }));
+
+    await waitFor(() => expect(mocks.downloadResume).toHaveBeenCalledOnce());
+    expect(downloadName).toBe('team-lead-.pdf');
+    expect(createObjectUrl).toHaveBeenCalled();
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:resume');
+    click.mockRestore();
   });
 
   it('renders loading and API-error retry states', () => {

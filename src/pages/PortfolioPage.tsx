@@ -1,42 +1,589 @@
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
-import { Alert, Box, Button, Chip, LinearProgress, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/material';
+import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
+import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  LinearProgress,
+  Paper,
+  Skeleton,
+  Stack,
+  Tab,
+  Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { buildPublicPortfolioPath } from '@/constants/routes';
-import { useGetProfileCompletionQuery } from '@/features/dashboard/api/dashboardApi';
-import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import {
-  useCreatePortfolioMutation, useGetPortfolioPreviewQuery, useGetPortfolioQuery,
-  usePublishPortfolioMutation, useUnpublishPortfolioMutation,
+  isDashboardApiError,
+  useGetProfileCompletionQuery,
+} from '@/features/dashboard/api/dashboardApi';
+import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
+import type { CandidateProfileCompletion } from '@/features/dashboard/types/dashboardModels';
+import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
+import {
+  useCreatePortfolioMutation,
+  useGetPortfolioPreviewQuery,
+  useGetPortfolioQuery,
+  usePublishPortfolioMutation,
+  useUnpublishPortfolioMutation,
 } from '@/features/portfolio/api/portfolioApi';
 import { PortfolioCollectionEditors } from '@/features/portfolio/components/PortfolioCollectionEditors';
 import { PortfolioRenderer } from '@/features/portfolio/components/PortfolioRenderer';
 import { PortfolioSettingsCard } from '@/features/portfolio/components/PortfolioSettingsCard';
+import type {
+  PortfolioEditorResponse,
+  PortfolioPublishResponse,
+} from '@/features/portfolio/types/portfolioModels';
 import { publicPortfolioUrl } from '@/features/portfolio/utils/portfolioUrl';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { CandidateProfileContent } from './ProfilePage';
 
 type TabValue = 'profile' | 'builder' | 'preview';
-const requirementLabels: Record<string, string> = { name: 'Candidate name', resumeHeadline: 'Resume headline', profileSummary: 'Profile summary', skills: 'Skills', slug: 'Portfolio URL' };
+type PreviewWidth = 'desktop' | 'mobile';
+
+const requirementLabels: Record<string, string> = {
+  basicDetails: 'Basic candidate details',
+  careerPreferences: 'Career preferences',
+  name: 'Candidate name',
+  profileSummary: 'Profile summary',
+  resume: 'Resume',
+  resumeHeadline: 'Resume headline',
+  skills: 'Skills',
+  slug: 'Portfolio URL',
+};
+
+const validTabs: TabValue[] = ['profile', 'builder', 'preview'];
 
 export const PortfolioPage = () => {
-  useDocumentMetadata('Portfolio | Career Harbor', 'Build your private Career Harbor profile and explicitly publish a professional portfolio when ready.');
-  const [tab, setTab] = useState<TabValue>('profile');
+  useDocumentMetadata(
+    'Portfolio | Career Harbor',
+    'Build your private Career Harbor profile and explicitly publish a professional portfolio when ready.',
+  );
+  const [searchParams, setSearchParams] = useSearchParams();
   const portfolio = useGetPortfolioQuery();
   const completion = useGetProfileCompletionQuery();
   const [createPortfolio, createState] = useCreatePortfolioMutation();
-  const publicUrl = portfolio.data?.status === 'Published' && portfolio.data.slug ? publicPortfolioUrl(portfolio.data.slug) : null;
-  const copy = async () => { if (!publicUrl) return; try { await navigator.clipboard.writeText(publicUrl); enqueueSnackbar('Portfolio link copied.', { variant: 'success' }); } catch { enqueueSnackbar('Unable to copy the portfolio link.', { variant: 'error' }); } };
-  if (portfolio.isLoading) return <Stack aria-label="Loading portfolio workspace" role="status" spacing={3}><Skeleton height={90} variant="rounded"/><Skeleton height={180} variant="rounded"/><Skeleton height={480} variant="rounded"/></Stack>;
-  if (portfolio.isError || !portfolio.data) return <ErrorState description="Your portfolio workspace could not be loaded." headingLevel="h1" onRetry={() => void portfolio.refetch()} title="Portfolio is temporarily unavailable" />;
-  const state = !portfolio.data.isCreated ? 'Not created' : portfolio.data.status ?? 'Draft';
-  return <Stack spacing={3}><DashboardPageHeader description="Build your career profile privately, then publish a professional portfolio when you are ready." eyebrow="Candidate workspace" title="Portfolio"/><Paper component="section" sx={{p:{xs:2.5,md:3}}}><Stack spacing={2}><Stack alignItems={{xs:'flex-start',md:'center'}} direction={{xs:'column',md:'row'}} justifyContent="space-between" spacing={2}><Box><Typography component="h2" variant="h3">Portfolio readiness</Typography>{completion.data?<><Typography color="text.secondary" variant="body2">{completion.data.completedSections.length} of {completion.data.sections.length} private profile sections complete</Typography><LinearProgress aria-label={`Profile completion: ${completion.data.completionPercentage}%`} sx={{mt:1.5,width:{xs:'100%',sm:320}}} value={completion.data.completionPercentage} variant="determinate" /></>:<Typography color="text.secondary">Profile completion unavailable</Typography>}</Box><Chip color={state==='Published'?'success':state==='Draft'?'warning':'default'} label={state} /></Stack>{completion.data?.missingSections.length?<Stack direction="row" flexWrap="wrap" gap={1}>{completion.data.missingSections.map(section=><Button key={section} onClick={()=>setTab('profile')} size="small" variant="outlined">Complete {requirementLabels[section]??section}</Button>)}</Stack>:null}{publicUrl?<Stack alignItems={{xs:'flex-start',sm:'center'}} direction={{xs:'column',sm:'row'}} spacing={1}><Typography sx={{overflowWrap:'anywhere'}}>{publicUrl}</Typography><Button onClick={()=>void copy()} startIcon={<ContentCopyOutlinedIcon />}>Copy link</Button></Stack>:null}</Stack></Paper><Tabs aria-label="Portfolio workspace views" onChange={(_,value:TabValue)=>setTab(value)} value={tab} variant="scrollable"><Tab label="Profile" value="profile"/><Tab label="Portfolio builder" value="builder"/><Tab disabled={!portfolio.data.isCreated} label="Preview" value="preview"/></Tabs>{tab==='profile'?<Stack spacing={2}><Alert severity="info">Profile changes stay private. Saving them does not create or publish a public portfolio.</Alert><CandidateProfileContent /></Stack>:tab==='builder'?(!portfolio.data.isCreated?<NotCreated createPortfolio={createPortfolio} isLoading={createState.isLoading}/>:<Stack spacing={2.5}><Alert severity="info">Your portfolio remains {portfolio.data.status}. Changes are not published automatically.</Alert><PortfolioSettingsCard portfolio={portfolio.data}/><PortfolioCollectionEditors portfolio={portfolio.data}/><Button onClick={()=>setTab('preview')} variant="contained">Preview portfolio</Button></Stack>):<PortfolioPreview publicUrl={publicUrl}/>}</Stack>;
+  const [publishPortfolio, publishState] = usePublishPortfolioMutation();
+  const [unpublishPortfolio, unpublishState] = useUnpublishPortfolioMutation();
+  const [publicationMissing, setPublicationMissing] = useState<string[]>([]);
+  const [publicationError, setPublicationError] = useState<string | null>(null);
+  const [unpublishOpen, setUnpublishOpen] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
+  const [pendingProfileSection, setPendingProfileSection] = useState<string | null>(null);
+
+  const requestedTab = searchParams.get('tab');
+  const tab: TabValue = validTabs.includes(requestedTab as TabValue)
+    ? (requestedTab as TabValue)
+    : 'profile';
+  const editor = portfolio.data;
+  const isCreated = Boolean(editor?.isCreated);
+  const isPublished = editor?.status === 'Published';
+  const publicUrl = isPublished && editor?.slug ? publicPortfolioUrl(editor.slug) : null;
+  const frontendMissing = useMemo(() => getFrontendMissingRequirements(editor), [editor]);
+  const canPublish = isCreated && !isPublished && frontendMissing.length === 0;
+
+  const setTab = (nextTab: TabValue) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', nextTab);
+    setSearchParams(next, { replace: true });
+  };
+
+  useEffect(() => {
+    if (tab !== 'preview' || !editor || editor.isCreated) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', 'builder');
+    setSearchParams(next, { replace: true });
+  }, [editor, searchParams, setSearchParams, tab]);
+
+  useEffect(() => {
+    if (tab !== 'profile' || !pendingProfileSection) return;
+    const target = Object.hasOwn(requirementLabels, pendingProfileSection)
+      ? document.querySelector<HTMLElement>(`[data-profile-action="${pendingProfileSection}"]`)
+      : null;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target?.focus();
+    setPendingProfileSection(null);
+  }, [pendingProfileSection, tab]);
+
+  const focusProfileSection = (section: string) => {
+    setPendingProfileSection(section);
+    setTab('profile');
+  };
+
+  const copyLink = async () => {
+    if (!publicUrl) return;
+    setCopyStatus('idle');
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setCopyStatus('copied');
+      enqueueSnackbar('Portfolio link copied.', { variant: 'success' });
+    } catch {
+      enqueueSnackbar('Unable to copy the portfolio link.', { variant: 'error' });
+    }
+  };
+
+  const runPublish = async () => {
+    if (publishState.isLoading || !isCreated) return;
+    setPublicationError(null);
+    setPublicationMissing([]);
+    try {
+      const result = await publishPortfolio().unwrap();
+      handlePublishResult(result, setPublicationMissing);
+    } catch (error: unknown) {
+      setPublicationError(
+        isDashboardApiError(error)
+          ? error.message
+          : 'Unable to publish your portfolio. Please review your details and try again.',
+      );
+    }
+  };
+
+  const runUnpublish = async () => {
+    if (unpublishState.isLoading || !isPublished) return;
+    setPublicationError(null);
+    try {
+      await unpublishPortfolio().unwrap();
+      setUnpublishOpen(false);
+      enqueueSnackbar('Portfolio unpublished. It is now private.', { variant: 'success' });
+    } catch (error: unknown) {
+      setPublicationError(
+        isDashboardApiError(error)
+          ? error.message
+          : 'Unable to unpublish your portfolio. Please try again.',
+      );
+    }
+  };
+
+  if (portfolio.isLoading) {
+    return (
+      <Stack aria-label="Loading portfolio workspace" role="status" spacing={3}>
+        <Skeleton height={90} variant="rounded" />
+        <Skeleton height={180} variant="rounded" />
+        <Skeleton height={480} variant="rounded" />
+      </Stack>
+    );
+  }
+
+  if (portfolio.isError || !editor) {
+    return (
+      <ErrorState
+        description="Your portfolio workspace could not be loaded."
+        headingLevel="h1"
+        onRetry={() => void portfolio.refetch()}
+        title="Portfolio is temporarily unavailable"
+      />
+    );
+  }
+
+  const headerActions = (
+    <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+      {isCreated ? <Button onClick={() => setTab('preview')} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="outlined">Preview portfolio</Button> : null}
+      {publicUrl && editor.slug ? (
+        <Button component={Link} endIcon={<OpenInNewOutlinedIcon />} rel="noopener noreferrer" sx={{ width: { xs: '100%', sm: 'auto' } }} target="_blank" to={buildPublicPortfolioPath(editor.slug)} variant="outlined">
+          View live portfolio
+        </Button>
+      ) : null}
+      {canPublish ? (
+        <Button disabled={publishState.isLoading} onClick={() => void runPublish()} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="contained">
+          {publishState.isLoading ? 'Publishing…' : 'Publish portfolio'}
+        </Button>
+      ) : null}
+      {isPublished ? (
+        <Button color="error" disabled={unpublishState.isLoading} onClick={() => setUnpublishOpen(true)} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="text">Unpublish</Button>
+      ) : null}
+    </Stack>
+  );
+
+  const publicPortfolioCard = (
+    <PublicPortfolioCard
+      canPublish={canPublish}
+      copyStatus={copyStatus}
+      editor={editor}
+      isPublishing={publishState.isLoading}
+      onBuilder={() => setTab('builder')}
+      onCopy={() => void copyLink()}
+      onPreview={() => setTab('preview')}
+      onPublish={() => void runPublish()}
+      onUnpublish={() => setUnpublishOpen(true)}
+      publicUrl={publicUrl}
+    />
+  );
+
+  return (
+    <Stack spacing={{ xs: 2.5, md: 3 }}>
+      <DashboardPageHeader
+        actions={headerActions}
+        description="Build your career profile privately, then publish a professional portfolio when you’re ready."
+        eyebrow="CANDIDATE WORKSPACE"
+        title="Portfolio"
+      />
+
+      <ReadinessCard
+        completion={completion}
+        copyStatus={copyStatus}
+        editor={editor}
+        onCopy={() => void copyLink()}
+        onNextAction={focusProfileSection}
+        publicationError={publicationError}
+        publicationMissing={publicationMissing}
+        publicUrl={publicUrl}
+      />
+
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: '100%', overflow: 'hidden' }}>
+        <Tabs
+          allowScrollButtonsMobile
+          aria-label="Portfolio workspace views"
+          onChange={(_, value: TabValue) => setTab(value)}
+          scrollButtons="auto"
+          sx={{
+            '& .MuiTab-root': { minHeight: 52, minWidth: { xs: 138, sm: 160 }, textTransform: 'none' },
+            minHeight: 52,
+          }}
+          value={tab}
+          variant="scrollable"
+        >
+          <Tab label="Profile" value="profile" />
+          <Tab label="Portfolio builder" value="builder" />
+          <Tab disabled={!isCreated} label="Preview" value="preview" />
+        </Tabs>
+      </Box>
+
+      {tab === 'profile' ? (
+        <Stack spacing={2}>
+          <Alert severity="info">Profile changes stay private. Saving them does not create or publish a public portfolio.</Alert>
+          <CandidateProfileContent
+            hidePageHeader
+            onPreviewPortfolio={isCreated ? () => setTab('preview') : undefined}
+            publicPortfolioCard={publicPortfolioCard}
+          />
+        </Stack>
+      ) : null}
+
+      {tab === 'builder' ? (
+        !isCreated ? (
+          <NotCreated createPortfolio={createPortfolio} isLoading={createState.isLoading} />
+        ) : (
+          <BuilderWorkspace editor={editor} onPreview={() => setTab('preview')} />
+        )
+      ) : null}
+
+      {tab === 'preview' && isCreated ? (
+        <PortfolioPreviewWorkspace editor={editor} onBack={() => setTab('builder')} />
+      ) : null}
+
+      <ConfirmActionDialog
+        actionLabel="Unpublish portfolio"
+        description="Your public portfolio will no longer be available at its current link. Your private profile and portfolio content will be kept."
+        error={publicationError}
+        isProcessing={unpublishState.isLoading}
+        onClose={() => !unpublishState.isLoading && setUnpublishOpen(false)}
+        onConfirm={() => void runUnpublish()}
+        open={unpublishOpen}
+        title="Unpublish your portfolio?"
+      />
+    </Stack>
+  );
 };
 
-const NotCreated=({createPortfolio,isLoading}:{createPortfolio:ReturnType<typeof useCreatePortfolioMutation>[0];isLoading:boolean})=>{const [error,setError]=useState<string|null>(null);const create=async()=>{setError(null);try{await createPortfolio({requestedSlug:null,template:'Professional'}).unwrap();enqueueSnackbar('Portfolio draft created.',{variant:'success'});}catch{setError('Unable to create your portfolio draft. Please try again.');}};return <Paper component="section" sx={{p:{xs:3,md:5}}}><Stack alignItems="flex-start" spacing={2}><Typography component="h2" variant="h3">Create your public portfolio draft</Typography><Typography color="text.secondary">A portfolio can show your display name, headline, summary, skills, selected career records, professional links, and content you explicitly make visible. It starts private as Draft.</Typography>{error?<Alert severity="error">{error}</Alert>:null}<Button disabled={isLoading} onClick={()=>void create()} variant="contained">{isLoading?'Creating…':'Create portfolio'}</Button></Stack></Paper>;};
+const ReadinessCard = ({
+  completion,
+  copyStatus,
+  editor,
+  onCopy,
+  onNextAction,
+  publicationError,
+  publicationMissing,
+  publicUrl,
+}: {
+  completion: {
+    data?: CandidateProfileCompletion;
+    isError: boolean;
+    isLoading: boolean;
+    refetch: () => unknown;
+  };
+  copyStatus: 'idle' | 'copied';
+  editor: PortfolioEditorResponse;
+  onCopy: () => void;
+  onNextAction: (section: string) => void;
+  publicationError: string | null;
+  publicationMissing: string[];
+  publicUrl: string | null;
+}) => {
+  const nextSection = completion.data?.missingSections[0];
+  const status = editor.status === 'Published' ? 'Published' : 'Draft';
 
-const PortfolioPreview=({publicUrl}:{publicUrl:string|null})=>{const preview=useGetPortfolioPreviewQuery();const [publish,publishState]=usePublishPortfolioMutation();const [unpublish,unpublishState]=useUnpublishPortfolioMutation();const [missing,setMissing]=useState<string[]>([]);const runPublish=async()=>{const result=await publish().unwrap();if(!result.published){setMissing(result.missingRequirements);return;}setMissing([]);enqueueSnackbar('Portfolio published.',{variant:'success'});};const runUnpublish=async()=>{await unpublish().unwrap();enqueueSnackbar('Portfolio unpublished.',{variant:'success'});};if(preview.isLoading)return <Skeleton aria-label="Loading portfolio preview" height={600} variant="rounded"/>;if(preview.isError||!preview.data)return <Paper sx={{p:3}}><Alert action={<Button color="inherit" onClick={()=>void preview.refetch()}>Retry</Button>} severity="error">Portfolio preview is unavailable.</Alert></Paper>;return <Stack spacing={2}>{missing.length?<Alert severity="warning"><Typography fontWeight={800}>Complete these requirements before publishing:</Typography><Stack component="ul">{missing.map(item=><li key={item}>{requirementLabels[item]??item}</li>)}</Stack></Alert>:null}<Stack direction={{xs:'column',sm:'row'}} spacing={1}><Button disabled={publishState.isLoading} onClick={()=>void runPublish()} variant="contained">{publishState.isLoading?'Publishing…':'Publish portfolio'}</Button><Button color="warning" disabled={unpublishState.isLoading||!publicUrl} onClick={()=>void runUnpublish()} variant="outlined">{unpublishState.isLoading?'Unpublishing…':'Unpublish portfolio'}</Button>{publicUrl?<Button component={Link} endIcon={<OpenInNewOutlinedIcon />} target="_blank" rel="noopener noreferrer" to={buildPublicPortfolioPath(preview.data.slug)}>View public portfolio</Button>:null}</Stack><PortfolioRenderer portfolio={preview.data} preview /></Stack>;};
+  return (
+    <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, md: 3 } }}>
+      <Stack spacing={2}>
+        <Stack alignItems={{ xs: 'flex-start', md: 'center' }} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+          <Box sx={{ flex: 1, maxWidth: 620, minWidth: 0 }}>
+            <Typography component="h2" variant="h3">Portfolio readiness</Typography>
+            {completion.isLoading ? <Skeleton aria-label="Loading portfolio readiness" height={54} sx={{ mt: 1 }} variant="rounded" /> : null}
+            {completion.isError ? (
+              <Stack alignItems="flex-start" spacing={0.5}>
+                <Typography color="text.secondary" variant="body2">Profile completion is temporarily unavailable.</Typography>
+                <Button onClick={() => void completion.refetch()} size="small" variant="outlined">Retry readiness</Button>
+              </Stack>
+            ) : null}
+            {completion.data ? (
+              <>
+                <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">
+                  {completion.data.completedSections.length} of {completion.data.sections.length} private profile sections complete
+                </Typography>
+                <LinearProgress
+                  aria-label={`Portfolio readiness: ${completion.data.completionPercentage}%`}
+                  sx={{ mt: 1.5 }}
+                  value={completion.data.completionPercentage}
+                  variant="determinate"
+                />
+              </>
+            ) : null}
+          </Box>
+          <Chip color={status === 'Published' ? 'success' : 'warning'} label={status} variant="outlined" />
+        </Stack>
+
+        {completion.data?.completionPercentage === 100 ? (
+          <Typography fontWeight={750}>Your profile is complete and ready to share.</Typography>
+        ) : nextSection ? (
+          <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Typography color="text.secondary">Next: {requirementLabels[nextSection] ?? nextSection}</Typography>
+            <Button onClick={() => onNextAction(nextSection)} size="small" variant="outlined">Complete this section</Button>
+          </Stack>
+        ) : null}
+
+        {publicationMissing.length ? (
+          <Alert severity="warning">
+            <Typography fontWeight={800}>Complete these requirements before publishing:</Typography>
+            <Box component="ul" sx={{ mb: 0 }}>
+              {publicationMissing.map((item) => <li key={item}>{requirementLabels[item] ?? item}</li>)}
+            </Box>
+          </Alert>
+        ) : null}
+        {publicationError ? <Alert aria-live="assertive" severity="error">{publicationError}</Alert> : null}
+
+        {publicUrl ? (
+          <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Typography sx={{ overflowWrap: 'anywhere' }}>{publicUrl}</Typography>
+            <Button onClick={onCopy} startIcon={<ContentCopyOutlinedIcon />}>{copyStatus === 'copied' ? 'Link copied' : 'Copy link'}</Button>
+          </Stack>
+        ) : null}
+      </Stack>
+    </Paper>
+  );
+};
+
+const PublicPortfolioCard = ({
+  canPublish,
+  copyStatus,
+  editor,
+  isPublishing,
+  onBuilder,
+  onCopy,
+  onPreview,
+  onPublish,
+  onUnpublish,
+  publicUrl,
+}: {
+  canPublish: boolean;
+  copyStatus: 'idle' | 'copied';
+  editor: PortfolioEditorResponse;
+  isPublishing: boolean;
+  onBuilder: () => void;
+  onCopy: () => void;
+  onPreview: () => void;
+  onPublish: () => void;
+  onUnpublish: () => void;
+  publicUrl: string | null;
+}) => {
+  const published = editor.status === 'Published';
+  return (
+    <Paper
+      component="section"
+      id="candidate-public-portfolio"
+      sx={{ bgcolor: 'primary.dark', color: 'primary.contrastText', height: '100%', p: { xs: 2.5, sm: 3 } }}
+    >
+      <Stack alignItems="flex-start" spacing={1.75}>
+        <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1} width="100%">
+          <Stack alignItems="center" direction="row" spacing={1}>
+            <WebOutlinedIcon />
+            <Typography component="h2" variant="h3">Public portfolio</Typography>
+          </Stack>
+          <Chip color={published ? 'success' : 'warning'} label={published ? 'Published' : 'Draft'} size="small" />
+        </Stack>
+        <Typography sx={{ color: 'rgba(255,255,255,.78)' }} variant="body2">
+          {published ? 'Your selected portfolio content is live.' : 'Profile edits stay private until you explicitly publish a portfolio.'}
+        </Typography>
+        {publicUrl ? <Typography sx={{ color: 'inherit', overflowWrap: 'anywhere' }} variant="body2">{publicUrl}</Typography> : null}
+        <Stack alignItems="stretch" spacing={1} width="100%">
+          {!editor.isCreated ? <Button color="inherit" onClick={onBuilder} variant="contained">Open portfolio builder</Button> : null}
+          {editor.isCreated ? <Button color="inherit" onClick={onPreview} variant="outlined">Preview draft</Button> : null}
+          {canPublish ? <Button color="inherit" disabled={isPublishing} onClick={onPublish} variant="contained">{isPublishing ? 'Publishing…' : 'Publish'}</Button> : null}
+          {published && editor.slug ? (
+            <Button color="inherit" component={Link} endIcon={<OpenInNewOutlinedIcon />} rel="noopener noreferrer" target="_blank" to={buildPublicPortfolioPath(editor.slug)} variant="outlined">View live portfolio</Button>
+          ) : null}
+          {published ? <Button color="inherit" onClick={onCopy} startIcon={<ContentCopyOutlinedIcon />}>{copyStatus === 'copied' ? 'Link copied' : 'Copy link'}</Button> : null}
+          <Button color="inherit" onClick={onBuilder}>{published ? 'Manage portfolio' : 'Open portfolio builder'}</Button>
+          {published ? <Button color="inherit" onClick={onUnpublish} sx={{ opacity: 0.82 }}>Unpublish</Button> : null}
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+};
+
+const NotCreated = ({
+  createPortfolio,
+  isLoading,
+}: {
+  createPortfolio: ReturnType<typeof useCreatePortfolioMutation>[0];
+  isLoading: boolean;
+}) => {
+  const [error, setError] = useState<string | null>(null);
+  const create = async () => {
+    if (isLoading) return;
+    setError(null);
+    try {
+      await createPortfolio({ requestedSlug: null, template: 'Professional' }).unwrap();
+      enqueueSnackbar('Portfolio draft created.', { variant: 'success' });
+    } catch (createError: unknown) {
+      setError(
+        isDashboardApiError(createError)
+          ? createError.message
+          : 'Unable to create your portfolio draft. Please try again.',
+      );
+    }
+  };
+
+  return (
+    <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 3, md: 5 } }}>
+      <Stack alignItems="flex-start" spacing={2}>
+        <Chip color="warning" label="Draft" variant="outlined" />
+        <Typography component="h2" variant="h3">Create your public portfolio draft</Typography>
+        <Typography color="text.secondary" sx={{ maxWidth: 760 }}>
+          Choose what to show publicly, add portfolio-only career records, and preview everything first. Creating a draft does not publish it.
+        </Typography>
+        {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
+        <Button disabled={isLoading} onClick={() => void create()} variant="contained">{isLoading ? 'Creating…' : 'Create portfolio'}</Button>
+      </Stack>
+    </Paper>
+  );
+};
+
+const BuilderWorkspace = ({ editor, onPreview }: { editor: PortfolioEditorResponse; onPreview: () => void }) => (
+  <Stack spacing={2.5}>
+    <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, md: 3 } }}>
+      <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
+        <Stack spacing={0.5}>
+          <Stack alignItems="center" direction="row" spacing={1}>
+            <Typography component="h2" variant="h3">Portfolio builder</Typography>
+            <Chip color={editor.status === 'Published' ? 'success' : 'warning'} label={editor.status ?? 'Draft'} size="small" variant="outlined" />
+          </Stack>
+          <Typography color="text.secondary">Choose public sections and manage content that belongs only to your portfolio.</Typography>
+        </Stack>
+        <Button onClick={onPreview} variant="outlined">Preview portfolio</Button>
+      </Stack>
+    </Paper>
+    <Alert severity="info">
+      Private profile data is saved separately. Only visible portfolio sections and portfolio-only records appear in the public preview; changes are never published automatically.
+    </Alert>
+    <PortfolioSettingsCard portfolio={editor} />
+    <PortfolioCollectionEditors portfolio={editor} />
+  </Stack>
+);
+
+const PortfolioPreviewWorkspace = ({ editor, onBack }: { editor: PortfolioEditorResponse; onBack: () => void }) => {
+  const preview = useGetPortfolioPreviewQuery();
+  const [width, setWidth] = useState<PreviewWidth>('desktop');
+
+  return (
+    <Stack spacing={2}>
+      <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2, sm: 2.5 } }}>
+        <Stack alignItems={{ xs: 'flex-start', md: 'center' }} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+          <Stack spacing={0.5}>
+            <Stack alignItems="center" direction="row" spacing={1}>
+              <Typography component="h2" variant="h3">Portfolio preview</Typography>
+              <Chip color={editor.status === 'Published' ? 'success' : 'warning'} label={editor.status ?? 'Draft'} size="small" variant="outlined" />
+            </Stack>
+            <Typography color="text.secondary" variant="body2">This is the backend-generated preview of your currently visible public sections.</Typography>
+          </Stack>
+          <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} spacing={1} width={{ xs: '100%', md: 'auto' }}>
+            <Button onClick={onBack} startIcon={<ArrowBackOutlinedIcon />} variant="outlined">Back to builder</Button>
+            <ToggleButtonGroup
+              aria-label="Preview width"
+              exclusive
+              onChange={(_, value: PreviewWidth | null) => value && setWidth(value)}
+              size="small"
+              sx={{ '& .MuiToggleButton-root': { minHeight: 44, minWidth: 44 } }}
+              value={width}
+            >
+              <ToggleButton aria-label="Desktop preview width" value="desktop"><DesktopWindowsOutlinedIcon fontSize="small" /></ToggleButton>
+              <ToggleButton aria-label="Mobile preview width" value="mobile"><PhoneIphoneOutlinedIcon fontSize="small" /></ToggleButton>
+            </ToggleButtonGroup>
+          </Stack>
+        </Stack>
+      </Paper>
+
+      {preview.isLoading ? <Skeleton aria-label="Loading portfolio preview" height={600} variant="rounded" /> : null}
+      {preview.isError ? (
+        <Paper sx={{ p: 3 }}>
+          <Alert action={<Button color="inherit" onClick={() => void preview.refetch()}>Retry</Button>} severity="error">Portfolio preview is unavailable.</Alert>
+        </Paper>
+      ) : null}
+      {!preview.isLoading && !preview.isError && !preview.data ? (
+        <Paper sx={{ p: 3 }}><Typography color="text.secondary">No portfolio preview is available yet. Return to the builder and add visible content.</Typography></Paper>
+      ) : null}
+      {preview.data ? (
+        <Stack alignItems="center" spacing={1.5}>
+          {preview.data.sectionOrder.length === 0 ? <Alert severity="info" sx={{ width: '100%' }}>No public sections are visible yet. Use the builder to choose what appears here.</Alert> : null}
+          <Paper
+            sx={{
+              border: 1,
+              borderColor: 'divider',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+              transition: (theme) => theme.transitions.create('width'),
+              width: width === 'mobile' ? 390 : '100%',
+            }}
+          >
+            <PortfolioRenderer portfolio={preview.data} preview />
+          </Paper>
+        </Stack>
+      ) : null}
+    </Stack>
+  );
+};
+
+const getFrontendMissingRequirements = (portfolio: PortfolioEditorResponse | undefined): string[] => {
+  if (!portfolio?.isCreated) return [];
+  const missing: string[] = [];
+  if (!portfolio.displayName.trim()) missing.push('name');
+  if (!portfolio.resumeHeadline?.trim()) missing.push('resumeHeadline');
+  if (!portfolio.profileSummary?.trim()) missing.push('profileSummary');
+  if (!portfolio.skills.length) missing.push('skills');
+  if (!portfolio.slug?.trim()) missing.push('slug');
+  return missing;
+};
+
+const handlePublishResult = (
+  result: PortfolioPublishResponse,
+  setMissing: (requirements: string[]) => void,
+) => {
+  if (!result.published) {
+    setMissing(result.missingRequirements);
+    return;
+  }
+  setMissing([]);
+  enqueueSnackbar('Portfolio published.', { variant: 'success' });
+};

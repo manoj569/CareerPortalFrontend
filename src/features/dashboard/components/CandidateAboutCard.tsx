@@ -1,4 +1,6 @@
 import { yupResolver } from '@hookform/resolvers/yup';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import {
   Alert,
   Button,
@@ -97,7 +99,11 @@ export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, Candidate
 
     return (
       <>
-        <Paper component="section" sx={{ p: { xs: 2.5, sm: 3 } }}>
+        <Paper
+          component="section"
+          id="candidate-profile-about"
+          sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}
+        >
           <Stack spacing={2}>
             <Stack
               alignItems={{ xs: 'flex-start', sm: 'center' }}
@@ -105,31 +111,38 @@ export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, Candidate
               justifyContent="space-between"
               spacing={1.5}
             >
-              <Typography component="h2" variant="h3">
-                About
-              </Typography>
-              <Button onClick={openEditor} variant="outlined">
-                Edit headline and summary
+              <Stack alignItems="center" direction="row" spacing={1}>
+                <PersonOutlineOutlinedIcon color="primary" />
+                <Typography component="h2" variant="h3">
+                  About
+                </Typography>
+              </Stack>
+              <Button onClick={openEditor} startIcon={<EditOutlinedIcon />} variant="outlined">
+                Edit about
               </Button>
             </Stack>
             <Stack spacing={0.75}>
               <Typography fontWeight={700} variant="body2">
                 Resume headline
               </Typography>
-              <Typography color={profile.headline ? 'text.primary' : 'text.secondary'}>
-                {profile.headline ?? 'Add a concise headline that describes your professional focus.'}
-              </Typography>
+              {profile.headline ? (
+                <Typography>{profile.headline}</Typography>
+              ) : (
+                <Button onClick={openEditor} sx={{ alignSelf: 'flex-start', px: 0 }}>Add resume headline</Button>
+              )}
             </Stack>
             <Stack spacing={0.75}>
               <Typography fontWeight={700} variant="body2">
                 Profile summary
               </Typography>
-              <Typography
-                color={profile.bio ? 'text.primary' : 'text.secondary'}
-                sx={{ whiteSpace: 'pre-wrap' }}
-              >
-                {profile.bio ?? 'Add a summary of your experience, strengths, and career direction.'}
-              </Typography>
+              {profile.bio ? (
+                <Typography sx={{ maxWidth: 760, whiteSpace: 'pre-wrap' }}>{profile.bio}</Typography>
+              ) : (
+                <Stack alignItems="flex-start" spacing={0.5}>
+                  <Typography color="text.secondary">Share your experience, strengths, and career direction.</Typography>
+                  <Button onClick={openEditor} sx={{ px: 0 }}>Add professional summary</Button>
+                </Stack>
+              )}
             </Stack>
           </Stack>
         </Paper>

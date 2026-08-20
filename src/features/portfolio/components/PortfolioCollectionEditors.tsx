@@ -70,7 +70,58 @@ const CollectionEditor = ({ items, kind }: { items: PortfolioRecord[]; kind: Exc
   const payload=(values:Values)=> { const base={displayOrder: editing && typeof editing.displayOrder==='number' ? editing.displayOrder : items.length}; if(kind==='experience')return {...base,jobTitle:String(values.jobTitle).trim(),companyName:String(values.companyName).trim(),location:nullable(values.location),employmentType:numberOrNull(values.employmentType),startDate:String(values.startDate),endDate:values.isCurrent?null:nullable(values.endDate),isCurrent:Boolean(values.isCurrent),description:nullable(values.description)}; if(kind==='education')return {...base,qualification:String(values.qualification).trim(),institution:String(values.institution).trim(),fieldOfStudy:nullable(values.fieldOfStudy),startYear:numberOrNull(values.startYear),endYear:numberOrNull(values.endYear),grade:nullable(values.grade),description:nullable(values.description)}; if(kind==='project')return {...base,name:String(values.name).trim(),role:nullable(values.role),description:String(values.description).trim(),technologies:String(values.technologies).split(',').map(x=>x.trim()).filter(Boolean).slice(0,30),sourceUrl:nullable(values.sourceUrl),liveUrl:nullable(values.liveUrl),startDate:nullable(values.startDate),endDate:nullable(values.endDate)}; if(kind==='certification')return {...base,name:String(values.name).trim(),issuer:nullable(values.issuer),issuedDate:nullable(values.issuedDate),expiryDate:values.doesNotExpire?null:nullable(values.expiryDate),doesNotExpire:Boolean(values.doesNotExpire),credentialId:nullable(values.credentialId),credentialUrl:nullable(values.credentialUrl)}; return {...base,type:values.type as ProfessionalLinkType,label:nullable(values.label),url:String(values.url).trim()}; };
   const save=async(values:Values)=>{setError(null);const start=String(values.startDate??values.issuedDate??'');const end=String(values.endDate??values.expiryDate??'');if(start&&end&&end<start){setError('End or expiry date must not be before the start or issued date.');return;}if(kind==='education'&&values.startYear&&values.endYear&&Number(values.endYear)<Number(values.startYear)){setError('End year must not be before start year.');return;}if(kind==='project'){const technologies=String(values.technologies).split(',').map(value=>value.trim()).filter(Boolean);if(technologies.length>30||technologies.some(value=>value.length>100)){setError('Add at most 30 technologies, each no more than 100 characters.');return;}}try{if(editing)await update({id:editing.id,data:payload(values)} as never).unwrap();else await add(payload(values) as never).unwrap();setEditing(undefined);enqueueSnackbar(`${config.title} saved.`,{variant:'success'});}catch(e){setError(isDashboardApiError(e)?e.message:`Unable to save ${config.title.toLowerCase()}.`);}};
   const confirm=async()=>{if(!deleting)return;try{await remove(deleting.id).unwrap();setDeleting(null);enqueueSnackbar('Record deleted.',{variant:'success'});}catch(e){setError(isDashboardApiError(e)?e.message:'Unable to delete this record.');}};
-  return <Paper component="section" sx={{p:{xs:2.5,md:3}}}><Stack spacing={2}><Stack alignItems="center" direction="row" justifyContent="space-between"><Typography component="h2" variant="h3">{config.title}</Typography><Button onClick={()=>open(null)} variant="outlined">Add {config.title.toLowerCase().replace(/s$/,'')}</Button></Stack>{!items.length?<Typography color="text.secondary">No {config.title.toLowerCase()} added yet.</Typography>:items.map((item)=><Stack alignItems={{xs:'flex-start',sm:'center'}} direction={{xs:'column',sm:'row'}} key={item.id} justifyContent="space-between" spacing={1} sx={{borderTop:1,borderColor:'divider',pt:1.5}}><Typography fontWeight={750}>{String(read(item,'jobTitle')??read(item,'qualification')??read(item,'name')??read(item,'label')??read(item,'url'))}</Typography><Stack direction="row"><Button onClick={()=>open(item)} size="small">Edit</Button><Button color="error" onClick={()=>setDeleting(item)} size="small">Delete</Button></Stack></Stack>)}{error?<Alert severity="error">{error}</Alert>:null}</Stack><EditorDialog fields={fields} form={form} onClose={()=>!saving&&setEditing(undefined)} onSubmit={save} open={editing!==undefined} saving={saving} title={`${editing?'Edit':'Add'} ${config.title.toLowerCase().replace(/s$/,'')}`} /><ConfirmActionDialog actionLabel="Delete record" description="Delete this portfolio record?" error={error} isProcessing={removeState.isLoading} onClose={()=>!removeState.isLoading&&setDeleting(null)} onConfirm={()=>void confirm()} open={Boolean(deleting)} title="Delete record?" /></Paper>;
+  const itemLabel = config.title.toLowerCase().replace(/s$/, '');
+  return (
+    <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, md: 3 } }}>
+      <Stack spacing={2}>
+        <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+          <Stack alignItems="center" direction="row" spacing={1}>
+            <Typography component="h2" variant="h3">{config.title}</Typography>
+            <Typography color="text.secondary" variant="body2">{items.length}</Typography>
+          </Stack>
+          <Button onClick={() => open(null)} variant="outlined">Add {itemLabel}</Button>
+        </Stack>
+        {!items.length ? (
+          <Typography color="text.secondary">No {config.title.toLowerCase()} added yet. Add one when it strengthens your public portfolio.</Typography>
+        ) : items.map((item) => (
+          <Stack
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            direction={{ xs: 'column', sm: 'row' }}
+            key={item.id}
+            justifyContent="space-between"
+            spacing={1}
+            sx={{ borderTop: 1, borderColor: 'divider', pt: 1.5 }}
+          >
+            <Typography fontWeight={750}>{String(read(item, 'jobTitle') ?? read(item, 'qualification') ?? read(item, 'name') ?? read(item, 'label') ?? read(item, 'url'))}</Typography>
+            <Stack direction="row">
+              <Button onClick={() => open(item)} size="small">Edit</Button>
+              <Button color="error" onClick={() => setDeleting(item)} size="small">Delete</Button>
+            </Stack>
+          </Stack>
+        ))}
+        {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
+      </Stack>
+      <EditorDialog
+        fields={fields}
+        form={form}
+        onClose={() => !saving && setEditing(undefined)}
+        onSubmit={save}
+        open={editing !== undefined}
+        saving={saving}
+        title={`${editing ? 'Edit' : 'Add'} ${itemLabel}`}
+      />
+      <ConfirmActionDialog
+        actionLabel="Delete record"
+        description="Delete this portfolio record?"
+        error={error}
+        isProcessing={removeState.isLoading}
+        onClose={() => !removeState.isLoading && setDeleting(null)}
+        onConfirm={() => void confirm()}
+        open={Boolean(deleting)}
+        title="Delete record?"
+      />
+    </Paper>
+  );
 };
 
 const EditorDialog=({fields,form,onClose,onSubmit,open,saving,title}:{fields:Field[];form:ReturnType<typeof useForm<Values>>;onClose:()=>void;onSubmit:(v:Values)=>Promise<void>;open:boolean;saving:boolean;title:string})=><Dialog fullWidth maxWidth="sm" onClose={onClose} open={open}><DialogTitle>{title}</DialogTitle><DialogContent><Stack component="form" id={`editor-${title.replaceAll(' ','-')}`} onSubmit={(e)=>void form.handleSubmit(onSubmit)(e)} spacing={2} sx={{pt:1}}>{fields.map((field)=>field.type==='checkbox'?<Controller control={form.control} key={field.name} name={field.name} render={({field:input})=><FormControlLabel control={<Checkbox checked={Boolean(input.value)} disabled={saving} onChange={(_,checked)=>input.onChange(checked)} />} label={field.label} />} />:field.type==='employment'?<Controller control={form.control} key={field.name} name={field.name} render={({field:input})=><FormControl><InputLabel id={`${field.name}-label`}>{field.label}</InputLabel><Select {...input} disabled={saving} label={field.label} labelId={`${field.name}-label`}><MenuItem value="">Not specified</MenuItem>{employmentTypeOptions.map(o=><MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}</Select></FormControl>} />:field.type==='linkType'?<Controller control={form.control} key={field.name} name={field.name} render={({field:input})=><FormControl><InputLabel id={`${field.name}-label`}>{field.label}</InputLabel><Select {...input} disabled={saving} label={field.label} labelId={`${field.name}-label`}>{['LinkedIn','GitHub','Portfolio','Website','Behance','Dribbble','Kaggle','Other'].map(v=><MenuItem key={v} value={v}>{v}</MenuItem>)}</Select></FormControl>} />:<TextField disabled={saving} error={Boolean(form.formState.errors[field.name])} helperText={String(form.formState.errors[field.name]?.message??'')} key={field.name} label={field.label} minRows={field.type==='textarea'?4:undefined} multiline={field.type==='textarea'} type={field.type==='url'?'url':field.type??'text'} {...form.register(field.name)} />)}</Stack></DialogContent><DialogActions><Button disabled={saving} onClick={onClose}>Cancel</Button><Button disabled={saving} form={`editor-${title.replaceAll(' ','-')}`} type="submit" variant="contained">{saving?'Saving…':'Save'}</Button></DialogActions></Dialog>;

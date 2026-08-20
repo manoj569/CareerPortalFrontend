@@ -404,6 +404,8 @@ describe('candidate dashboard pages', () => {
     );
     renderPage(<ProfilePage />);
 
+    const profileDetails = screen.getByRole('heading', { name: 'Profile details' }).closest('section')!;
+    await userEvent.click(within(profileDetails).getByRole('button', { name: 'Edit' }));
     const location = screen.getByRole('textbox', { name: 'Current location' });
     await userEvent.clear(location);
     await userEvent.type(location, 'Bengaluru');

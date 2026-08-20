@@ -1,9 +1,12 @@
 import { yupResolver } from '@hookform/resolvers/yup';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
 import {
   Alert,
   Button,
-  Card,
-  CardContent,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,6 +20,7 @@ import {
   Skeleton,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
@@ -135,7 +139,11 @@ export const CandidateSkillsCard = forwardRef<CandidateSkillsCardHandle>((_, ref
 
   return (
     <>
-      <Paper component="section" sx={{ p: { xs: 2.5, sm: 3 } }}>
+      <Paper
+        component="section"
+        id="candidate-profile-skills"
+        sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}
+      >
         <Stack spacing={2.5}>
           <Stack
             alignItems={{ xs: 'flex-start', sm: 'center' }}
@@ -148,6 +156,7 @@ export const CandidateSkillsCard = forwardRef<CandidateSkillsCardHandle>((_, ref
               disabled={isSaving}
               id={addButtonId}
               onClick={() => openEditor(null)}
+              startIcon={<AddOutlinedIcon />}
               variant="contained"
             >
               Add skill
@@ -169,44 +178,39 @@ export const CandidateSkillsCard = forwardRef<CandidateSkillsCardHandle>((_, ref
           ) : !skills.data?.length ? (
             <Stack alignItems="flex-start" spacing={1.5}>
               <Typography color="text.secondary">
-                Add structured skills so your strengths are easy to review and keep current.
+                Add skills to help employers understand your strengths.
               </Typography>
               <Button disabled={isSaving} onClick={() => openEditor(null)} variant="outlined">
                 Add your first skill
               </Button>
             </Stack>
           ) : (
-            <Stack component="ul" spacing={1.5} sx={{ listStyle: 'none', m: 0, p: 0 }}>
+            <Stack component="ul" direction="row" flexWrap="wrap" gap={1.25} sx={{ listStyle: 'none', m: 0, p: 0 }}>
               {skills.data.map((skill) => (
-                <Card component="li" key={skill.id} variant="outlined">
-                  <CardContent>
-                    <Stack
-                      alignItems={{ xs: 'flex-start', sm: 'center' }}
-                      direction={{ xs: 'column', sm: 'row' }}
-                      justifyContent="space-between"
-                      spacing={1.5}
-                    >
-                      <Stack minWidth={0} spacing={0.5}>
-                        <Typography fontWeight={800}>{skill.name}</Typography>
-                        {skill.proficiency || skill.yearsOfExperience !== null ? (
-                          <Typography color="text.secondary" variant="body2">
-                            {[skill.proficiency, formatYears(skill.yearsOfExperience)]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </Typography>
-                        ) : null}
-                      </Stack>
-                      <Stack direction="row" spacing={1}>
-                        <Button onClick={() => openEditor(skill)} size="small">
-                          Edit
-                        </Button>
-                        <Button color="error" onClick={() => setDeletingSkill(skill)} size="small">
-                          Delete
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                <Stack
+                  alignItems="center"
+                  component="li"
+                  direction="row"
+                  key={skill.id}
+                  spacing={0.25}
+                  sx={{ bgcolor: 'action.hover', border: 1, borderColor: 'divider', borderRadius: 5, pl: 0.5, pr: 0.25 }}
+                >
+                  <Chip
+                    label={skill.name}
+                    title={[skill.proficiency, formatYears(skill.yearsOfExperience)].filter(Boolean).join(' · ') || undefined}
+                    sx={{ bgcolor: 'transparent', fontWeight: 750 }}
+                  />
+                  <Tooltip title={`Edit ${skill.name}`}>
+                    <Button aria-label={`Edit ${skill.name}`} onClick={() => openEditor(skill)} size="small" sx={{ minWidth: 44, px: 0 }}>
+                      <EditOutlinedIcon fontSize="small" />
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title={`Delete ${skill.name}`}>
+                    <Button aria-label={`Delete ${skill.name}`} color="error" onClick={() => setDeletingSkill(skill)} size="small" sx={{ minWidth: 44, px: 0 }}>
+                      <DeleteOutlineIcon fontSize="small" />
+                    </Button>
+                  </Tooltip>
+                </Stack>
               ))}
             </Stack>
           )}
@@ -312,9 +316,12 @@ CandidateSkillsCard.displayName = 'CandidateSkillsCard';
 
 const BoxHeading = () => (
   <Stack spacing={0.5}>
-    <Typography component="h2" variant="h3">
-      Key skills
-    </Typography>
+    <Stack alignItems="center" direction="row" spacing={1}>
+      <PsychologyOutlinedIcon color="primary" />
+      <Typography component="h2" variant="h3">
+        Key skills
+      </Typography>
+    </Stack>
     <Typography color="text.secondary" variant="body2">
       Keep a structured list of the skills most relevant to your career.
     </Typography>
