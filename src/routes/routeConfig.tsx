@@ -64,6 +64,10 @@ export const appRoutes: RouteObject[] = [
             element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'CookiePolicyPage'),
           },
           {
+            path: ROUTES.VERIFY_EMAIL,
+            element: lazyPage(() => import('@/pages/VerifyEmailPage'), 'VerifyEmailPage'),
+          },
+          {
             path: ROUTES.REFUND_POLICY,
             element: lazyPage(
               () => import('@/pages/LegalDocumentPage'),

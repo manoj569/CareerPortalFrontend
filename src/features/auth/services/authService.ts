@@ -12,11 +12,12 @@ import type {
   MessageResponse,
   RefreshTokenRequest,
   RegisterRequest,
-  RegistrationChallengeResponse,
+  RegistrationResponse,
   RequestLoginOtpRequest,
   RequestPasswordResetRequest,
   ResendRegistrationOtpRequest,
   VerifyRegistrationOtpRequest,
+  VerifyEmailRequest,
 } from '../types/authModels';
 
 const storeAuthentication = (response: AuthenticationResponse): AuthenticationResponse => {
@@ -28,15 +29,22 @@ const isAuthenticationResponse = (value: unknown): value is AuthenticationRespon
   if (!value || typeof value !== 'object') return false;
   const session = value as Partial<AuthenticationResponse>;
   const user = session.user;
-  return typeof session.accessToken === 'string' &&
+  return (
+    typeof session.accessToken === 'string' &&
     typeof session.accessTokenExpiresAtUtc === 'string' &&
     typeof session.refreshToken === 'string' &&
     typeof session.refreshTokenExpiresAtUtc === 'string' &&
-    user !== undefined && typeof user.id === 'string' && typeof user.role === 'string';
+    user !== undefined &&
+    typeof user.id === 'string' &&
+    typeof user.role === 'string'
+  );
 };
 
-const unwrapGoogleAuthenticationResponse = (value: ApiResponse<AuthenticationResponse>): AuthenticationResponse => {
-  if (!isAuthenticationResponse(value.data)) throw new Error('Google sign-in returned an invalid session. Please try again.');
+const unwrapGoogleAuthenticationResponse = (
+  value: ApiResponse<AuthenticationResponse>,
+): AuthenticationResponse => {
+  if (!isAuthenticationResponse(value.data))
+    throw new Error('Google sign-in returned an invalid session. Please try again.');
   return value.data;
 };
 
@@ -54,13 +62,19 @@ const refreshSession = async (signal?: AbortSignal): Promise<AuthenticationRespo
 };
 
 export const authService = {
-  async register(
-    request: RegisterRequest,
-    signal?: AbortSignal,
-  ): Promise<RegistrationChallengeResponse> {
-    const response = await apiClient.post<RegistrationChallengeResponse>(
+  async register(request: RegisterRequest, signal?: AbortSignal): Promise<RegistrationResponse> {
+    const response = await apiClient.post<RegistrationResponse>(
       API_ENDPOINTS.AUTH.REGISTER,
       request,
+      { signal },
+    );
+    return response.data;
+  },
+
+  async verifyEmail(request: VerifyEmailRequest, signal?: AbortSignal): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>(
+      API_ENDPOINTS.AUTH.VERIFY_EMAIL,
+      { token: request.token },
       { signal },
     );
     return response.data;
@@ -103,9 +117,13 @@ export const authService = {
     request: GoogleAuthenticationRequest,
     signal?: AbortSignal,
   ): Promise<AuthenticationResponse> {
-    const response = await apiClient.post<AuthenticationResponse>(API_ENDPOINTS.AUTH.GOOGLE, request, {
-      signal,
-    });
+    const response = await apiClient.post<AuthenticationResponse>(
+      API_ENDPOINTS.AUTH.GOOGLE,
+      request,
+      {
+        signal,
+      },
+    );
     return storeAuthentication(response.data);
   },
 

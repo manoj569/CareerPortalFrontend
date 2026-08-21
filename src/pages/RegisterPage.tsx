@@ -27,7 +27,10 @@ import { ROUTES } from '@/constants/routes';
 import { AuthPageHeader } from '@/features/auth/components/AuthPageHeader';
 import { GoogleAuthorizationCodeButton } from '@/features/auth/components/GoogleAuthorizationCodeButton';
 import { PasswordField } from '@/features/auth/components/PasswordField';
-import { getAuthenticationErrorMessage, getGoogleAuthenticationErrorMessage } from '@/features/auth/services/authErrorMapper';
+import {
+  getAuthenticationErrorMessage,
+  getGoogleAuthenticationErrorMessage,
+} from '@/features/auth/services/authErrorMapper';
 import { authService } from '@/features/auth/services/authService';
 import { sessionRefreshed } from '@/features/auth/store/authSlice';
 import { getSafeRedirectLocation } from '@/features/auth/utils/safeRedirect';
@@ -171,11 +174,11 @@ export const RegisterPage = () => {
   const [serverError, setServerError] = useState<string | null>(null);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const {
     formState: { errors, isSubmitting },
-    getValues,
     handleSubmit,
     register,
     setError,
@@ -212,20 +215,8 @@ export const RegisterPage = () => {
         phoneNumber: values.phoneNumber,
       });
 
-      // 👇 Show success message and popup
+      setRegisteredEmail(values.email.trim());
       setIsSuccess(true);
-      enqueueSnackbar('Account created successfully! Redirecting to login...', {
-        variant: 'success',
-        autoHideDuration: 3000,
-      });
-
-      // 👇 Wait 3 seconds, then redirect to Login (using replace to prevent back button)
-      setTimeout(() => {
-        void navigate(ROUTES.LOGIN, {
-          replace: true,
-          ...(safeReturnLocation ? { state: { from: safeReturnLocation } } : {}),
-        });
-      }, 3000);
     } catch (error: unknown) {
       const hasFieldErrors = applyApiValidationErrors(
         error,
@@ -254,16 +245,23 @@ export const RegisterPage = () => {
     setServerError(null);
     setIsGoogleSubmitting(true);
     try {
-      const response = await authService.googleAuthenticateWithCode({ code, intent: 'Register', acceptTerms: true });
+      const response = await authService.googleAuthenticateWithCode({
+        code,
+        intent: 'Register',
+        acceptTerms: true,
+      });
       dispatch(sessionRefreshed(response));
       enqueueSnackbar('Account created successfully.', { variant: 'success' });
-      const destination = response.user.role === UserRole.Candidate
-        ? `${safeReturnLocation?.pathname ?? ROUTES.DASHBOARD}${safeReturnLocation?.search ?? ''}${safeReturnLocation?.hash ?? ''}`
-        : ROUTES.ADMIN;
+      const destination =
+        response.user.role === UserRole.Candidate
+          ? `${safeReturnLocation?.pathname ?? ROUTES.DASHBOARD}${safeReturnLocation?.search ?? ''}${safeReturnLocation?.hash ?? ''}`
+          : ROUTES.ADMIN;
       await navigate(destination, { replace: true });
     } catch (error: unknown) {
       setServerError(getGoogleAuthenticationErrorMessage(error, 'Register'));
-    } finally { setIsGoogleSubmitting(false); }
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
   };
 
   return (
@@ -276,140 +274,176 @@ export const RegisterPage = () => {
         <Grid order={{ xs: 1, md: 2 }} size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: { xs: 2, sm: 4 } }}>
             <Stack spacing={3}>
-              <AuthPageHeader title="Create your account" />
-
               {isSuccess ? (
-                <Alert aria-live="polite" severity="success">
-                  <Stack>
-                    <Typography fontWeight={600}>Account created successfully!</Typography>
-                    <Typography variant="body2">
-                      We've sent a verification link to{' '}
-                      <strong>{getValues('email')}</strong>. You will be redirected to
-                      login in a few seconds.
-                    </Typography>
-                  </Stack>
-                </Alert>
-              ) : null}
-
-              {hasValidationErrors ? (
-                <Alert aria-live="assertive" severity="error">
-                  Please correct the highlighted fields before creating your account.
-                </Alert>
-              ) : null}
-              {serverError ? (
-                <Alert aria-live="assertive" severity="error">
-                  {serverError}
-                </Alert>
-              ) : null}
-
-              <Stack
-                component="form"
-                noValidate
-                onSubmit={(event) => {
-                  void handleSubmit(submitRegistration, (formErrors) => {
-                    setHasValidationErrors(true);
-                    const firstField = Object.keys(formErrors)[0] as
-                      keyof RegistrationFormValues | undefined;
-                    if (firstField) setFocus(firstField);
-                  })(event);
-                }}
-                spacing={2.5}
-                sx={controlSx}
-              >
-                <TextField
-                  autoComplete="name"
-                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
-                  error={Boolean(errors.fullName)}
-                  helperText={errors.fullName?.message}
-                  inputRef={fullNameField.ref}
-                  label="Full name"
-                  name={fullNameField.name}
-                  onBlur={(event) => {
-                    event.target.value = sanitizeFullNameInput(event.target.value).trim();
-                    void fullNameField.onChange(event);
-                    void fullNameField.onBlur(event);
-                  }}
-                  onChange={(event) => {
-                    event.target.value = sanitizeFullNameInput(event.target.value);
-                    void fullNameField.onChange(event);
-                  }}
-                  placeholder="Enter your full name"
-                  required
-                />
-                <TextField
-                  autoComplete="email"
-                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
-                  error={Boolean(errors.email)}
-                  helperText={errors.email?.message}
-                  label="Email address"
-                  placeholder="Enter your email address"
-                  required
-                  type="email"
-                  {...register('email')}
-                />
-                <PasswordField
-                  autoComplete="new-password"
-                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
-                  errorMessage={errors.password?.message}
-                  label="Password"
-                  placeholder="Minimum 6 characters"
-                  registration={register('password')}
-                />
-                <TextField
-                  autoComplete="tel-national"
-                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
-                  error={Boolean(errors.phoneNumber)}
-                  helperText={errors.phoneNumber?.message}
-                  inputRef={mobileField.ref}
-                  label="Mobile number"
-                  name={mobileField.name}
-                  onBlur={(event) => void mobileField.onBlur(event)}
-                  onChange={(event) => {
-                    event.target.value = sanitizeIndianMobileInput(event.target.value);
-                    void mobileField.onChange(event);
-                  }}
-                  placeholder="Enter 10-digit mobile number"
-                  required
-                  slotProps={{
-                    htmlInput: {
-                      inputMode: 'numeric',
-                      maxLength: 10,
-                      pattern: '[6-9][0-9]{9}',
-                    },
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Typography aria-hidden="true" color="text.secondary">
-                            +91
-                          </Typography>
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                  type="tel"
-                />
-                <Typography color="text.secondary" variant="body2">
-                  By creating an account, you agree to the <MuiLink component={Link} to={ROUTES.TERMS_OF_USE}>Terms of Use</MuiLink> and <MuiLink component={Link} to={ROUTES.PRIVACY_POLICY}>Privacy Policy</MuiLink>.
-                </Typography>
-                <Button
-                  disabled={isSubmitting || isSuccess || isGoogleSubmitting}
-                  fullWidth
-                  size="large"
-                  type="submit"
-                  variant="contained"
+                <Stack
+                  alignItems="center"
+                  aria-live="polite"
+                  spacing={2.5}
+                  sx={controlSx}
+                  textAlign="center"
                 >
-                  {isSuccess
-                    ? 'Success! Redirecting...'
-                    : isSubmitting
-                      ? 'Creating account…'
-                      : 'Create account'}
-                </Button>
-                <Divider aria-label="OR">OR</Divider>
-                <Typography color="text.secondary" variant="body2">
-                  By continuing with Google, you agree to the <MuiLink component={Link} to={ROUTES.TERMS_OF_USE}>Terms of Use</MuiLink> and <MuiLink component={Link} to={ROUTES.PRIVACY_POLICY}>Privacy Policy</MuiLink>.
-                </Typography>
-                <GoogleAuthorizationCodeButton disabled={isSubmitting || isSuccess || isGoogleSubmitting} onCode={(code) => { void submitGoogleRegistration(code); }} onPopupError={setServerError} />
-              </Stack>
+                  <Typography component="h1" variant="h2">
+                    Check your email to verify your account
+                  </Typography>
+                  <Alert severity="success" sx={{ width: '100%' }}>
+                    We sent a verification link to <strong>{registeredEmail}</strong>. Open that
+                    link to verify your email before signing in.
+                  </Alert>
+                  <Typography color="text.secondary">
+                    The email may take a few minutes to arrive. Check your spam or junk folder if
+                    you do not see it.
+                  </Typography>
+                  <Button
+                    component={Link}
+                    state={safeReturnLocation ? { from: safeReturnLocation } : undefined}
+                    to={ROUTES.LOGIN}
+                    variant="outlined"
+                  >
+                    Go to log in
+                  </Button>
+                </Stack>
+              ) : (
+                <>
+                  <AuthPageHeader title="Create your account" />
+                  {hasValidationErrors ? (
+                    <Alert aria-live="assertive" severity="error">
+                      Please correct the highlighted fields before creating your account.
+                    </Alert>
+                  ) : null}
+                  {serverError ? (
+                    <Alert aria-live="assertive" severity="error">
+                      {serverError}
+                    </Alert>
+                  ) : null}
+
+                  <Stack
+                    component="form"
+                    noValidate
+                    onSubmit={(event) => {
+                      void handleSubmit(submitRegistration, (formErrors) => {
+                        setHasValidationErrors(true);
+                        const firstField = Object.keys(formErrors)[0] as
+                          keyof RegistrationFormValues | undefined;
+                        if (firstField) setFocus(firstField);
+                      })(event);
+                    }}
+                    spacing={2.5}
+                    sx={controlSx}
+                  >
+                    <TextField
+                      autoComplete="name"
+                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      error={Boolean(errors.fullName)}
+                      helperText={errors.fullName?.message}
+                      inputRef={fullNameField.ref}
+                      label="Full name"
+                      name={fullNameField.name}
+                      onBlur={(event) => {
+                        event.target.value = sanitizeFullNameInput(event.target.value).trim();
+                        void fullNameField.onChange(event);
+                        void fullNameField.onBlur(event);
+                      }}
+                      onChange={(event) => {
+                        event.target.value = sanitizeFullNameInput(event.target.value);
+                        void fullNameField.onChange(event);
+                      }}
+                      placeholder="Enter your full name"
+                      required
+                    />
+                    <TextField
+                      autoComplete="email"
+                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      error={Boolean(errors.email)}
+                      helperText={errors.email?.message}
+                      label="Email address"
+                      placeholder="Enter your email address"
+                      required
+                      type="email"
+                      {...register('email')}
+                    />
+                    <PasswordField
+                      autoComplete="new-password"
+                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      errorMessage={errors.password?.message}
+                      label="Password"
+                      placeholder="Minimum 6 characters"
+                      registration={register('password')}
+                    />
+                    <TextField
+                      autoComplete="tel-national"
+                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      error={Boolean(errors.phoneNumber)}
+                      helperText={errors.phoneNumber?.message}
+                      inputRef={mobileField.ref}
+                      label="Mobile number"
+                      name={mobileField.name}
+                      onBlur={(event) => void mobileField.onBlur(event)}
+                      onChange={(event) => {
+                        event.target.value = sanitizeIndianMobileInput(event.target.value);
+                        void mobileField.onChange(event);
+                      }}
+                      placeholder="Enter 10-digit mobile number"
+                      required
+                      slotProps={{
+                        htmlInput: {
+                          inputMode: 'numeric',
+                          maxLength: 10,
+                          pattern: '[6-9][0-9]{9}',
+                        },
+                        input: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Typography aria-hidden="true" color="text.secondary">
+                                +91
+                              </Typography>
+                            </InputAdornment>
+                          ),
+                        },
+                      }}
+                      type="tel"
+                    />
+                    <Typography color="text.secondary" variant="body2">
+                      By creating an account, you agree to the{' '}
+                      <MuiLink component={Link} to={ROUTES.TERMS_OF_USE}>
+                        Terms of Use
+                      </MuiLink>{' '}
+                      and{' '}
+                      <MuiLink component={Link} to={ROUTES.PRIVACY_POLICY}>
+                        Privacy Policy
+                      </MuiLink>
+                      .
+                    </Typography>
+                    <Button
+                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      fullWidth
+                      size="large"
+                      type="submit"
+                      variant="contained"
+                    >
+                      {isSubmitting ? 'Creating account…' : 'Create account'}
+                    </Button>
+                    <Divider aria-label="OR">OR</Divider>
+                    <Typography color="text.secondary" variant="body2">
+                      By continuing with Google, you agree to the{' '}
+                      <MuiLink component={Link} to={ROUTES.TERMS_OF_USE}>
+                        Terms of Use
+                      </MuiLink>{' '}
+                      and{' '}
+                      <MuiLink component={Link} to={ROUTES.PRIVACY_POLICY}>
+                        Privacy Policy
+                      </MuiLink>
+                      .
+                    </Typography>
+                    <GoogleAuthorizationCodeButton
+                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      onCode={(code) => {
+                        void submitGoogleRegistration(code);
+                      }}
+                      onPopupError={setServerError}
+                    />
+                  </Stack>
+                </>
+              )}
             </Stack>
           </Paper>
         </Grid>

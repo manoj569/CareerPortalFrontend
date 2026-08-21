@@ -4,6 +4,7 @@ export const ROUTES = {
   JOB_DETAILS: '/jobs/:slug',
   LOGIN: '/login',
   REGISTER: '/register',
+  VERIFY_EMAIL: '/verify-email',
   VERIFY_REGISTRATION_MOBILE: '/register/verify-mobile',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',

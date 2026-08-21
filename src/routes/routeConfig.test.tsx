@@ -48,6 +48,7 @@ describe('release route structure', () => {
         ROUTES.CONTACT_US,
         ROUTES.ABOUT_US,
         ROUTES.PRICING,
+        ROUTES.VERIFY_EMAIL,
       ]),
     );
   });

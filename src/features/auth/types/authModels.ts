@@ -12,6 +12,11 @@ export interface RegistrationChallengeResponse {
   expiresAtUtc: string;
 }
 
+export interface RegistrationResponse extends MessageResponse {
+  challengeId?: string;
+  expiresAtUtc?: string;
+}
+
 export interface VerifyRegistrationOtpRequest {
   challengeId: string;
   otp: string;
@@ -23,6 +28,10 @@ export interface ResendRegistrationOtpRequest {
 
 export interface MessageResponse {
   message: string;
+}
+
+export interface VerifyEmailRequest {
+  token: string;
 }
 
 export interface LoginRequest {

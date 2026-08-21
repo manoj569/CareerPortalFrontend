@@ -1,6 +1,7 @@
 export const API_ENDPOINTS = {
   AUTH: {
     REGISTER: '/auth/register',
+    VERIFY_EMAIL: '/auth/verify-email',
     VERIFY_REGISTRATION_OTP: '/auth/verify-registration-otp',
     RESEND_REGISTRATION_OTP: '/auth/resend-registration-otp',
     LOGIN: '/auth/login',
@@ -30,8 +31,7 @@ export const API_ENDPOINTS = {
     RELATED: (slug: string) => `/jobs/${encodeURIComponent(slug)}/related`,
   },
   MEMBERSHIPS: {
-    APPLY_TO_JOB: (slug: string) =>
-      `/memberships/jobs/${encodeURIComponent(slug)}/apply`,
+    APPLY_TO_JOB: (slug: string) => `/memberships/jobs/${encodeURIComponent(slug)}/apply`,
   },
   PAYMENTS: {
     CREATE_RAZORPAY_ORDER: '/payments/razorpay/orders',
@@ -60,25 +60,20 @@ export const API_ENDPOINTS = {
       `/admin/job-discovery/runs/${encodeURIComponent(runId)}/commit`,
     JOB: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}`,
     JOB_PUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/publish`,
-    JOB_UNPUBLISH: (jobId: string) =>
-      `/admin/jobs/${encodeURIComponent(jobId)}/unpublish`,
+    JOB_UNPUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unpublish`,
     JOB_CLOSE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/close`,
     JOB_ARCHIVE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/archive`,
     JOB_FEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/feature`,
-    JOB_UNFEATURE: (jobId: string) =>
-      `/admin/jobs/${encodeURIComponent(jobId)}/unfeature`,
-    JOB_FEATURED: (jobId: string) =>
-      `/admin/jobs/${encodeURIComponent(jobId)}/featured`,
+    JOB_UNFEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unfeature`,
+    JOB_FEATURED: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/featured`,
     JOB_HIDDEN: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/hidden`,
     COMPANIES: '/admin/companies',
     JOB_RECRUITER_CONTACT: (jobId: string) =>
       `/admin/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
-    COMPANY: (companyId: string) =>
-      `/admin/companies/${encodeURIComponent(companyId)}`,
+    COMPANY: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}`,
     COMPANY_OPTIONS: '/admin/companies/options',
     CATEGORIES: '/admin/categories',
-    CATEGORY: (categoryId: string) =>
-      `/admin/categories/${encodeURIComponent(categoryId)}`,
+    CATEGORY: (categoryId: string) => `/admin/categories/${encodeURIComponent(categoryId)}`,
     CATEGORY_OPTIONS: '/admin/categories/options',
     APPLICATIONS: '/admin/applications',
     APPLICATION: (applicationId: string) =>
@@ -112,8 +107,7 @@ export const API_ENDPOINTS = {
     PROFILE_CAREER_PREFERENCES: '/candidate/profile/career-preferences',
     PROFILE_PHOTO: '/candidate/profile/photo',
     PROFILE_SKILLS: '/candidate/profile/skills',
-    PROFILE_SKILL: (skillId: string) =>
-      `/candidate/profile/skills/${encodeURIComponent(skillId)}`,
+    PROFILE_SKILL: (skillId: string) => `/candidate/profile/skills/${encodeURIComponent(skillId)}`,
     PROFILE_COMPLETION: '/candidate/profile/completion',
     PORTFOLIO: '/candidate/portfolio',
     PORTFOLIO_SETTINGS: '/candidate/portfolio/settings',
@@ -137,8 +131,7 @@ export const API_ENDPOINTS = {
     APPLICATIONS: '/candidate/applications',
     APPLICATION: (applicationId: string) =>
       `/candidate/applications/${encodeURIComponent(applicationId)}`,
-    APPLY: (jobId: string) =>
-      `/candidate/jobs/${encodeURIComponent(jobId)}/apply`,
+    APPLY: (jobId: string) => `/candidate/jobs/${encodeURIComponent(jobId)}/apply`,
     WITHDRAW_APPLICATION: (applicationId: string) =>
       `/candidate/applications/${encodeURIComponent(applicationId)}/withdraw`,
     RECRUITER_CONTACT: (jobId: string) =>

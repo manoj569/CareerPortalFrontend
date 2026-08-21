@@ -8,7 +8,7 @@ import type {
   LoginRequest,
   LoginWithOtpRequest,
   RegisterRequest,
-  RegistrationChallengeResponse,
+  RegistrationResponse,
 } from '../types/authModels';
 
 export type AuthenticationStatus = 'idle' | 'initializing' | 'authenticated' | 'unauthenticated';
@@ -72,17 +72,16 @@ export const loginWithOtp = createAsyncThunk<
   }
 });
 
-export const register = createAsyncThunk<
-  RegistrationChallengeResponse,
-  RegisterRequest,
-  AuthThunkConfig
->('auth/register', async (request, { rejectWithValue }) => {
-  try {
-    return await authService.register(request);
-  } catch (error: unknown) {
-    return rejectWithValue(getAuthenticationErrorMessage(error));
-  }
-});
+export const register = createAsyncThunk<RegistrationResponse, RegisterRequest, AuthThunkConfig>(
+  'auth/register',
+  async (request, { rejectWithValue }) => {
+    try {
+      return await authService.register(request);
+    } catch (error: unknown) {
+      return rejectWithValue(getAuthenticationErrorMessage(error));
+    }
+  },
+);
 
 export const logout = createAsyncThunk<void, void, AuthThunkConfig>(
   'auth/logout',

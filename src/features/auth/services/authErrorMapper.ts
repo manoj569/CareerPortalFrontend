@@ -8,12 +8,19 @@ const messagesByCode: Record<string, string> = {
   terms_acceptance_required: 'Please review the Terms of Use and Privacy Policy before continuing.',
   invalid_otp: 'The code is invalid, expired, or has already been used. Request a new code.',
   invalid_password_reset: 'This password reset link is invalid, expired, or has already been used.',
+  email_not_verified: 'Please verify your email before signing in.',
+  email_unverified: 'Please verify your email before signing in.',
+  unverified_email: 'Please verify your email before signing in.',
+  email_verification_required: 'Please verify your email before signing in.',
   validation_error: 'Please review the highlighted information and try again.',
   conflict: 'We could not complete your request. Check your details and try again.',
   data_conflict: 'We could not complete your request. Check your details and try again.',
 };
 
-export const getGoogleAuthenticationErrorMessage = (error: unknown, intent: 'Login' | 'Register') => {
+export const getGoogleAuthenticationErrorMessage = (
+  error: unknown,
+  intent: 'Login' | 'Register',
+) => {
   const apiError = error instanceof ApiRequestError ? error : toApiRequestError(error);
   switch (apiError.code) {
     case 'google_account_not_registered':
