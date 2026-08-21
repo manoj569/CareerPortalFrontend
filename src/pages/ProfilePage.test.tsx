@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
@@ -17,6 +17,7 @@ import {
   useGetProfileQuery,
   useGetResumeStatusQuery,
   useUpdateCandidateAboutMutation,
+  useUpdateCandidateCareerPreferencesMutation,
   useUpdateCandidateSkillMutation,
   useUpdateProfileMutation,
   useUploadResumeMutation,
@@ -90,6 +91,7 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
     useGetProfileQuery: vi.fn(),
     useGetResumeStatusQuery: vi.fn(),
     useUpdateCandidateAboutMutation: vi.fn(),
+    useUpdateCandidateCareerPreferencesMutation: vi.fn(),
     useUpdateCandidateSkillMutation: vi.fn(),
     useUpdateProfileMutation: vi.fn(),
     useUploadResumeMutation: vi.fn(),
@@ -137,6 +139,16 @@ const education: PortfolioEducation = {
   startYear: 2017,
 };
 
+const careerPreferences = {
+  employmentTypes: ['FullTime'] as const,
+  expectedAnnualSalary: 1800000,
+  jobTypes: ['Permanent'] as const,
+  preferredCities: ['Pune', 'Bengaluru'],
+  preferredJobRoles: ['Frontend Engineer', 'UI Engineer'],
+  preferredShifts: ['Day'] as const,
+  salaryUnit: 'INR per annum',
+};
+
 const employment: PortfolioExperience = {
   annualSalary: 1200000,
   companyName: 'Harbor Labs',
@@ -177,10 +189,10 @@ const queryResult = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   }) as never;
 
-const mutationResult = (options: { isLoading?: boolean; rejection?: unknown } = {}) => {
+const mutationResult = (options: { isLoading?: boolean; rejection?: unknown; result?: unknown } = {}) => {
   const unwrap = options.rejection
     ? vi.fn().mockRejectedValue(options.rejection)
-    : vi.fn().mockResolvedValue(undefined);
+    : vi.fn().mockResolvedValue(options.result);
   const trigger = vi.fn((request?: unknown) => {
     void request;
     return { unwrap };
@@ -202,6 +214,7 @@ const mocks = {
   getResumeStatus: vi.mocked(useGetResumeStatusQuery),
   getSkills: vi.mocked(useGetCandidateSkillsQuery),
   updateAbout: vi.mocked(useUpdateCandidateAboutMutation),
+  updateCareerPreferences: vi.mocked(useUpdateCandidateCareerPreferencesMutation),
   updateProfile: vi.mocked(useUpdateProfileMutation),
   updateSkill: vi.mocked(useUpdateCandidateSkillMutation),
   uploadResume: vi.mocked(useUploadResumeMutation),
@@ -233,7 +246,6 @@ const renderEmployment = () => renderWithProviders(
     <CandidateProfileContent hidePageHeader />
   </MemoryRouter>,
 );
-const LocationSearch = () => <output aria-label="Current search">{useLocation().search}</output>;
 
 beforeEach(() => {
   apiRequestMock.mockReset().mockRejectedValue(new Error('No profile photo configured for this test.'));
@@ -269,6 +281,7 @@ beforeEach(() => {
     }),
   );
   mocks.updateAbout.mockReturnValue(mutationResult().tuple);
+  mocks.updateCareerPreferences.mockReturnValue(mutationResult().tuple);
   mocks.add.mockReturnValue(mutationResult().tuple);
   mocks.updateSkill.mockReturnValue(mutationResult().tuple);
   mocks.delete.mockReturnValue(mutationResult().tuple);
@@ -299,10 +312,10 @@ describe('Candidate profile workspace', () => {
     );
     expect(screen.getByText('3 of 6 sections complete')).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Key skills' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Edit preferences' })).toHaveAttribute(
-      'href',
-      '/onboarding',
-    );
+    expect(screen.getByRole('heading', { name: 'Career preferences' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Education' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Employment' })).toBeVisible();
+    expect(screen.queryByRole('tablist', { name: 'Profile sections' })).not.toBeInTheDocument();
   });
 
   it('prepopulates and submits the exact trimmed about request', async () => {
@@ -659,6 +672,86 @@ describe('Candidate profile workspace', () => {
     expect(screen.queryByText('private upload detail')).not.toBeInTheDocument();
   });
 
+  it('loads and displays existing Career Preferences from the canonical query', () => {
+    mocks.getCareerPreferences.mockReturnValue(queryResult({ data: careerPreferences }));
+    renderPage();
+    expect(screen.getByText('Frontend Engineer')).toBeVisible();
+    expect(screen.getByText('Bengaluru')).toBeVisible();
+    expect(screen.getByText('INR 18,00,000 per year')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Edit career preferences' })).toBeEnabled();
+  });
+
+  it('saves the exact Career Preferences payload, refetches, and displays the persisted response', async () => {
+    const refetch = vi.fn();
+    const persisted = {
+      employmentTypes: ['FullTime'] as const,
+      expectedAnnualSalary: 2000000,
+      jobTypes: ['Contractual'] as const,
+      preferredCities: ['Hyderabad'],
+      preferredJobRoles: ['Platform Engineer'],
+      preferredShifts: ['Flexible'] as const,
+      salaryUnit: 'INR per annum',
+    };
+    const mutation = mutationResult({ result: persisted });
+    mocks.getCareerPreferences.mockReturnValue(queryResult({ data: { ...careerPreferences, employmentTypes: [], expectedAnnualSalary: null, jobTypes: [], preferredCities: [], preferredJobRoles: [], preferredShifts: [] }, refetch }));
+    mocks.updateCareerPreferences.mockReturnValue(mutation.tuple);
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit career preferences' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Preferred job roles' }), { target: { value: '  Platform Engineer  ' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Add' })[0]!);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Preferred cities' }), { target: { value: '  Hyderabad  ' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Add' })[1]!);
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Expected annual salary' }), { target: { value: '2000000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Contractual' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Full-time' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Flexible' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }));
+
+    await waitFor(() => expect(mutation.trigger).toHaveBeenCalledWith({
+      employmentTypes: ['FullTime'],
+      expectedAnnualSalary: 2000000,
+      jobTypes: ['Contractual'],
+      preferredCities: ['Hyderabad'],
+      preferredJobRoles: ['Platform Engineer'],
+      preferredShifts: ['Flexible'],
+    }));
+    expect(await screen.findByText('Career preferences saved.')).toBeVisible();
+    expect(refetch).toHaveBeenCalledOnce();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit career preferences' })).not.toBeInTheDocument());
+    expect(screen.getByText('Platform Engineer')).toBeVisible();
+  });
+
+  it('keeps Career Preferences input after a failed canonical mutation', async () => {
+    const mutation = mutationResult({ rejection: { message: 'Career preferences could not be saved.', status: 400 } });
+    mocks.getCareerPreferences.mockReturnValue(queryResult({ data: careerPreferences }));
+    mocks.updateCareerPreferences.mockReturnValue(mutation.tuple);
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit career preferences' }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Expected annual salary' }), { target: { value: '2100000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }));
+    expect(await screen.findByText('Career preferences could not be saved.')).toBeVisible();
+    expect(screen.getByRole('spinbutton', { name: 'Expected annual salary' })).toHaveValue(2100000);
+    expect(screen.getByRole('dialog', { name: 'Edit career preferences' })).toBeVisible();
+  });
+
+  it('enforces Career Preferences chip limits, prevents duplicates, and supports removal', () => {
+    mocks.getCareerPreferences.mockReturnValue(queryResult({ data: {
+      ...careerPreferences,
+      preferredCities: ['Pune', 'Bengaluru', 'Hyderabad', 'Chennai', 'Mumbai'],
+      preferredJobRoles: ['Role 1', 'Role 2', 'Role 3'],
+    } }));
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit career preferences' }));
+    expect(screen.getByRole('textbox', { name: 'Preferred job roles' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Preferred cities' })).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Remove Role 1'));
+    expect(screen.getByRole('textbox', { name: 'Preferred job roles' })).toBeEnabled();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Preferred job roles' }), { target: { value: 'Role 2' } });
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Add' })[0]!);
+    expect(screen.getByText('That job role is already selected.')).toBeVisible();
+  });
+
   it('renders Education loading, error with Retry, and empty states', async () => {
     educationMocks.get.mockReturnValue(queryResult({ isLoading: true }));
     const loading = renderEducation();
@@ -815,16 +908,10 @@ describe('Candidate profile workspace', () => {
     expect(screen.getByRole('dialog', { name: 'Delete education?' })).toBeVisible();
   });
 
-  it('provides an accessible pencil Tooltip and URL-synchronized Education navigation', async () => {
+  it('provides an accessible Education pencil Tooltip without subsection navigation', async () => {
     educationMocks.get.mockReturnValue(queryResult({ data: [education] }));
-    renderWithProviders(
-      <MemoryRouter initialEntries={['/dashboard/portfolio?tab=profile&section=overview']}>
-        <CandidateProfileContent hidePageHeader />
-        <LocationSearch />
-      </MemoryRouter>,
-    );
-    await userEvent.click(screen.getByRole('tab', { name: 'Education' }));
-    expect(screen.getByLabelText('Current search')).toHaveTextContent('?tab=profile&section=education');
+    renderEducation();
+    expect(screen.queryByRole('tablist', { name: 'Profile sections' })).not.toBeInTheDocument();
     const edit = screen.getByRole('button', { name: 'Edit education' });
     expect(edit).toBeEnabled();
     await userEvent.hover(edit);
@@ -979,10 +1066,10 @@ describe('Candidate profile workspace', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete employment?' })).not.toBeInTheDocument());
   });
 
-  it('shows populated employment safely with accessible pencil action and URL state', async () => {
+  it('shows populated employment safely with an accessible pencil action', async () => {
     employmentMocks.get.mockReturnValue(queryResult({ data: [employment] }));
     renderEmployment();
-    expect(screen.getByRole('tab', { name: 'Employment' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tablist', { name: 'Profile sections' })).not.toBeInTheDocument();
     expect(screen.getByText('Harbor Labs')).toBeVisible();
     expect(screen.getByText('React')).toBeVisible();
     expect(screen.getByText('Built accessible candidate experiences.')).toBeVisible();

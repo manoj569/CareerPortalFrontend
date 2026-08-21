@@ -1,11 +1,12 @@
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
 import {
   Alert,
   Avatar,
-  Box, Button, Checkbox, FormControlLabel, IconButton, Tooltip, Tabs, Tab, Dialog, DialogActions, DialogContent, DialogTitle, TextField,
+  Box, Button, Checkbox, FormControlLabel, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, TextField,
   Chip,
   Grid,
   LinearProgress,
@@ -15,17 +16,16 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { ROUTES } from '@/constants/routes';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import { apiClient } from '@/api/apiClient';
 import {
-  useGetOnboardingQuery,
+  isDashboardApiError,
   useGetCandidateBasicDetailsQuery,
   useGetCandidateCareerPreferencesQuery,
   useUpdateCandidateBasicDetailsMutation,
+  useUpdateCandidateCareerPreferencesMutation,
   useGetProfileCompletionQuery,
   useGetProfileQuery,
 } from '@/features/dashboard/api/dashboardApi';
@@ -43,14 +43,14 @@ import {
 } from '@/features/dashboard/components/CandidateSkillsCard';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import {
-  CareerStage,
-  DesiredOpportunity,
-  WorkPreference,
-  type CandidateOnboarding,
   type CandidateProfileCompletion,
   type UserProfile,
   type CandidateBasicDetails,
   type CandidateCareerPreferences,
+  type CandidateEmploymentPreference,
+  type CandidateJobType,
+  type CandidateShiftPreference,
+  type UpdateCandidateCareerPreferencesRequest,
 } from '@/features/dashboard/types/dashboardModels';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { ProfileEducationRecords, ProfileEmploymentRecords } from '@/features/dashboard/components/ProfileRecords';
@@ -66,8 +66,6 @@ const sectionLabels: Record<string, string> = {
 
 interface CandidateProfileContentProps {
   hidePageHeader?: boolean;
-  onPreviewPortfolio?: () => void;
-  publicPortfolioCard?: ReactNode;
 }
 
 export const ProfilePage = () => {
@@ -80,23 +78,11 @@ export const ProfilePage = () => {
 
 export const CandidateProfileContent = ({
   hidePageHeader = false,
-  onPreviewPortfolio,
-  publicPortfolioCard,
 }: CandidateProfileContentProps) => {
   const profile = useGetProfileQuery();
   const completion = useGetProfileCompletionQuery();
-  const onboarding = useGetOnboardingQuery();
   const basicDetails = useGetCandidateBasicDetailsQuery();
   const preferences = useGetCandidateCareerPreferencesQuery();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedSection = searchParams.get('section');
-  const section = requestedSection === 'education' || requestedSection === 'employment' ? requestedSection : 'overview';
-  const setSection = (value: 'overview' | 'education' | 'employment') => {
-    const next = new URLSearchParams(searchParams);
-    next.set('tab', 'profile');
-    next.set('section', value);
-    setSearchParams(next);
-  };
   const aboutRef = useRef<CandidateAboutCardHandle>(null);
   const skillsRef = useRef<CandidateSkillsCardHandle>(null);
   const resumeRef = useRef<CandidateResumeCardHandle>(null);
@@ -135,26 +121,12 @@ export const CandidateProfileContent = ({
         />
       )}
 
-      {hidePageHeader ? (
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', overflowX: 'auto' }}>
-          <Tabs allowScrollButtonsMobile aria-label="Profile sections" onChange={(_, value: unknown) => { if (value === 'overview' || value === 'education' || value === 'employment') setSection(value); }} scrollButtons="auto" value={section} variant="scrollable">
-            <Tab label="Overview" value="overview" />
-            <Tab label="Education" value="education" />
-            <Tab label="Employment" value="employment" />
-          </Tabs>
-        </Box>
-      ) : null}
-
-      {section === 'education' ? <ProfileEducationRecords /> : null}
-      {section === 'employment' ? <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} /> : null}
-
-      {section === 'overview' ? <Grid container spacing={{ xs: 2, md: 3 }}>
+      <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid size={{ xs: 12, md: 8 }} sx={{ order: 1 }}>
           <IdentityCard
             candidate={candidate}
             completionPercentage={completion.data?.completionPercentage}
             onEdit={() => aboutRef.current?.openEditor()}
-            onPreviewPortfolio={onPreviewPortfolio}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }} sx={{ order: 2 }}>
@@ -170,29 +142,30 @@ export const CandidateProfileContent = ({
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 8 }} sx={{ order: 3 }}>
+        <Grid size={{ xs: 12, md: 4 }} sx={{ order: 3 }}>
+          <BasicDetailsCard data={basicDetails.data} isError={basicDetails.isError} isLoading={basicDetails.isLoading} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 8 }} sx={{ order: 4 }}>
           <CandidateAboutCard profile={candidate} ref={aboutRef} />
         </Grid>
-        {publicPortfolioCard ? (
-          <Grid size={{ xs: 12, md: 4 }} sx={{ order: { xs: 7, md: 4 } }}>
-            {publicPortfolioCard}
-          </Grid>
-        ) : null}
 
-        <Grid size={{ xs: 12, md: 8 }} sx={{ order: { xs: 4, md: 5 } }}>
+        <Grid size={{ xs: 12, md: 8 }} sx={{ order: 5 }}>
           <CandidateSkillsCard ref={skillsRef} />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }} sx={{ order: { xs: 5, md: 6 } }}>
+        <Grid size={{ xs: 12, md: 4 }} sx={{ order: 6 }}>
           <CandidateResumeCard ref={resumeRef} resume={candidate.resume} />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 8 }} sx={{ order: { xs: 6, md: 7 } }}>
-          <CareerPreferencesCard onboarding={onboarding} preferences={preferences} />
+        <Grid size={{ xs: 12 }} sx={{ order: 7 }}>
+          <CareerPreferencesCard preferences={preferences} />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }} sx={{ order: 8 }}>
-          <BasicDetailsCard data={basicDetails.data} isError={basicDetails.isError} isLoading={basicDetails.isLoading} />
+        <Grid size={{ xs: 12 }} sx={{ order: 8 }}>
+          <ProfileEducationRecords />
         </Grid>
-      </Grid> : null}
+        <Grid size={{ xs: 12 }} sx={{ order: 9 }}>
+          <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} />
+        </Grid>
+      </Grid>
     </Stack>
   );
 };
@@ -201,10 +174,9 @@ interface IdentityCardProps {
   candidate: UserProfile;
   completionPercentage?: number;
   onEdit: () => void;
-  onPreviewPortfolio?: () => void;
 }
 
-const IdentityCard = ({ candidate, completionPercentage, onEdit, onPreviewPortfolio }: IdentityCardProps) => {
+const IdentityCard = ({ candidate, completionPercentage, onEdit }: IdentityCardProps) => {
   const fullName = `${candidate.firstName} ${candidate.lastName}`.trim();
   const initials = getInitials(candidate.firstName, candidate.lastName);
 
@@ -250,7 +222,6 @@ const IdentityCard = ({ candidate, completionPercentage, onEdit, onPreviewPortfo
         </Stack>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
           <Button data-profile-action="basicDetails" onClick={onEdit} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="contained">Edit profile</Button>
-          {onPreviewPortfolio ? <Button onClick={onPreviewPortfolio} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="outlined">Preview portfolio</Button> : null}
         </Stack>
       </Stack>
     </Paper>
@@ -350,7 +321,7 @@ const MissingSectionAction = ({
   if (section === 'skills') return <Button data-profile-action={section} onClick={onSkills} size="small">Add skills</Button>;
   if (section === 'resume') return <Button data-profile-action={section} onClick={onResume} size="small">Upload resume</Button>;
   if (section === 'careerPreferences') {
-    return <Button component={Link} data-profile-action={section} size="small" to={ROUTES.ONBOARDING}>Add preferences</Button>;
+    return <Button data-profile-action={section} onClick={() => document.getElementById('candidate-career-preferences')?.scrollIntoView({ behavior: 'smooth' })} size="small">Add preferences</Button>;
   }
   if (section === 'basicDetails') {
     return <Button data-profile-action={section} onClick={onBasicDetails} size="small">Review profile details</Button>;
@@ -358,34 +329,167 @@ const MissingSectionAction = ({
   return null;
 };
 
-const CareerPreferencesCard = ({
-  onboarding,
-  preferences,
-}: {
-  onboarding: {
-    data?: CandidateOnboarding;
-    isError: boolean;
-    isLoading: boolean;
+type CareerPreferencesQuery = {
+  data?: CandidateCareerPreferences;
+  isError: boolean;
+  isLoading: boolean;
+  refetch: () => unknown;
+};
+
+const emptyCareerPreferences: UpdateCandidateCareerPreferencesRequest = {
+  employmentTypes: [],
+  expectedAnnualSalary: null,
+  jobTypes: [],
+  preferredCities: [],
+  preferredJobRoles: [],
+  preferredShifts: [],
+};
+
+const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferencesQuery }) => {
+  const [save, saveState] = useUpdateCandidateCareerPreferencesMutation();
+  const [open, setOpen] = useState(false);
+  const [values, setValues] = useState<UpdateCandidateCareerPreferencesRequest>(emptyCareerPreferences);
+  const [roleInput, setRoleInput] = useState('');
+  const [cityInput, setCityInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [savedData, setSavedData] = useState<CandidateCareerPreferences | null>(null);
+  const displayed = savedData ?? preferences.data;
+
+  const openEditor = () => {
+    if (!displayed) return;
+    setValues({
+      employmentTypes: [...displayed.employmentTypes],
+      expectedAnnualSalary: displayed.expectedAnnualSalary,
+      jobTypes: [...displayed.jobTypes],
+      preferredCities: [...displayed.preferredCities],
+      preferredJobRoles: [...displayed.preferredJobRoles],
+      preferredShifts: [...displayed.preferredShifts],
+    });
+    setRoleInput('');
+    setCityInput('');
+    setError(null);
+    setOpen(true);
   };
-  preferences: { data?: CandidateCareerPreferences; isError: boolean; isLoading: boolean };
-}) => (
-  <Paper component="section" id="candidate-career-preferences" sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}>
-    <Stack spacing={2}>
-      <Stack spacing={0.5}>
-        <Typography component="h2" variant="h3">Career preferences</Typography>
-        <Typography color="text.secondary" variant="body2">
-          Keep the opportunities and work settings you are looking for up to date.
-        </Typography>
+
+  const addTextValue = (key: 'preferredJobRoles' | 'preferredCities', rawValue: string, limit: number) => {
+    const value = rawValue.trim();
+    const label = key === 'preferredJobRoles' ? 'job role' : 'city';
+    if (!value) { setError(`Enter a ${label} before adding it.`); return; }
+    if (values[key].some((item) => item.toLocaleLowerCase() === value.toLocaleLowerCase())) { setError(`That ${label} is already selected.`); return; }
+    if (values[key].length >= limit) { setError(`You can select up to ${limit} ${key === 'preferredJobRoles' ? 'job roles' : 'cities'}.`); return; }
+    setValues((current) => ({ ...current, [key]: [...current[key], value] }));
+    if (key === 'preferredJobRoles') setRoleInput(''); else setCityInput('');
+    setError(null);
+  };
+
+  const removeTextValue = (key: 'preferredJobRoles' | 'preferredCities', value: string) => {
+    setValues((current) => ({ ...current, [key]: current[key].filter((item) => item !== value) }));
+    setError(null);
+  };
+
+  const toggle = <T extends CandidateJobType | CandidateEmploymentPreference | CandidateShiftPreference>(key: 'jobTypes' | 'employmentTypes' | 'preferredShifts', value: T) => {
+    setValues((current) => {
+      const selected = current[key] as T[];
+      return { ...current, [key]: selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value] };
+    });
+  };
+
+  const submit = async () => {
+    if (saveState.isLoading) return;
+    setError(null);
+    if (values.preferredJobRoles.length > 3 || values.preferredCities.length > 5) {
+      setError('Review the maximum number of preferred roles and cities.');
+      return;
+    }
+    if (values.expectedAnnualSalary !== null && values.expectedAnnualSalary < 0) {
+      setError('Expected annual salary cannot be negative.');
+      return;
+    }
+    const payload: UpdateCandidateCareerPreferencesRequest = {
+      employmentTypes: values.employmentTypes,
+      expectedAnnualSalary: values.expectedAnnualSalary,
+      jobTypes: values.jobTypes,
+      preferredCities: values.preferredCities.map((value) => value.trim()),
+      preferredJobRoles: values.preferredJobRoles.map((value) => value.trim()),
+      preferredShifts: values.preferredShifts,
+    };
+    try {
+      const response = await save(payload).unwrap();
+      setSavedData(response);
+      setSuccess('Career preferences saved.');
+      setOpen(false);
+      void preferences.refetch();
+    } catch (saveError: unknown) {
+      setError(isDashboardApiError(saveError) ? saveError.message : 'Unable to save career preferences. Please try again.');
+    }
+  };
+
+  return (
+    <Paper component="section" id="candidate-career-preferences" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, sm: 3 } }}>
+      <Stack spacing={2}>
+        <Stack alignItems="flex-start" direction="row" justifyContent="space-between" spacing={2}>
+          <Stack spacing={0.5}>
+            <Typography component="h2" variant="h3">Career preferences</Typography>
+            <Typography color="text.secondary" variant="body2">Keep the opportunities and work settings you are looking for up to date.</Typography>
+          </Stack>
+          <Tooltip title="Edit career preferences"><span><IconButton aria-label="Edit career preferences" disabled={!displayed || preferences.isLoading} onClick={openEditor}><EditOutlinedIcon /></IconButton></span></Tooltip>
+        </Stack>
+        {success ? <Alert severity="success">{success}</Alert> : null}
+        {preferences.isLoading ? <Skeleton aria-label="Loading career preferences" height={96} variant="rounded" /> : null}
+        {preferences.isError ? <Alert action={<Button color="inherit" onClick={() => void preferences.refetch()}>Retry</Button>} severity="warning">Your career preferences are temporarily unavailable.</Alert> : null}
+        {displayed ? <CareerPreferenceSummary data={displayed} /> : null}
       </Stack>
-      {preferences.isLoading ? <Skeleton aria-label="Loading career preferences" height={72} variant="rounded" /> : null}
-      {preferences.isError ? <Alert severity="warning">Your career-preferences summary is unavailable.</Alert> : null}
-      {preferences.data ? <Stack direction="row" flexWrap="wrap" gap={1}>{[...preferences.data.preferredJobRoles, ...preferences.data.preferredCities, ...preferences.data.jobTypes, ...preferences.data.employmentTypes, ...preferences.data.preferredShifts].map((value) => <Chip key={value} label={value} />)}</Stack> : onboarding.data ? <CareerPreferencesSummary data={onboarding.data} /> : null}
-      <Button component={Link} data-profile-action="careerPreferences" sx={{ alignSelf: 'flex-start' }} to={ROUTES.ONBOARDING} variant="outlined">
-        Edit preferences
-      </Button>
+      <Dialog aria-describedby="career-preferences-description" fullWidth maxWidth="md" onClose={saveState.isLoading ? undefined : () => setOpen(false)} open={open}>
+        <DialogTitle>Edit career preferences</DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary" id="career-preferences-description" sx={{ mb: 2 }} variant="body2">Choose the roles and working conditions that fit your next opportunity.</Typography>
+          <Stack spacing={3}>
+            <PreferenceTextInput disabled={values.preferredJobRoles.length >= 3 || saveState.isLoading} helperText={`${values.preferredJobRoles.length}/3 selected`} input={roleInput} inputLabel="Preferred job roles" items={values.preferredJobRoles} limit={3} onAdd={() => addTextValue('preferredJobRoles', roleInput, 3)} onInput={setRoleInput} onRemove={(value) => removeTextValue('preferredJobRoles', value)} />
+            <PreferenceTextInput disabled={values.preferredCities.length >= 5 || saveState.isLoading} helperText={`${values.preferredCities.length}/5 selected`} input={cityInput} inputLabel="Preferred cities" items={values.preferredCities} limit={5} onAdd={() => addTextValue('preferredCities', cityInput, 5)} onInput={setCityInput} onRemove={(value) => removeTextValue('preferredCities', value)} />
+            <TextField disabled={saveState.isLoading} helperText="INR per year" inputProps={{ min: 0 }} label="Expected annual salary" onChange={(event) => setValues((current) => ({ ...current, expectedAnnualSalary: event.target.value ? Number(event.target.value) : null }))} type="number" value={values.expectedAnnualSalary ?? ''} />
+            <PreferenceOptions label="Job type" onToggle={(value) => toggle('jobTypes', value as CandidateJobType)} options={jobTypeOptions} selected={values.jobTypes} />
+            <PreferenceOptions label="Employment type" onToggle={(value) => toggle('employmentTypes', value as CandidateEmploymentPreference)} options={employmentPreferenceOptions} selected={values.employmentTypes} />
+            <PreferenceOptions label="Preferred shift" onToggle={(value) => toggle('preferredShifts', value as CandidateShiftPreference)} options={shiftOptions} selected={values.preferredShifts} />
+            {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions><Button disabled={saveState.isLoading} onClick={() => setOpen(false)}>Cancel</Button><Button disabled={saveState.isLoading} onClick={() => void submit()} variant="contained">{saveState.isLoading ? 'Saving…' : 'Save preferences'}</Button></DialogActions>
+      </Dialog>
+    </Paper>
+  );
+};
+
+const PreferenceTextInput = ({ disabled, helperText, input, inputLabel, items, onAdd, onInput, onRemove }: { disabled:boolean; helperText:string; input:string; inputLabel:string; items:string[]; limit:number; onAdd:()=>void; onInput:(value:string)=>void; onRemove:(value:string)=>void }) => (
+  <Stack spacing={1}>
+    <Stack alignItems="flex-start" direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      <TextField disabled={disabled} fullWidth helperText={helperText} label={inputLabel} onChange={(event) => onInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onAdd(); } }} value={input} />
+      <Button disabled={disabled} onClick={onAdd} sx={{ minWidth: 88 }}>+ Add</Button>
     </Stack>
-  </Paper>
+    <Stack direction="row" flexWrap="wrap" gap={1}>{items.map((item) => <Chip deleteIcon={<span aria-label={`Remove ${item}`}>×</span>} key={item} label={item} onDelete={() => onRemove(item)} />)}</Stack>
+  </Stack>
 );
+
+const PreferenceOptions = ({ label, onToggle, options, selected }: { label:string; onToggle:(value:string)=>void; options:readonly {label:string;value:string}[]; selected:readonly string[] }) => (
+  <Stack spacing={1}><Typography fontWeight={750}>{label}</Typography><Stack direction="row" flexWrap="wrap" gap={1}>{options.map((option) => { const active = selected.includes(option.value); return <Chip aria-label={`${active ? 'Remove' : 'Add'} ${option.label}`} color={active ? 'primary' : 'default'} key={option.value} label={`${active ? '×' : '+'} ${option.label}`} onClick={() => onToggle(option.value)} variant={active ? 'filled' : 'outlined'} />; })}</Stack></Stack>
+);
+
+const CareerPreferenceSummary = ({ data }: { data: CandidateCareerPreferences }) => (
+  <Stack spacing={1.5}>
+    <PreferenceSummaryRow label="Roles" values={data.preferredJobRoles} />
+    <PreferenceSummaryRow label="Cities" values={data.preferredCities} />
+    <PreferenceSummaryRow label="Job type" values={data.jobTypes.map((value) => jobTypeOptions.find((option) => option.value === value)?.label ?? value)} />
+    <PreferenceSummaryRow label="Employment type" values={data.employmentTypes.map((value) => employmentPreferenceOptions.find((option) => option.value === value)?.label ?? value)} />
+    <PreferenceSummaryRow label="Shift" values={data.preferredShifts.map((value) => shiftOptions.find((option) => option.value === value)?.label ?? value)} />
+    {data.expectedAnnualSalary === null ? null : <Typography variant="body2"><strong>Expected salary:</strong> INR {data.expectedAnnualSalary.toLocaleString('en-IN')} per year</Typography>}
+  </Stack>
+);
+
+const PreferenceSummaryRow = ({ label, values }: { label:string; values:string[] }) => values.length ? <Stack alignItems="center" direction="row" flexWrap="wrap" gap={1}><Typography minWidth={110} variant="body2"><strong>{label}:</strong></Typography>{values.map((value) => <Chip key={`${label}-${value}`} label={value} size="small" />)}</Stack> : null;
+
+const jobTypeOptions = [{ label: 'Permanent', value: 'Permanent' }, { label: 'Contractual', value: 'Contractual' }] as const;
+const employmentPreferenceOptions = [{ label: 'Full-time', value: 'FullTime' }, { label: 'Part-time', value: 'PartTime' }] as const;
+const shiftOptions = [{ label: 'Day', value: 'Day' }, { label: 'Night', value: 'Night' }, { label: 'Flexible', value: 'Flexible' }] as const;
 
 const BasicDetailsCard = ({ data, isError, isLoading }: { data?: CandidateBasicDetails; isError: boolean; isLoading: boolean }) => {
   const [open, setOpen] = useState(false); const [error, setError] = useState<string | null>(null); const [save, state] = useUpdateCandidateBasicDetailsMutation();
@@ -393,25 +497,7 @@ const BasicDetailsCard = ({ data, isError, isLoading }: { data?: CandidateBasicD
   const openEditor = () => { if (!data) return; setValues({ workStatus: data.workStatus ?? 'Fresher', isOutsideIndia: Boolean(data.isOutsideIndia), currentCountry: data.currentCountry ?? '', currentCity: data.currentCity ?? '', currentArea: data.currentArea ?? '', availabilityToJoin: data.availabilityToJoin ?? '', currentAnnualSalary: data.currentAnnualSalary?.toString() ?? '', currentFixedAnnualSalary: data.currentFixedAnnualSalary?.toString() ?? '', currentVariableAnnualSalary: data.currentVariableAnnualSalary?.toString() ?? '' }); setError(null); setOpen(true); };
   const set = (key: keyof typeof values, value: string | boolean) => setValues((old) => ({ ...old, [key]: value }));
   const submit = async () => { if (!values.currentCity.trim() || !values.currentCountry.trim()) { setError('Current city and country are required.'); return; } try { await save({ workStatus: values.workStatus as 'Fresher' | 'Experienced', isOutsideIndia: values.isOutsideIndia, currentCountry: values.currentCountry.trim(), currentCity: values.currentCity.trim(), currentArea: values.currentArea.trim() || null, availabilityToJoin: (values.availabilityToJoin || null) as never, currentAnnualSalary: values.workStatus === 'Experienced' && values.currentAnnualSalary ? Number(values.currentAnnualSalary) : null, currentFixedAnnualSalary: values.workStatus === 'Experienced' && values.currentFixedAnnualSalary ? Number(values.currentFixedAnnualSalary) : null, currentVariableAnnualSalary: values.workStatus === 'Experienced' && values.currentVariableAnnualSalary ? Number(values.currentVariableAnnualSalary) : null }).unwrap(); setOpen(false); } catch { setError('Unable to save basic details. Please review the fields and try again.'); } };
-  return <Paper component="section" id="candidate-basic-details" sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between"><Typography component="h2" variant="h3">Basic details</Typography><Tooltip title="Edit basic details"><IconButton aria-label="Edit basic details" onClick={openEditor}><PhotoCameraOutlinedIcon sx={{ display: 'none' }} /><AccountCircleOutlinedIcon /></IconButton></Tooltip></Stack>{isLoading ? <Skeleton height={100} variant="rounded" /> : null}{isError ? <Alert severity="warning">Your basic details are temporarily unavailable.</Alert> : null}{data ? <Stack spacing={0.75}>{[['Work status', data.workStatus], ['Current city', data.currentCity], ['Area/town', data.currentArea], ['Country', data.currentCountry], ['Availability to join', data.availabilityToJoin], ...(data.workStatus === 'Experienced' ? [['Current salary', data.currentAnnualSalary === null ? null : `${data.salaryUnit} ${data.currentAnnualSalary}`]] : []), ['Verified email', data.email], ['Verified mobile', data.mobile]].filter(([, value]) => Boolean(value)).map(([label, value]) => <Typography key={label} variant="body2"><strong>{label}:</strong> {value}</Typography>)}</Stack> : null}</Stack><Dialog fullScreen={false} fullWidth maxWidth="sm" onClose={() => !state.isLoading && setOpen(false)} open={open}><DialogTitle>Edit basic details</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField disabled label="Verified email" value={data?.email ?? ''} /><TextField disabled label="Verified mobile" value={data?.mobile ?? ''} /><TextField label="Work status" onChange={(e) => set('workStatus', e.target.value)} select SelectProps={{ native: true }} value={values.workStatus}><option value="Fresher">Fresher</option><option value="Experienced">Experienced</option></TextField><FormControlLabel control={<Checkbox checked={values.isOutsideIndia} onChange={(e) => set('isOutsideIndia', e.target.checked)} />} label="I currently live outside India" /><TextField label="Country" onChange={(e) => set('currentCountry', e.target.value)} required value={values.currentCountry} /><TextField label="Current city" onChange={(e) => set('currentCity', e.target.value)} required value={values.currentCity} /><TextField label="Current area / town" onChange={(e) => set('currentArea', e.target.value)} value={values.currentArea} /><TextField label="Availability to join" onChange={(e) => set('availabilityToJoin', e.target.value)} value={values.availabilityToJoin} />{values.workStatus === 'Experienced' ? <><TextField label="Current annual salary" onChange={(e) => set('currentAnnualSalary', e.target.value)} type="number" value={values.currentAnnualSalary} /><TextField label="Fixed annual salary" onChange={(e) => set('currentFixedAnnualSalary', e.target.value)} type="number" value={values.currentFixedAnnualSalary} /><TextField label="Variable annual salary" onChange={(e) => set('currentVariableAnnualSalary', e.target.value)} type="number" value={values.currentVariableAnnualSalary} /></> : null}{error ? <Alert severity="error">{error}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Cancel</Button><Button disabled={state.isLoading} onClick={() => void submit()} variant="contained">{state.isLoading ? 'Saving…' : 'Save'}</Button></DialogActions></Dialog></Paper>;
-};
-
-const CareerPreferencesSummary = ({ data }: { data: CandidateOnboarding }) => {
-  const values = [
-    data.careerStage ? careerStageLabels[data.careerStage] : null,
-    data.city,
-    data.yearsOfExperience === null ? null : `${data.yearsOfExperience} ${data.yearsOfExperience === 1 ? 'year' : 'years'} experience`,
-    ...data.desiredOpportunities.map((value) => desiredOpportunityLabels[value]),
-    ...data.workPreferences.map((value) => workPreferenceLabels[value]),
-  ].filter((value): value is string => Boolean(value));
-
-  return values.length ? (
-    <Stack aria-label="Career preferences summary" direction="row" flexWrap="wrap" gap={1}>
-      {values.map((value) => <Chip key={value} label={value} />)}
-    </Stack>
-  ) : (
-    <Typography color="text.secondary">Add career preferences to improve your job recommendations.</Typography>
-  );
+  return <Paper component="section" id="candidate-basic-details" sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between"><Typography component="h2" variant="h3">Basic details</Typography><Tooltip title="Edit basic details"><IconButton aria-label="Edit basic details" onClick={openEditor}><EditOutlinedIcon /></IconButton></Tooltip></Stack>{isLoading ? <Skeleton height={100} variant="rounded" /> : null}{isError ? <Alert severity="warning">Your basic details are temporarily unavailable.</Alert> : null}{data ? <Stack spacing={0.75}>{[['Work status', data.workStatus], ['Current city', data.currentCity], ['Area/town', data.currentArea], ['Country', data.currentCountry], ['Availability to join', data.availabilityToJoin], ...(data.workStatus === 'Experienced' ? [['Current salary', data.currentAnnualSalary === null ? null : `${data.salaryUnit} ${data.currentAnnualSalary}`]] : []), ['Verified email', data.email], ['Verified mobile', data.mobile]].filter(([, value]) => Boolean(value)).map(([label, value]) => <Typography key={label} variant="body2"><strong>{label}:</strong> {value}</Typography>)}</Stack> : null}</Stack><Dialog fullScreen={false} fullWidth maxWidth="sm" onClose={() => !state.isLoading && setOpen(false)} open={open}><DialogTitle>Edit basic details</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField disabled label="Verified email" value={data?.email ?? ''} /><TextField disabled label="Verified mobile" value={data?.mobile ?? ''} /><TextField label="Work status" onChange={(e) => set('workStatus', e.target.value)} select SelectProps={{ native: true }} value={values.workStatus}><option value="Fresher">Fresher</option><option value="Experienced">Experienced</option></TextField><FormControlLabel control={<Checkbox checked={values.isOutsideIndia} onChange={(e) => set('isOutsideIndia', e.target.checked)} />} label="I currently live outside India" /><TextField label="Country" onChange={(e) => set('currentCountry', e.target.value)} required value={values.currentCountry} /><TextField label="Current city" onChange={(e) => set('currentCity', e.target.value)} required value={values.currentCity} /><TextField label="Current area / town" onChange={(e) => set('currentArea', e.target.value)} value={values.currentArea} /><TextField label="Availability to join" onChange={(e) => set('availabilityToJoin', e.target.value)} value={values.availabilityToJoin} />{values.workStatus === 'Experienced' ? <><TextField label="Current annual salary" onChange={(e) => set('currentAnnualSalary', e.target.value)} type="number" value={values.currentAnnualSalary} /><TextField label="Fixed annual salary" onChange={(e) => set('currentFixedAnnualSalary', e.target.value)} type="number" value={values.currentFixedAnnualSalary} /><TextField label="Variable annual salary" onChange={(e) => set('currentVariableAnnualSalary', e.target.value)} type="number" value={values.currentVariableAnnualSalary} /></> : null}{error ? <Alert severity="error">{error}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Cancel</Button><Button disabled={state.isLoading} onClick={() => void submit()} variant="contained">{state.isLoading ? 'Saving…' : 'Save'}</Button></DialogActions></Dialog></Paper>;
 };
 
 const getInitials = (firstName: string, lastName: string): string => {
@@ -420,22 +506,4 @@ const getInitials = (firstName: string, lastName: string): string => {
     .filter(Boolean)
     .join('');
   return initials || 'CH';
-};
-
-const careerStageLabels: Record<CareerStage, string> = {
-  [CareerStage.Student]: 'Student',
-  [CareerStage.Fresher]: 'Fresher',
-  [CareerStage.Experienced]: 'Experienced',
-};
-
-const desiredOpportunityLabels: Record<DesiredOpportunity, string> = {
-  [DesiredOpportunity.Internship]: 'Internships',
-  [DesiredOpportunity.FresherJob]: 'Fresher jobs',
-  [DesiredOpportunity.ExperiencedJob]: 'Experienced roles',
-};
-
-const workPreferenceLabels: Record<WorkPreference, string> = {
-  [WorkPreference.Remote]: 'Remote',
-  [WorkPreference.Hybrid]: 'Hybrid',
-  [WorkPreference.OnSite]: 'On-site',
 };

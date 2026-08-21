@@ -85,7 +85,7 @@ export type CandidateShiftPreference = 'Day' | 'Night' | 'Flexible';
 export interface CandidateBasicDetails { email: string; mobile: string | null; workStatus: CandidateWorkStatus | null; isOutsideIndia: boolean | null; currentCountry: string | null; currentCity: string | null; currentArea: string | null; availabilityToJoin: CandidateAvailability | null; currentAnnualSalary: number | null; currentFixedAnnualSalary: number | null; currentVariableAnnualSalary: number | null; salaryUnit: string; }
 export interface UpdateCandidateBasicDetailsRequest { workStatus: CandidateWorkStatus; isOutsideIndia: boolean; currentCountry: string; currentCity: string; currentArea: string | null; availabilityToJoin: CandidateAvailability | null; currentAnnualSalary: number | null; currentFixedAnnualSalary: number | null; currentVariableAnnualSalary: number | null; }
 export interface CandidateCareerPreferences { preferredJobRoles: string[]; preferredCities: string[]; expectedAnnualSalary: number | null; jobTypes: CandidateJobType[]; employmentTypes: CandidateEmploymentPreference[]; preferredShifts: CandidateShiftPreference[]; salaryUnit: string; }
-export type UpdateCandidateCareerPreferencesRequest = CandidateCareerPreferences;
+export interface UpdateCandidateCareerPreferencesRequest { preferredJobRoles: string[]; preferredCities: string[]; expectedAnnualSalary: number | null; jobTypes: CandidateJobType[]; employmentTypes: CandidateEmploymentPreference[]; preferredShifts: CandidateShiftPreference[]; }
 export interface ProfilePhotoMetadata { hasProfilePhoto: boolean; version: string | null; }
 
 export interface UpdateCandidateProfileRequest {

@@ -123,8 +123,8 @@ describe('Portfolio workspace', () => {
     vi.mocked(useCreatePortfolioMutation).mockReturnValue(create.tuple);
     renderPage();
 
-    expect(screen.getAllByText('Draft').length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole('tab', { name: 'Portfolio builder' }));
+    expect(screen.getAllByText('Draft').length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole('button', { name: 'Create portfolio' }));
     expect(create.trigger).toHaveBeenCalledWith({ requestedSlug: null, template: 'Professional' });
   });
@@ -136,12 +136,17 @@ describe('Portfolio workspace', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Save profile' }));
     expect(publish.trigger).not.toHaveBeenCalled();
-    expect(screen.getByText(/saving them does not create or publish/i)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /publish|preview portfolio|unpublish/i })).not.toBeInTheDocument();
   });
 
-  it('removes the duplicate Portfolio readiness block while retaining workspace tabs', () => {
+  it('removes Portfolio header and readiness blocks while retaining dedicated workspace tabs', () => {
     renderPage();
     expect(screen.queryByRole('heading', { name: 'Portfolio readiness' })).not.toBeInTheDocument();
+    expect(screen.queryByText('CANDIDATE WORKSPACE')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Portfolio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Preview portfolio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View live portfolio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Unpublish' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Profile', 'Portfolio builder', 'Preview']);
   });
 
@@ -149,8 +154,8 @@ describe('Portfolio workspace', () => {
     const publish = mutation({ published: false, missingRequirements: ['skills', 'slug'], portfolio: editor });
     vi.mocked(usePublishPortfolioMutation).mockReturnValue(publish.tuple);
     renderPage();
-
-    await userEvent.click(screen.getAllByRole('button', { name: 'Publish portfolio' })[0]!);
+    await userEvent.click(screen.getByRole('tab', { name: 'Portfolio builder' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Publish' }));
 
     expect(screen.queryByText('Complete these requirements before publishing:')).not.toBeInTheDocument();
     expect(publish.trigger).toHaveBeenCalledOnce();
@@ -161,8 +166,8 @@ describe('Portfolio workspace', () => {
       mutation(undefined, { message: 'Portfolio service is temporarily unavailable.', status: 503 }).tuple,
     );
     renderPage();
-
-    await userEvent.click(screen.getAllByRole('button', { name: 'Publish portfolio' })[0]!);
+    await userEvent.click(screen.getByRole('tab', { name: 'Portfolio builder' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Publish' }));
     expect(await screen.findByText('Portfolio service is temporarily unavailable.')).toBeVisible();
     expect(screen.queryByText('Portfolio published.')).not.toBeInTheDocument();
   });
@@ -176,13 +181,14 @@ describe('Portfolio workspace', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
     renderPage();
+    await userEvent.click(screen.getByRole('tab', { name: 'Portfolio builder' }));
 
-    expect(screen.getAllByRole('link', { name: 'View live portfolio' })[0]).toHaveAttribute('href', '/p/avery-patel');
-    await userEvent.click(screen.getAllByRole('button', { name: 'Copy link' })[0]!);
+    expect(screen.getByRole('link', { name: 'View live portfolio' })).toHaveAttribute('href', '/p/avery-patel');
+    await userEvent.click(screen.getByRole('button', { name: 'Copy link' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://careerharbor.in/p/avery-patel'));
-    expect(screen.getAllByRole('button', { name: 'Link copied' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Link copied' })).toBeVisible();
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Unpublish' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Unpublish' }));
     expect(unpublish.trigger).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog', { name: 'Unpublish your portfolio?' });
     expect(within(dialog).getByText(/no longer be available/i)).toBeVisible();

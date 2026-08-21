@@ -27,7 +27,6 @@ import { buildPublicPortfolioPath } from '@/constants/routes';
 import {
   isDashboardApiError,
 } from '@/features/dashboard/api/dashboardApi';
-import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
 import {
   useCreatePortfolioMutation,
@@ -155,25 +154,6 @@ export const PortfolioPage = () => {
     );
   }
 
-  const headerActions = (
-    <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-      {isCreated ? <Button onClick={() => setTab('preview')} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="outlined">Preview portfolio</Button> : null}
-      {publicUrl && editor.slug ? (
-        <Button component={Link} endIcon={<OpenInNewOutlinedIcon />} rel="noopener noreferrer" sx={{ width: { xs: '100%', sm: 'auto' } }} target="_blank" to={buildPublicPortfolioPath(editor.slug)} variant="outlined">
-          View live portfolio
-        </Button>
-      ) : null}
-      {canPublish ? (
-        <Button disabled={publishState.isLoading} onClick={() => void runPublish()} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="contained">
-          {publishState.isLoading ? 'Publishing…' : 'Publish portfolio'}
-        </Button>
-      ) : null}
-      {isPublished ? (
-        <Button color="error" disabled={unpublishState.isLoading} onClick={() => setUnpublishOpen(true)} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="text">Unpublish</Button>
-      ) : null}
-    </Stack>
-  );
-
   const publicPortfolioCard = (
     <PublicPortfolioCard
       canPublish={canPublish}
@@ -191,13 +171,6 @@ export const PortfolioPage = () => {
 
   return (
     <Stack spacing={{ xs: 2.5, md: 3 }}>
-      <DashboardPageHeader
-        actions={headerActions}
-        description="Build your career profile privately, then publish a professional portfolio when you’re ready."
-        eyebrow="CANDIDATE WORKSPACE"
-        title="Portfolio"
-      />
-
       <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: '100%', overflow: 'hidden' }}>
         <Tabs
           allowScrollButtonsMobile
@@ -220,21 +193,17 @@ export const PortfolioPage = () => {
       {publicationError ? <Alert aria-live="assertive" severity="error">{publicationError}</Alert> : null}
 
       {tab === 'profile' ? (
-        <Stack spacing={2}>
-          <Alert severity="info">Profile changes stay private. Saving them does not create or publish a public portfolio.</Alert>
-          <CandidateProfileContent
-            hidePageHeader
-            onPreviewPortfolio={isCreated ? () => setTab('preview') : undefined}
-            publicPortfolioCard={publicPortfolioCard}
-          />
-        </Stack>
+        <CandidateProfileContent hidePageHeader />
       ) : null}
 
       {tab === 'builder' ? (
         !isCreated ? (
           <NotCreated createPortfolio={createPortfolio} isLoading={createState.isLoading} />
         ) : (
-          <BuilderWorkspace editor={editor} onPreview={() => setTab('preview')} />
+          <Stack spacing={2.5}>
+            <BuilderWorkspace editor={editor} onPreview={() => setTab('preview')} />
+            {publicPortfolioCard}
+          </Stack>
         )
       ) : null}
 
