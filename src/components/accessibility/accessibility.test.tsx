@@ -145,7 +145,10 @@ describe('Step 9 accessibility and navigation smoke checks', () => {
 
     const trigger = screen.getByRole('button', { name: 'Open main navigation' });
     const header = screen.getByRole('banner');
-    expect(within(header).getByRole('link', { name: 'Career Harbor home' })).toHaveAttribute('href', '/');
+    expect(within(header).getByRole('link', { name: 'Career Harbor home' })).toHaveAttribute(
+      'href',
+      '/',
+    );
     expect(within(header).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(within(header).getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/jobs');
     expect(within(header).getByRole('link', { name: 'Log in' })).toBeInTheDocument();
@@ -153,6 +156,29 @@ describe('Step 9 accessibility and navigation smoke checks', () => {
     expect(
       within(screen.getByRole('contentinfo')).getByRole('link', { name: 'Cookie Policy' }),
     ).toHaveAttribute('href', '/cookie-policy');
+    const footer = within(screen.getByRole('contentinfo'));
+    expect(footer.getByRole('link', { name: 'Terms of Use' })).toHaveAttribute(
+      'href',
+      '/terms-of-use',
+    );
+    expect(footer.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
+      'href',
+      '/privacy-policy',
+    );
+    expect(footer.getByRole('link', { name: 'Refund and Cancellation Policy' })).toHaveAttribute(
+      'href',
+      '/refund-and-cancellation-policy',
+    );
+    expect(footer.getByRole('link', { name: 'Contact Us' })).toHaveAttribute('href', '/contact-us');
+    expect(footer.getByRole('link', { name: 'Grievance Redressal Policy' })).toHaveAttribute(
+      'href',
+      '/grievance-redressal-policy',
+    );
+    expect(footer.getByRole('link', { name: 'Pricing / Membership' })).toHaveAttribute(
+      'href',
+      '/membership',
+    );
+    expect(footer.getByRole('link', { name: 'About Us' })).toHaveAttribute('href', '/about-us');
     await user.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByLabelText('Main navigation drawer')).toContainElement(

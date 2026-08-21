@@ -64,6 +64,35 @@ export const appRoutes: RouteObject[] = [
             element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'CookiePolicyPage'),
           },
           {
+            path: ROUTES.REFUND_POLICY,
+            element: lazyPage(
+              () => import('@/pages/LegalDocumentPage'),
+              'RefundAndCancellationPolicyPage',
+            ),
+          },
+          {
+            path: ROUTES.GRIEVANCE_POLICY,
+            element: lazyPage(
+              () => import('@/pages/LegalDocumentPage'),
+              'GrievanceRedressalPolicyPage',
+            ),
+          },
+          {
+            path: ROUTES.CONTACT_US,
+            element: lazyPage(() => import('@/pages/PublicInformationPages'), 'ContactUsPage'),
+          },
+          {
+            path: ROUTES.ABOUT_US,
+            element: lazyPage(() => import('@/pages/PublicInformationPages'), 'AboutUsPage'),
+          },
+          {
+            path: ROUTES.PRICING,
+            element: lazyPage(
+              () => import('@/pages/PublicInformationPages'),
+              'MembershipPricingPage',
+            ),
+          },
+          {
             path: ROUTES.PUBLIC_PORTFOLIO,
             element: lazyPage(() => import('@/pages/PublicPortfolioPage'), 'PublicPortfolioPage'),
           },

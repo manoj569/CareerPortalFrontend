@@ -12,6 +12,11 @@ const publicRoutes = [
   'https://careerharbor.in/terms-of-use',
   'https://careerharbor.in/privacy-policy',
   'https://careerharbor.in/cookie-policy',
+  'https://careerharbor.in/refund-and-cancellation-policy',
+  'https://careerharbor.in/grievance-redressal-policy',
+  'https://careerharbor.in/contact-us',
+  'https://careerharbor.in/about-us',
+  'https://careerharbor.in/membership',
 ];
 
 describe('static search discovery files', () => {

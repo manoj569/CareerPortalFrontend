@@ -8,6 +8,11 @@ const INDEXABLE_STATIC_ROUTES = new Set([
   '/login',
   '/privacy-policy',
   '/cookie-policy',
+  '/refund-and-cancellation-policy',
+  '/grievance-redressal-policy',
+  '/contact-us',
+  '/about-us',
+  '/membership',
   '/register',
   '/terms-of-use',
 ]);
@@ -21,6 +26,15 @@ const getDefaultTitle = (pathname: string): string => {
   if (pathname === '/terms-of-use') return 'Terms of Use | Career Harbor';
   if (pathname === '/privacy-policy') return 'Privacy Policy | Career Harbor';
   if (pathname === '/cookie-policy') return 'Cookie Policy | Career Harbor';
+  if (pathname === '/refund-and-cancellation-policy') {
+    return 'Refund and Cancellation Policy | Career Harbor';
+  }
+  if (pathname === '/grievance-redressal-policy') {
+    return 'Grievance Redressal Policy | Career Harbor';
+  }
+  if (pathname === '/contact-us') return 'Contact Career Harbor';
+  if (pathname === '/about-us') return 'About Career Harbor';
+  if (pathname === '/membership') return 'Career Harbor Membership and Pricing';
   if (pathname.includes('password')) return 'Account Recovery | Career Harbor';
   if (pathname.startsWith('/dashboard')) return 'Candidate Dashboard | Career Harbor';
   if (pathname.startsWith('/admin')) return 'Administration | Career Harbor';

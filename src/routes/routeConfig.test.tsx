@@ -39,7 +39,16 @@ describe('release route structure', () => {
   it('keeps legal documents public', () => {
     const publicPaths = rootRoute.children?.flatMap((route) => collectPaths(route)) ?? [];
     expect(publicPaths).toEqual(
-      expect.arrayContaining([ROUTES.TERMS_OF_USE, ROUTES.PRIVACY_POLICY, ROUTES.COOKIE_POLICY]),
+      expect.arrayContaining([
+        ROUTES.TERMS_OF_USE,
+        ROUTES.PRIVACY_POLICY,
+        ROUTES.COOKIE_POLICY,
+        ROUTES.REFUND_POLICY,
+        ROUTES.GRIEVANCE_POLICY,
+        ROUTES.CONTACT_US,
+        ROUTES.ABOUT_US,
+        ROUTES.PRICING,
+      ]),
     );
   });
 
@@ -92,7 +101,9 @@ describe('release route structure', () => {
 
   it('redirects the legacy resume route to Browse jobs', () => {
     const candidateGroup = findGuardedGroup(CandidateRoute);
-    const resumeRoute = candidateGroup.children?.flatMap((route) => route.children ?? []).find((route) => route.path === ROUTES.RESUME);
+    const resumeRoute = candidateGroup.children
+      ?.flatMap((route) => route.children ?? [])
+      .find((route) => route.path === ROUTES.RESUME);
     expect(isValidElement(resumeRoute?.element)).toBe(true);
     if (!isValidElement(resumeRoute?.element)) throw new Error('Resume redirect was not found.');
     expect(resumeRoute.element.type).toBe(Navigate);
@@ -101,7 +112,9 @@ describe('release route structure', () => {
 
   it('redirects the legacy profile route to the guarded Portfolio workspace', () => {
     const candidateGroup = findGuardedGroup(CandidateRoute);
-    const profileRoute = candidateGroup.children?.flatMap((route) => route.children ?? []).find((route) => route.path === ROUTES.PROFILE);
+    const profileRoute = candidateGroup.children
+      ?.flatMap((route) => route.children ?? [])
+      .find((route) => route.path === ROUTES.PROFILE);
     expect(isValidElement(profileRoute?.element)).toBe(true);
     if (!isValidElement(profileRoute?.element)) throw new Error('Profile redirect was not found.');
     expect(profileRoute.element.type).toBe(Navigate);
@@ -110,7 +123,10 @@ describe('release route structure', () => {
 
   it('keeps public portfolios anonymous and outside dashboard layouts', () => {
     const candidatePaths = collectPaths(findGuardedGroup(CandidateRoute));
-    const allPublicPaths = rootRoute.children?.filter((route) => !isValidElement(route.element) || route.element.type !== CandidateRoute).flatMap(collectPaths) ?? [];
+    const allPublicPaths =
+      rootRoute.children
+        ?.filter((route) => !isValidElement(route.element) || route.element.type !== CandidateRoute)
+        .flatMap(collectPaths) ?? [];
     expect(allPublicPaths).toContain(ROUTES.PUBLIC_PORTFOLIO);
     expect(candidatePaths).not.toContain(ROUTES.PUBLIC_PORTFOLIO);
   });
