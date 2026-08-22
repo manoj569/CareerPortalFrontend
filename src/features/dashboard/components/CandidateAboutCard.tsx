@@ -21,10 +21,12 @@ import { useForm } from 'react-hook-form';
 
 import { applyApiValidationErrors } from '@/api/formErrors';
 import {
+  dashboardApi,
   isDashboardApiError,
   useUpdateCandidateAboutMutation,
 } from '@/features/dashboard/api/dashboardApi';
 import type { UserProfile } from '@/features/dashboard/types/dashboardModels';
+import { useAppDispatch } from '@/hooks/reduxHooks';
 import {
   candidateAboutSchema,
   type CandidateAboutFormValues,
@@ -40,6 +42,7 @@ export interface CandidateAboutCardHandle {
 
 export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, CandidateAboutCardProps>(
   ({ profile }, ref) => {
+    const dispatch = useAppDispatch();
     const [open, setOpen] = useState(false);
     const [serverError, setServerError] = useState<string | null>(null);
     const [updateAbout, updateState] = useUpdateCandidateAboutMutation();
@@ -74,16 +77,20 @@ export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, Candidate
     const submit = async (values: CandidateAboutFormValues) => {
       setServerError(null);
       try {
-        await updateAbout({
+        const response = await updateAbout({
           profileSummary: values.profileSummary.trim() || null,
-          resumeHeadline: values.resumeHeadline.trim() || null,
+          resumeHeadline: profile.headline,
         }).unwrap();
+        dispatch(dashboardApi.util.updateQueryData('getProfile', undefined, (draft) => {
+          draft.bio = response.profileSummary;
+          draft.headline = response.resumeHeadline;
+        }));
         setOpen(false);
-        enqueueSnackbar('Headline and summary updated.', { variant: 'success' });
+        enqueueSnackbar('Profile summary updated.', { variant: 'success' });
       } catch (error: unknown) {
         const hasFieldErrors = applyApiValidationErrors<CandidateAboutFormValues>(
           error,
-          ['resumeHeadline', 'profileSummary'],
+          ['profileSummary'],
           setError,
         );
         setServerError(
@@ -96,7 +103,6 @@ export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, Candidate
       }
     };
 
-    const resumeHeadline = watch('resumeHeadline');
     const profileSummary = watch('profileSummary');
 
     return (
@@ -127,32 +133,19 @@ export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, Candidate
             </Stack>
             <Stack spacing={0.75}>
               <Typography fontWeight={700} variant="body2">
-                Resume headline
-              </Typography>
-              {profile.headline ? (
-                <Typography>{profile.headline}</Typography>
-              ) : (
-                <Button onClick={openEditor} sx={{ alignSelf: 'flex-start', px: 0 }}>Add resume headline</Button>
-              )}
-            </Stack>
-            <Stack spacing={0.75}>
-              <Typography fontWeight={700} variant="body2">
                 Profile summary
               </Typography>
               {profile.bio ? (
                 <Typography sx={{ maxWidth: 760, whiteSpace: 'pre-wrap' }}>{profile.bio}</Typography>
               ) : (
-                <Stack alignItems="flex-start" spacing={0.5}>
-                  <Typography color="text.secondary">Share your experience, strengths, and career direction.</Typography>
-                  <Button onClick={openEditor} sx={{ px: 0 }}>Add summary</Button>
-                </Stack>
+                <Typography color="text.secondary">Add a concise summary of your experience and career direction.</Typography>
               )}
             </Stack>
           </Stack>
         </Paper>
 
         <Dialog fullWidth maxWidth="sm" onClose={closeEditor} open={open}>
-          <DialogTitle>Edit headline and summary</DialogTitle>
+          <DialogTitle>Edit profile summary</DialogTitle>
           <DialogContent>
             <Stack
               component="form"
@@ -169,18 +162,6 @@ export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, Candidate
               ) : null}
               <TextField
                 autoFocus
-                disabled={updateState.isLoading}
-                error={Boolean(errors.resumeHeadline)}
-                fullWidth
-                helperText={errors.resumeHeadline?.message}
-                label="Resume headline"
-                slotProps={{ htmlInput: { maxLength: 180 } }}
-                {...register('resumeHeadline')}
-              />
-              <Typography aria-live="polite" color="text.secondary" textAlign="right" variant="caption">
-                {resumeHeadline.length}/180
-              </Typography>
-              <TextField
                 disabled={updateState.isLoading}
                 error={Boolean(errors.profileSummary)}
                 fullWidth

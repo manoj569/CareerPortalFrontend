@@ -1,12 +1,13 @@
-import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
 import {
   Alert,
   Avatar,
-  Box, Button, Checkbox, FormControlLabel, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, TextField,
+  Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, TextField,
   Chip,
   Grid,
   LinearProgress,
@@ -23,11 +24,15 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import { apiClient } from '@/api/apiClient';
 import {
+  dashboardApi,
   isDashboardApiError,
   useGetCandidateBasicDetailsQuery,
   useGetCandidateCareerPreferencesQuery,
-  useUpdateCandidateBasicDetailsMutation,
+  useGetCandidateSkillsQuery,
+  useAddCandidateSkillMutation,
+  useDeleteCandidateSkillMutation,
   useUpdateCandidateCareerPreferencesMutation,
+  useUpdateProfileMutation,
   useGetProfileCompletionQuery,
   useGetProfileQuery,
 } from '@/features/dashboard/api/dashboardApi';
@@ -39,13 +44,10 @@ import {
   CandidateResumeCard,
   type CandidateResumeCardHandle,
 } from '@/features/dashboard/components/CandidateResumeCard';
-import {
-  CandidateSkillsCard,
-  type CandidateSkillsCardHandle,
-} from '@/features/dashboard/components/CandidateSkillsCard';
+import { CandidateSkillsCard } from '@/features/dashboard/components/CandidateSkillsCard';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import {
-  type CandidateProfileCompletion,
+  type CandidateSkill,
   type UserProfile,
   type CandidateBasicDetails,
   type CandidateCareerPreferences,
@@ -55,16 +57,8 @@ import {
   type UpdateCandidateCareerPreferencesRequest,
 } from '@/features/dashboard/types/dashboardModels';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { useAppDispatch } from '@/hooks/reduxHooks';
 import { ProfileEducationRecords, ProfileEmploymentRecords } from '@/features/dashboard/components/ProfileRecords';
-
-const sectionLabels: Record<string, string> = {
-  basicDetails: 'Basic candidate details',
-  careerPreferences: 'Career preferences',
-  profileSummary: 'Profile summary',
-  resume: 'Resume',
-  resumeHeadline: 'Resume headline',
-  skills: 'Key skills',
-};
 
 interface CandidateProfileContentProps {
   hidePageHeader?: boolean;
@@ -100,8 +94,8 @@ export const CandidateProfileContent = ({
   const completion = useGetProfileCompletionQuery();
   const basicDetails = useGetCandidateBasicDetailsQuery();
   const preferences = useGetCandidateCareerPreferencesQuery();
+  const skills = useGetCandidateSkillsQuery();
   const aboutRef = useRef<CandidateAboutCardHandle>(null);
-  const skillsRef = useRef<CandidateSkillsCardHandle>(null);
   const resumeRef = useRef<CandidateResumeCardHandle>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorTab, setEditorTab] = useState<ProfileEditorTab>('basic');
@@ -157,9 +151,11 @@ export const CandidateProfileContent = ({
       <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid size={{ xs: 12, md: 8 }}>
           <IdentityCard
+            basicDetails={basicDetails.data}
             candidate={candidate}
             completionPercentage={completion.data?.completionPercentage}
-            onEdit={() => openEditor('about')}
+            onEdit={() => openEditor('basic')}
+            skills={skills.data?.map((skill) => skill.name) ?? candidate.skills}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
@@ -176,16 +172,6 @@ export const CandidateProfileContent = ({
         <Grid size={{ xs: 12, md: 4 }}>
           <Stack spacing={{ xs: 2, md: 3 }}>
             <CandidateAboutCard profile={candidate} ref={aboutRef} />
-            <ProfileStrengthCard
-              completion={completion.data}
-              isError={completion.isError}
-              isLoading={completion.isLoading}
-              onAbout={() => aboutRef.current?.openEditor()}
-              onBasicDetails={() => openEditor('basic')}
-              onResume={() => resumeRef.current?.chooseFile()}
-              onRetry={() => void completion.refetch()}
-              onSkills={() => openEditor('skills')}
-            />
             {publicPortfolioCard}
           </Stack>
         </Grid>
@@ -216,11 +202,20 @@ export const CandidateProfileContent = ({
               {profileEditorTabs.map((item) => <Tab key={item.value} label={item.label} value={item.value} />)}
             </Tabs>
           </Box>
-          {editorTab === 'basic' ? <BasicDetailsCard data={basicDetails.data} isError={basicDetails.isError} isLoading={basicDetails.isLoading} /> : null}
+          {editorTab === 'basic' ? (
+            <HeroProfileEditor
+              basicDetails={basicDetails.data}
+              candidate={candidate}
+              completionRefetch={completion.refetch}
+              onSaved={() => setEditorOpen(false)}
+              profileRefetch={profile.refetch}
+              skills={skills}
+            />
+          ) : null}
           {editorTab === 'career' ? <CareerPreferencesCard preferences={preferences} /> : null}
           {editorTab === 'education' ? <ProfileEducationRecords /> : null}
           {editorTab === 'employment' ? <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} /> : null}
-          {editorTab === 'skills' ? <CandidateSkillsCard ref={skillsRef} /> : null}
+          {editorTab === 'skills' ? <CandidateSkillsCard /> : null}
           {editorTab === 'about' ? <CandidateAboutCard profile={candidate} /> : null}
         </DialogContent>
         <DialogActions>
@@ -232,12 +227,14 @@ export const CandidateProfileContent = ({
 };
 
 interface IdentityCardProps {
+  basicDetails?: CandidateBasicDetails;
   candidate: UserProfile;
   completionPercentage?: number;
   onEdit: () => void;
+  skills: string[];
 }
 
-const IdentityCard = ({ candidate, completionPercentage, onEdit }: IdentityCardProps) => {
+const IdentityCard = ({ basicDetails, candidate, completionPercentage, onEdit, skills }: IdentityCardProps) => {
   const fullName = `${candidate.firstName} ${candidate.lastName}`.trim();
   const initials = getInitials(candidate.firstName, candidate.lastName);
 
@@ -252,8 +249,18 @@ const IdentityCard = ({ candidate, completionPercentage, onEdit }: IdentityCardP
         borderColor: 'divider',
         height: '100%',
         p: { xs: 2.5, sm: 3 },
+        position: 'relative',
       }}
     >
+      <Tooltip title="Edit profile">
+        <IconButton
+          aria-label="Edit profile"
+          onClick={onEdit}
+          sx={{ position: 'absolute', right: { xs: 12, sm: 16 }, top: { xs: 12, sm: 16 } }}
+        >
+          <EditOutlinedIcon />
+        </IconButton>
+      </Tooltip>
       <Stack
         alignItems={{ xs: 'flex-start', sm: 'center' }}
         direction={{ xs: 'column', sm: 'row' }}
@@ -262,22 +269,19 @@ const IdentityCard = ({ candidate, completionPercentage, onEdit }: IdentityCardP
         <ProfileAvatar fullName={fullName} initials={initials} />
         <Stack minWidth={0} spacing={1.25} sx={{ flex: 1 }}>
           <Typography component="h2" variant="h2">{fullName}</Typography>
-          {candidate.headline ? (
-            <Typography fontWeight={750}>{candidate.headline}</Typography>
-          ) : (
-            <Button data-profile-action="resumeHeadline" onClick={onEdit} sx={{ alignSelf: 'flex-start', px: 0 }}>
-              Add headline
-            </Button>
-          )}
+          <Typography color={candidate.headline ? 'text.primary' : 'text.secondary'} fontWeight={750}>
+            {candidate.headline || 'Add a resume headline'}
+          </Typography>
           <Stack direction="row" flexWrap="wrap" gap={1.5}>
             {candidate.location ? (
               <IdentityDetail icon={<LocationOnOutlinedIcon fontSize="small" />} text={candidate.location} />
             ) : null}
-            {candidate.email ? <IdentityDetail icon={<MailOutlineIcon fontSize="small" />} text={`Verified email · ${candidate.email}`} /> : null}
+            {candidate.email ? <IdentityDetail icon={<MailOutlineIcon fontSize="small" />} text={candidate.email} /> : null}
+            {basicDetails?.mobile ? <IdentityDetail icon={<PhoneOutlinedIcon fontSize="small" />} text={basicDetails.mobile} /> : null}
           </Stack>
-          {candidate.skills.length ? (
+          {skills.length ? (
             <Stack aria-label="Profile skills" direction="row" flexWrap="wrap" gap={0.75}>
-              {candidate.skills.slice(0, 6).map((skill) => <Chip key={skill} label={skill} size="small" variant="outlined" />)}
+              {skills.map((skill) => <Chip key={skill} label={skill} size="small" variant="outlined" />)}
             </Stack>
           ) : null}
           {completionPercentage === undefined ? null : (
@@ -325,75 +329,129 @@ const ProfileAvatar = ({ fullName, initials }: { fullName: string; initials: str
   return <><Box sx={{ position: 'relative' }}><Avatar aria-label={`${fullName || 'Candidate'} initials`} imgProps={{ onError: () => { revoke(photoUrlRef.current); photoUrlRef.current = null; setPhotoUrl(null); } }} src={photoUrl ?? undefined} sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: '1.55rem', fontWeight: 850, height: 76, width: 76 }}>{initials}</Avatar><Tooltip title="Change profile photo"><IconButton aria-label="Change profile photo" onClick={() => setOpen(true)} ref={triggerRef} size="small" sx={{ bgcolor: 'background.paper', bottom: -6, boxShadow: 1, minHeight: 44, minWidth: 44, position: 'absolute', right: -8 }}><PhotoCameraOutlinedIcon fontSize="small" /></IconButton></Tooltip></Box><Dialog aria-describedby="profile-photo-description" fullWidth maxWidth="xs" onClose={close} open={open}><DialogTitle>Profile photo</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><Typography color="text.secondary" id="profile-photo-description">Use a JPEG, PNG, or WebP image up to 1 MB.</Typography>{(preview || photoUrl) ? <Avatar aria-label="Profile photo preview" src={preview ?? photoUrl ?? undefined} sx={{ height: 112, width: 112 }} /> : null}{error ? <Alert severity="error">{error}</Alert> : null}<input accept="image/jpeg,image/png,image/webp" aria-label="Choose profile photo" hidden onChange={(event) => choose(event.target.files?.[0])} ref={inputRef} type="file" /><Button disabled={saving} onClick={() => inputRef.current?.click()} variant="outlined">{photoUrl ? 'Replace photo' : 'Upload photo'}</Button></Stack></DialogContent><DialogActions><Button disabled={saving} onClick={close}>Cancel</Button>{photoUrl ? <Button color="error" disabled={saving} onClick={() => setConfirmRemove(true)}>Remove photo</Button> : null}<Button disabled={!file || saving} onClick={() => void save()} variant="contained">{saving ? 'Saving…' : 'Save photo'}</Button></DialogActions></Dialog><Dialog aria-describedby="remove-photo-description" onClose={() => !saving && setConfirmRemove(false)} open={confirmRemove}><DialogTitle>Remove profile photo?</DialogTitle><DialogContent><Typography id="remove-photo-description">Your initials will be shown instead.</Typography>{error ? <Alert severity="error">{error}</Alert> : null}</DialogContent><DialogActions><Button disabled={saving} onClick={() => setConfirmRemove(false)}>Cancel</Button><Button color="error" disabled={saving} onClick={() => void remove()}>{saving ? 'Removing…' : 'Remove photo'}</Button></DialogActions></Dialog></>;
 };
 
-interface ProfileStrengthCardProps {
-  completion?: CandidateProfileCompletion;
-  isError: boolean;
-  isLoading: boolean;
-  onAbout: () => void;
-  onBasicDetails: () => void;
-  onResume: () => void;
-  onRetry: () => void;
-  onSkills: () => void;
-}
+const splitLocation = (location: string | null): { city: string; state: string } => {
+  const [city = '', ...stateParts] = (location ?? '').split(',');
+  return { city: city.trim(), state: stateParts.join(',').trim() };
+};
 
-const ProfileStrengthCard = ({ completion, isError, isLoading, onAbout, onBasicDetails, onResume, onRetry, onSkills }: ProfileStrengthCardProps) => (
-  <Paper component="section" id="candidate-profile-strength" sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}>
-    <Stack spacing={2}>
-      <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}>
-        <Stack alignItems="center" direction="row" spacing={1}>
-          <AccountCircleOutlinedIcon color="primary" />
-          <Typography component="h2" variant="h3">Profile strength</Typography>
+const HeroProfileEditor = ({
+  basicDetails,
+  candidate,
+  completionRefetch,
+  onSaved,
+  profileRefetch,
+  skills,
+}: {
+  basicDetails?: CandidateBasicDetails;
+  candidate: UserProfile;
+  completionRefetch: () => unknown;
+  onSaved: () => void;
+  profileRefetch: () => unknown;
+  skills: { data?: CandidateSkill[]; isError: boolean; isLoading: boolean; refetch: () => unknown };
+}) => {
+  const dispatch = useAppDispatch();
+  const location = splitLocation(candidate.location);
+  const [headline, setHeadline] = useState(candidate.headline ?? '');
+  const [city, setCity] = useState(location.city || basicDetails?.currentCity || '');
+  const [state, setState] = useState(location.state);
+  const [skillNames, setSkillNames] = useState<string[]>(skills.data?.map((skill) => skill.name) ?? candidate.skills);
+  const [skillInput, setSkillInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [updateProfile, updateState] = useUpdateProfileMutation();
+  const [addSkill, addState] = useAddCandidateSkillMutation();
+  const [deleteSkill, deleteState] = useDeleteCandidateSkillMutation();
+  const isSaving = updateState.isLoading || addState.isLoading || deleteState.isLoading;
+
+  const addSkillName = () => {
+    const name = skillInput.trim();
+    if (!name) { setError('Enter a skill before adding it.'); return; }
+    if (skillNames.some((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      setError('That skill is already included.');
+      return;
+    }
+    setSkillNames((current) => [...current, name]);
+    setSkillInput('');
+    setError(null);
+  };
+
+  const save = async () => {
+    if (isSaving) return;
+    const nextHeadline = headline.trim();
+    const nextCity = city.trim();
+    const nextState = state.trim();
+    if (!nextHeadline || !nextCity || !nextState || skillNames.length === 0) {
+      setError('Resume headline, city, state, and at least one skill are required.');
+      return;
+    }
+    if (skills.isLoading) {
+      setError('Wait for your skills to finish loading before saving.');
+      return;
+    }
+    if (skills.isError) {
+      setError('Skills could not be loaded. Retry before saving your profile.');
+      return;
+    }
+
+    setError(null);
+    const currentSkills = skills.data ?? [];
+    const normalizedNames = skillNames.map((name) => name.trim()).filter(Boolean);
+    const removed = currentSkills.filter((skill) => !normalizedNames.some((name) => name.toLocaleLowerCase() === skill.name.toLocaleLowerCase()));
+    const added = normalizedNames.filter((name) => !currentSkills.some((skill) => skill.name.toLocaleLowerCase() === name.toLocaleLowerCase()));
+
+    try {
+      const updatedProfile = await updateProfile({
+        bio: candidate.bio,
+        education: candidate.education,
+        experience: candidate.experience,
+        headline: nextHeadline,
+        linkedInUrl: candidate.linkedInUrl,
+        location: `${nextCity}, ${nextState}`,
+        portfolioUrl: candidate.portfolioUrl,
+        preferredJobTypes: candidate.preferredJobTypes,
+        skills: candidate.skills,
+      }).unwrap();
+      dispatch(dashboardApi.util.updateQueryData('getProfile', undefined, (draft) => {
+        Object.assign(draft, updatedProfile);
+      }));
+      await Promise.all([
+        ...removed.map((skill) => deleteSkill(skill.id).unwrap()),
+        ...added.map((name) => addSkill({ name, proficiency: null, yearsOfExperience: null }).unwrap()),
+      ]);
+      await Promise.all([Promise.resolve(profileRefetch()), Promise.resolve(skills.refetch()), Promise.resolve(completionRefetch())]);
+      onSaved();
+    } catch (saveError: unknown) {
+      await Promise.allSettled([Promise.resolve(profileRefetch()), Promise.resolve(skills.refetch()), Promise.resolve(completionRefetch())]);
+      setError(isDashboardApiError(saveError) ? saveError.message : 'Unable to save your profile. Please review the fields and try again.');
+    }
+  };
+
+  return (
+    <Stack component="section" spacing={2.25}>
+      <Typography component="h3" variant="h3">Basic details</Typography>
+      <TextField disabled label="Email" value={candidate.email} />
+      <TextField disabled helperText="Mobile number changes require account verification." label="Verified mobile number" value={basicDetails?.mobile ?? ''} />
+      <TextField autoFocus disabled={isSaving} label="Resume headline" onChange={(event) => setHeadline(event.target.value)} required value={headline} />
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, sm: 6 }}><TextField disabled={isSaving} fullWidth label="City" onChange={(event) => setCity(event.target.value)} required value={city} /></Grid>
+        <Grid size={{ xs: 12, sm: 6 }}><TextField disabled={isSaving} fullWidth label="State" onChange={(event) => setState(event.target.value)} required value={state} /></Grid>
+      </Grid>
+      <Stack spacing={1}>
+        <Stack alignItems="flex-start" direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <TextField disabled={isSaving} fullWidth label="Skills" onChange={(event) => setSkillInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addSkillName(); } }} value={skillInput} />
+          <Button disabled={isSaving} onClick={addSkillName} startIcon={<AddOutlinedIcon />} variant="outlined">Add skill</Button>
         </Stack>
-        {completion ? <Typography fontWeight={850}>{completion.completionPercentage}%</Typography> : null}
+        <Stack direction="row" flexWrap="wrap" gap={1}>
+          {skillNames.map((name) => <Chip key={name} label={name} onDelete={isSaving ? undefined : () => setSkillNames((current) => current.filter((item) => item !== name))} />)}
+        </Stack>
       </Stack>
-      {isLoading ? <Skeleton aria-label="Loading profile completion" height={90} variant="rounded" /> : null}
-      {isError || (!isLoading && !completion) ? (
-        <Stack alignItems="flex-start" spacing={1.25}>
-          <Alert severity="error">Profile completion guidance is temporarily unavailable.</Alert>
-          <Button onClick={onRetry} variant="outlined">Retry profile completion</Button>
-        </Stack>
-      ) : null}
-      {completion ? (
-        <>
-          <LinearProgress aria-label={`Profile completion: ${completion.completionPercentage}%`} value={completion.completionPercentage} variant="determinate" />
-          <Typography color="text.secondary" variant="body2">
-            {completion.completedSections.length} of {completion.sections.length} sections complete
-          </Typography>
-          {completion.missingSections.length ? (
-            <Stack alignItems="flex-start" spacing={0.5}>
-              <Typography fontWeight={750} variant="body2">Next steps</Typography>
-              {completion.missingSections.slice(0, 3).map((section) => (
-                <MissingSectionAction key={section} onAbout={onAbout} onBasicDetails={onBasicDetails} onResume={onResume} onSkills={onSkills} section={section} />
-              ))}
-            </Stack>
-          ) : (
-            <Alert severity="success">Your candidate profile is complete.</Alert>
-          )}
-        </>
-      ) : null}
+      {skills.isLoading ? <Skeleton aria-label="Loading profile skills" height={48} variant="rounded" /> : null}
+      {skills.isError ? <Alert action={<Button color="inherit" onClick={() => void skills.refetch()}>Retry</Button>} severity="error">Your skills could not be loaded.</Alert> : null}
+      {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
+      <Button disabled={isSaving || skills.isLoading} onClick={() => void save()} sx={{ alignSelf: 'flex-end' }} variant="contained">
+        {isSaving ? 'Saving…' : 'Save profile'}
+      </Button>
     </Stack>
-  </Paper>
-);
-
-const MissingSectionAction = ({
-  onAbout,
-  onBasicDetails,
-  onResume,
-  onSkills,
-  section,
-}: Omit<ProfileStrengthCardProps, 'completion' | 'isError' | 'isLoading' | 'onRetry'> & { section: string }) => {
-  if (section === 'resumeHeadline' || section === 'profileSummary') {
-    return <Button data-profile-action={section} onClick={onAbout} size="small">Edit {sectionLabels[section]}</Button>;
-  }
-  if (section === 'skills') return <Button data-profile-action={section} onClick={onSkills} size="small">Add skills</Button>;
-  if (section === 'resume') return <Button data-profile-action={section} onClick={onResume} size="small">Upload resume</Button>;
-  if (section === 'careerPreferences') {
-    return <Button data-profile-action={section} onClick={() => document.getElementById('candidate-career-preferences')?.scrollIntoView({ behavior: 'smooth' })} size="small">Add preferences</Button>;
-  }
-  if (section === 'basicDetails') {
-    return <Button data-profile-action={section} onClick={onBasicDetails} size="small">Review profile details</Button>;
-  }
-  return null;
+  );
 };
 
 type CareerPreferencesQuery = {
@@ -413,15 +471,14 @@ const emptyCareerPreferences: UpdateCandidateCareerPreferencesRequest = {
 };
 
 const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferencesQuery }) => {
+  const dispatch = useAppDispatch();
   const [save, saveState] = useUpdateCandidateCareerPreferencesMutation();
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<UpdateCandidateCareerPreferencesRequest>(emptyCareerPreferences);
   const [roleInput, setRoleInput] = useState('');
   const [cityInput, setCityInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [savedData, setSavedData] = useState<CandidateCareerPreferences | null>(null);
-  const displayed = savedData ?? preferences.data;
+  const displayed = preferences.data;
 
   const openEditor = () => {
     if (!displayed) return;
@@ -483,10 +540,11 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
     };
     try {
       const response = await save(payload).unwrap();
-      setSavedData(response);
-      setSuccess('Career preferences saved.');
+      dispatch(dashboardApi.util.updateQueryData('getCandidateCareerPreferences', undefined, (draft) => {
+        Object.assign(draft, response);
+      }));
+      await Promise.resolve(preferences.refetch());
       setOpen(false);
-      void preferences.refetch();
     } catch (saveError: unknown) {
       setError(isDashboardApiError(saveError) ? saveError.message : 'Unable to save career preferences. Please try again.');
     }
@@ -502,10 +560,10 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
           </Stack>
           <Tooltip title="Edit career preferences"><span><IconButton aria-label="Edit career preferences" disabled={!displayed || preferences.isLoading} onClick={openEditor}><EditOutlinedIcon /></IconButton></span></Tooltip>
         </Stack>
-        {success ? <Alert severity="success">{success}</Alert> : null}
         {preferences.isLoading ? <Skeleton aria-label="Loading career preferences" height={96} variant="rounded" /> : null}
         {preferences.isError ? <Alert action={<Button color="inherit" onClick={() => void preferences.refetch()}>Retry</Button>} severity="warning">Your career preferences are temporarily unavailable.</Alert> : null}
-        {displayed ? <CareerPreferenceSummary data={displayed} /> : null}
+        {displayed && hasCareerPreferences(displayed) ? <CareerPreferenceSummary data={displayed} /> : null}
+        {displayed && !hasCareerPreferences(displayed) ? <Typography color="text.secondary">Add your preferred roles, locations, and working preferences.</Typography> : null}
       </Stack>
       <Dialog aria-describedby="career-preferences-description" fullWidth maxWidth="md" onClose={saveState.isLoading ? undefined : () => setOpen(false)} open={open}>
         <DialogTitle>Edit career preferences</DialogTitle>
@@ -543,8 +601,8 @@ const PreferenceOptions = ({ label, onToggle, options, selected }: { label:strin
 
 const CareerPreferenceSummary = ({ data }: { data: CandidateCareerPreferences }) => (
   <Stack spacing={1.5}>
-    <PreferenceSummaryRow label="Roles" values={data.preferredJobRoles} />
-    <PreferenceSummaryRow label="Cities" values={data.preferredCities} />
+    <PreferenceSummaryRow label="Desired roles" values={data.preferredJobRoles} />
+    <PreferenceSummaryRow label="Preferred locations" values={data.preferredCities} />
     <PreferenceSummaryRow label="Job type" values={data.jobTypes.map((value) => jobTypeOptions.find((option) => option.value === value)?.label ?? value)} />
     <PreferenceSummaryRow label="Employment type" values={data.employmentTypes.map((value) => employmentPreferenceOptions.find((option) => option.value === value)?.label ?? value)} />
     <PreferenceSummaryRow label="Shift" values={data.preferredShifts.map((value) => shiftOptions.find((option) => option.value === value)?.label ?? value)} />
@@ -552,20 +610,19 @@ const CareerPreferenceSummary = ({ data }: { data: CandidateCareerPreferences })
   </Stack>
 );
 
+const hasCareerPreferences = (data: CandidateCareerPreferences): boolean =>
+  data.preferredJobRoles.length > 0 ||
+  data.preferredCities.length > 0 ||
+  data.expectedAnnualSalary !== null ||
+  data.jobTypes.length > 0 ||
+  data.employmentTypes.length > 0 ||
+  data.preferredShifts.length > 0;
+
 const PreferenceSummaryRow = ({ label, values }: { label:string; values:string[] }) => values.length ? <Stack alignItems="center" direction="row" flexWrap="wrap" gap={1}><Typography minWidth={110} variant="body2"><strong>{label}:</strong></Typography>{values.map((value) => <Chip key={`${label}-${value}`} label={value} size="small" />)}</Stack> : null;
 
 const jobTypeOptions = [{ label: 'Permanent', value: 'Permanent' }, { label: 'Contractual', value: 'Contractual' }] as const;
 const employmentPreferenceOptions = [{ label: 'Full-time', value: 'FullTime' }, { label: 'Part-time', value: 'PartTime' }] as const;
 const shiftOptions = [{ label: 'Day', value: 'Day' }, { label: 'Night', value: 'Night' }, { label: 'Flexible', value: 'Flexible' }] as const;
-
-const BasicDetailsCard = ({ data, isError, isLoading }: { data?: CandidateBasicDetails; isError: boolean; isLoading: boolean }) => {
-  const [open, setOpen] = useState(false); const [error, setError] = useState<string | null>(null); const [save, state] = useUpdateCandidateBasicDetailsMutation();
-  const [values, setValues] = useState({ workStatus: 'Fresher', isOutsideIndia: false, currentCountry: '', currentCity: '', currentArea: '', availabilityToJoin: '', currentAnnualSalary: '', currentFixedAnnualSalary: '', currentVariableAnnualSalary: '' });
-  const openEditor = () => { if (!data) return; setValues({ workStatus: data.workStatus ?? 'Fresher', isOutsideIndia: Boolean(data.isOutsideIndia), currentCountry: data.currentCountry ?? '', currentCity: data.currentCity ?? '', currentArea: data.currentArea ?? '', availabilityToJoin: data.availabilityToJoin ?? '', currentAnnualSalary: data.currentAnnualSalary?.toString() ?? '', currentFixedAnnualSalary: data.currentFixedAnnualSalary?.toString() ?? '', currentVariableAnnualSalary: data.currentVariableAnnualSalary?.toString() ?? '' }); setError(null); setOpen(true); };
-  const set = (key: keyof typeof values, value: string | boolean) => setValues((old) => ({ ...old, [key]: value }));
-  const submit = async () => { if (!values.currentCity.trim() || !values.currentCountry.trim()) { setError('Current city and country are required.'); return; } try { await save({ workStatus: values.workStatus as 'Fresher' | 'Experienced', isOutsideIndia: values.isOutsideIndia, currentCountry: values.currentCountry.trim(), currentCity: values.currentCity.trim(), currentArea: values.currentArea.trim() || null, availabilityToJoin: (values.availabilityToJoin || null) as never, currentAnnualSalary: values.workStatus === 'Experienced' && values.currentAnnualSalary ? Number(values.currentAnnualSalary) : null, currentFixedAnnualSalary: values.workStatus === 'Experienced' && values.currentFixedAnnualSalary ? Number(values.currentFixedAnnualSalary) : null, currentVariableAnnualSalary: values.workStatus === 'Experienced' && values.currentVariableAnnualSalary ? Number(values.currentVariableAnnualSalary) : null }).unwrap(); setOpen(false); } catch { setError('Unable to save basic details. Please review the fields and try again.'); } };
-  return <Paper component="section" id="candidate-basic-details" sx={{ border: 1, borderColor: 'divider', height: '100%', p: { xs: 2.5, sm: 3 } }}><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between"><Typography component="h2" variant="h3">Basic details</Typography><Tooltip title="Edit basic details"><IconButton aria-label="Edit basic details" onClick={openEditor}><EditOutlinedIcon /></IconButton></Tooltip></Stack>{isLoading ? <Skeleton height={100} variant="rounded" /> : null}{isError ? <Alert severity="warning">Your basic details are temporarily unavailable.</Alert> : null}{data ? <Stack spacing={0.75}>{[['Work status', data.workStatus], ['Current city', data.currentCity], ['Area/town', data.currentArea], ['Country', data.currentCountry], ['Availability to join', data.availabilityToJoin], ...(data.workStatus === 'Experienced' ? [['Current salary', data.currentAnnualSalary === null ? null : `${data.salaryUnit} ${data.currentAnnualSalary}`]] : []), ['Verified email', data.email], ['Verified mobile', data.mobile]].filter(([, value]) => Boolean(value)).map(([label, value]) => <Typography key={label} variant="body2"><strong>{label}:</strong> {value}</Typography>)}</Stack> : null}</Stack><Dialog fullScreen={false} fullWidth maxWidth="sm" onClose={() => !state.isLoading && setOpen(false)} open={open}><DialogTitle>Edit basic details</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField disabled label="Verified email" value={data?.email ?? ''} /><TextField disabled label="Verified mobile" value={data?.mobile ?? ''} /><TextField label="Work status" onChange={(e) => set('workStatus', e.target.value)} select SelectProps={{ native: true }} value={values.workStatus}><option value="Fresher">Fresher</option><option value="Experienced">Experienced</option></TextField><FormControlLabel control={<Checkbox checked={values.isOutsideIndia} onChange={(e) => set('isOutsideIndia', e.target.checked)} />} label="I currently live outside India" /><TextField label="Country" onChange={(e) => set('currentCountry', e.target.value)} required value={values.currentCountry} /><TextField label="Current city" onChange={(e) => set('currentCity', e.target.value)} required value={values.currentCity} /><TextField label="Current area / town" onChange={(e) => set('currentArea', e.target.value)} value={values.currentArea} /><TextField label="Availability to join" onChange={(e) => set('availabilityToJoin', e.target.value)} value={values.availabilityToJoin} />{values.workStatus === 'Experienced' ? <><TextField label="Current annual salary" onChange={(e) => set('currentAnnualSalary', e.target.value)} type="number" value={values.currentAnnualSalary} /><TextField label="Fixed annual salary" onChange={(e) => set('currentFixedAnnualSalary', e.target.value)} type="number" value={values.currentFixedAnnualSalary} /><TextField label="Variable annual salary" onChange={(e) => set('currentVariableAnnualSalary', e.target.value)} type="number" value={values.currentVariableAnnualSalary} /></> : null}{error ? <Alert severity="error">{error}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={() => setOpen(false)}>Cancel</Button><Button disabled={state.isLoading} onClick={() => void submit()} variant="contained">{state.isLoading ? 'Saving…' : 'Save'}</Button></DialogActions></Dialog></Paper>;
-};
 
 const getInitials = (firstName: string, lastName: string): string => {
   const initials = [firstName, lastName]

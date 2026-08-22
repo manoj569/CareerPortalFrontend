@@ -1,5 +1,8 @@
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
+import WorkOutlineOutlinedIcon from '@mui/icons-material/WorkOutlineOutlined';
 import { Alert, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, FormLabel, IconButton, MenuItem, Paper, Radio, RadioGroup, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 
@@ -67,6 +70,7 @@ export const ProfileEducationRecords = () => {
     try {
       if (editing) await update({ id: editing.id, data }).unwrap();
       else await add(data).unwrap();
+      await query.refetch();
       setEditing(undefined);
     } catch (error) {
       setSaveError(isDashboardApiError(error) ? error.message : 'Unable to save education. Please try again.');
@@ -78,6 +82,7 @@ export const ProfileEducationRecords = () => {
     setDeleteError(null);
     try {
       await remove(deleting.id).unwrap();
+      await query.refetch();
       setDeleting(null);
     } catch (error) {
       setDeleteError(isDashboardApiError(error) ? error.message : 'Unable to delete education. Please try again.');
@@ -93,17 +98,24 @@ export const ProfileEducationRecords = () => {
       loading={query.isLoading}
       onAdd={() => open(null)}
       onRetry={() => void query.refetch()}
+      titleIcon={<SchoolOutlinedIcon color="primary" />}
       title="Education"
     >
       {query.data?.map((item) => (
         <Paper key={item.id} sx={{ border: 1, borderColor: 'divider', p: { xs: 1.5, sm: 2 } }}>
-          <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} gap={1.5} justifyContent="space-between">
-            <Stack>
-              <Typography fontWeight={800}>{item.qualification}</Typography>
-              <Typography>{item.institution}</Typography>
-              <Typography color="text.secondary" variant="body2">
-                {[item.fieldOfStudy, item.courseType ? courseTypeLabels[item.courseType] : null, item.startYear && `${item.startYear} — ${item.isCurrentlyStudying ? 'Present' : item.endYear ?? ''}`, item.gradingSystem, item.grade].filter(Boolean).join(' · ')}
+          <Stack alignItems="flex-start" direction="row" gap={1.5}>
+            <SchoolOutlinedIcon color="primary" sx={{ mt: 0.25 }} />
+            <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+              <Typography fontWeight={800}>
+                {[item.qualification, item.fieldOfStudy].filter(Boolean).join(' · ')}
               </Typography>
+              <Stack alignItems="center" color="text.secondary" direction="row" spacing={0.75}>
+                <BusinessOutlinedIcon fontSize="small" />
+                <Typography variant="body2">{item.institution}</Typography>
+              </Stack>
+              {item.startYear ? <Typography color="text.secondary" variant="body2">{item.startYear} – {item.isCurrentlyStudying ? 'Present' : item.endYear ?? 'End year not specified'}</Typography> : null}
+              {item.courseType ? <Typography color="text.secondary" variant="body2">{courseTypeLabels[item.courseType]}</Typography> : null}
+              {item.gradingSystem || item.grade ? <Typography color="text.secondary" variant="body2">{[item.gradingSystem, item.grade].filter(Boolean).join(' · ')}</Typography> : null}
             </Stack>
             <Stack direction="row">
               <Tooltip title="Edit education">
@@ -197,6 +209,7 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
     try {
       if (editing) await update({ id: editing.id, data }).unwrap();
       else await add(data).unwrap();
+      await query.refetch();
       setEditing(undefined);
     } catch (error) {
       setSaveError(isDashboardApiError(error) ? error.message : 'Unable to save employment. Please try again.');
@@ -208,6 +221,7 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
     setDeleteError(null);
     try {
       await remove(deleting.id).unwrap();
+      await query.refetch();
       setDeleting(null);
     } catch (error) {
       setDeleteError(isDashboardApiError(error) ? error.message : 'Unable to delete employment. Please try again.');
@@ -223,18 +237,27 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
       loading={query.isLoading}
       onAdd={() => open(null)}
       onRetry={() => void query.refetch()}
+      titleIcon={<WorkOutlineOutlinedIcon color="primary" />}
       title="Employment"
     >
       {query.data?.map((item) => (
         <Paper key={item.id} sx={{ border: 1, borderColor: 'divider', p: { xs: 1.5, sm: 2 } }}>
-          <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} gap={1.5} justifyContent="space-between">
-            <Stack spacing={0.5}>
-              <Chip label={item.isCurrent ? 'Current company' : 'Previous company'} size="small" sx={{ alignSelf: 'flex-start' }} />
-              <Typography fontWeight={800}>{item.jobTitle}</Typography>
-              <Typography>{item.companyName}</Typography>
-              <Typography color="text.secondary" variant="body2">
-                {[item.employmentType ? employmentTypeLabels[item.employmentType] : null, `${item.startDate} — ${item.isCurrent ? 'Present' : item.endDate ?? ''}`].filter(Boolean).join(' · ')}
-              </Typography>
+          <Stack alignItems="flex-start" direction="row" gap={1.5}>
+            <WorkOutlineOutlinedIcon color="primary" sx={{ mt: 0.25 }} />
+            <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+              <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={0.5}>
+                <Typography fontWeight={800}>{item.jobTitle}</Typography>
+                <Typography color="text.secondary" variant="body2">{formatEmploymentDate(item.startDate)} – {item.isCurrent ? 'Present' : formatEmploymentDate(item.endDate)}</Typography>
+              </Stack>
+              <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={0.5}>
+                <Stack alignItems="center" color="text.secondary" direction="row" spacing={0.75}>
+                  <BusinessOutlinedIcon fontSize="small" />
+                  <Typography variant="body2">{item.companyName}</Typography>
+                </Stack>
+                <Typography color="text.secondary" variant="body2">{formatEmploymentDuration(item.startDate, item.isCurrent ? null : item.endDate)}</Typography>
+              </Stack>
+              {item.employmentType ? <Typography color="text.secondary" variant="body2">{employmentTypeLabels[item.employmentType]}</Typography> : null}
+              {item.isCurrent ? <Chip label="Current company" size="small" sx={{ alignSelf: 'flex-start' }} /> : null}
               {item.skillsUsed?.length ? <Stack direction="row" flexWrap="wrap" gap={0.75}>{item.skillsUsed.map((skill) => <Chip key={skill} label={skill} size="small" variant="outlined" />)}</Stack> : null}
               {item.description ? <Typography sx={{ whiteSpace: 'pre-wrap' }} variant="body2">{item.description}</Typography> : null}
             </Stack>
@@ -271,13 +294,35 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
   );
 };
 
-const RecordShell = ({ title, loading, error, empty, hasRecords, addLabel, onAdd, onRetry, children }: { title:string; loading:boolean; error:string|null; empty:string; hasRecords:boolean; addLabel:string; onAdd:()=>void; onRetry?:()=>void; children:ReactNode }) => <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, sm: 3 } }}><Stack spacing={2}><Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}><Typography component="h2" variant="h3">{title}</Typography><Button onClick={onAdd} size="small" startIcon={<AddOutlinedIcon />} variant="outlined">{addLabel}</Button></Stack>{loading ? <Typography role="status">Loading {title.toLowerCase()}…</Typography> : null}{error ? <Alert action={onRetry ? <Button color="inherit" onClick={onRetry}>Retry</Button> : undefined} severity="error">{error}</Alert> : null}{!loading && !error ? <>{!hasRecords ? <Alert severity="info">{empty}</Alert> : null}{children}</> : null}</Stack></Paper>;
+const RecordShell = ({ title, titleIcon, loading, error, empty, hasRecords, addLabel, onAdd, onRetry, children }: { title:string; titleIcon:ReactNode; loading:boolean; error:string|null; empty:string; hasRecords:boolean; addLabel:string; onAdd:()=>void; onRetry?:()=>void; children:ReactNode }) => <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, sm: 3 } }}><Stack spacing={2}><Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}><Stack alignItems="center" direction="row" spacing={1}>{titleIcon}<Typography component="h2" variant="h3">{title}</Typography></Stack><Button onClick={onAdd} size="small" startIcon={<AddOutlinedIcon />} variant="outlined">{addLabel}</Button></Stack>{loading ? <Typography role="status">Loading {title.toLowerCase()}…</Typography> : null}{error ? <Alert action={onRetry ? <Button color="inherit" onClick={onRetry}>Retry</Button> : undefined} severity="error">{error}</Alert> : null}{!loading && !error ? <>{!hasRecords ? <Alert severity="info">{empty}</Alert> : null}{children}</> : null}</Stack></Paper>;
 
 const courseTypeLabels = {
   FullTime: 'Full-time',
   PartTime: 'Part-time',
   CorrespondenceDistance: 'Distance learning',
 } as const;
+
+const parseProfileDate = (value: string | null): Date | null => {
+  if (!value) return null;
+  const parsed = new Date(`${value.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatEmploymentDate = (value: string | null): string => {
+  const parsed = parseProfileDate(value);
+  return parsed ? new Intl.DateTimeFormat('en-IN', { month: 'short', timeZone: 'UTC', year: 'numeric' }).format(parsed) : 'Date not specified';
+};
+
+const formatEmploymentDuration = (startValue: string, endValue: string | null, now = new Date()): string => {
+  const start = parseProfileDate(startValue);
+  const end = parseProfileDate(endValue) ?? now;
+  if (!start || end < start) return 'Duration unavailable';
+  const totalMonths = Math.max(0, (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth());
+  if (totalMonths === 0) return 'Less than 1 mo';
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  return [years ? `${years} ${years === 1 ? 'yr' : 'yrs'}` : null, months ? `${months} mos` : null].filter(Boolean).join(' ');
+};
 
 const EducationDialog = ({ open, onClose, onSave, values, setValues, error, isEditing, isSaving }: { open:boolean; onClose:()=>void; onSave:()=>void; values:typeof emptyEducation; setValues:Dispatch<SetStateAction<typeof emptyEducation>>; error:string|null; isEditing:boolean; isSaving:boolean }) => (
   <Dialog aria-describedby="education-dialog-description" fullWidth maxWidth="sm" onClose={isSaving ? undefined : onClose} open={open}>

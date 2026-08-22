@@ -46,6 +46,8 @@ export const dashboardApi = createApi({
   keepUnusedDataFor: 120,
   tagTypes: [
     'Profile',
+    'ProfileBasicDetails',
+    'CareerPreferences',
     'ProfileCompletion',
     'ProfileSkills',
     'ProfilePhoto',
@@ -90,22 +92,22 @@ export const dashboardApi = createApi({
     getCandidateBasicDetails: builder.query<CandidateBasicDetails, void>({
       query: () => ({ url: API_ENDPOINTS.CANDIDATE.PROFILE_BASIC_DETAILS }),
       transformResponse: (response: ApiResponse<CandidateBasicDetails>) => response.data,
-      providesTags: ['Profile'],
+      providesTags: ['ProfileBasicDetails'],
     }),
     updateCandidateBasicDetails: builder.mutation<CandidateBasicDetails, UpdateCandidateBasicDetailsRequest>({
       query: (data) => ({ data, method: 'PUT', url: API_ENDPOINTS.CANDIDATE.PROFILE_BASIC_DETAILS }),
       transformResponse: (response: ApiResponse<CandidateBasicDetails>) => response.data,
-      invalidatesTags: ['Profile', 'ProfileCompletion'],
+      invalidatesTags: ['Profile', 'ProfileBasicDetails', 'ProfileCompletion'],
     }),
     getCandidateCareerPreferences: builder.query<CandidateCareerPreferences, void>({
       query: () => ({ url: API_ENDPOINTS.CANDIDATE.PROFILE_CAREER_PREFERENCES }),
       transformResponse: (response: ApiResponse<CandidateCareerPreferences>) => response.data,
-      providesTags: ['Profile'],
+      providesTags: ['CareerPreferences'],
     }),
     updateCandidateCareerPreferences: builder.mutation<CandidateCareerPreferences, UpdateCandidateCareerPreferencesRequest>({
       query: (data) => ({ data, method: 'PUT', url: API_ENDPOINTS.CANDIDATE.PROFILE_CAREER_PREFERENCES }),
       transformResponse: (response: ApiResponse<CandidateCareerPreferences>) => response.data,
-      invalidatesTags: ['Profile', 'ProfileCompletion'],
+      invalidatesTags: ['CareerPreferences', 'ProfileCompletion'],
     }),
     uploadProfilePhoto: builder.mutation<ProfilePhotoMetadata, File>({
       query: (file) => { const data = new FormData(); data.append('file', file); return { data, method: 'PUT', url: API_ENDPOINTS.CANDIDATE.PROFILE_PHOTO }; },
@@ -130,7 +132,7 @@ export const dashboardApi = createApi({
         url: API_ENDPOINTS.CANDIDATE.PROFILE_SKILLS,
       }),
       transformResponse: (response: ApiResponse<CandidateSkill>) => response.data,
-      invalidatesTags: ['ProfileSkills', 'ProfileCompletion'],
+      invalidatesTags: ['Profile', 'ProfileSkills', 'ProfileCompletion'],
     }),
 
     updateCandidateSkill: builder.mutation<
@@ -143,7 +145,7 @@ export const dashboardApi = createApi({
         url: API_ENDPOINTS.CANDIDATE.PROFILE_SKILL(skillId),
       }),
       transformResponse: (response: ApiResponse<CandidateSkill>) => response.data,
-      invalidatesTags: ['ProfileSkills', 'ProfileCompletion'],
+      invalidatesTags: ['Profile', 'ProfileSkills', 'ProfileCompletion'],
     }),
 
     deleteCandidateSkill: builder.mutation<void, string>({
@@ -151,7 +153,7 @@ export const dashboardApi = createApi({
         method: 'DELETE',
         url: API_ENDPOINTS.CANDIDATE.PROFILE_SKILL(skillId),
       }),
-      invalidatesTags: ['ProfileSkills', 'ProfileCompletion'],
+      invalidatesTags: ['Profile', 'ProfileSkills', 'ProfileCompletion'],
     }),
 
     getProfileCompletion: builder.query<CandidateProfileCompletion, void>({

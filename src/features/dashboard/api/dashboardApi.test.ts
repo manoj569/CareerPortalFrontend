@@ -188,6 +188,44 @@ describe('Candidate API integration', () => {
     );
   });
 
+  it('refetches both the authoritative profile and skills collection after a skill mutation', async () => {
+    const store = createAppStore();
+    const savedSkill = {
+      createdAtUtc: '2026-08-23T00:00:00Z',
+      id: 'skill-id',
+      name: 'React',
+      proficiency: null,
+      updatedAtUtc: null,
+      yearsOfExperience: null,
+    };
+    mockRequest.mockImplementation((request: { method: string; url: string }) => {
+      if (request.url === '/candidate/profile/skills' && request.method === 'POST') {
+        return Promise.resolve({ data: { data: savedSkill } });
+      }
+      if (request.url === '/candidate/profile/skills') return Promise.resolve({ data: { data: [savedSkill] } });
+      if (request.url === '/candidate/profile') return Promise.resolve({ data: { data: profile } });
+      return Promise.reject(new Error(`Unexpected request: ${request.method} ${request.url}`));
+    });
+
+    const profileSubscription = store.dispatch(dashboardApi.endpoints.getProfile.initiate());
+    const skillsSubscription = store.dispatch(dashboardApi.endpoints.getCandidateSkills.initiate());
+    await Promise.all([profileSubscription.unwrap(), skillsSubscription.unwrap()]);
+
+    await store.dispatch(dashboardApi.endpoints.addCandidateSkill.initiate({
+      name: 'React',
+      proficiency: null,
+      yearsOfExperience: null,
+    })).unwrap();
+
+    await vi.waitFor(() => {
+      const requests = mockRequest.mock.calls.map(([request]) => request as { method: string; url: string });
+      expect(requests.filter((request) => request.method === 'GET' && request.url === '/candidate/profile')).toHaveLength(2);
+      expect(requests.filter((request) => request.method === 'GET' && request.url === '/candidate/profile/skills')).toHaveLength(2);
+    });
+    profileSubscription.unsubscribe();
+    skillsSubscription.unsubscribe();
+  });
+
   it('loads and saves the real Candidate onboarding contract', async () => {
     const store = createAppStore();
     const onboarding = {
