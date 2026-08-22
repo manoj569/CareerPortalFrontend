@@ -13,6 +13,8 @@ import {
   Paper,
   Skeleton,
   Stack,
+  Tab,
+  Tabs,
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -66,7 +68,20 @@ const sectionLabels: Record<string, string> = {
 
 interface CandidateProfileContentProps {
   hidePageHeader?: boolean;
+  openEditorRequest?: number;
+  publicPortfolioCard?: ReactNode;
 }
+
+type ProfileEditorTab = 'basic' | 'career' | 'education' | 'employment' | 'skills' | 'about';
+
+const profileEditorTabs: { label: string; value: ProfileEditorTab }[] = [
+  { label: 'Basic details', value: 'basic' },
+  { label: 'Career preferences', value: 'career' },
+  { label: 'Education', value: 'education' },
+  { label: 'Employment', value: 'employment' },
+  { label: 'Skills', value: 'skills' },
+  { label: 'About', value: 'about' },
+];
 
 export const ProfilePage = () => {
   useDocumentMetadata(
@@ -78,6 +93,8 @@ export const ProfilePage = () => {
 
 export const CandidateProfileContent = ({
   hidePageHeader = false,
+  openEditorRequest = 0,
+  publicPortfolioCard,
 }: CandidateProfileContentProps) => {
   const profile = useGetProfileQuery();
   const completion = useGetProfileCompletionQuery();
@@ -86,6 +103,17 @@ export const CandidateProfileContent = ({
   const aboutRef = useRef<CandidateAboutCardHandle>(null);
   const skillsRef = useRef<CandidateSkillsCardHandle>(null);
   const resumeRef = useRef<CandidateResumeCardHandle>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorTab, setEditorTab] = useState<ProfileEditorTab>('basic');
+
+  const openEditor = (nextTab: ProfileEditorTab = 'basic') => {
+    setEditorTab(nextTab);
+    setEditorOpen(true);
+  };
+
+  useEffect(() => {
+    if (openEditorRequest > 0) openEditor('basic');
+  }, [openEditorRequest]);
 
   if (profile.isLoading) {
     return (
@@ -115,6 +143,11 @@ export const CandidateProfileContent = ({
     <Stack spacing={hidePageHeader ? 0 : 3}>
       {hidePageHeader ? null : (
         <DashboardPageHeader
+          actions={(
+            <Button onClick={() => openEditor('basic')} startIcon={<EditOutlinedIcon />} variant="contained">
+              Edit profile
+            </Button>
+          )}
           description="Keep the details employers need and follow clear next steps to complete your profile."
           eyebrow="Candidate account"
           title="Candidate profile"
@@ -122,50 +155,78 @@ export const CandidateProfileContent = ({
       )}
 
       <Grid container spacing={{ xs: 2, md: 3 }}>
-        <Grid size={{ xs: 12, md: 8 }} sx={{ order: 1 }}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <IdentityCard
             candidate={candidate}
             completionPercentage={completion.data?.completionPercentage}
-            onEdit={() => aboutRef.current?.openEditor()}
+            onEdit={() => openEditor('about')}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }} sx={{ order: 2 }}>
-          <ProfileStrengthCard
-            completion={completion.data}
-            isError={completion.isError}
-            isLoading={completion.isLoading}
-            onAbout={() => aboutRef.current?.openEditor()}
-            onBasicDetails={() => document.getElementById('candidate-basic-details')?.scrollIntoView({ behavior: 'smooth' })}
-            onResume={() => resumeRef.current?.chooseFile()}
-            onRetry={() => void completion.refetch()}
-            onSkills={() => skillsRef.current?.focusSection()}
-          />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 4 }} sx={{ order: 3 }}>
-          <BasicDetailsCard data={basicDetails.data} isError={basicDetails.isError} isLoading={basicDetails.isLoading} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 8 }} sx={{ order: 4 }}>
-          <CandidateAboutCard profile={candidate} ref={aboutRef} />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 8 }} sx={{ order: 5 }}>
-          <CandidateSkillsCard ref={skillsRef} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }} sx={{ order: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <CandidateResumeCard ref={resumeRef} resume={candidate.resume} />
         </Grid>
 
-        <Grid size={{ xs: 12 }} sx={{ order: 7 }}>
-          <CareerPreferencesCard preferences={preferences} />
+        <Grid size={{ xs: 12, md: 8 }}>
+          <Stack spacing={{ xs: 2, md: 3 }}>
+            <CareerPreferencesCard preferences={preferences} />
+            <ProfileEducationRecords />
+            <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} />
+          </Stack>
         </Grid>
-        <Grid size={{ xs: 12 }} sx={{ order: 8 }}>
-          <ProfileEducationRecords />
-        </Grid>
-        <Grid size={{ xs: 12 }} sx={{ order: 9 }}>
-          <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} />
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Stack spacing={{ xs: 2, md: 3 }}>
+            <CandidateAboutCard profile={candidate} ref={aboutRef} />
+            <ProfileStrengthCard
+              completion={completion.data}
+              isError={completion.isError}
+              isLoading={completion.isLoading}
+              onAbout={() => aboutRef.current?.openEditor()}
+              onBasicDetails={() => openEditor('basic')}
+              onResume={() => resumeRef.current?.chooseFile()}
+              onRetry={() => void completion.refetch()}
+              onSkills={() => openEditor('skills')}
+            />
+            {publicPortfolioCard}
+          </Stack>
         </Grid>
       </Grid>
+
+      <Dialog
+        aria-describedby="profile-editor-description"
+        fullScreen={false}
+        fullWidth
+        maxWidth="md"
+        onClose={() => setEditorOpen(false)}
+        open={editorOpen}
+      >
+        <DialogTitle>Edit profile</DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary" id="profile-editor-description" sx={{ mb: 1 }} variant="body2">
+            Keep your private candidate details and portfolio-ready information up to date.
+          </Typography>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, maxWidth: '100%', overflow: 'hidden' }}>
+            <Tabs
+              allowScrollButtonsMobile
+              aria-label="Edit profile sections"
+              onChange={(_, value: ProfileEditorTab) => setEditorTab(value)}
+              scrollButtons="auto"
+              value={editorTab}
+              variant="scrollable"
+            >
+              {profileEditorTabs.map((item) => <Tab key={item.value} label={item.label} value={item.value} />)}
+            </Tabs>
+          </Box>
+          {editorTab === 'basic' ? <BasicDetailsCard data={basicDetails.data} isError={basicDetails.isError} isLoading={basicDetails.isLoading} /> : null}
+          {editorTab === 'career' ? <CareerPreferencesCard preferences={preferences} /> : null}
+          {editorTab === 'education' ? <ProfileEducationRecords /> : null}
+          {editorTab === 'employment' ? <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} /> : null}
+          {editorTab === 'skills' ? <CandidateSkillsCard ref={skillsRef} /> : null}
+          {editorTab === 'about' ? <CandidateAboutCard profile={candidate} /> : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditorOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 };
@@ -199,7 +260,7 @@ const IdentityCard = ({ candidate, completionPercentage, onEdit }: IdentityCardP
         spacing={{ xs: 2, sm: 2.5 }}
       >
         <ProfileAvatar fullName={fullName} initials={initials} />
-        <Stack minWidth={0} spacing={1} sx={{ flex: 1 }}>
+        <Stack minWidth={0} spacing={1.25} sx={{ flex: 1 }}>
           <Typography component="h2" variant="h2">{fullName}</Typography>
           {candidate.headline ? (
             <Typography fontWeight={750}>{candidate.headline}</Typography>
@@ -212,16 +273,22 @@ const IdentityCard = ({ candidate, completionPercentage, onEdit }: IdentityCardP
             {candidate.location ? (
               <IdentityDetail icon={<LocationOnOutlinedIcon fontSize="small" />} text={candidate.location} />
             ) : null}
-            <IdentityDetail icon={<MailOutlineIcon fontSize="small" />} text={candidate.email} />
+            {candidate.email ? <IdentityDetail icon={<MailOutlineIcon fontSize="small" />} text={`Verified email · ${candidate.email}`} /> : null}
           </Stack>
+          {candidate.skills.length ? (
+            <Stack aria-label="Profile skills" direction="row" flexWrap="wrap" gap={0.75}>
+              {candidate.skills.slice(0, 6).map((skill) => <Chip key={skill} label={skill} size="small" variant="outlined" />)}
+            </Stack>
+          ) : null}
           {completionPercentage === undefined ? null : (
-            <Typography color="text.secondary" variant="body2">
-              {completionPercentage}% profile completion
-            </Typography>
+            <Stack spacing={0.5} sx={{ maxWidth: 440 }}>
+              <Stack direction="row" justifyContent="space-between" spacing={1}>
+                <Typography color="text.secondary" variant="body2">Profile strength</Typography>
+                <Typography color="text.secondary" fontWeight={750} variant="body2">{completionPercentage}%</Typography>
+              </Stack>
+              <LinearProgress aria-label={`Profile completion: ${completionPercentage}%`} value={completionPercentage} variant="determinate" />
+            </Stack>
           )}
-        </Stack>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-          <Button data-profile-action="basicDetails" onClick={onEdit} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="contained">Edit profile</Button>
         </Stack>
       </Stack>
     </Paper>

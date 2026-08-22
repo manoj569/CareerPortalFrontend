@@ -21,9 +21,14 @@ import { renderWithProviders } from '@/test/renderWithProviders';
 import { PortfolioPage } from './PortfolioPage';
 
 vi.mock('./ProfilePage', () => ({
-  CandidateProfileContent: ({ publicPortfolioCard }: { publicPortfolioCard?: ReactNode }) => (
+  CandidateProfileContent: ({ openEditorRequest, publicPortfolioCard }: { openEditorRequest?: number; publicPortfolioCard?: ReactNode }) => (
     <>
       <button type="button">Save profile</button>
+      {openEditorRequest ? (
+        <div aria-label="Edit profile" role="dialog">
+          <button aria-selected="true" role="tab" type="button">Basic details</button>
+        </div>
+      ) : null}
       {publicPortfolioCard}
     </>
   ),
@@ -136,18 +141,26 @@ describe('Portfolio workspace', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Save profile' }));
     expect(publish.trigger).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: /publish|preview portfolio|unpublish/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Your profile stays private until you publish your portfolio.')).toBeVisible();
   });
 
-  it('removes Portfolio header and readiness blocks while retaining dedicated workspace tabs', () => {
+  it('renders the candidate workspace header and dedicated URL-backed tabs', () => {
     renderPage();
     expect(screen.queryByRole('heading', { name: 'Portfolio readiness' })).not.toBeInTheDocument();
-    expect(screen.queryByText('CANDIDATE WORKSPACE')).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Portfolio' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Preview portfolio' })).not.toBeInTheDocument();
+    expect(screen.getByText('CANDIDATE WORKSPACE')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Portfolio' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Preview portfolio' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Edit profile' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'View live portfolio' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unpublish' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Profile', 'Portfolio builder', 'Preview']);
+  });
+
+  it('opens the unified profile editor on Basic details', async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const editorDialog = screen.getByRole('dialog', { name: 'Edit profile' });
+    expect(within(editorDialog).getByRole('tab', { name: 'Basic details' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('keeps Draft when the backend rejects publication requirements and names them', async () => {
@@ -245,6 +258,12 @@ describe('Portfolio workspace', () => {
   it('never renders private salary or notice-period fields in public portfolio output', () => {
     vi.mocked(useGetPortfolioPreviewQuery).mockReturnValue(query({
       ...preview,
+      candidate: {
+        ...preview.candidate,
+        email: 'private@example.com',
+        mobile: '+91 99999 99999',
+        profilePhotoUrl: 'https://private.example/photo.jpg',
+      },
       sectionOrder: ['Experience'],
       sections: {
         experience: [{
@@ -267,5 +286,6 @@ describe('Portfolio workspace', () => {
     renderPage('/dashboard/portfolio?tab=preview');
     expect(screen.getByText('Harbor Labs')).toBeVisible();
     expect(screen.queryByText(/2400000|30 days/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/private@example\.com|99999 99999|private\.example/i)).not.toBeInTheDocument();
   });
 });

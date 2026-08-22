@@ -1,6 +1,7 @@
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
 import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
@@ -28,6 +29,7 @@ import {
   isDashboardApiError,
 } from '@/features/dashboard/api/dashboardApi';
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
+import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import {
   useCreatePortfolioMutation,
   useGetPortfolioPreviewQuery,
@@ -64,6 +66,7 @@ export const PortfolioPage = () => {
   const [publicationError, setPublicationError] = useState<string | null>(null);
   const [unpublishOpen, setUnpublishOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
+  const [profileEditorRequest, setProfileEditorRequest] = useState(0);
 
   const requestedTab = searchParams.get('tab');
   const tab: TabValue = validTabs.includes(requestedTab as TabValue)
@@ -80,6 +83,11 @@ export const PortfolioPage = () => {
     const next = new URLSearchParams(searchParams);
     next.set('tab', nextTab);
     setSearchParams(next, { replace: true });
+  };
+
+  const editProfile = () => {
+    setTab('profile');
+    setProfileEditorRequest((current) => current + 1);
   };
 
   useEffect(() => {
@@ -171,6 +179,22 @@ export const PortfolioPage = () => {
 
   return (
     <Stack spacing={{ xs: 2.5, md: 3 }}>
+      <DashboardPageHeader
+        actions={(
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+            <Button disabled={!isCreated} onClick={() => setTab('preview')} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="outlined">
+              Preview portfolio
+            </Button>
+            <Button onClick={editProfile} startIcon={<EditOutlinedIcon />} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="contained">
+              Edit profile
+            </Button>
+          </Stack>
+        )}
+        description="Build a complete profile that helps employers understand your experience."
+        eyebrow="CANDIDATE WORKSPACE"
+        title="Portfolio"
+      />
+
       <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: '100%', overflow: 'hidden' }}>
         <Tabs
           allowScrollButtonsMobile
@@ -193,7 +217,11 @@ export const PortfolioPage = () => {
       {publicationError ? <Alert aria-live="assertive" severity="error">{publicationError}</Alert> : null}
 
       {tab === 'profile' ? (
-        <CandidateProfileContent hidePageHeader />
+        <CandidateProfileContent
+          hidePageHeader
+          openEditorRequest={profileEditorRequest}
+          publicPortfolioCard={publicPortfolioCard}
+        />
       ) : null}
 
       {tab === 'builder' ? (
@@ -259,12 +287,12 @@ const PublicPortfolioCard = ({
         <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1} width="100%">
           <Stack alignItems="center" direction="row" spacing={1}>
             <WebOutlinedIcon />
-            <Typography component="h2" variant="h3">Public portfolio</Typography>
+            <Typography component="h2" variant="h3">Portfolio privacy</Typography>
           </Stack>
           <Chip color={published ? 'success' : 'warning'} label={published ? 'Published' : 'Draft'} size="small" />
         </Stack>
         <Typography sx={{ color: 'rgba(255,255,255,.78)' }} variant="body2">
-          {published ? 'Your selected portfolio content is live.' : 'Profile edits stay private until you explicitly publish a portfolio.'}
+          {published ? 'Your selected portfolio content is live.' : 'Your profile stays private until you publish your portfolio.'}
         </Typography>
         {publicUrl ? <Typography sx={{ color: 'inherit', overflowWrap: 'anywhere' }} variant="body2">{publicUrl}</Typography> : null}
         <Stack alignItems="stretch" spacing={1} width="100%">

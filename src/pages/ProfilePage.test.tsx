@@ -236,6 +236,10 @@ const employmentMocks = {
 };
 
 const renderPage = () => renderWithProviders(<MemoryRouter><ProfilePage /></MemoryRouter>);
+const openEditorSection = async (name: string) => {
+  await userEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Edit profile' })).getByRole('tab', { name }));
+};
 const renderEducation = () => renderWithProviders(
   <MemoryRouter initialEntries={['/dashboard/portfolio?tab=profile&section=education']}>
     <CandidateProfileContent hidePageHeader />
@@ -304,18 +308,37 @@ describe('Candidate profile workspace', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { name: 'Avery Patel' })).toBeVisible();
-    expect(screen.getAllByText('avery@example.com').length).toBeGreaterThan(0);
-    expect(screen.getByText('40% profile completion')).toBeVisible();
-    expect(screen.getByRole('progressbar', { name: 'Profile completion: 40%' })).toHaveAttribute(
+    expect(screen.getByText(/avery@example\.com/)).toBeVisible();
+    expect(screen.getAllByText('40%').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('progressbar', { name: 'Profile completion: 40%' })[0]).toHaveAttribute(
       'aria-valuenow',
       '40',
     );
     expect(screen.getByText('3 of 6 sections complete')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Key skills' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Basic details' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Career preferences' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Education' })).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Employment' })).toBeVisible();
     expect(screen.queryByRole('tablist', { name: 'Profile sections' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Basic details inside the unified editor and opens that tab first', async () => {
+    renderPage();
+    expect(screen.queryByRole('heading', { name: 'Basic details' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit profile' });
+    const tabs = within(dialog).getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      'Basic details',
+      'Career preferences',
+      'Education',
+      'Employment',
+      'Skills',
+      'About',
+    ]);
+    expect(within(dialog).getByRole('tab', { name: 'Basic details' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(dialog).getByRole('heading', { name: 'Basic details' })).toBeVisible();
   });
 
   it('prepopulates and submits the exact trimmed about request', async () => {
@@ -349,6 +372,7 @@ describe('Candidate profile workspace', () => {
     const mutation = mutationResult();
     mocks.add.mockReturnValue(mutation.tuple);
     renderPage();
+    await openEditorSection('Skills');
     expect(screen.getByText(/add skills to help employers/i)).toBeVisible();
 
     await userEvent.click(screen.getByRole('button', { name: 'Add your first skill' }));
@@ -374,6 +398,7 @@ describe('Candidate profile workspace', () => {
     mocks.updateSkill.mockReturnValue(update.tuple);
     mocks.delete.mockReturnValue(remove.tuple);
     renderPage();
+    await openEditorSection('Skills');
 
     const skillsSection = screen.getByRole('heading', { name: 'Key skills' }).closest('section')!;
     await userEvent.click(within(skillsSection).getByRole('button', { name: 'Edit React' }));
@@ -409,6 +434,7 @@ describe('Candidate profile workspace', () => {
     });
     mocks.add.mockReturnValue(mutation.tuple);
     renderPage();
+    await openEditorSection('Skills');
 
     await userEvent.click(screen.getByRole('button', { name: 'Add your first skill' }));
     await userEvent.type(screen.getByRole('textbox', { name: 'Skill name' }), 'React');
@@ -428,6 +454,7 @@ describe('Candidate profile workspace', () => {
     mocks.updateAbout.mockReturnValue(mutationResult().tuple);
     mocks.add.mockReturnValue(mutationResult({ isLoading: true }).tuple);
     renderPage();
+    await openEditorSection('Skills');
 
     const addSkill = screen.getByRole('button', { name: 'Add skill' });
     expect(addSkill).toBeDisabled();
@@ -1080,7 +1107,7 @@ describe('Candidate profile workspace', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Edit employment');
   });
 
-  it('renders loading and API-error retry states', () => {
+  it('renders loading and API-error retry states', async () => {
     mocks.getCompletion.mockReturnValue(queryResult({ isError: true }));
     mocks.getSkills.mockReturnValue(queryResult({ isError: true }));
     mocks.getResumeStatus.mockReturnValue(queryResult({ isError: true }));
@@ -1088,7 +1115,8 @@ describe('Candidate profile workspace', () => {
 
     expect(screen.getByText(/completion guidance is temporarily unavailable/i)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Retry profile completion' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Retry skills' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Retry resume status' })).toBeVisible();
+    await openEditorSection('Skills');
+    expect(screen.getByRole('button', { name: 'Retry skills' })).toBeVisible();
   });
 });

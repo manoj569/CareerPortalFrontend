@@ -1,3 +1,4 @@
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { Alert, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, FormLabel, IconButton, MenuItem, Paper, Radio, RadioGroup, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
@@ -270,7 +271,7 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
   );
 };
 
-const RecordShell = ({ title, loading, error, empty, hasRecords, addLabel, onAdd, onRetry, children }: { title:string; loading:boolean; error:string|null; empty:string; hasRecords:boolean; addLabel:string; onAdd:()=>void; onRetry?:()=>void; children:ReactNode }) => <Stack component="section" spacing={2}><Stack direction="row" justifyContent="space-between"><Typography component="h2" variant="h2">{title}</Typography><Button onClick={onAdd} variant="contained">{addLabel}</Button></Stack>{loading ? <Typography role="status">Loading {title.toLowerCase()}…</Typography> : null}{error ? <Alert action={onRetry ? <Button color="inherit" onClick={onRetry}>Retry</Button> : undefined} severity="error">{error}</Alert> : null}{!loading && !error ? <>{!hasRecords ? <Alert severity="info">{empty}</Alert> : null}{children}</> : null}</Stack>;
+const RecordShell = ({ title, loading, error, empty, hasRecords, addLabel, onAdd, onRetry, children }: { title:string; loading:boolean; error:string|null; empty:string; hasRecords:boolean; addLabel:string; onAdd:()=>void; onRetry?:()=>void; children:ReactNode }) => <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, sm: 3 } }}><Stack spacing={2}><Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1}><Typography component="h2" variant="h3">{title}</Typography><Button onClick={onAdd} size="small" startIcon={<AddOutlinedIcon />} variant="outlined">{addLabel}</Button></Stack>{loading ? <Typography role="status">Loading {title.toLowerCase()}…</Typography> : null}{error ? <Alert action={onRetry ? <Button color="inherit" onClick={onRetry}>Retry</Button> : undefined} severity="error">{error}</Alert> : null}{!loading && !error ? <>{!hasRecords ? <Alert severity="info">{empty}</Alert> : null}{children}</> : null}</Stack></Paper>;
 
 const courseTypeLabels = {
   FullTime: 'Full-time',

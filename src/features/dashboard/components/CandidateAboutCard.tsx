@@ -8,9 +8,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
@@ -117,9 +119,11 @@ export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, Candidate
                   About
                 </Typography>
               </Stack>
-              <Button onClick={openEditor} startIcon={<EditOutlinedIcon />} variant="outlined">
-                Edit about
-              </Button>
+              <Tooltip title="Edit about">
+                <IconButton aria-label="Edit about" onClick={openEditor}>
+                  <EditOutlinedIcon />
+                </IconButton>
+              </Tooltip>
             </Stack>
             <Stack spacing={0.75}>
               <Typography fontWeight={700} variant="body2">
@@ -140,7 +144,7 @@ export const CandidateAboutCard = forwardRef<CandidateAboutCardHandle, Candidate
               ) : (
                 <Stack alignItems="flex-start" spacing={0.5}>
                   <Typography color="text.secondary">Share your experience, strengths, and career direction.</Typography>
-                  <Button onClick={openEditor} sx={{ px: 0 }}>Add professional summary</Button>
+                  <Button onClick={openEditor} sx={{ px: 0 }}>Add summary</Button>
                 </Stack>
               )}
             </Stack>
