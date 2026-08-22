@@ -7,6 +7,7 @@ import {
   DesiredOpportunity,
   JobApplicationStatus,
   WorkPreference,
+  type UpdateCandidateCareerPreferencesRequest,
   type UserProfile,
 } from '../types/dashboardModels';
 import { dashboardApi, downloadCandidateResume } from './dashboardApi';
@@ -123,6 +124,47 @@ describe('Candidate API integration', () => {
       2,
       expect.objectContaining({ method: 'GET', url: '/candidate/profile/completion' }),
     );
+  });
+
+  it('sends corrected basic-details mobile and canonical Career Preference enum values', async () => {
+    const store = createAppStore();
+    const basicRequest = {
+      availabilityToJoin: null,
+      currentAnnualSalary: null,
+      currentArea: null,
+      currentCity: 'Pune',
+      currentCountry: 'India',
+      currentFixedAnnualSalary: null,
+      currentVariableAnnualSalary: null,
+      isOutsideIndia: false,
+      mobileNumber: '9876543210',
+      workStatus: 'Experienced' as const,
+    };
+    const preferencesRequest: UpdateCandidateCareerPreferencesRequest = {
+      employmentTypes: ['FullTime'],
+      expectedAnnualSalary: 1800000,
+      jobTypes: ['Contractual'],
+      preferredCities: ['Pune'],
+      preferredJobRoles: ['Frontend Engineer'],
+      preferredShifts: ['Flexible'],
+    };
+    mockRequest
+      .mockResolvedValueOnce({ data: { data: { ...basicRequest, email: 'candidate@example.com', mobileVerified: false, salaryUnit: 'INR per annum' } } })
+      .mockResolvedValueOnce({ data: { data: { ...preferencesRequest, salaryUnit: 'INR per annum' } } });
+
+    await store.dispatch(dashboardApi.endpoints.updateCandidateBasicDetails.initiate(basicRequest)).unwrap();
+    await store.dispatch(dashboardApi.endpoints.updateCandidateCareerPreferences.initiate(preferencesRequest)).unwrap();
+
+    expect(mockRequest).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      data: basicRequest,
+      method: 'PUT',
+      url: '/candidate/profile/basic-details',
+    }));
+    expect(mockRequest).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      data: preferencesRequest,
+      method: 'PUT',
+      url: '/candidate/profile/career-preferences',
+    }));
   });
 
   it('uses exact structured skill CRUD contracts and accepts an empty 204 delete response', async () => {

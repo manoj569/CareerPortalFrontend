@@ -7,15 +7,13 @@ import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
 import {
   Alert,
   Avatar,
-  Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, TextField,
+  Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, TextField,
   Chip,
   Grid,
   LinearProgress,
   Paper,
   Skeleton,
   Stack,
-  Tab,
-  Tabs,
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -31,6 +29,7 @@ import {
   useGetCandidateSkillsQuery,
   useAddCandidateSkillMutation,
   useDeleteCandidateSkillMutation,
+  useUpdateCandidateBasicDetailsMutation,
   useUpdateCandidateCareerPreferencesMutation,
   useUpdateProfileMutation,
   useGetProfileCompletionQuery,
@@ -44,7 +43,6 @@ import {
   CandidateResumeCard,
   type CandidateResumeCardHandle,
 } from '@/features/dashboard/components/CandidateResumeCard';
-import { CandidateSkillsCard } from '@/features/dashboard/components/CandidateSkillsCard';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import {
   type CandidateSkill,
@@ -54,6 +52,7 @@ import {
   type CandidateEmploymentPreference,
   type CandidateJobType,
   type CandidateShiftPreference,
+  type UpdateCandidateBasicDetailsRequest,
   type UpdateCandidateCareerPreferencesRequest,
 } from '@/features/dashboard/types/dashboardModels';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
@@ -65,17 +64,6 @@ interface CandidateProfileContentProps {
   openEditorRequest?: number;
   publicPortfolioCard?: ReactNode;
 }
-
-type ProfileEditorTab = 'basic' | 'career' | 'education' | 'employment' | 'skills' | 'about';
-
-const profileEditorTabs: { label: string; value: ProfileEditorTab }[] = [
-  { label: 'Basic details', value: 'basic' },
-  { label: 'Career preferences', value: 'career' },
-  { label: 'Education', value: 'education' },
-  { label: 'Employment', value: 'employment' },
-  { label: 'Skills', value: 'skills' },
-  { label: 'About', value: 'about' },
-];
 
 export const ProfilePage = () => {
   useDocumentMetadata(
@@ -98,15 +86,11 @@ export const CandidateProfileContent = ({
   const aboutRef = useRef<CandidateAboutCardHandle>(null);
   const resumeRef = useRef<CandidateResumeCardHandle>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editorTab, setEditorTab] = useState<ProfileEditorTab>('basic');
 
-  const openEditor = (nextTab: ProfileEditorTab = 'basic') => {
-    setEditorTab(nextTab);
-    setEditorOpen(true);
-  };
+  const openEditor = () => setEditorOpen(true);
 
   useEffect(() => {
-    if (openEditorRequest > 0) openEditor('basic');
+    if (openEditorRequest > 0) openEditor();
   }, [openEditorRequest]);
 
   if (profile.isLoading) {
@@ -138,7 +122,7 @@ export const CandidateProfileContent = ({
       {hidePageHeader ? null : (
         <DashboardPageHeader
           actions={(
-            <Button onClick={() => openEditor('basic')} startIcon={<EditOutlinedIcon />} variant="contained">
+            <Button onClick={openEditor} startIcon={<EditOutlinedIcon />} variant="contained">
               Edit profile
             </Button>
           )}
@@ -154,7 +138,7 @@ export const CandidateProfileContent = ({
             basicDetails={basicDetails.data}
             candidate={candidate}
             completionPercentage={completion.data?.completionPercentage}
-            onEdit={() => openEditor('basic')}
+            onEdit={openEditor}
             skills={skills.data?.map((skill) => skill.name) ?? candidate.skills}
           />
         </Grid>
@@ -185,42 +169,22 @@ export const CandidateProfileContent = ({
         onClose={() => setEditorOpen(false)}
         open={editorOpen}
       >
-        <DialogTitle>Edit profile</DialogTitle>
+        <DialogTitle>Edit basic details</DialogTitle>
         <DialogContent>
           <Typography color="text.secondary" id="profile-editor-description" sx={{ mb: 1 }} variant="body2">
-            Keep your private candidate details and portfolio-ready information up to date.
+            Update the essential details shown in your private candidate profile.
           </Typography>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, maxWidth: '100%', overflow: 'hidden' }}>
-            <Tabs
-              allowScrollButtonsMobile
-              aria-label="Edit profile sections"
-              onChange={(_, value: ProfileEditorTab) => setEditorTab(value)}
-              scrollButtons="auto"
-              value={editorTab}
-              variant="scrollable"
-            >
-              {profileEditorTabs.map((item) => <Tab key={item.value} label={item.label} value={item.value} />)}
-            </Tabs>
-          </Box>
-          {editorTab === 'basic' ? (
-            <HeroProfileEditor
-              basicDetails={basicDetails.data}
-              candidate={candidate}
-              completionRefetch={completion.refetch}
-              onSaved={() => setEditorOpen(false)}
-              profileRefetch={profile.refetch}
-              skills={skills}
-            />
-          ) : null}
-          {editorTab === 'career' ? <CareerPreferencesCard preferences={preferences} /> : null}
-          {editorTab === 'education' ? <ProfileEducationRecords /> : null}
-          {editorTab === 'employment' ? <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} /> : null}
-          {editorTab === 'skills' ? <CandidateSkillsCard /> : null}
-          {editorTab === 'about' ? <CandidateAboutCard profile={candidate} /> : null}
+          <HeroProfileEditor
+            basicDetails={basicDetails.data}
+            basicDetailsRefetch={basicDetails.refetch}
+            candidate={candidate}
+            completionRefetch={completion.refetch}
+            onCancel={() => setEditorOpen(false)}
+            onSaved={() => setEditorOpen(false)}
+            profileRefetch={profile.refetch}
+            skills={skills}
+          />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditorOpen(false)}>Close</Button>
-        </DialogActions>
       </Dialog>
     </Stack>
   );
@@ -277,7 +241,7 @@ const IdentityCard = ({ basicDetails, candidate, completionPercentage, onEdit, s
               <IdentityDetail icon={<LocationOnOutlinedIcon fontSize="small" />} text={candidate.location} />
             ) : null}
             {candidate.email ? <IdentityDetail icon={<MailOutlineIcon fontSize="small" />} text={candidate.email} /> : null}
-            {basicDetails?.mobile ? <IdentityDetail icon={<PhoneOutlinedIcon fontSize="small" />} text={basicDetails.mobile} /> : null}
+            {basicDetails?.mobileNumber ? <IdentityDetail icon={<PhoneOutlinedIcon fontSize="small" />} text={basicDetails.mobileNumber} /> : null}
           </Stack>
           {skills.length ? (
             <Stack aria-label="Profile skills" direction="row" flexWrap="wrap" gap={0.75}>
@@ -336,15 +300,19 @@ const splitLocation = (location: string | null): { city: string; state: string }
 
 const HeroProfileEditor = ({
   basicDetails,
+  basicDetailsRefetch,
   candidate,
   completionRefetch,
+  onCancel,
   onSaved,
   profileRefetch,
   skills,
 }: {
   basicDetails?: CandidateBasicDetails;
+  basicDetailsRefetch: () => unknown;
   candidate: UserProfile;
   completionRefetch: () => unknown;
+  onCancel: () => void;
   onSaved: () => void;
   profileRefetch: () => unknown;
   skills: { data?: CandidateSkill[]; isError: boolean; isLoading: boolean; refetch: () => unknown };
@@ -354,24 +322,28 @@ const HeroProfileEditor = ({
   const [headline, setHeadline] = useState(candidate.headline ?? '');
   const [city, setCity] = useState(location.city || basicDetails?.currentCity || '');
   const [state, setState] = useState(location.state);
+  const existingMobile = basicDetails?.mobileNumber ?? candidate.mobileNumber ?? candidate.phoneNumber ?? null;
+  const [mobileNumber, setMobileNumber] = useState(existingMobile ?? '');
   const [skillNames, setSkillNames] = useState<string[]>(skills.data?.map((skill) => skill.name) ?? candidate.skills);
   const [skillInput, setSkillInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<'headline' | 'mobileNumber' | 'city' | 'state' | 'skills', string | undefined>>({ city: undefined, headline: undefined, mobileNumber: undefined, skills: undefined, state: undefined });
   const [updateProfile, updateState] = useUpdateProfileMutation();
+  const [updateBasicDetails, basicUpdateState] = useUpdateCandidateBasicDetailsMutation();
   const [addSkill, addState] = useAddCandidateSkillMutation();
   const [deleteSkill, deleteState] = useDeleteCandidateSkillMutation();
-  const isSaving = updateState.isLoading || addState.isLoading || deleteState.isLoading;
+  const isSaving = updateState.isLoading || basicUpdateState.isLoading || addState.isLoading || deleteState.isLoading;
 
   const addSkillName = () => {
     const name = skillInput.trim();
-    if (!name) { setError('Enter a skill before adding it.'); return; }
+    if (!name) { setFieldErrors((current) => ({ ...current, skills: 'Enter a skill before adding it.' })); return; }
     if (skillNames.some((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase())) {
-      setError('That skill is already included.');
+      setFieldErrors((current) => ({ ...current, skills: 'That skill is already included.' }));
       return;
     }
     setSkillNames((current) => [...current, name]);
     setSkillInput('');
-    setError(null);
+    setFieldErrors((current) => ({ ...current, skills: undefined }));
   };
 
   const save = async () => {
@@ -379,8 +351,16 @@ const HeroProfileEditor = ({
     const nextHeadline = headline.trim();
     const nextCity = city.trim();
     const nextState = state.trim();
-    if (!nextHeadline || !nextCity || !nextState || skillNames.length === 0) {
-      setError('Resume headline, city, state, and at least one skill are required.');
+    const nextSkills = skillNames.map((name) => name.trim()).filter(Boolean);
+    const nextErrors = {
+      city: nextCity ? undefined : 'City is required.',
+      headline: nextHeadline ? undefined : 'Resume headline is required.',
+      mobileNumber: !existingMobile && mobileNumber.trim() && !/^\d{10}$/.test(mobileNumber.trim()) ? 'Enter a valid 10-digit Indian mobile number.' : undefined,
+      skills: nextSkills.length ? undefined : 'Add at least one skill.',
+      state: nextState ? undefined : 'State is required.',
+    };
+    setFieldErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
       return;
     }
     if (skills.isLoading) {
@@ -394,7 +374,7 @@ const HeroProfileEditor = ({
 
     setError(null);
     const currentSkills = skills.data ?? [];
-    const normalizedNames = skillNames.map((name) => name.trim()).filter(Boolean);
+    const normalizedNames = nextSkills;
     const removed = currentSkills.filter((skill) => !normalizedNames.some((name) => name.toLocaleLowerCase() === skill.name.toLocaleLowerCase()));
     const added = normalizedNames.filter((name) => !currentSkills.some((skill) => skill.name.toLocaleLowerCase() === name.toLocaleLowerCase()));
 
@@ -413,27 +393,62 @@ const HeroProfileEditor = ({
       dispatch(dashboardApi.util.updateQueryData('getProfile', undefined, (draft) => {
         Object.assign(draft, updatedProfile);
       }));
+      if (!existingMobile && mobileNumber.trim()) {
+        if (!basicDetails?.workStatus || basicDetails.isOutsideIndia === null || !basicDetails.currentCountry) {
+          throw new Error('Complete the existing basic profile details before adding a mobile number.');
+        }
+        const basicPayload: UpdateCandidateBasicDetailsRequest = {
+          availabilityToJoin: basicDetails.availabilityToJoin,
+          currentAnnualSalary: basicDetails.currentAnnualSalary,
+          currentArea: basicDetails.currentArea,
+          currentCity: basicDetails.currentCity ?? nextCity,
+          currentCountry: basicDetails.currentCountry,
+          currentFixedAnnualSalary: basicDetails.currentFixedAnnualSalary,
+          currentVariableAnnualSalary: basicDetails.currentVariableAnnualSalary,
+          isOutsideIndia: basicDetails.isOutsideIndia,
+          mobileNumber: mobileNumber.trim(),
+          workStatus: basicDetails.workStatus,
+        };
+        await updateBasicDetails(basicPayload).unwrap();
+      }
       await Promise.all([
         ...removed.map((skill) => deleteSkill(skill.id).unwrap()),
         ...added.map((name) => addSkill({ name, proficiency: null, yearsOfExperience: null }).unwrap()),
       ]);
-      await Promise.all([Promise.resolve(profileRefetch()), Promise.resolve(skills.refetch()), Promise.resolve(completionRefetch())]);
+      await Promise.all([Promise.resolve(profileRefetch()), Promise.resolve(basicDetailsRefetch()), Promise.resolve(skills.refetch()), Promise.resolve(completionRefetch())]);
       onSaved();
     } catch (saveError: unknown) {
-      await Promise.allSettled([Promise.resolve(profileRefetch()), Promise.resolve(skills.refetch()), Promise.resolve(completionRefetch())]);
-      setError(isDashboardApiError(saveError) ? saveError.message : 'Unable to save your profile. Please review the fields and try again.');
+      await Promise.allSettled([Promise.resolve(profileRefetch()), Promise.resolve(basicDetailsRefetch()), Promise.resolve(skills.refetch()), Promise.resolve(completionRefetch())]);
+      if (isDashboardApiError(saveError) && saveError.status === 400 && saveError.errors) {
+        const get = (keys: string[]) => Object.entries(saveError.errors ?? {}).find(([key]) => keys.some((candidateKey) => key.toLocaleLowerCase().startsWith(candidateKey.toLocaleLowerCase())))?.[1]?.[0];
+        setFieldErrors((current) => ({
+          ...current,
+          city: get(['currentCity', 'location']) ?? current.city,
+          headline: get(['headline']) ?? current.headline,
+          mobileNumber: get(['mobileNumber']) ?? current.mobileNumber,
+          skills: get(['skills', 'name']) ?? current.skills,
+          state: get(['state']) ?? current.state,
+        }));
+      }
+      setError(isDashboardApiError(saveError) ? saveError.message : saveError instanceof Error ? saveError.message : 'Unable to save your profile. Please review the fields and try again.');
     }
   };
 
   return (
     <Stack component="section" spacing={2.25}>
-      <Typography component="h3" variant="h3">Basic details</Typography>
-      <TextField disabled label="Email" value={candidate.email} />
-      <TextField disabled helperText="Mobile number changes require account verification." label="Verified mobile number" value={basicDetails?.mobile ?? ''} />
-      <TextField autoFocus disabled={isSaving} label="Resume headline" onChange={(event) => setHeadline(event.target.value)} required value={headline} />
+      <TextField autoFocus disabled={isSaving} error={Boolean(fieldErrors.headline)} helperText={fieldErrors.headline} label="Resume headline" onChange={(event) => { setHeadline(event.target.value); setFieldErrors((current) => ({ ...current, headline: undefined })); }} required value={headline} />
+      <TextField
+        disabled={isSaving || Boolean(existingMobile)}
+        error={Boolean(fieldErrors.mobileNumber)}
+        helperText={fieldErrors.mobileNumber ?? (existingMobile ? (basicDetails?.mobileVerified ? 'Verified mobile number' : 'Mobile number is not verified') : 'Add a 10-digit Indian mobile number. It will remain unverified until verification is completed.')}
+        inputProps={{ inputMode: 'numeric', maxLength: 10 }}
+        label="Mobile number"
+        onChange={(event) => { setMobileNumber(event.target.value.replace(/\D/g, '').slice(0, 10)); setFieldErrors((current) => ({ ...current, mobileNumber: undefined })); }}
+        value={mobileNumber}
+      />
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 6 }}><TextField disabled={isSaving} fullWidth label="City" onChange={(event) => setCity(event.target.value)} required value={city} /></Grid>
-        <Grid size={{ xs: 12, sm: 6 }}><TextField disabled={isSaving} fullWidth label="State" onChange={(event) => setState(event.target.value)} required value={state} /></Grid>
+        <Grid size={{ xs: 12, sm: 6 }}><TextField disabled={isSaving} error={Boolean(fieldErrors.city)} fullWidth helperText={fieldErrors.city} label="City" onChange={(event) => { setCity(event.target.value); setFieldErrors((current) => ({ ...current, city: undefined })); }} required value={city} /></Grid>
+        <Grid size={{ xs: 12, sm: 6 }}><TextField disabled={isSaving} error={Boolean(fieldErrors.state)} fullWidth helperText={fieldErrors.state} label="State" onChange={(event) => { setState(event.target.value); setFieldErrors((current) => ({ ...current, state: undefined })); }} required value={state} /></Grid>
       </Grid>
       <Stack spacing={1}>
         <Stack alignItems="flex-start" direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -441,15 +456,17 @@ const HeroProfileEditor = ({
           <Button disabled={isSaving} onClick={addSkillName} startIcon={<AddOutlinedIcon />} variant="outlined">Add skill</Button>
         </Stack>
         <Stack direction="row" flexWrap="wrap" gap={1}>
-          {skillNames.map((name) => <Chip key={name} label={name} onDelete={isSaving ? undefined : () => setSkillNames((current) => current.filter((item) => item !== name))} />)}
+          {skillNames.map((name) => <Chip key={name} label={name} onDelete={isSaving ? undefined : () => { setSkillNames((current) => current.filter((item) => item !== name)); setFieldErrors((current) => ({ ...current, skills: undefined })); }} />)}
         </Stack>
+        {fieldErrors.skills ? <FormHelperText error>{fieldErrors.skills}</FormHelperText> : null}
       </Stack>
       {skills.isLoading ? <Skeleton aria-label="Loading profile skills" height={48} variant="rounded" /> : null}
       {skills.isError ? <Alert action={<Button color="inherit" onClick={() => void skills.refetch()}>Retry</Button>} severity="error">Your skills could not be loaded.</Alert> : null}
       {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
-      <Button disabled={isSaving || skills.isLoading} onClick={() => void save()} sx={{ alignSelf: 'flex-end' }} variant="contained">
-        {isSaving ? 'Saving…' : 'Save profile'}
-      </Button>
+      <DialogActions sx={{ px: 0 }}>
+        <Button disabled={isSaving} onClick={onCancel}>Cancel</Button>
+        <Button disabled={isSaving || skills.isLoading} onClick={() => void save()} variant="contained">{isSaving ? 'Saving…' : 'Save basic details'}</Button>
+      </DialogActions>
     </Stack>
   );
 };
@@ -478,7 +495,13 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
   const [roleInput, setRoleInput] = useState('');
   const [cityInput, setCityInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const displayed = preferences.data;
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [savedResponse, setSavedResponse] = useState<CandidateCareerPreferences | null>(null);
+  const displayed = savedResponse ?? preferences.data;
+
+  useEffect(() => {
+    setSavedResponse(null);
+  }, [preferences.data]);
 
   const openEditor = () => {
     if (!displayed) return;
@@ -493,6 +516,7 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
     setRoleInput('');
     setCityInput('');
     setError(null);
+    setFieldErrors({});
     setOpen(true);
   };
 
@@ -505,6 +529,7 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
     setValues((current) => ({ ...current, [key]: [...current[key], value] }));
     if (key === 'preferredJobRoles') setRoleInput(''); else setCityInput('');
     setError(null);
+    setFieldErrors({});
   };
 
   const removeTextValue = (key: 'preferredJobRoles' | 'preferredCities', value: string) => {
@@ -543,9 +568,16 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
       dispatch(dashboardApi.util.updateQueryData('getCandidateCareerPreferences', undefined, (draft) => {
         Object.assign(draft, response);
       }));
+      setSavedResponse(response);
       await Promise.resolve(preferences.refetch());
       setOpen(false);
     } catch (saveError: unknown) {
+      if (isDashboardApiError(saveError) && saveError.status === 400 && saveError.errors) {
+        setFieldErrors(Object.fromEntries(Object.entries(saveError.errors).flatMap(([field, messages]) => {
+          const message = messages.find((value) => value.trim());
+          return message ? [[field.charAt(0).toLocaleLowerCase() + field.slice(1).replace(/\[\d+\].*$/, ''), message]] : [];
+        })));
+      }
       setError(isDashboardApiError(saveError) ? saveError.message : 'Unable to save career preferences. Please try again.');
     }
   };
@@ -570,12 +602,12 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
         <DialogContent>
           <Typography color="text.secondary" id="career-preferences-description" sx={{ mb: 2 }} variant="body2">Choose the roles and working conditions that fit your next opportunity.</Typography>
           <Stack spacing={3}>
-            <PreferenceTextInput disabled={values.preferredJobRoles.length >= 3 || saveState.isLoading} helperText={`${values.preferredJobRoles.length}/3 selected`} input={roleInput} inputLabel="Preferred job roles" items={values.preferredJobRoles} limit={3} onAdd={() => addTextValue('preferredJobRoles', roleInput, 3)} onInput={setRoleInput} onRemove={(value) => removeTextValue('preferredJobRoles', value)} />
-            <PreferenceTextInput disabled={values.preferredCities.length >= 5 || saveState.isLoading} helperText={`${values.preferredCities.length}/5 selected`} input={cityInput} inputLabel="Preferred cities" items={values.preferredCities} limit={5} onAdd={() => addTextValue('preferredCities', cityInput, 5)} onInput={setCityInput} onRemove={(value) => removeTextValue('preferredCities', value)} />
-            <TextField disabled={saveState.isLoading} helperText="INR per year" inputProps={{ min: 0 }} label="Expected annual salary" onChange={(event) => setValues((current) => ({ ...current, expectedAnnualSalary: event.target.value ? Number(event.target.value) : null }))} type="number" value={values.expectedAnnualSalary ?? ''} />
-            <PreferenceOptions label="Job type" onToggle={(value) => toggle('jobTypes', value as CandidateJobType)} options={jobTypeOptions} selected={values.jobTypes} />
-            <PreferenceOptions label="Employment type" onToggle={(value) => toggle('employmentTypes', value as CandidateEmploymentPreference)} options={employmentPreferenceOptions} selected={values.employmentTypes} />
-            <PreferenceOptions label="Preferred shift" onToggle={(value) => toggle('preferredShifts', value as CandidateShiftPreference)} options={shiftOptions} selected={values.preferredShifts} />
+            <PreferenceTextInput disabled={values.preferredJobRoles.length >= 3 || saveState.isLoading} error={fieldErrors.preferredJobRoles} helperText={`${values.preferredJobRoles.length}/3 selected`} input={roleInput} inputLabel="Preferred job roles" items={values.preferredJobRoles} limit={3} onAdd={() => addTextValue('preferredJobRoles', roleInput, 3)} onInput={setRoleInput} onRemove={(value) => removeTextValue('preferredJobRoles', value)} />
+            <PreferenceTextInput disabled={values.preferredCities.length >= 5 || saveState.isLoading} error={fieldErrors.preferredCities} helperText={`${values.preferredCities.length}/5 selected`} input={cityInput} inputLabel="Preferred cities" items={values.preferredCities} limit={5} onAdd={() => addTextValue('preferredCities', cityInput, 5)} onInput={setCityInput} onRemove={(value) => removeTextValue('preferredCities', value)} />
+            <TextField disabled={saveState.isLoading} error={Boolean(fieldErrors.expectedAnnualSalary)} helperText={fieldErrors.expectedAnnualSalary ?? 'INR per year'} inputProps={{ min: 0 }} label="Expected annual salary" onChange={(event) => setValues((current) => ({ ...current, expectedAnnualSalary: event.target.value ? Number(event.target.value) : null }))} type="number" value={values.expectedAnnualSalary ?? ''} />
+            <PreferenceOptions error={fieldErrors.jobTypes} label="Job type" onToggle={(value) => toggle('jobTypes', value as CandidateJobType)} options={jobTypeOptions} selected={values.jobTypes} />
+            <PreferenceOptions error={fieldErrors.employmentTypes} label="Employment type" onToggle={(value) => toggle('employmentTypes', value as CandidateEmploymentPreference)} options={employmentPreferenceOptions} selected={values.employmentTypes} />
+            <PreferenceOptions error={fieldErrors.preferredShifts} label="Preferred shift" onToggle={(value) => toggle('preferredShifts', value as CandidateShiftPreference)} options={shiftOptions} selected={values.preferredShifts} />
             {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
           </Stack>
         </DialogContent>
@@ -585,18 +617,18 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
   );
 };
 
-const PreferenceTextInput = ({ disabled, helperText, input, inputLabel, items, onAdd, onInput, onRemove }: { disabled:boolean; helperText:string; input:string; inputLabel:string; items:string[]; limit:number; onAdd:()=>void; onInput:(value:string)=>void; onRemove:(value:string)=>void }) => (
+const PreferenceTextInput = ({ disabled, error, helperText, input, inputLabel, items, onAdd, onInput, onRemove }: { disabled:boolean; error?:string; helperText:string; input:string; inputLabel:string; items:string[]; limit:number; onAdd:()=>void; onInput:(value:string)=>void; onRemove:(value:string)=>void }) => (
   <Stack spacing={1}>
     <Stack alignItems="flex-start" direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-      <TextField disabled={disabled} fullWidth helperText={helperText} label={inputLabel} onChange={(event) => onInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onAdd(); } }} value={input} />
+      <TextField disabled={disabled} error={Boolean(error)} fullWidth helperText={error ?? helperText} label={inputLabel} onChange={(event) => onInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onAdd(); } }} value={input} />
       <Button disabled={disabled} onClick={onAdd} sx={{ minWidth: 88 }}>+ Add</Button>
     </Stack>
     <Stack direction="row" flexWrap="wrap" gap={1}>{items.map((item) => <Chip deleteIcon={<span aria-label={`Remove ${item}`}>×</span>} key={item} label={item} onDelete={() => onRemove(item)} />)}</Stack>
   </Stack>
 );
 
-const PreferenceOptions = ({ label, onToggle, options, selected }: { label:string; onToggle:(value:string)=>void; options:readonly {label:string;value:string}[]; selected:readonly string[] }) => (
-  <Stack spacing={1}><Typography fontWeight={750}>{label}</Typography><Stack direction="row" flexWrap="wrap" gap={1}>{options.map((option) => { const active = selected.includes(option.value); return <Chip aria-label={`${active ? 'Remove' : 'Add'} ${option.label}`} color={active ? 'primary' : 'default'} key={option.value} label={`${active ? '×' : '+'} ${option.label}`} onClick={() => onToggle(option.value)} variant={active ? 'filled' : 'outlined'} />; })}</Stack></Stack>
+const PreferenceOptions = ({ error, label, onToggle, options, selected }: { error?:string; label:string; onToggle:(value:string)=>void; options:readonly {label:string;value:string}[]; selected:readonly string[] }) => (
+  <Stack spacing={1}><Typography fontWeight={750}>{label}</Typography><Stack direction="row" flexWrap="wrap" gap={1}>{options.map((option) => { const active = selected.includes(option.value); return <Chip aria-label={`${active ? 'Remove' : 'Add'} ${option.label}`} color={active ? 'primary' : 'default'} key={option.value} label={`${active ? '×' : '+'} ${option.label}`} onClick={() => onToggle(option.value)} variant={active ? 'filled' : 'outlined'} />; })}</Stack>{error ? <FormHelperText error>{error}</FormHelperText> : null}</Stack>
 );
 
 const CareerPreferenceSummary = ({ data }: { data: CandidateCareerPreferences }) => (

@@ -8,6 +8,7 @@ import { useState, type Dispatch, type ReactNode, type SetStateAction } from 're
 
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
 import { isDashboardApiError } from '@/features/dashboard/api/dashboardApi';
+import { CandidateAvailability } from '@/features/dashboard/types/dashboardModels';
 import { EmploymentType } from '@/features/jobs/types/jobModels';
 import { useAddPortfolioEducationMutation, useAddPortfolioExperienceMutation, useDeletePortfolioEducationMutation, useDeletePortfolioExperienceMutation, useGetPortfolioEducationQuery, useGetPortfolioExperiencesQuery, useUpdatePortfolioEducationMutation, useUpdatePortfolioExperienceMutation } from '@/features/portfolio/api/portfolioApi';
 import type { PortfolioEducation, PortfolioExperience } from '@/features/portfolio/types/portfolioModels';
@@ -24,11 +25,13 @@ export const ProfileEducationRecords = () => {
   const [values, setValues] = useState(emptyEducation);
   const [deleting, setDeleting] = useState<PortfolioEducation | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const isSaving = addState.isLoading || updateState.isLoading;
 
   const open = (item: PortfolioEducation | null) => {
     setSaveError(null);
+    setFieldErrors({});
     setEditing(item);
     setValues(item ? {
       qualification: item.qualification,
@@ -46,8 +49,12 @@ export const ProfileEducationRecords = () => {
 
   const save = async () => {
     setSaveError(null);
+    setFieldErrors({});
     if (!values.qualification.trim() || !values.institution.trim()) {
-      setSaveError('Education level and university / institute are required.');
+      setFieldErrors({
+        ...(!values.institution.trim() ? { institution: 'University / institute is required.' } : {}),
+        ...(!values.qualification.trim() ? { qualification: 'Education level is required.' } : {}),
+      });
       return;
     }
     if (values.startYear && values.endYear && Number(values.endYear) < Number(values.startYear)) {
@@ -73,6 +80,7 @@ export const ProfileEducationRecords = () => {
       await query.refetch();
       setEditing(undefined);
     } catch (error) {
+      setFieldErrors(getApiFieldErrors(error));
       setSaveError(isDashboardApiError(error) ? error.message : 'Unable to save education. Please try again.');
     }
   };
@@ -130,6 +138,7 @@ export const ProfileEducationRecords = () => {
       ))}
       <EducationDialog
         error={saveError}
+        fieldErrors={fieldErrors}
         isEditing={Boolean(editing)}
         isSaving={isSaving}
         onClose={() => { if (!isSaving) setEditing(undefined); }}
@@ -161,11 +170,13 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
   const [values, setValues] = useState(emptyExperience);
   const [deleting, setDeleting] = useState<PortfolioExperience | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const isSaving = addState.isLoading || updateState.isLoading;
 
   const open = (item: PortfolioExperience | null) => {
     setSaveError(null);
+    setFieldErrors({});
     setEditing(item);
     setValues(item ? {
       jobTitle: item.jobTitle,
@@ -178,14 +189,21 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
       description: item.description ?? '',
       annualSalary: item.annualSalary?.toString() ?? '',
       skillsUsed: item.skillsUsed?.join(', ') ?? '',
-      noticePeriod: item.noticePeriod ?? '',
+      noticePeriod: item.noticePeriod?.toString() ?? '',
     } : emptyExperience);
   };
 
   const save = async () => {
     setSaveError(null);
+    setFieldErrors({});
     if (!values.companyName.trim() || !values.jobTitle.trim() || !values.employmentType || !values.startDate || (!values.isCurrent && !values.endDate)) {
-      setSaveError('Company name, job title, employment type, joining date, and leaving date for previous employment are required.');
+      setFieldErrors({
+        ...(!values.companyName.trim() ? { companyName: 'Company name is required.' } : {}),
+        ...(!values.employmentType ? { employmentType: 'Employment type is required.' } : {}),
+        ...(!values.isCurrent && !values.endDate ? { endDate: 'Leaving date is required for previous employment.' } : {}),
+        ...(!values.jobTitle.trim() ? { jobTitle: 'Job title is required.' } : {}),
+        ...(!values.startDate ? { startDate: 'Joining date is required.' } : {}),
+      });
       return;
     }
     if (!values.isCurrent && values.startDate > values.endDate) {
@@ -203,8 +221,8 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
       description: values.description.trim() || null,
       displayOrder: editing?.displayOrder ?? query.data?.length ?? 0,
       annualSalary: values.annualSalary ? Number(values.annualSalary) : null,
-      skillsUsed: values.skillsUsed.split(',').map((skill) => skill.trim()).filter(Boolean),
-      noticePeriod: values.noticePeriod.trim() || null,
+      skillsUsed: values.skillsUsed.split(',').map((skill) => skill.trim()).filter((skill, index, all) => Boolean(skill) && all.findIndex((candidate) => candidate.toLocaleLowerCase() === skill.toLocaleLowerCase()) === index),
+      noticePeriod: values.isCurrent && values.noticePeriod ? Number(values.noticePeriod) : null,
     };
     try {
       if (editing) await update({ id: editing.id, data }).unwrap();
@@ -212,6 +230,7 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
       await query.refetch();
       setEditing(undefined);
     } catch (error) {
+      setFieldErrors(getApiFieldErrors(error));
       setSaveError(isDashboardApiError(error) ? error.message : 'Unable to save employment. Please try again.');
     }
   };
@@ -272,6 +291,7 @@ export const ProfileEmploymentRecords = ({ fresher }: { fresher: boolean }) => {
       ))}
       <EmploymentDialog
         error={saveError}
+        fieldErrors={fieldErrors}
         isEditing={Boolean(editing)}
         isSaving={isSaving}
         onClose={() => { if (!isSaving) setEditing(undefined); }}
@@ -299,7 +319,7 @@ const RecordShell = ({ title, titleIcon, loading, error, empty, hasRecords, addL
 const courseTypeLabels = {
   FullTime: 'Full-time',
   PartTime: 'Part-time',
-  CorrespondenceDistance: 'Distance learning',
+  CorrespondenceOrDistance: 'Distance learning',
 } as const;
 
 const parseProfileDate = (value: string | null): Date | null => {
@@ -324,7 +344,7 @@ const formatEmploymentDuration = (startValue: string, endValue: string | null, n
   return [years ? `${years} ${years === 1 ? 'yr' : 'yrs'}` : null, months ? `${months} mos` : null].filter(Boolean).join(' ');
 };
 
-const EducationDialog = ({ open, onClose, onSave, values, setValues, error, isEditing, isSaving }: { open:boolean; onClose:()=>void; onSave:()=>void; values:typeof emptyEducation; setValues:Dispatch<SetStateAction<typeof emptyEducation>>; error:string|null; isEditing:boolean; isSaving:boolean }) => (
+const EducationDialog = ({ open, onClose, onSave, values, setValues, error, fieldErrors, isEditing, isSaving }: { open:boolean; onClose:()=>void; onSave:()=>void; values:typeof emptyEducation; setValues:Dispatch<SetStateAction<typeof emptyEducation>>; error:string|null; fieldErrors:Record<string,string>; isEditing:boolean; isSaving:boolean }) => (
   <Dialog aria-describedby="education-dialog-description" fullWidth maxWidth="sm" onClose={isSaving ? undefined : onClose} open={open}>
     <DialogTitle>{isEditing ? 'Edit education' : 'Add education'}</DialogTitle>
     <DialogContent>
@@ -332,20 +352,20 @@ const EducationDialog = ({ open, onClose, onSave, values, setValues, error, isEd
         Add the academic details that are relevant to your candidate profile.
       </Typography>
       <Stack spacing={2}>
-        <TextField disabled={isSaving} label="Education level" onChange={(event) => setValues((current) => ({ ...current, qualification: event.target.value }))} required value={values.qualification} />
-        <TextField disabled={isSaving} label="University / institute" onChange={(event) => setValues((current) => ({ ...current, institution: event.target.value }))} required value={values.institution} />
-        <TextField disabled={isSaving} label="Course / specialization" onChange={(event) => setValues((current) => ({ ...current, fieldOfStudy: event.target.value }))} value={values.fieldOfStudy} />
-        <TextField disabled={isSaving} label="Course type" onChange={(event) => setValues((current) => ({ ...current, courseType: event.target.value }))} select value={values.courseType}>
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.qualification)} helperText={fieldErrors.qualification} label="Education level" onChange={(event) => setValues((current) => ({ ...current, qualification: event.target.value }))} required value={values.qualification} />
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.institution)} helperText={fieldErrors.institution} label="University / institute" onChange={(event) => setValues((current) => ({ ...current, institution: event.target.value }))} required value={values.institution} />
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.fieldOfStudy)} helperText={fieldErrors.fieldOfStudy} label="Course / specialization" onChange={(event) => setValues((current) => ({ ...current, fieldOfStudy: event.target.value }))} value={values.fieldOfStudy} />
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.courseType)} helperText={fieldErrors.courseType} label="Course type" onChange={(event) => setValues((current) => ({ ...current, courseType: event.target.value }))} select value={values.courseType}>
           <MenuItem value="">Not specified</MenuItem>
           {Object.entries(courseTypeLabels).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
         </TextField>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <TextField disabled={isSaving} inputProps={{ min: 1900, max: 2100 }} label="Start year" onChange={(event) => setValues((current) => ({ ...current, startYear: event.target.value }))} type="number" value={values.startYear} />
-          <TextField disabled={isSaving || values.isCurrentlyStudying} inputProps={{ min: 1900, max: 2100 }} label="End year" onChange={(event) => setValues((current) => ({ ...current, endYear: event.target.value }))} type="number" value={values.endYear} />
+          <TextField disabled={isSaving} error={Boolean(fieldErrors.startYear)} helperText={fieldErrors.startYear} inputProps={{ min: 1900, max: 2100 }} label="Start year" onChange={(event) => setValues((current) => ({ ...current, startYear: event.target.value }))} type="number" value={values.startYear} />
+          <TextField disabled={isSaving || values.isCurrentlyStudying} error={Boolean(fieldErrors.endYear)} helperText={fieldErrors.endYear} inputProps={{ min: 1900, max: 2100 }} label="End year" onChange={(event) => setValues((current) => ({ ...current, endYear: event.target.value }))} type="number" value={values.endYear} />
         </Stack>
         <FormControlLabel control={<Checkbox checked={values.isCurrentlyStudying} disabled={isSaving} onChange={(event) => setValues((current) => ({ ...current, isCurrentlyStudying: event.target.checked, endYear: event.target.checked ? '' : current.endYear }))} />} label="Currently studying" />
-        <TextField disabled={isSaving} label="Grading system" onChange={(event) => setValues((current) => ({ ...current, gradingSystem: event.target.value }))} value={values.gradingSystem} />
-        <TextField disabled={isSaving} label="Grade / score" onChange={(event) => setValues((current) => ({ ...current, grade: event.target.value }))} value={values.grade} />
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.gradingSystem)} helperText={fieldErrors.gradingSystem} label="Grading system" onChange={(event) => setValues((current) => ({ ...current, gradingSystem: event.target.value }))} value={values.gradingSystem} />
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.grade)} helperText={fieldErrors.grade} label="Grade / score" onChange={(event) => setValues((current) => ({ ...current, grade: event.target.value }))} value={values.grade} />
         {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
       </Stack>
     </DialogContent>
@@ -360,7 +380,7 @@ const employmentTypeLabels: Partial<Record<EmploymentType, string>> = {
   [EmploymentType.Internship]: 'Internship',
 };
 
-const EmploymentDialog = ({ open, onClose, onSave, values, setValues, error, isEditing, isSaving }: { open:boolean; onClose:()=>void; onSave:()=>void; values:typeof emptyExperience; setValues:Dispatch<SetStateAction<typeof emptyExperience>>; error:string|null; isEditing:boolean; isSaving:boolean }) => (
+const EmploymentDialog = ({ open, onClose, onSave, values, setValues, error, fieldErrors, isEditing, isSaving }: { open:boolean; onClose:()=>void; onSave:()=>void; values:typeof emptyExperience; setValues:Dispatch<SetStateAction<typeof emptyExperience>>; error:string|null; fieldErrors:Record<string,string>; isEditing:boolean; isSaving:boolean }) => (
   <Dialog aria-describedby="employment-dialog-description" fullWidth maxWidth="sm" onClose={isSaving ? undefined : onClose} open={open}>
     <DialogTitle>{isEditing ? 'Edit employment' : 'Add employment'}</DialogTitle>
     <DialogContent>
@@ -368,26 +388,29 @@ const EmploymentDialog = ({ open, onClose, onSave, values, setValues, error, isE
       <Stack spacing={2}>
         <FormControl disabled={isSaving}>
           <FormLabel id="current-company-label">Is this your current company?</FormLabel>
-          <RadioGroup aria-labelledby="current-company-label" onChange={(event) => setValues((current) => ({ ...current, isCurrent: event.target.value === 'yes', endDate: event.target.value === 'yes' ? '' : current.endDate }))} row value={values.isCurrent ? 'yes' : 'no'}>
+          <RadioGroup aria-labelledby="current-company-label" onChange={(event) => setValues((current) => ({ ...current, isCurrent: event.target.value === 'yes', endDate: event.target.value === 'yes' ? '' : current.endDate, noticePeriod: event.target.value === 'yes' ? current.noticePeriod : '' }))} row value={values.isCurrent ? 'yes' : 'no'}>
             <FormControlLabel control={<Radio />} label="Yes" value="yes" />
             <FormControlLabel control={<Radio />} label="No" value="no" />
           </RadioGroup>
         </FormControl>
-        <TextField disabled={isSaving} label="Employment type" onChange={(event) => setValues((current) => ({ ...current, employmentType: event.target.value }))} required select value={values.employmentType}>
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.employmentType)} helperText={fieldErrors.employmentType} label="Employment type" onChange={(event) => setValues((current) => ({ ...current, employmentType: event.target.value }))} required select value={values.employmentType}>
           <MenuItem value="">Select employment type</MenuItem>
           <MenuItem value={EmploymentType.FullTime}>Full-time</MenuItem>
           <MenuItem value={EmploymentType.Internship}>Internship</MenuItem>
         </TextField>
-        <TextField disabled={isSaving} label="Company name" onChange={(event) => setValues((current) => ({ ...current, companyName: event.target.value }))} required value={values.companyName} />
-        <TextField disabled={isSaving} label="Job title" onChange={(event) => setValues((current) => ({ ...current, jobTitle: event.target.value }))} required value={values.jobTitle} />
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.companyName)} helperText={fieldErrors.companyName} label="Company name" onChange={(event) => setValues((current) => ({ ...current, companyName: event.target.value }))} required value={values.companyName} />
+        <TextField disabled={isSaving} error={Boolean(fieldErrors.jobTitle)} helperText={fieldErrors.jobTitle} label="Job title" onChange={(event) => setValues((current) => ({ ...current, jobTitle: event.target.value }))} required value={values.jobTitle} />
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <TextField disabled={isSaving} InputLabelProps={{ shrink: true }} label="Joining date" onChange={(event) => setValues((current) => ({ ...current, startDate: event.target.value }))} required type="date" value={values.startDate} />
-          <TextField disabled={isSaving || values.isCurrent} InputLabelProps={{ shrink: true }} label="Leaving date" onChange={(event) => setValues((current) => ({ ...current, endDate: event.target.value }))} required={!values.isCurrent} type="date" value={values.endDate} />
+          <TextField disabled={isSaving} error={Boolean(fieldErrors.startDate)} helperText={fieldErrors.startDate} InputLabelProps={{ shrink: true }} label="Joining date" onChange={(event) => setValues((current) => ({ ...current, startDate: event.target.value }))} required type="date" value={values.startDate} />
+          <TextField disabled={isSaving || values.isCurrent} error={Boolean(fieldErrors.endDate)} helperText={fieldErrors.endDate} InputLabelProps={{ shrink: true }} label="Leaving date" onChange={(event) => setValues((current) => ({ ...current, endDate: event.target.value }))} required={!values.isCurrent} type="date" value={values.endDate} />
         </Stack>
         <TextField disabled={isSaving} inputProps={{ min: 0 }} label="Current annual salary — private" onChange={(event) => setValues((current) => ({ ...current, annualSalary: event.target.value }))} type="number" value={values.annualSalary} />
         <TextField disabled={isSaving} label="Skills used" onChange={(event) => setValues((current) => ({ ...current, skillsUsed: event.target.value }))} placeholder="e.g. React, TypeScript, Accessibility" value={values.skillsUsed} />
         <TextField disabled={isSaving} label="Job profile / responsibilities" multiline minRows={3} onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))} value={values.description} />
-        <TextField disabled={isSaving} label="Notice period — private" onChange={(event) => setValues((current) => ({ ...current, noticePeriod: event.target.value }))} value={values.noticePeriod} />
+        <TextField disabled={isSaving || !values.isCurrent} label="Notice period — private" onChange={(event) => setValues((current) => ({ ...current, noticePeriod: event.target.value }))} select value={values.noticePeriod}>
+          <MenuItem value="">Not specified</MenuItem>
+          {noticePeriodOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
+        </TextField>
         {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
       </Stack>
     </DialogContent>
@@ -397,3 +420,22 @@ const EmploymentDialog = ({ open, onClose, onSave, values, setValues, error, isE
     </DialogActions>
   </Dialog>
 );
+
+const getApiFieldErrors = (error: unknown): Record<string, string> => {
+  if (!isDashboardApiError(error) || error.status !== 400 || !error.errors) return {};
+  return Object.fromEntries(Object.entries(error.errors).flatMap(([field, messages]) => {
+    const message = messages.find((value) => value.trim());
+    if (!message) return [];
+    const normalized = field.charAt(0).toLocaleLowerCase() + field.slice(1).replace(/\[\d+\].*$/, '');
+    return [[normalized, message]];
+  }));
+};
+
+const noticePeriodOptions = [
+  { label: '15 days or less', value: CandidateAvailability.FifteenDaysOrLess },
+  { label: '1 month', value: CandidateAvailability.OneMonth },
+  { label: '2 months', value: CandidateAvailability.TwoMonths },
+  { label: '3 months', value: CandidateAvailability.ThreeMonths },
+  { label: 'More than 3 months', value: CandidateAvailability.MoreThanThreeMonths },
+  { label: 'Serving notice period', value: CandidateAvailability.ServingNoticePeriod },
+] as const;

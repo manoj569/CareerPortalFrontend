@@ -17,6 +17,7 @@ import {
   useGetProfileQuery,
   useGetResumeStatusQuery,
   useUpdateCandidateAboutMutation,
+  useUpdateCandidateBasicDetailsMutation,
   useUpdateCandidateCareerPreferencesMutation,
   useUpdateCandidateSkillMutation,
   useUpdateProfileMutation,
@@ -24,6 +25,7 @@ import {
 } from '@/features/dashboard/api/dashboardApi';
 import {
   CareerStage,
+  CandidateAvailability,
   DesiredOpportunity,
   ResumeExtractionStatus,
   WorkPreference,
@@ -91,6 +93,7 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
     useGetProfileQuery: vi.fn(),
     useGetResumeStatusQuery: vi.fn(),
     useUpdateCandidateAboutMutation: vi.fn(),
+    useUpdateCandidateBasicDetailsMutation: vi.fn(),
     useUpdateCandidateCareerPreferencesMutation: vi.fn(),
     useUpdateCandidateSkillMutation: vi.fn(),
     useUpdateProfileMutation: vi.fn(),
@@ -160,7 +163,7 @@ const employment: PortfolioExperience = {
   isCurrent: false,
   jobTitle: 'Frontend Engineer',
   location: 'Pune',
-  noticePeriod: '30 days',
+  noticePeriod: null,
   skillsUsed: ['React', 'TypeScript'],
   startDate: '2021-07-01',
 };
@@ -214,6 +217,7 @@ const mocks = {
   getResumeStatus: vi.mocked(useGetResumeStatusQuery),
   getSkills: vi.mocked(useGetCandidateSkillsQuery),
   updateAbout: vi.mocked(useUpdateCandidateAboutMutation),
+  updateBasicDetails: vi.mocked(useUpdateCandidateBasicDetailsMutation),
   updateCareerPreferences: vi.mocked(useUpdateCandidateCareerPreferencesMutation),
   updateProfile: vi.mocked(useUpdateProfileMutation),
   updateSkill: vi.mocked(useUpdateCandidateSkillMutation),
@@ -236,10 +240,6 @@ const employmentMocks = {
 };
 
 const renderPage = () => renderWithProviders(<MemoryRouter><ProfilePage /></MemoryRouter>);
-const openEditorSection = async (name: string) => {
-  await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
-  await userEvent.click(within(screen.getByRole('dialog', { name: 'Edit profile' })).getByRole('tab', { name }));
-};
 const renderEducation = () => renderWithProviders(
   <MemoryRouter initialEntries={['/dashboard/portfolio?tab=profile&section=education']}>
     <CandidateProfileContent hidePageHeader />
@@ -253,7 +253,7 @@ const renderEmployment = () => renderWithProviders(
 
 beforeEach(() => {
   apiRequestMock.mockReset().mockRejectedValue(new Error('No profile photo configured for this test.'));
-  mocks.getBasicDetails.mockReturnValue(queryResult({ data: { email: 'avery@example.com', mobile: null, workStatus: 'Experienced', isOutsideIndia: false, currentCountry: 'India', currentCity: 'Pune', currentArea: null, availabilityToJoin: null, currentAnnualSalary: null, currentFixedAnnualSalary: null, currentVariableAnnualSalary: null, salaryUnit: 'INR per annum' } }));
+  mocks.getBasicDetails.mockReturnValue(queryResult({ data: { email: 'avery@example.com', mobileNumber: null, mobileVerified: false, workStatus: 'Experienced', isOutsideIndia: false, currentCountry: 'India', currentCity: 'Pune', currentArea: null, availabilityToJoin: null, currentAnnualSalary: null, currentFixedAnnualSalary: null, currentVariableAnnualSalary: null, salaryUnit: 'INR per annum' } }));
   mocks.getCareerPreferences.mockReturnValue(queryResult({ data: { preferredJobRoles: [], preferredCities: [], expectedAnnualSalary: null, jobTypes: [], employmentTypes: [], preferredShifts: [], salaryUnit: 'INR per annum' } }));
   mocks.getProfile.mockReturnValue(queryResult({ data: profile }));
   mocks.getCompletion.mockReturnValue(queryResult({ data: completion }));
@@ -285,6 +285,7 @@ beforeEach(() => {
     }),
   );
   mocks.updateAbout.mockReturnValue(mutationResult({ result: { profileSummary: profile.bio, resumeHeadline: profile.headline } }).tuple);
+  mocks.updateBasicDetails.mockReturnValue(mutationResult().tuple);
   mocks.updateCareerPreferences.mockReturnValue(mutationResult().tuple);
   mocks.add.mockReturnValue(mutationResult().tuple);
   mocks.updateSkill.mockReturnValue(mutationResult().tuple);
@@ -322,23 +323,22 @@ describe('Candidate profile workspace', () => {
     expect(screen.queryByRole('tablist', { name: 'Profile sections' })).not.toBeInTheDocument();
   });
 
-  it('keeps Basic details inside the unified editor and opens that tab first', async () => {
+  it('opens an Edit basic details dialog containing no section tabs or unrelated editors', async () => {
     renderPage();
     expect(screen.queryByRole('heading', { name: 'Basic details' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
-    const dialog = screen.getByRole('dialog', { name: 'Edit profile' });
-    const tabs = within(dialog).getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual([
-      'Basic details',
-      'Career preferences',
-      'Education',
-      'Employment',
-      'Skills',
-      'About',
-    ]);
-    expect(within(dialog).getByRole('tab', { name: 'Basic details' })).toHaveAttribute('aria-selected', 'true');
-    expect(within(dialog).getByRole('heading', { name: 'Basic details' })).toBeVisible();
+    const dialog = screen.getByRole('dialog', { name: 'Edit basic details' });
+    expect(within(dialog).queryByRole('tab')).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: 'Resume headline' })).toBeRequired();
+    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toBeEnabled();
+    expect(within(dialog).getByRole('textbox', { name: 'City' })).toBeRequired();
+    expect(within(dialog).getByRole('textbox', { name: 'State' })).toBeRequired();
+    expect(within(dialog).getByRole('textbox', { name: 'Skills' })).toBeVisible();
+    expect(within(dialog).queryByText('Career preferences')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Education')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Employment')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('About')).not.toBeInTheDocument();
   });
 
   it('saves hero fields through deployed APIs, refetches authoritative data, and renders the refreshed values', async () => {
@@ -364,7 +364,7 @@ describe('Candidate profile workspace', () => {
     mocks.getSkills.mockImplementation(() => queryResult({ data: currentSkills, refetch: skillsRefetch }));
     mocks.getCompletion.mockReturnValue(queryResult({ data: completion, refetch: completionRefetch }));
     mocks.getBasicDetails.mockReturnValue(queryResult({ data: {
-      email: 'avery@example.com', mobile: '+91 80808 75878', workStatus: 'Experienced', isOutsideIndia: false,
+      email: 'avery@example.com', mobileNumber: '+918080875878', mobileVerified: true, workStatus: 'Experienced', isOutsideIndia: false,
       currentCountry: 'India', currentCity: 'Pune', currentArea: null, availabilityToJoin: null,
       currentAnnualSalary: null, currentFixedAnnualSalary: null, currentVariableAnnualSalary: null, salaryUnit: 'INR per annum',
     } }));
@@ -373,15 +373,17 @@ describe('Candidate profile workspace', () => {
     renderPage();
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
-    const dialog = screen.getByRole('dialog', { name: 'Edit profile' });
-    expect(within(dialog).getByRole('textbox', { name: 'Verified mobile number' })).toHaveValue('+91 80808 75878');
+    const dialog = screen.getByRole('dialog', { name: 'Edit basic details' });
+    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toHaveValue('+918080875878');
+    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toBeDisabled();
+    expect(within(dialog).getByText('Verified mobile number')).toBeVisible();
     await userEvent.clear(within(dialog).getByRole('textbox', { name: 'Resume headline' }));
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Resume headline' }), 'Principal frontend engineer');
     await userEvent.clear(within(dialog).getByRole('textbox', { name: 'State' }));
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'State' }), 'Maharashtra');
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Skills' }), 'TypeScript');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Add skill' }));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Save profile' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save basic details' }));
 
     await waitFor(() => expect(updateTrigger).toHaveBeenCalledWith(expect.objectContaining({
       headline: 'Principal frontend engineer',
@@ -391,12 +393,61 @@ describe('Candidate profile workspace', () => {
     expect(profileRefetch).toHaveBeenCalled();
     expect(skillsRefetch).toHaveBeenCalled();
     expect(completionRefetch).toHaveBeenCalled();
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit profile' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit basic details' })).not.toBeInTheDocument());
     expect(screen.getByText('Principal frontend engineer')).toBeVisible();
     expect(screen.getByText('Pune, Maharashtra')).toBeVisible();
-    expect(screen.getByText('+91 80808 75878')).toBeVisible();
+    expect(screen.getByText('+918080875878')).toBeVisible();
     expect(screen.getAllByText('React').length).toBeGreaterThan(0);
     expect(screen.getByText('TypeScript')).toBeVisible();
+  });
+
+  it('submits a missing mobile through basic details and maps a 400 error to that input', async () => {
+    const basicRefetch = vi.fn();
+    const mobileError = 'Mobile number must be a valid 10-digit Indian mobile number.';
+    mocks.getBasicDetails.mockReturnValue(queryResult({ data: {
+      email: 'avery@example.com', mobileNumber: null, mobileVerified: false, workStatus: 'Experienced', isOutsideIndia: false,
+      currentCountry: 'India', currentCity: 'Pune', currentArea: null, availabilityToJoin: null,
+      currentAnnualSalary: 1200000, currentFixedAnnualSalary: 1000000, currentVariableAnnualSalary: 200000, salaryUnit: 'INR per annum',
+    }, refetch: basicRefetch }));
+    mocks.getSkills.mockReturnValue(queryResult({ data: [skill] }));
+    const basicMutation = mutationResult({ rejection: { errors: { MobileNumber: [mobileError] }, message: 'One or more validation errors occurred.', status: 400 } });
+    mocks.updateBasicDetails.mockReturnValue(basicMutation.tuple);
+    renderPage();
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
+    const dialog = screen.getByRole('dialog', { name: 'Edit basic details' });
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Mobile number' }), '9876543210');
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'State' }), 'Maharashtra');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save basic details' }));
+
+    await waitFor(() => expect(basicMutation.trigger).toHaveBeenCalledWith({
+      availabilityToJoin: null,
+      currentAnnualSalary: 1200000,
+      currentArea: null,
+      currentCity: 'Pune',
+      currentCountry: 'India',
+      currentFixedAnnualSalary: 1000000,
+      currentVariableAnnualSalary: 200000,
+      isOutsideIndia: false,
+      mobileNumber: '9876543210',
+      workStatus: 'Experienced',
+    }));
+    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toHaveAccessibleDescription(mobileError);
+    expect(basicRefetch).toHaveBeenCalled();
+    expect(dialog).toBeVisible();
+  });
+
+  it('shows an existing unverified mobile as readonly without calling it verified', async () => {
+    mocks.getBasicDetails.mockReturnValue(queryResult({ data: {
+      email: 'avery@example.com', mobileNumber: '+919876543210', mobileVerified: false, workStatus: 'Experienced', isOutsideIndia: false,
+      currentCountry: 'India', currentCity: 'Pune', currentArea: null, availabilityToJoin: null,
+      currentAnnualSalary: null, currentFixedAnnualSalary: null, currentVariableAnnualSalary: null, salaryUnit: 'INR per annum',
+    } }));
+    renderPage();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
+    const mobile = within(screen.getByRole('dialog', { name: 'Edit basic details' })).getByRole('textbox', { name: 'Mobile number' });
+    expect(mobile).toBeDisabled();
+    expect(mobile).toHaveAccessibleDescription('Mobile number is not verified');
   });
 
   it('prepopulates and submits the exact trimmed about request', async () => {
@@ -425,82 +476,7 @@ describe('Candidate profile workspace', () => {
     );
   });
 
-  it('shows the structured skills empty state and adds a skill with the exact contract', async () => {
-    const mutation = mutationResult();
-    mocks.add.mockReturnValue(mutation.tuple);
-    renderPage();
-    await openEditorSection('Skills');
-    expect(screen.getByText(/add skills to help employers/i)).toBeVisible();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Add your first skill' }));
-    await userEvent.type(screen.getByRole('textbox', { name: 'Skill name' }), '  TypeScript  ');
-    await userEvent.click(screen.getByRole('combobox', { name: 'Proficiency' }));
-    await userEvent.click(screen.getByRole('option', { name: 'Advanced' }));
-    await userEvent.type(screen.getByRole('spinbutton', { name: 'Years of experience' }), '3.5');
-    await userEvent.click(screen.getByRole('button', { name: 'Add skill' }));
-
-    await waitFor(() =>
-      expect(mutation.trigger).toHaveBeenCalledWith({
-        name: 'TypeScript',
-        proficiency: 'Advanced',
-        yearsOfExperience: 3.5,
-      }),
-    );
-  });
-
-  it('edits and deletes an existing skill using its backend ID', async () => {
-    const update = mutationResult();
-    const remove = mutationResult();
-    mocks.getSkills.mockReturnValue(queryResult({ data: [skill] }));
-    mocks.updateSkill.mockReturnValue(update.tuple);
-    mocks.delete.mockReturnValue(remove.tuple);
-    renderPage();
-    await openEditorSection('Skills');
-
-    const skillsSection = screen.getByRole('heading', { name: 'Key skills' }).closest('section')!;
-    await userEvent.click(within(skillsSection).getByRole('button', { name: 'Edit React' }));
-    const name = screen.getByRole('textbox', { name: 'Skill name' });
-    await userEvent.clear(name);
-    await userEvent.type(name, 'React Native');
-    await userEvent.click(screen.getByRole('button', { name: 'Save skill' }));
-    await waitFor(() =>
-      expect(update.trigger).toHaveBeenCalledWith({
-        data: { name: 'React Native', proficiency: 'Advanced', yearsOfExperience: 4.5 },
-        skillId: 'skill-id',
-      }),
-    );
-
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Edit React' })).not.toBeInTheDocument(),
-    );
-    const refreshedSkillsSection = screen
-      .getByRole('heading', { name: 'Key skills' })
-      .closest('section')!;
-    await userEvent.click(
-      within(refreshedSkillsSection).getByRole('button', { name: 'Delete React' }),
-    );
-    const dialog = screen.getByRole('dialog', { name: 'Delete React?' });
-    expect(within(dialog).getByText('Delete React from your key skills?')).toBeVisible();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete skill' }));
-    await waitFor(() => expect(remove.trigger).toHaveBeenCalledWith('skill-id'));
-  });
-
-  it('preserves and displays a safe duplicate-skill API message', async () => {
-    const mutation = mutationResult({
-      rejection: { message: 'This skill already exists in your profile.', status: 409 },
-    });
-    mocks.add.mockReturnValue(mutation.tuple);
-    renderPage();
-    await openEditorSection('Skills');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Add your first skill' }));
-    await userEvent.type(screen.getByRole('textbox', { name: 'Skill name' }), 'React');
-    await userEvent.click(screen.getByRole('button', { name: 'Add skill' }));
-    expect(await screen.findByText('This skill already exists in your profile.')).toBeVisible();
-    expect(screen.getByRole('textbox', { name: 'Skill name' })).toHaveValue('React');
-  });
-
-  it('disables duplicate about and skill submissions while requests are pending', async () => {
+  it('disables duplicate about submissions while a request is pending', async () => {
     mocks.updateAbout.mockReturnValue(mutationResult({ isLoading: true }).tuple);
     const view = renderPage();
 
@@ -508,13 +484,6 @@ describe('Candidate profile workspace', () => {
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
 
     view.unmount();
-    mocks.updateAbout.mockReturnValue(mutationResult().tuple);
-    mocks.add.mockReturnValue(mutationResult({ isLoading: true }).tuple);
-    renderPage();
-    await openEditorSection('Skills');
-
-    const addSkill = screen.getByRole('button', { name: 'Add skill' });
-    expect(addSkill).toBeDisabled();
   });
 
   it('reuses secure resume validation and upload behavior', async () => {
@@ -773,18 +742,15 @@ describe('Candidate profile workspace', () => {
 
   it('saves the exact Career Preferences payload, refetches, and displays the persisted response', async () => {
     const refetch = vi.fn();
-    const persisted = {
-      employmentTypes: ['FullTime'] as const,
-      expectedAnnualSalary: 2000000,
-      jobTypes: ['Contractual'] as const,
-      preferredCities: ['Hyderabad'],
-      preferredJobRoles: ['Platform Engineer'],
-      preferredShifts: ['Flexible'] as const,
-      salaryUnit: 'INR per annum',
-    };
-    const mutation = mutationResult({ result: persisted });
-    mocks.getCareerPreferences.mockReturnValue(queryResult({ data: { ...careerPreferences, employmentTypes: [], expectedAnnualSalary: null, jobTypes: [], preferredCities: [], preferredJobRoles: [], preferredShifts: [] }, refetch }));
-    mocks.updateCareerPreferences.mockReturnValue(mutation.tuple);
+    let persisted = { ...careerPreferences, employmentTypes: [] as ('FullTime' | 'PartTime')[], expectedAnnualSalary: null as number | null, jobTypes: [] as ('Permanent' | 'Contractual')[], preferredCities: [] as string[], preferredJobRoles: [] as string[], preferredShifts: [] as ('Day' | 'Night' | 'Flexible')[] };
+    const trigger = vi.fn((payload: Omit<typeof persisted, 'salaryUnit'>) => ({
+      unwrap: vi.fn(() => {
+        persisted = { ...payload, salaryUnit: 'INR per annum' };
+        return Promise.resolve(persisted);
+      }),
+    }));
+    mocks.getCareerPreferences.mockImplementation(() => queryResult({ data: persisted, refetch }));
+    mocks.updateCareerPreferences.mockReturnValue([trigger, { isLoading: false }] as never);
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit career preferences' }));
@@ -798,7 +764,7 @@ describe('Candidate profile workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Flexible' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }));
 
-    await waitFor(() => expect(mutation.trigger).toHaveBeenCalledWith({
+    await waitFor(() => expect(trigger).toHaveBeenCalledWith({
       employmentTypes: ['FullTime'],
       expectedAnnualSalary: 2000000,
       jobTypes: ['Contractual'],
@@ -808,6 +774,12 @@ describe('Candidate profile workspace', () => {
     }));
     expect(refetch).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit career preferences' })).not.toBeInTheDocument());
+    expect(screen.getByText('Platform Engineer')).toBeVisible();
+    expect(screen.getByText('Hyderabad')).toBeVisible();
+    expect(screen.getByText('Contractual')).toBeVisible();
+    expect(screen.getByText('Full-time')).toBeVisible();
+    expect(screen.getByText('Flexible')).toBeVisible();
+    expect(screen.getByText('INR 20,00,000 per year')).toBeVisible();
   });
 
   it('keeps Career Preferences input after a failed canonical mutation', async () => {
@@ -821,6 +793,18 @@ describe('Candidate profile workspace', () => {
     expect(await screen.findByText('Career preferences could not be saved.')).toBeVisible();
     expect(screen.getByRole('spinbutton', { name: 'Expected annual salary' })).toHaveValue(2100000);
     expect(screen.getByRole('dialog', { name: 'Edit career preferences' })).toBeVisible();
+  });
+
+  it('shows a Career Preferences 400 validation error under the matching enum field', async () => {
+    const message = 'The value must be one of: FullTime, PartTime.';
+    const mutation = mutationResult({ rejection: { errors: { 'employmentTypes[0]': [message] }, message: 'One or more validation errors occurred.', status: 400 } });
+    mocks.getCareerPreferences.mockReturnValue(queryResult({ data: careerPreferences }));
+    mocks.updateCareerPreferences.mockReturnValue(mutation.tuple);
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit career preferences' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }));
+    expect(await screen.findByText(message)).toBeVisible();
+    expect(screen.getByText('Employment type').parentElement).toContainElement(screen.getByText(message));
   });
 
   it('enforces Career Preferences chip limits, prevents duplicates, and supports removal', () => {
@@ -861,10 +845,17 @@ describe('Candidate profile workspace', () => {
   });
 
   it('adds education using the exact canonical API payload', async () => {
-    const mutation = mutationResult();
     const refetch = vi.fn();
-    educationMocks.get.mockReturnValue(queryResult({ data: [], refetch }));
-    educationMocks.add.mockReturnValue(mutation.tuple);
+    let records: PortfolioEducation[] = [];
+    const trigger = vi.fn((payload: Omit<PortfolioEducation, 'id'>) => ({
+      unwrap: vi.fn(() => {
+        const created = { ...payload, id: 'new-education-id' };
+        records = [created];
+        return Promise.resolve(created);
+      }),
+    }));
+    educationMocks.get.mockImplementation(() => queryResult({ data: records, refetch }));
+    educationMocks.add.mockReturnValue([trigger, { isLoading: false }] as never);
     renderEducation();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add education' }));
@@ -872,15 +863,15 @@ describe('Candidate profile workspace', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /university \/ institute/i }), { target: { value: '  Delhi University  ' } });
     fireEvent.change(screen.getByRole('textbox', { name: /course \/ specialization/i }), { target: { value: '  Data Science  ' } });
     await userEvent.click(screen.getByRole('combobox', { name: 'Course type' }));
-    await userEvent.click(screen.getByRole('option', { name: 'Part-time' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Distance learning' }));
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Start year' }), { target: { value: '2022' } });
     fireEvent.change(screen.getByRole('spinbutton', { name: 'End year' }), { target: { value: '2024' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Grading system' }), { target: { value: '  Percentage  ' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Grade / score' }), { target: { value: '  87%  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save education' }));
 
-    await waitFor(() => expect(mutation.trigger).toHaveBeenCalledWith({
-      courseType: 'PartTime',
+    await waitFor(() => expect(trigger).toHaveBeenCalledWith({
+      courseType: 'CorrespondenceOrDistance',
       description: null,
       displayOrder: 0,
       endYear: 2024,
@@ -893,6 +884,11 @@ describe('Candidate profile workspace', () => {
       startYear: 2022,
     }));
     expect(refetch).toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add education' })).not.toBeInTheDocument());
+    expect(await screen.findByText('Master of Science · Data Science')).toBeVisible();
+    expect(screen.getByText('Delhi University')).toBeVisible();
+    expect(screen.getByText('2022 – 2024')).toBeVisible();
+    expect(within(screen.getByRole('heading', { name: 'Education' }).closest('section')!).getByText('Distance learning')).toBeVisible();
   });
 
   it('renders multiple canonical education records with saved degree details', () => {
@@ -970,7 +966,8 @@ describe('Candidate profile workspace', () => {
     renderEducation();
     fireEvent.click(screen.getByRole('button', { name: 'Add education' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save education' }));
-    expect(screen.getByText('Education level and university / institute are required.')).toBeVisible();
+    expect(screen.getByRole('textbox', { name: /education level/i })).toHaveAccessibleDescription('Education level is required.');
+    expect(screen.getByRole('textbox', { name: /university \/ institute/i })).toHaveAccessibleDescription('University / institute is required.');
     expect(mutation.trigger).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByRole('textbox', { name: /education level/i }), { target: { value: 'BSc' } });
@@ -983,7 +980,8 @@ describe('Candidate profile workspace', () => {
   });
 
   it('keeps the education dialog open and shows a safe backend save error', async () => {
-    const mutation = mutationResult({ rejection: { message: 'Education could not be saved.', status: 400 } });
+    const courseTypeError = 'The value must be one of: FullTime, PartTime, CorrespondenceOrDistance.';
+    const mutation = mutationResult({ rejection: { errors: { CourseType: [courseTypeError] }, message: 'Education could not be saved.', status: 400 } });
     educationMocks.add.mockReturnValue(mutation.tuple);
     renderEducation();
     fireEvent.click(screen.getByRole('button', { name: 'Add education' }));
@@ -991,6 +989,7 @@ describe('Candidate profile workspace', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /university \/ institute/i }), { target: { value: 'Pune University' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save education' }));
     expect(await screen.findByText('Education could not be saved.')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Course type' })).toHaveAccessibleDescription(courseTypeError);
     expect(screen.getByRole('dialog', { name: 'Add education' })).toBeVisible();
   });
 
@@ -1049,7 +1048,7 @@ describe('Candidate profile workspace', () => {
   });
 
   it('renders the Fresher-specific optional Employment empty state', () => {
-    mocks.getBasicDetails.mockReturnValue(queryResult({ data: { email: 'avery@example.com', mobile: null, workStatus: 'Fresher' } }));
+    mocks.getBasicDetails.mockReturnValue(queryResult({ data: { email: 'avery@example.com', mobileNumber: null, mobileVerified: false, workStatus: 'Fresher' } }));
     renderEmployment();
     expect(screen.getByText('Employment history is optional for freshers.')).toBeVisible();
   });
@@ -1061,7 +1060,9 @@ describe('Candidate profile workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add employment' }));
     expect(screen.getByRole('dialog', { name: 'Add employment' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Save employment' }));
-    expect(screen.getByText(/company name, job title, employment type, joining date/i)).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Company name' })).toHaveAccessibleDescription('Company name is required.');
+    expect(screen.getByRole('textbox', { name: 'Job title' })).toHaveAccessibleDescription('Job title is required.');
+    expect(screen.getByRole('combobox', { name: 'Employment type' })).toHaveAccessibleDescription('Employment type is required.');
     expect(mutation.trigger).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Company name' }), { target: { value: 'Harbor Labs' } });
@@ -1087,10 +1088,17 @@ describe('Candidate profile workspace', () => {
   });
 
   it('creates a current employment record using the exact API payload', async () => {
-    const mutation = mutationResult();
     const refetch = vi.fn();
-    employmentMocks.get.mockReturnValue(queryResult({ data: [], refetch }));
-    employmentMocks.add.mockReturnValue(mutation.tuple);
+    let records: PortfolioExperience[] = [];
+    const trigger = vi.fn((payload: Omit<PortfolioExperience, 'id'>) => ({
+      unwrap: vi.fn(() => {
+        const created = { ...payload, id: 'new-employment-id' };
+        records = [created];
+        return Promise.resolve(created);
+      }),
+    }));
+    employmentMocks.get.mockImplementation(() => queryResult({ data: records, refetch }));
+    employmentMocks.add.mockReturnValue([trigger, { isLoading: false }] as never);
     renderEmployment();
     fireEvent.click(screen.getByRole('button', { name: 'Add employment' }));
     await userEvent.click(screen.getByRole('radio', { name: 'Yes' }));
@@ -1102,10 +1110,11 @@ describe('Candidate profile workspace', () => {
     fireEvent.change(screen.getByRole('spinbutton', { name: /current annual salary/i }), { target: { value: '2400000' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Skills used' }), { target: { value: ' React, TypeScript, React ' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Job profile / responsibilities' }), { target: { value: '  Leads accessible frontend delivery.  ' } });
-    fireEvent.change(screen.getByRole('textbox', { name: /notice period/i }), { target: { value: '  30 days  ' } });
+    await userEvent.click(screen.getByRole('combobox', { name: /notice period/i }));
+    await userEvent.click(screen.getByRole('option', { name: '1 month' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save employment' }));
 
-    await waitFor(() => expect(mutation.trigger).toHaveBeenCalledWith({
+    await waitFor(() => expect(trigger).toHaveBeenCalledWith({
       annualSalary: 2400000,
       companyName: 'Career Harbor',
       description: 'Leads accessible frontend delivery.',
@@ -1115,11 +1124,14 @@ describe('Candidate profile workspace', () => {
       isCurrent: true,
       jobTitle: 'Senior Engineer',
       location: null,
-      noticePeriod: '30 days',
-      skillsUsed: ['React', 'TypeScript', 'React'],
+      noticePeriod: CandidateAvailability.OneMonth,
+      skillsUsed: ['React', 'TypeScript'],
       startDate: '2022-01-15',
     }));
     expect(refetch).toHaveBeenCalled();
+    expect(await screen.findByText('Senior Engineer')).toBeVisible();
+    expect(screen.getByText('Career Harbor')).toBeVisible();
+    expect(screen.getByText(/Jan 2022.*Present/)).toBeVisible();
   });
 
   it('edits employment by ID with the exact canonical API payload', async () => {
@@ -1143,7 +1155,7 @@ describe('Candidate profile workspace', () => {
         isCurrent: false,
         jobTitle: 'Senior Frontend Engineer',
         location: 'Pune',
-        noticePeriod: '30 days',
+        noticePeriod: null,
         skillsUsed: ['React', 'TypeScript'],
         startDate: '2021-07-01',
       },
@@ -1214,7 +1226,7 @@ describe('Candidate profile workspace', () => {
 
     expect(screen.queryByRole('heading', { name: 'Profile strength' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry resume status' })).toBeVisible();
-    await openEditorSection('Skills');
-    expect(screen.getByRole('button', { name: 'Retry skills' })).toBeVisible();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
+    expect(within(screen.getByRole('dialog', { name: 'Edit basic details' })).getByRole('button', { name: 'Retry' })).toBeVisible();
   });
 });

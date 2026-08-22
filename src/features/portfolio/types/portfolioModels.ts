@@ -1,4 +1,5 @@
 import type { EmploymentType } from '@/features/jobs/types/jobModels';
+import type { CandidateAvailability } from '@/features/dashboard/types/dashboardModels';
 
 export type CandidatePortfolioStatus = 'Draft' | 'Published';
 export type CandidatePortfolioTemplate = 'Professional' | 'Developer';
@@ -50,7 +51,7 @@ export interface ExperienceRequest {
   jobTitle: string; companyName: string; location: string | null;
   employmentType: EmploymentType | null; startDate: string; endDate: string | null;
   isCurrent: boolean; description: string | null; displayOrder: number;
-  annualSalary?: number | null; skillsUsed?: string[] | null; noticePeriod?: string | null;
+  annualSalary?: number | null; skillsUsed?: string[] | null; noticePeriod?: CandidateAvailability | null;
 }
 export interface PortfolioExperience extends ExperienceRequest { id: string }
 
@@ -58,7 +59,7 @@ export interface EducationRequest {
   qualification: string; institution: string; fieldOfStudy: string | null;
   startYear: number | null; endYear: number | null; grade: string | null;
   description: string | null; displayOrder: number;
-  courseType?: 'FullTime' | 'PartTime' | 'CorrespondenceDistance' | null;
+  courseType?: 'FullTime' | 'PartTime' | 'CorrespondenceOrDistance' | null;
   isCurrentlyStudying?: boolean; gradingSystem?: string | null;
 }
 export interface PortfolioEducation extends EducationRequest { id: string }

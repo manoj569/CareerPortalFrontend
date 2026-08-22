@@ -277,7 +277,7 @@ describe('Portfolio workspace', () => {
           isCurrent: true,
           jobTitle: 'Engineer',
           location: null,
-          noticePeriod: '30 days',
+          noticePeriod: 2,
           skillsUsed: ['React'],
           startDate: '2024-01-01',
         }],
