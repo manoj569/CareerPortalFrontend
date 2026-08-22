@@ -50,8 +50,24 @@ const renderShell = (notificationCount: number) => {
         path: '/dashboard',
         children: [
           { path: 'jobs', element: <p>Browse jobs page</p> },
-          { path: 'portfolio', element: <><p>Profile page</p><LocationProbe /></> },
-          { path: 'settings', element: <><p>Settings page</p><LocationProbe /></> },
+          {
+            path: 'portfolio',
+            element: (
+              <>
+                <p>Profile page</p>
+                <LocationProbe />
+              </>
+            ),
+          },
+          {
+            path: 'settings',
+            element: (
+              <>
+                <p>Settings page</p>
+                <LocationProbe />
+              </>
+            ),
+          },
           {
             path: 'notifications',
             element: (
@@ -63,7 +79,15 @@ const renderShell = (notificationCount: number) => {
           },
         ],
       },
-      { path: '/', element: <><p>Home page</p><LocationProbe /></> },
+      {
+        path: '/',
+        element: (
+          <>
+            <p>Home page</p>
+            <LocationProbe />
+          </>
+        ),
+      },
     ],
     { initialEntries: [ROUTES.DASHBOARD_JOBS] },
   );
@@ -74,7 +98,10 @@ const renderShell = (notificationCount: number) => {
 describe('Candidate workspace shell', () => {
   beforeEach(() => {
     apiRequestMock.mockReset().mockRejectedValue(new Error('No profile photo configured.'));
-    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn().mockReturnValue('blob:header-photo') });
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn().mockReturnValue('blob:header-photo'),
+    });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
   });
 
@@ -92,8 +119,12 @@ describe('Candidate workspace shell', () => {
     const desktopDrawer = collapse.closest('.MuiDrawer-paper');
 
     expect(desktopDrawer).not.toBeNull();
-    expect(within(desktopDrawer as HTMLElement).getByRole('link', { name: 'Browse jobs' })).toHaveClass('active');
-    expect(within(desktopDrawer as HTMLElement).queryByRole('link', { name: 'Notifications' })).toBeNull();
+    expect(
+      within(desktopDrawer as HTMLElement).getByRole('link', { name: 'Browse jobs' }),
+    ).toHaveClass('active');
+    expect(
+      within(desktopDrawer as HTMLElement).queryByRole('link', { name: 'Notifications' }),
+    ).toBeNull();
 
     await user.click(collapse);
     const collapsedDrawer = screen
@@ -109,6 +140,17 @@ describe('Candidate workspace shell', () => {
     expect(screen.getByRole('button', { name: 'Collapse candidate navigation' })).toBeVisible();
   });
 
+  it('includes the candidate Interview insights navigation entry', () => {
+    expect(candidateNavigationItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Interview insights',
+          path: ROUTES.INTERVIEW_INSIGHTS,
+        }),
+      ]),
+    );
+  });
+
   it('shows the real unread badge only above zero and opens Notifications from the header', async () => {
     const positive = renderShell(4);
     const bell = screen.getByRole('button', { name: 'Notifications, 4 unread' });
@@ -119,7 +161,9 @@ describe('Candidate workspace shell', () => {
     positive.unmount();
 
     renderShell(0);
-    expect(within(screen.getByRole('button', { name: 'Notifications' })).queryByText('0')).toBeNull();
+    expect(
+      within(screen.getByRole('button', { name: 'Notifications' })).queryByText('0'),
+    ).toBeNull();
   });
 
   it('replaces the header Logout control with a real-initials account menu', async () => {
@@ -135,7 +179,11 @@ describe('Candidate workspace shell', () => {
     const menu = screen.getByRole('menu', { name: 'Candidate account menu' });
     expect(within(menu).getByText('Avery Patel')).toBeVisible();
     expect(within(menu).getByText('candidate@example.com')).toBeVisible();
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual([
       expect.stringContaining('Profile'),
       expect.stringContaining('Settings'),
       expect.stringContaining('Log out'),

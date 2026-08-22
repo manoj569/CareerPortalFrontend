@@ -18,6 +18,8 @@ import {
   useSubmitApplicationMutation,
 } from '@/features/dashboard/api/dashboardApi';
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
+import { useGetCompanyInterviewInsightSummaryQuery } from '@/features/interviewInsights/api/interviewInsightsApi';
+import type * as InterviewInsightsApiModule from '@/features/interviewInsights/api/interviewInsightsApi';
 import { ShareButton } from '@/features/jobs/components/ShareButton';
 import type { AuthState } from '@/features/auth/store/authSlice';
 import {
@@ -66,6 +68,11 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
   };
 });
 
+vi.mock('@/features/interviewInsights/api/interviewInsightsApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof InterviewInsightsApiModule>();
+  return { ...actual, useGetCompanyInterviewInsightSummaryQuery: vi.fn() };
+});
+
 const mockSearchJobs = vi.mocked(useSearchJobsQuery);
 const mockFeaturedJobs = vi.mocked(useGetFeaturedJobsQuery);
 const mockJobDetails = vi.mocked(useGetJobDetailsQuery);
@@ -79,6 +86,7 @@ const mockGetRecruiterContact = vi.mocked(useLazyGetRecruiterContactQuery);
 const mockRemoveSavedJob = vi.mocked(useRemoveSavedJobMutation);
 const mockSaveJob = vi.mocked(useSaveJobMutation);
 const mockSubmitApplication = vi.mocked(useSubmitApplicationMutation);
+const mockCompanyInsightSummary = vi.mocked(useGetCompanyInterviewInsightSummaryQuery);
 
 const refetch = vi.fn();
 const submitApplication = vi.fn();
@@ -265,6 +273,11 @@ beforeEach(() => {
   mockNewestJobs.mockReturnValue(collectionResult());
   mockPopularCompanies.mockReturnValue(popularCompaniesResult());
   mockRelatedJobs.mockReturnValue(relatedResult());
+  mockCompanyInsightSummary.mockReturnValue({
+    data: undefined,
+    isError: false,
+    isLoading: false,
+  } as unknown as ReturnType<typeof useGetCompanyInterviewInsightSummaryQuery>);
 
   mockApplicationQuota.mockReturnValue({
     data: undefined,
@@ -447,6 +460,32 @@ describe('job details page', () => {
     expect(screen.getByText(jobDetails.description)).toBeInTheDocument();
   });
 
+  it('shows a safe company interview-insight summary to candidates without round details', () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    mockCompanyInsightSummary.mockReturnValue({
+      data: {
+        canReadFull: false,
+        companyId: job.companyId,
+        companyName: job.companyName,
+        helpfulConfirmedCount: 8,
+        publishedCount: 3,
+      },
+      isError: false,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useGetCompanyInterviewInsightSummaryQuery>);
+
+    renderDetailsPage(authenticated);
+
+    expect(screen.getByRole('heading', { name: 'Interview insights' })).toBeVisible();
+    expect(screen.getByText(/3 reviewed insights · 8 helpful confirmations/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Explore insights' })).toHaveAttribute(
+      'href',
+      `/dashboard/interview-insights?companyId=${job.companyId}`,
+    );
+    expect(screen.getByRole('link', { name: 'Add interview schedule' })).toBeVisible();
+    expect(screen.queryByText(/questions or topics/i)).not.toBeInTheDocument();
+  });
+
   it('shows a not-found state for a 404 response', () => {
     mockJobDetails.mockReturnValue(
       detailsResult({
@@ -514,7 +553,10 @@ describe('job details page', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
 
-      expect(submitApplication).toHaveBeenCalledWith({ applicationMethod: 'External', jobId: job.id });
+      expect(submitApplication).toHaveBeenCalledWith({
+        applicationMethod: 'External',
+        jobId: job.id,
+      });
       expect(open).toHaveBeenCalledWith(
         'https://careers.example.com/jobs/senior-react-engineer',
         '_blank',
@@ -683,7 +725,9 @@ describe('job details page', () => {
       renderDetailsPage(authenticated);
 
       await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
-      expect(await screen.findByText('Application link is unavailable for this job.')).toBeVisible();
+      expect(
+        await screen.findByText('Application link is unavailable for this job.'),
+      ).toBeVisible();
       expect(submitApplication).not.toHaveBeenCalled();
       expect(open).not.toHaveBeenCalled();
       open.mockRestore();
@@ -691,7 +735,9 @@ describe('job details page', () => {
   );
 
   it('submits a Portal application without opening a new tab when no application URL exists', async () => {
-    mockJobDetails.mockReturnValue(detailsResult({ data: { ...jobDetails, applicationUrl: null } }));
+    mockJobDetails.mockReturnValue(
+      detailsResult({ data: { ...jobDetails, applicationUrl: null } }),
+    );
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
     renderDetailsPage(authenticated);
@@ -699,7 +745,9 @@ describe('job details page', () => {
 
     expect(submitApplication).toHaveBeenCalledWith({ applicationMethod: 'Portal', jobId: job.id });
     expect(open).not.toHaveBeenCalled();
-    expect(await screen.findByText('Application submitted. This job is now in Applied jobs.')).toBeVisible();
+    expect(
+      await screen.findByText('Application submitted. This job is now in Applied jobs.'),
+    ).toBeVisible();
     open.mockRestore();
   });
 
@@ -716,7 +764,14 @@ describe('job details page', () => {
       { data: undefined, isFetching: false },
     ] as unknown as ReturnType<typeof useLazyGetRecruiterContactQuery>);
     mockApplicationQuota.mockReturnValue({
-      data: { isPremium: true, limit: 35, plan: 'Premium', remainingApplications: 35, resetsAtUtc: '2099-01-02T00:00:00Z', usedApplications: 0 },
+      data: {
+        isPremium: true,
+        limit: 35,
+        plan: 'Premium',
+        remainingApplications: 35,
+        resetsAtUtc: '2099-01-02T00:00:00Z',
+        usedApplications: 0,
+      },
       isError: false,
       isLoading: false,
     } as unknown as ReturnType<typeof useGetApplicationQuotaQuery>);

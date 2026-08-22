@@ -6,6 +6,7 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
+import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
 import {
   Alert,
   Box,
@@ -28,11 +29,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
+import { buildInterviewInsightsPath, buildJobDetailsPath, ROUTES } from '@/constants/routes';
 import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
 import { ApplicationQuotaIndicator } from '@/features/dashboard/components/ApplicationQuotaIndicator';
 import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
+import { useGetCompanyInterviewInsightSummaryQuery } from '@/features/interviewInsights/api/interviewInsightsApi';
 import {
   isJobsApiError,
   useGetJobDetailsQuery,
@@ -209,6 +211,10 @@ export const JobDetailsPage = () => {
     isLoading,
     refetch,
   } = useGetJobDetailsQuery(slug, { skip: !slug });
+
+  const companyInsightSummary = useGetCompanyInterviewInsightSummaryQuery(job?.companyId ?? '', {
+    skip: currentUser?.role !== UserRole.Candidate || !job?.companyId,
+  });
 
   const {
     data: relatedJobs,
@@ -532,11 +538,65 @@ export const JobDetailsPage = () => {
             </Stack>
           </Paper>
 
-          {/* ⚠️ This prop will continue throwing a TypeScript error until we update RecruiterContactCard.tsx in the next step. */}
-          <RecruiterContactCard 
-            jobId={job.id} 
+          <RecruiterContactCard
+            jobId={job.id}
             onUnlockRequired={() => setShowRecruiterDialog(true)}
           />
+
+          {currentUser?.role === UserRole.Candidate ? (
+            <Paper component="section" sx={{ p: { xs: 2.5, sm: 3 } }}>
+              <Stack spacing={2}>
+                <Stack alignItems="center" direction="row" spacing={1}>
+                  <QuestionAnswerOutlinedIcon color="primary" />
+                  <Typography component="h2" variant="h3">
+                    Interview insights
+                  </Typography>
+                </Stack>
+                {companyInsightSummary.isLoading ? (
+                  <Skeleton height={60} variant="rounded" />
+                ) : null}
+                {companyInsightSummary.isError ? (
+                  <Typography color="text.secondary" variant="body2">
+                    Interview insight summary is temporarily unavailable.
+                  </Typography>
+                ) : null}
+                {companyInsightSummary.data ? (
+                  <Typography color="text.secondary">
+                    {companyInsightSummary.data.publishedCount} reviewed insight
+                    {companyInsightSummary.data.publishedCount === 1 ? '' : 's'} ·{' '}
+                    {companyInsightSummary.data.helpfulConfirmedCount} helpful confirmation
+                    {companyInsightSummary.data.helpfulConfirmedCount === 1 ? '' : 's'}
+                  </Typography>
+                ) : null}
+                <Typography color="text.secondary" variant="body2">
+                  Explore safe company-level summaries here. Round details and questions are shown
+                  only on the protected Interview Insights page when you are eligible.
+                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
+                  <Button
+                    component={Link}
+                    to={buildInterviewInsightsPath({ companyId: job.companyId })}
+                    variant="outlined"
+                  >
+                    Explore insights
+                  </Button>
+                  <Button
+                    component={Link}
+                    to={buildInterviewInsightsPath({
+                      action: 'schedule',
+                      companyId: job.companyId,
+                      companyName: job.companyName,
+                      jobId: job.id,
+                      roleTitle: job.title,
+                    })}
+                    variant="contained"
+                  >
+                    Add interview schedule
+                  </Button>
+                </Stack>
+              </Stack>
+            </Paper>
+          ) : null}
         </Stack>
 
         <Box component="aside" sx={{ minWidth: 0, position: { lg: 'sticky' }, top: { lg: 96 } }}>
@@ -581,7 +641,6 @@ export const JobDetailsPage = () => {
         </Box>
       </Box>
 
-      {/* 🚀 Recruiter Contact Premium Upgrade Dialog */}
       {showRecruiterDialog && (
         <Dialog
           open={showRecruiterDialog}
@@ -608,14 +667,8 @@ export const JobDetailsPage = () => {
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setShowRecruiterDialog(false)}>
-              Continue Browsing
-            </Button>
-            <Button
-              onClick={handleGoToMembership}
-              variant="contained"
-              color="primary"
-            >
+            <Button onClick={() => setShowRecruiterDialog(false)}>Continue Browsing</Button>
+            <Button onClick={handleGoToMembership} variant="contained" color="primary">
               View Premium Plans
             </Button>
           </DialogActions>

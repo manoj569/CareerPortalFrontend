@@ -38,6 +38,9 @@ describe('API endpoint paths', () => {
       API_ENDPOINTS.PAYMENTS.STATUS,
       API_ENDPOINTS.ADMIN.JOB('job-id'),
       API_ENDPOINTS.CANDIDATE.APPLICATION('application-id'),
+      API_ENDPOINTS.CANDIDATE.INTERVIEW_INSIGHTS,
+      API_ENDPOINTS.CANDIDATE.INTERVIEW_INSIGHT('insight-id'),
+      API_ENDPOINTS.CANDIDATE.INTERVIEW_SCHEDULES,
     ];
 
     for (const path of representativePaths) {

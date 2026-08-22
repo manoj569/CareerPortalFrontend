@@ -15,6 +15,7 @@ import { adminApi } from '@/features/admin/api/adminApi';
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import { jobsApi } from '@/features/jobs/api/jobsApi';
 import { paymentsApi } from '@/features/payments/api/paymentsApi';
+import { interviewInsightsApi } from '@/features/interviewInsights/api/interviewInsightsApi';
 import { UserRole } from '@/types';
 
 const rootReducer = combineReducers({
@@ -23,6 +24,7 @@ const rootReducer = combineReducers({
   [dashboardApi.reducerPath]: dashboardApi.reducer,
   [paymentsApi.reducerPath]: paymentsApi.reducer,
   [adminApi.reducerPath]: adminApi.reducer,
+  [interviewInsightsApi.reducerPath]: interviewInsightsApi.reducer,
 });
 
 const privateCacheListener = createListenerMiddleware();
@@ -34,6 +36,7 @@ privateCacheListener.startListening({
         listenerApi.dispatch(dashboardApi.util.resetApiState());
         listenerApi.dispatch(paymentsApi.util.resetApiState());
         listenerApi.dispatch(adminApi.util.resetApiState());
+        listenerApi.dispatch(interviewInsightsApi.util.resetApiState());
         return;
       }
       const originalState = listenerApi.getOriginalState() as {
@@ -53,6 +56,7 @@ privateCacheListener.startListening({
     listenerApi.dispatch(dashboardApi.util.resetApiState());
     listenerApi.dispatch(paymentsApi.util.resetApiState());
     listenerApi.dispatch(adminApi.util.resetApiState());
+    listenerApi.dispatch(interviewInsightsApi.util.resetApiState());
   },
 });
 
@@ -70,6 +74,7 @@ export const createAppStore = (preloadedState?: Partial<RootState>) =>
           dashboardApi.middleware,
           paymentsApi.middleware,
           adminApi.middleware,
+          interviewInsightsApi.middleware,
         ),
   });
 

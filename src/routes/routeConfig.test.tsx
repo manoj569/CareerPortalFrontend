@@ -68,6 +68,8 @@ describe('release route structure', () => {
         ROUTES.SAVED_JOBS,
         ROUTES.APPLICATIONS,
         ROUTES.APPLICATION_DETAILS,
+        ROUTES.INTERVIEW_INSIGHTS,
+        ROUTES.INTERVIEW_INSIGHT_CONTRIBUTIONS,
         ROUTES.MEMBERSHIP,
         ROUTES.PAYMENT,
       ]),
@@ -120,6 +122,22 @@ describe('release route structure', () => {
     if (!isValidElement(profileRoute?.element)) throw new Error('Profile redirect was not found.');
     expect(profileRoute.element.type).toBe(Navigate);
     expect(profileRoute.element.props).toMatchObject({ replace: true, to: ROUTES.PORTFOLIO });
+  });
+
+  it('routes contribution notifications to the Interview insights contribution view', () => {
+    const candidateGroup = findGuardedGroup(CandidateRoute);
+    const contributionRoute = candidateGroup.children
+      ?.flatMap((route) => route.children ?? [])
+      .find((route) => route.path === ROUTES.INTERVIEW_INSIGHT_CONTRIBUTIONS);
+    expect(isValidElement(contributionRoute?.element)).toBe(true);
+    if (!isValidElement(contributionRoute?.element)) {
+      throw new Error('Interview contribution redirect was not found.');
+    }
+    expect(contributionRoute.element.type).toBe(Navigate);
+    expect(contributionRoute.element.props).toMatchObject({
+      replace: true,
+      to: `${ROUTES.INTERVIEW_INSIGHTS}?view=contributions`,
+    });
   });
 
   it('keeps public portfolios anonymous and outside dashboard layouts', () => {

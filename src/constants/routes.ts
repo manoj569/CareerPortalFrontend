@@ -27,6 +27,8 @@ export const ROUTES = {
   SAVED_JOBS: '/dashboard/saved-jobs',
   APPLICATIONS: '/dashboard/applications',
   APPLICATION_DETAILS: '/dashboard/applications/:applicationId',
+  INTERVIEW_INSIGHTS: '/dashboard/interview-insights',
+  INTERVIEW_INSIGHT_CONTRIBUTIONS: '/dashboard/interview-insights/my-contributions',
   NOTIFICATIONS: '/dashboard/notifications',
   SETTINGS: '/dashboard/settings',
   MEMBERSHIP: '/dashboard/membership',
@@ -64,6 +66,11 @@ export const buildJobDetailsPath = (slug: string): string =>
 
 export const buildApplicationDetailsPath = (applicationId: string): string =>
   ROUTES.APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+
+export const buildInterviewInsightsPath = (params?: Record<string, string>): string => {
+  const search = new URLSearchParams(params);
+  return `${ROUTES.INTERVIEW_INSIGHTS}${search.size ? `?${search.toString()}` : ''}`;
+};
 
 export const buildPublicPortfolioPath = (slug: string): string =>
   ROUTES.PUBLIC_PORTFOLIO.replace(':slug', encodeURIComponent(slug));

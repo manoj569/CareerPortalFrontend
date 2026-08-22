@@ -54,6 +54,10 @@ const renderGuardRouter = (initialPath: string, auth: AuthState) => {
           { path: '/dashboard/membership', element: <p>Membership content</p> },
           { path: '/candidate-only', element: <p>Candidate dashboard content</p> },
           { path: '/dashboard/jobs', element: <p>Candidate job browser</p> },
+          {
+            path: '/dashboard/interview-insights',
+            element: <p>Candidate interview insights</p>,
+          },
           { path: '/onboarding', element: <p>Candidate onboarding content</p> },
         ],
       },
@@ -146,6 +150,28 @@ describe('route guards', () => {
     candidateView.unmount();
 
     renderGuardRouter('/dashboard/jobs', createAuthState('authenticated', UserRole.Administrator));
+    expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
+  });
+
+  it('protects Interview insights for Candidate accounts only', async () => {
+    const signedOut = renderGuardRouter(
+      '/dashboard/interview-insights',
+      createAuthState('unauthenticated'),
+    );
+    expect(await screen.findByText('Login destination')).toBeInTheDocument();
+    signedOut.unmount();
+
+    const candidateView = renderGuardRouter(
+      '/dashboard/interview-insights',
+      createAuthState('authenticated', UserRole.Candidate),
+    );
+    expect(await screen.findByText('Candidate interview insights')).toBeInTheDocument();
+    candidateView.unmount();
+
+    renderGuardRouter(
+      '/dashboard/interview-insights',
+      createAuthState('authenticated', UserRole.Administrator),
+    );
     expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
   });
 

@@ -136,6 +136,19 @@ export const API_ENDPOINTS = {
       `/candidate/applications/${encodeURIComponent(applicationId)}/withdraw`,
     RECRUITER_CONTACT: (jobId: string) =>
       `/candidate/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
+    INTERVIEW_INSIGHTS: '/candidate/interview-insights',
+    INTERVIEW_INSIGHT: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}`,
+    INTERVIEW_INSIGHT_FEEDBACK: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}/feedback`,
+    INTERVIEW_INSIGHT_REPORT: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}/report`,
+    INTERVIEW_INSIGHT_CONTRIBUTIONS: '/candidate/interview-insights/my-contributions',
+    COMPANY_INTERVIEW_INSIGHT_SUMMARY: (companyId: string) =>
+      `/candidate/interview-insights/company/${encodeURIComponent(companyId)}/summary`,
+    INTERVIEW_SCHEDULES: '/candidate/interview-schedules',
+    INTERVIEW_SCHEDULE: (scheduleId: string) =>
+      `/candidate/interview-schedules/${encodeURIComponent(scheduleId)}`,
   },
   PUBLIC: {
     PORTFOLIO: (slug: string) => `/portfolios/${encodeURIComponent(slug)}`,

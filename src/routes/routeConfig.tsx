@@ -189,6 +189,19 @@ export const appRoutes: RouteObject[] = [
                 ),
               },
               {
+                path: ROUTES.INTERVIEW_INSIGHTS,
+                element: lazyPage(
+                  () => import('@/pages/InterviewInsightsPage'),
+                  'InterviewInsightsPage',
+                ),
+              },
+              {
+                path: ROUTES.INTERVIEW_INSIGHT_CONTRIBUTIONS,
+                element: (
+                  <Navigate replace to={`${ROUTES.INTERVIEW_INSIGHTS}?view=contributions`} />
+                ),
+              },
+              {
                 path: ROUTES.NOTIFICATIONS,
                 element: lazyPage(() => import('@/pages/NotificationsPage'), 'NotificationsPage'),
               },
