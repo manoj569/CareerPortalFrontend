@@ -1,10 +1,12 @@
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   Alert,
   Autocomplete,
+  Box,
   Button,
   Checkbox,
   CircularProgress,
@@ -15,9 +17,11 @@ import {
   FormControl,
   FormControlLabel,
   FormHelperText,
+  Grid,
   IconButton,
   InputLabel,
   MenuItem,
+  Paper,
   Select,
   Stack,
   Step,
@@ -373,6 +377,7 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
   const [summary, setSummary] = useState('');
   const [tips, setTips] = useState('');
   const [accepted, setAccepted] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [create, state] = useCreateInterviewInsightMutation();
   useEffect(() => {
@@ -390,6 +395,7 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
       setSummary('');
       setTips('');
       setAccepted(false);
+      setSubmitted(false);
       setError(null);
     }
   }, [open]);
@@ -447,24 +453,32 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
           roundTitle: item.roundTitle?.trim() || null,
         })),
       }).unwrap();
-      onSubmitted();
+      setSubmitted(true);
     } catch (requestError) {
       setError(requestError);
     }
   };
 
   return (
-    <Dialog fullWidth maxWidth="md" onClose={state.isLoading ? undefined : onClose} open={open}>
-      <DialogTitle>Share an interview insight</DialogTitle>
+    <Dialog fullScreen onClose={state.isLoading ? undefined : onClose} open={open}>
+      <DialogTitle sx={{ bgcolor: '#0B1F43', color: '#FFFFFF', px: { xs: 2, md: 5 } }}>Share an interview insight</DialogTitle>
       <DialogContent>
-        <Stack spacing={3} sx={{ pt: 1 }}>
+        {submitted ? (
+          <Stack alignItems="center" justifyContent="center" spacing={2} sx={{ minHeight: '75vh', textAlign: 'center' }}>
+            <CheckCircleOutlineIcon sx={{ color: '#12B76A', fontSize: 72 }} />
+            <Typography component="h2" variant="h2">Thanks for helping future candidates</Typography>
+            <Typography color="text.secondary">Your insight is pending review. We’ll notify you once it is published.</Typography>
+            <Button onClick={onSubmitted} variant="contained">View my contributions</Button>
+          </Stack>
+        ) : (
+        <Stack spacing={3} sx={{ maxWidth: 1120, mx: 'auto', pt: 2, width: '100%' }}>
           <Alert severity="info">Submitted insights are reviewed before publication.</Alert>
           <Stepper activeStep={step} alternativeLabel>
             {[
-              'Interview basics',
-              'Interview rounds',
-              'Summary and preparation',
-              'Review and submit',
+              'Basics',
+              'Rounds',
+              'Summary & tips',
+              'Review',
             ].map((label) => (
               <Step key={label}>
                 <StepLabel>{label}</StepLabel>
@@ -559,13 +573,16 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
             </Stack>
           ) : null}
           {step === 1 ? (
-            <Stack spacing={2}>
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 8 }}>
+              <Stack spacing={2}>
               {rounds.map((round, index) => (
-                <Stack
+                <Paper
+                  elevation={0}
                   key={index}
-                  spacing={2}
-                  sx={{ bgcolor: 'action.hover', borderRadius: 2, p: 2 }}
+                  sx={{ border: '1px solid #E5EAF2', borderRadius: '12px', boxShadow: '0 8px 24px rgba(16, 42, 86, 0.07)', mb: 2, p: 2.5 }}
                 >
+                  <Stack spacing={2}>
                   <Stack alignItems="center" direction="row" justifyContent="space-between">
                     <Typography component="h3" fontWeight={700}>
                       Round {index + 1}
@@ -658,7 +675,8 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
                     }
                     value={round.candidateAdvice ?? ''}
                   />
-                </Stack>
+                  </Stack>
+                </Paper>
               ))}
               <Button
                 disabled={rounds.length >= 12}
@@ -668,7 +686,22 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
               >
                 Add round
               </Button>
-            </Stack>
+              </Stack>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Paper elevation={0} sx={{ border: '1px solid #E5EAF2', borderRadius: '12px', p: 2.5, position: { md: 'sticky' }, top: 24 }}>
+                  <Typography component="h3" variant="h3">Timeline preview</Typography>
+                  <Stack spacing={1.5} sx={{ mt: 2 }}>
+                    {rounds.map((round, index) => (
+                      <Stack alignItems="center" direction="row" gap={1.5} key={`preview-${index}`}>
+                        <Box sx={{ bgcolor: '#155EEF', borderRadius: '50%', color: '#fff', display: 'grid', height: 28, placeItems: 'center', width: 28 }}>{index + 1}</Box>
+                        <Typography fontWeight={700}>{round.roundTitle || roundLabels[round.roundType]}</Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Paper>
+              </Grid>
+            </Grid>
           ) : null}
           {step === 2 ? (
             <Stack spacing={2}>
@@ -734,8 +767,9 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
             </Stack>
           ) : null}
         </Stack>
+        )}
       </DialogContent>
-      <DialogActions>
+      {!submitted ? <DialogActions sx={{ borderTop: '1px solid #E5EAF2', px: { xs: 2, md: 5 }, py: 2 }}>
         <Button disabled={state.isLoading} onClick={onClose}>
           Cancel
         </Button>
@@ -764,7 +798,7 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
             {state.isLoading ? 'Submitting…' : 'Submit for review'}
           </Button>
         )}
-      </DialogActions>
+      </DialogActions> : null}
     </Dialog>
   );
 };

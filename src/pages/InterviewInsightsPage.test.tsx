@@ -144,7 +144,7 @@ describe('InterviewInsightsPage', () => {
     expect(screen.getByText('HR')).toBeVisible();
     expect(screen.getByText('Technical')).toBeVisible();
     expect(screen.getByText('React')).toBeVisible();
-    expect(screen.getByText(/Anonymous candidate/)).toBeVisible();
+    expect(screen.getByText('Anonymous contributor')).toBeVisible();
     expect(document.body).not.toHaveTextContent('private@example.com');
     expect(document.body).not.toHaveTextContent('PendingReview');
   });
@@ -178,7 +178,7 @@ describe('InterviewInsightsPage', () => {
     installHandlers();
     renderPage();
     const user = userEvent.setup();
-    const input = screen.getByRole('combobox', { name: 'Company' });
+    const input = screen.getByRole('combobox', { name: 'Search companies, roles, insights…' });
     await user.type(input, 'H');
     await new Promise((resolve) => window.setTimeout(resolve, 350));
     expect(
@@ -189,7 +189,7 @@ describe('InterviewInsightsPage', () => {
     await user.type(input, 'A');
     expect(await screen.findByRole('option', { name: 'HARMAN' }, { timeout: 3_000 })).toBeVisible();
     await user.click(screen.getByRole('option', { name: 'HARMAN' }));
-    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    await user.click(screen.getByRole('button', { name: 'Apply filters' }));
     await waitFor(() =>
       expect(
         requestMock.mock.calls
@@ -217,7 +217,7 @@ describe('InterviewInsightsPage', () => {
     expect(await screen.findByText('Full insight is locked')).toBeVisible();
     expect(
       screen.getByText(
-        'Add an interview schedule or apply for a role at this company to unlock detailed preparation content.',
+        'Add an interview schedule or apply for a role at this company to unlock detailed rounds and preparation topics.',
       ),
     ).toBeVisible();
     expect(screen.queryByText('Interview rounds')).not.toBeInTheDocument();
@@ -245,8 +245,8 @@ describe('InterviewInsightsPage', () => {
     });
     renderPage();
     await userEvent.click(await screen.findByRole('button', { name: 'Read insight' }));
-    expect(await screen.findByText('React rendering')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Did this insight help you?' })).toBeEnabled();
+    expect((await screen.findAllByText('React rendering')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Helped me' })).toBeEnabled();
   });
 
   it('sends canonical schedule metadata while keeping the date private to schedules', async () => {

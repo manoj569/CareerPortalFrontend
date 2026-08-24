@@ -3,6 +3,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
+import ThumbUpAltOutlinedIcon from '@mui/icons-material/ThumbUpAltOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import {
   Alert,
@@ -69,6 +70,12 @@ import {
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 const PAGE_SIZE = 12;
+const featureCard = {
+  bgcolor: '#FFFFFF',
+  border: '1px solid #E5EAF2',
+  borderRadius: '12px',
+  boxShadow: '0 8px 24px rgba(16, 42, 86, 0.07)',
+};
 type PageView = 'insights' | 'schedules' | 'contributions';
 type ScheduleView = 'upcoming' | 'completed' | 'cancelled';
 
@@ -99,15 +106,14 @@ const InsightCard = ({ insight, onOpen, onReport }: InsightCardProps) => (
     component="article"
     elevation={0}
     sx={{
-      bgcolor: 'background.paper',
-      boxShadow: '0 10px 30px rgba(25, 71, 138, 0.08)',
+      ...featureCard,
       height: '100%',
-      p: { xs: 2.5, md: 3 },
+      p: 2.5,
     }}
   >
-    <Stack height="100%" spacing={2}>
+    <Stack height="100%" spacing={1.5}>
       <Box>
-        <Typography color="primary.main" fontWeight={700} variant="body2">
+        <Typography color="#155EEF" fontSize={13} fontWeight={800} variant="body2">
           {insight.companyName}
         </Typography>
         <Typography component="h2" sx={{ mt: 0.5, overflowWrap: 'anywhere' }} variant="h3">
@@ -148,7 +154,7 @@ const InsightCard = ({ insight, onOpen, onReport }: InsightCardProps) => (
           display: '-webkit-box',
           overflow: 'hidden',
           WebkitBoxOrient: 'vertical',
-          WebkitLineClamp: 3,
+          WebkitLineClamp: 2,
         }}
       >
         {insight.shortSummary}
@@ -156,15 +162,23 @@ const InsightCard = ({ insight, onOpen, onReport }: InsightCardProps) => (
       {insight.topicTags.length ? (
         <Stack direction="row" flexWrap="wrap" gap={0.75}>
           {insight.topicTags.map((tag) => (
-            <Chip color="primary" key={tag} label={tag} size="small" variant="outlined" />
+            <Chip
+              key={tag}
+              label={tag}
+              size="small"
+              sx={{ bgcolor: '#EEF4FF', color: '#102A56', fontWeight: 600 }}
+            />
           ))}
         </Stack>
       ) : null}
-      <Typography variant="body2">
-        Helped {insight.helpfulConfirmedCount} candidate
-        {insight.helpfulConfirmedCount === 1 ? '' : 's'} ·{' '}
-        {insight.isAnonymous ? 'Anonymous candidate' : insight.authorLabel || 'Candidate'}
-      </Typography>
+      <Stack alignItems="center" direction="row" gap={0.75}>
+        <ThumbUpAltOutlinedIcon sx={{ color: '#12B76A', fontSize: 18 }} />
+        <Typography color="#027A48" fontWeight={700} variant="body2">
+          Helped {insight.helpfulConfirmedCount} candidate
+          {insight.helpfulConfirmedCount === 1 ? '' : 's'}
+        </Typography>
+        {insight.isAnonymous ? <Chip label="Anonymous contributor" size="small" /> : null}
+      </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} sx={{ mt: 'auto' }}>
         <Button onClick={() => onOpen(insight.id)} variant="contained">
           Read insight
@@ -186,7 +200,7 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailProps) => {
   const query = useGetInterviewInsightQuery(id ?? '', { skip: !id });
   const data = query.data;
   return (
-    <Dialog fullWidth maxWidth="md" onClose={onClose} open={Boolean(id)}>
+    <Dialog fullWidth maxWidth="lg" onClose={onClose} open={Boolean(id)}>
       <DialogTitle>Interview insight</DialogTitle>
       <DialogContent>
         {query.isFetching && !data ? (
@@ -203,7 +217,7 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailProps) => {
           />
         ) : null}
         {data ? (
-          <Stack spacing={3} sx={{ pt: 1 }}>
+          <Stack spacing={2.5} sx={{ bgcolor: '#F4F7FB', mx: -1, p: { xs: 1, md: 2.5 } }}>
             <Box>
               <Typography component="h2" variant="h2">
                 {data.roleTitle}
@@ -217,18 +231,12 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailProps) => {
               {data.interviewFormat ? <Chip label={formatLabels[data.interviewFormat]} /> : null}
               {data.outcome ? <Chip label={pretty(data.outcome)} /> : null}
             </Stack>
-            <Box>
-              <Typography component="h3" variant="h3">
-                Process summary
-              </Typography>
-              <Typography sx={{ mt: 1, whiteSpace: 'pre-line' }}>{data.processSummary}</Typography>
-            </Box>
             {!data.canReadFull ? (
-              <Alert icon={<LockOutlinedIcon />} severity="info">
+              <Alert icon={<LockOutlinedIcon />} severity="info" sx={featureCard}>
                 <Typography fontWeight={700}>Full insight is locked</Typography>
                 <Typography variant="body2">
                   Add an interview schedule or apply for a role at this company to unlock detailed
-                  preparation content.
+                  rounds and preparation topics.
                 </Typography>
                 <Button
                   component={Link}
@@ -245,11 +253,12 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailProps) => {
                 </Button>
               </Alert>
             ) : (
-              <>
-                <Box>
-                  <Typography component="h3" variant="h3">
-                    Interview rounds
-                  </Typography>
+              <Grid container spacing={2.5}>
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <Stack spacing={2.5}>
+                  <Paper elevation={0} sx={{ ...featureCard, p: 2.5 }}>
+                  <Typography component="h3" variant="h3">Interview process</Typography>
+                  <Typography color="text.secondary" sx={{ mt: 1 }}>{data.processSummary}</Typography>
                   <Stack spacing={0} sx={{ mt: 2 }}>
                     {data.rounds.map((round, index) => (
                       <Stack direction="row" key={round.id} spacing={2}>
@@ -292,27 +301,45 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailProps) => {
                       </Stack>
                     ))}
                   </Stack>
-                </Box>
+                  </Paper>
+                  <Paper elevation={0} sx={{ ...featureCard, p: 2.5 }}>
+                    <Typography component="h3" variant="h3">Questions &amp; topics discussed</Typography>
+                    <Stack spacing={1.25} sx={{ mt: 2 }}>
+                      {data.rounds.map((round) => (
+                        <Box key={`topic-${round.id}`} sx={{ bgcolor: '#F4F7FB', borderRadius: 2, p: 1.5 }}>
+                          <Typography fontWeight={700}>{roundLabels[round.roundType]}</Typography>
+                          <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>{round.questionsOrTopics}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Paper>
                 {data.preparationTips ? (
-                  <Box>
+                  <Paper elevation={0} sx={{ ...featureCard, p: 2.5 }}>
                     <Typography component="h3" variant="h3">
                       Preparation tips
                     </Typography>
                     <Typography sx={{ mt: 1, whiteSpace: 'pre-line' }}>
                       {data.preparationTips}
                     </Typography>
-                  </Box>
+                  </Paper>
                 ) : null}
+                  </Stack>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Paper elevation={0} sx={{ ...featureCard, p: 2.5, position: { md: 'sticky' }, top: 16 }}>
+                    <Typography component="h3" variant="h3">Did this insight help your preparation?</Typography>
                 {data.canGiveFeedback ? (
-                  <Button
-                    onClick={() => onFeedback(data)}
-                    sx={{ alignSelf: 'flex-start' }}
-                    variant="outlined"
-                  >
-                    Did this insight help you?
-                  </Button>
-                ) : null}
-              </>
+                  <Stack spacing={1} sx={{ mt: 2 }}>
+                    {['Helped me', 'Partly helped', 'Not accurate'].map((label) => (
+                      <Button key={label} onClick={() => onFeedback(data)} variant={label === 'Helped me' ? 'contained' : 'outlined'}>{label}</Button>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography color="text.secondary" sx={{ mt: 1 }} variant="body2">Feedback is available after an eligible completed interview.</Typography>
+                )}
+                  </Paper>
+                </Grid>
+              </Grid>
             )}
           </Stack>
         ) : null}
@@ -652,7 +679,20 @@ export const InterviewInsightsPage = () => {
   };
 
   return (
-    <Stack spacing={4} sx={{ maxWidth: 1280, mx: 'auto', width: '100%' }}>
+    <Stack
+      spacing={3}
+      sx={{
+        bgcolor: '#F4F7FB',
+        color: '#172B4D',
+        maxWidth: 1440,
+        minHeight: '100%',
+        mx: 'auto',
+        p: { xs: 2, md: 3 },
+        width: '100%',
+        '& .MuiButton-containedPrimary': { bgcolor: '#155EEF', '&:hover': { bgcolor: '#0047C1' } },
+        '& .MuiPaper-root': { borderRadius: '12px' },
+      }}
+    >
       <DashboardPageHeader
         description="Learn from candidate experiences, prepare with confidence, and help future candidates."
         eyebrow="CAREER PREPARATION"
@@ -672,7 +712,7 @@ export const InterviewInsightsPage = () => {
           {notice}
         </Alert>
       ) : null}
-      <Stack direction={{ xs: 'column', sm: 'row' }} gap={1.5}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} gap={1.5} justifyContent="flex-end">
         <Button
           onClick={() => setShareOpen(true)}
           startIcon={<QuestionAnswerOutlinedIcon />}
@@ -711,11 +751,12 @@ export const InterviewInsightsPage = () => {
               event.preventDefault();
               applyVisibleFilters();
             }}
-            sx={{ boxShadow: '0 8px 24px rgba(25, 71, 138, 0.07)', p: 2.5 }}
+            sx={{ ...featureCard, p: 2 }}
           >
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 3 }}>
                 <InterviewCompanyAutocomplete
+                  label="Search companies, roles, insights…"
                   onChange={(selected) => {
                     setCompany(selected);
                     if (selected) setCompanyText(selected.companyName);
@@ -749,32 +790,32 @@ export const InterviewInsightsPage = () => {
                 </FormControl>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-                <Button
-                  fullWidth
-                  startIcon={<TuneOutlinedIcon />}
-                  onClick={() => setMoreOpen(true)}
-                  sx={{ height: '100%' }}
-                  variant="outlined"
-                >
-                  More filters
-                </Button>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 1 }}>
                 <Button fullWidth sx={{ height: '100%' }} type="submit" variant="contained">
-                  Apply
+                  Apply filters
                 </Button>
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 1 }}>
-                <Button fullWidth onClick={clearAll} sx={{ height: '100%' }}>
-                  Clear all
-                </Button>
+              <Grid size={12}>
+                <Stack alignItems="center" direction="row" flexWrap="wrap" gap={1}>
+                  {[
+                    `Round: ${params.get('roundType') ? roundLabels[params.get('roundType') as InterviewRoundType] : 'All rounds'}`,
+                    `Difficulty: ${params.get('difficulty') ?? 'Any'}`,
+                    `Experience: ${params.get('experienceLevel') ?? 'Any'}`,
+                    `Outcome: ${params.get('outcome') ? pretty(params.get('outcome')!) : 'Any'}`,
+                    `Format: ${params.get('interviewFormat') ? formatLabels[params.get('interviewFormat') as InterviewFormat] : 'Any'}`,
+                    `Recency: ${params.get('recencyMonths') ? `Last ${params.get('recencyMonths')} months` : 'All time'}`,
+                  ].map((label) => (
+                    <Chip key={label} label={label} onClick={() => setMoreOpen(true)} size="small" variant="outlined" />
+                  ))}
+                  <Button onClick={() => setMoreOpen(true)} size="small" startIcon={<TuneOutlinedIcon />}>More filters</Button>
+                  <Button onClick={clearAll} size="small">Clear all</Button>
+                </Stack>
               </Grid>
             </Grid>
           </Paper>
           {insights.isLoading ? (
             <Grid aria-label="Loading interview insights" container role="status" spacing={2}>
               {Array.from({ length: 6 }, (_, index) => (
-                <Grid key={index} size={{ xs: 12, lg: 6 }}>
+                <Grid key={index} size={{ xs: 12, md: 6, xl: 4 }}>
                   <Skeleton height={300} variant="rounded" />
                 </Grid>
               ))}
@@ -789,7 +830,9 @@ export const InterviewInsightsPage = () => {
           ) : null}
           {insights.data?.items.length === 0 ? (
             <EmptyState
-              description="Try changing your filters, or share an eligible interview experience to help future candidates."
+              actionLabel="Share the first insight"
+              description="Try another company or role, or be the first eligible candidate to share a reviewed experience."
+              onAction={() => setShareOpen(true)}
               title="No interview insights found"
             />
           ) : null}
@@ -797,7 +840,7 @@ export const InterviewInsightsPage = () => {
             <>
               <Grid container spacing={2}>
                 {insights.data.items.map((item) => (
-                  <Grid key={item.id} size={{ xs: 12, lg: 6 }}>
+                  <Grid key={item.id} size={{ xs: 12, md: 6, xl: 4 }}>
                     <InsightCard insight={item} onOpen={setDetailId} onReport={setReportId} />
                   </Grid>
                 ))}
@@ -821,6 +864,10 @@ export const InterviewInsightsPage = () => {
 
       {view === 'schedules' ? (
         <Stack spacing={2.5}>
+          <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
+            <Typography component="h2" variant="h2">Interview schedules</Typography>
+            <Button onClick={() => setScheduleOpen(true)} startIcon={<CalendarMonthOutlinedIcon />} variant="contained">Add schedule</Button>
+          </Stack>
           <Tabs
             aria-label="Schedule filters"
             onChange={(_, next: ScheduleView) => setScheduleView(next)}
@@ -857,14 +904,19 @@ export const InterviewInsightsPage = () => {
               component="article"
               elevation={0}
               key={item.id}
-              sx={{ boxShadow: '0 8px 24px rgba(25, 71, 138, 0.07)', p: 2.5 }}
+              sx={{ ...featureCard, p: 2.5 }}
             >
               <Stack
                 direction={{ xs: 'column', md: 'row' }}
                 justifyContent="space-between"
                 spacing={2}
               >
-                <Box>
+                <Stack direction="row" spacing={2}>
+                  <Box sx={{ alignSelf: 'flex-start', bgcolor: '#EEF4FF', borderRadius: 2, color: '#102A56', minWidth: 64, p: 1.25, textAlign: 'center' }}>
+                    <Typography fontWeight={800} variant="h3">{new Date(item.interviewAtUtc).getDate()}</Typography>
+                    <Typography fontWeight={700} variant="caption">{new Date(item.interviewAtUtc).toLocaleDateString('en-IN', { month: 'short' }).toUpperCase()}</Typography>
+                  </Box>
+                  <Box>
                   <Typography component="h2" variant="h3">
                     {item.roleTitle || 'Interview'}
                   </Typography>
@@ -900,7 +952,8 @@ export const InterviewInsightsPage = () => {
                       {item.expectedRoundTypes.map((round) => roundLabels[round]).join(', ')}
                     </Typography>
                   ) : null}
-                </Box>
+                  </Box>
+                </Stack>
                 <Stack
                   alignItems={{ xs: 'stretch', sm: 'center' }}
                   direction={{ xs: 'column', sm: 'row' }}
@@ -924,6 +977,9 @@ export const InterviewInsightsPage = () => {
                       </Button>
                     </>
                   ) : null}
+                  {item.status === InterviewScheduleStatus.InterviewCompleted ? (
+                    <Button onClick={() => setNotice('Feedback is available from eligible insight details.')} variant="contained">How did it go?</Button>
+                  ) : null}
                   <Button
                     component={Link}
                     to={`${ROUTES.INTERVIEW_INSIGHTS}?companyId=${encodeURIComponent(item.companyId)}&company=${encodeURIComponent(item.companyName)}`}
@@ -939,6 +995,7 @@ export const InterviewInsightsPage = () => {
 
       {view === 'contributions' ? (
         <Stack spacing={3}>
+          <Typography component="h2" variant="h2">My contributions</Typography>
           {contributions.isLoading ? <Skeleton height={240} variant="rounded" /> : null}
           {contributions.isError ? (
             <ErrorState
@@ -972,13 +1029,21 @@ export const InterviewInsightsPage = () => {
                   </Grid>
                 ))}
               </Grid>
-              <Paper elevation={0} sx={{ bgcolor: 'primary.50', p: 2.5 }}>
+              <Paper elevation={0} sx={{ ...featureCard, bgcolor: '#EEF4FF', p: 2.5 }}>
                 <Typography component="h2" variant="h3">
                   How points work
                 </Typography>
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  Helped = +3 · Partly helped = +1 · Not accurate = +0
-                </Typography>
+                <Typography color="text.secondary" sx={{ mt: 1 }}>Points are earned only after eligible candidates confirm an insight was useful.</Typography>
+                <Stack spacing={1} sx={{ mt: 2 }}>
+                  {[['Someone confirms “Helped me”', '+3 points'], ['Someone confirms “Partly helped”', '+1 point'], ['“Not accurate”', '0 points']].map(([label, points]) => (
+                    <Stack direction="row" justifyContent="space-between" key={label}><Typography>{label}</Typography><Typography color="#155EEF" fontWeight={800}>{points}</Typography></Stack>
+                  ))}
+                </Stack>
+                {contributions.data.badges.length ? (
+                  <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 2 }}>
+                    {contributions.data.badges.map((badge) => <Chip key={badge} label={badge} />)}
+                  </Stack>
+                ) : null}
               </Paper>
               {!contributions.data.items?.length ? (
                 <EmptyState
@@ -992,7 +1057,7 @@ export const InterviewInsightsPage = () => {
                       component="article"
                       elevation={0}
                       key={item.id}
-                      sx={{ boxShadow: '0 8px 24px rgba(25, 71, 138, 0.07)', p: 2.5 }}
+                      sx={{ ...featureCard, p: 2.5 }}
                     >
                       <Stack
                         direction={{ xs: 'column', sm: 'row' }}
@@ -1055,6 +1120,7 @@ export const InterviewInsightsPage = () => {
         onSubmitted={() => {
           setShareOpen(false);
           setNotice('Your insight is pending review.');
+          updateParams({ pageNumber: null, view: 'contributions' });
         }}
         open={shareOpen}
       />
