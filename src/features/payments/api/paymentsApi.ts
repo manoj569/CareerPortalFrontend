@@ -9,6 +9,8 @@ import type {
   Payment,
   PaymentHistoryPage,
   PaymentOrder,
+  PhonePeCheckoutResponse,
+  PhonePeReturnStatusResponse,
   PaymentStatusResponse,
   PaymentsPage,
   PaymentsQuery,
@@ -20,6 +22,20 @@ export const paymentsApi = createApi({
   keepUnusedDataFor: 60,
   tagTypes: ['Payments', 'PaymentHistory', 'PaymentStatus'],
   endpoints: (builder) => ({
+    createPhonePeCheckout: builder.mutation<PhonePeCheckoutResponse, void>({
+      query: () => ({
+        method: 'POST',
+        url: API_ENDPOINTS.PAYMENTS.CREATE_PHONEPE_CHECKOUT,
+      }),
+      transformResponse: (response: ApiResponse<PhonePeCheckoutResponse>) => response.data,
+      invalidatesTags: ['Payments', 'PaymentHistory', 'PaymentStatus'],
+    }),
+    getPhonePeReturn: builder.query<PhonePeReturnStatusResponse, string>({
+      query: (merchantOrderId) => ({
+        url: API_ENDPOINTS.PAYMENTS.PHONEPE_RETURN(merchantOrderId),
+      }),
+      transformResponse: (response: ApiResponse<PhonePeReturnStatusResponse>) => response.data,
+    }),
     createRazorpayOrder: builder.mutation<PaymentOrder, void>({
       query: () => ({
         data: {},
@@ -81,11 +97,13 @@ export const paymentsApi = createApi({
 });
 
 export const {
+  useCreatePhonePeCheckoutMutation,
   useConfirmRazorpayPaymentMutation,
   useCreateRazorpayOrderMutation,
   useGetPaymentHistoryQuery,
   useGetPaymentStatusQuery,
   useGetPaymentsQuery,
+  useLazyGetPhonePeReturnQuery,
   useReconcileRazorpayPaymentMutation,
 } = paymentsApi;
 

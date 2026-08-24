@@ -34,6 +34,9 @@ export const API_ENDPOINTS = {
     APPLY_TO_JOB: (slug: string) => `/memberships/jobs/${encodeURIComponent(slug)}/apply`,
   },
   PAYMENTS: {
+    CREATE_PHONEPE_CHECKOUT: '/payments/phonepe/checkout',
+    PHONEPE_RETURN: (merchantOrderId: string) =>
+      `/payments/phonepe/return/${encodeURIComponent(merchantOrderId)}`,
     CREATE_RAZORPAY_ORDER: '/payments/razorpay/orders',
     CONFIRM_RAZORPAY: (paymentId: string) =>
       `/payments/${encodeURIComponent(paymentId)}/razorpay/confirm`,

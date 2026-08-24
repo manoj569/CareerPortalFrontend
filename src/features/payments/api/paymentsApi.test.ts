@@ -145,3 +145,49 @@ describe('Razorpay payment API integration', () => {
     );
   });
 });
+
+describe('PhonePe payment API integration', () => {
+  beforeEach(() => {
+    mockRequest.mockReset();
+  });
+
+  it('creates checkout without sending an amount or other trusted payment fields', async () => {
+    const store = createAppStore();
+    mockRequest.mockResolvedValue({
+      data: {
+        data: {
+          amountInMinorUnits: 9_900,
+          currencyCode: 'INR',
+          durationDays: 30,
+          expiresAtUtc: null,
+          merchantOrderId: 'ch_order123',
+          planName: 'Career Harbor Membership',
+          redirectUrl: 'https://mercury.phonepe.com/checkout/test',
+        },
+      },
+    });
+
+    await store.dispatch(paymentsApi.endpoints.createPhonePeCheckout.initiate()).unwrap();
+
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST', url: '/payments/phonepe/checkout' }),
+    );
+    expect(mockRequest.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ data: undefined }));
+  });
+
+  it('checks the encoded merchant order return endpoint', async () => {
+    const store = createAppStore();
+    mockRequest.mockResolvedValue({
+      data: { data: { merchantOrderId: 'ch_order123', status: 'Pending' } },
+    });
+
+    await store.dispatch(paymentsApi.endpoints.getPhonePeReturn.initiate('ch_order123')).unwrap();
+
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: '/payments/phonepe/return/ch_order123',
+      }),
+    );
+  });
+});

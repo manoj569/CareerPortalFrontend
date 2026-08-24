@@ -18,6 +18,29 @@ export enum PaymentProvider {
   Razorpay,
   PayPal,
   BankTransfer,
+  PhonePe,
+}
+
+export interface PhonePeCheckoutResponse {
+  merchantOrderId: string;
+  redirectUrl: string;
+  expiresAtUtc: string | null;
+  planName: string;
+  amountInMinorUnits: number;
+  currencyCode: string;
+  durationDays: number;
+}
+
+export enum PhonePePaymentStatus {
+  Pending = 'Pending',
+  Completed = 'Completed',
+  Failed = 'Failed',
+  Cancelled = 'Cancelled',
+}
+
+export interface PhonePeReturnStatusResponse {
+  merchantOrderId: string;
+  status: PhonePePaymentStatus;
 }
 
 export interface PaymentOrder {

@@ -239,6 +239,10 @@ export const appRoutes: RouteObject[] = [
                 path: ROUTES.PAYMENT_FAILED,
                 element: lazyPage(() => import('@/pages/PaymentFailedPage'), 'PaymentFailedPage'),
               },
+              {
+                path: ROUTES.PHONEPE_RETURN,
+                element: lazyPage(() => import('@/pages/PhonePeReturnPage'), 'PhonePeReturnPage'),
+              },
             ],
           },
         ],

@@ -37,6 +37,7 @@ const paymentProviderLabels: Record<PaymentProvider, string> = {
   [PaymentProvider.Unknown]: 'Unknown',
   [PaymentProvider.Stripe]: 'Stripe',
   [PaymentProvider.Razorpay]: 'Razorpay',
+  [PaymentProvider.PhonePe]: 'PhonePe',
   [PaymentProvider.PayPal]: 'PayPal',
   [PaymentProvider.BankTransfer]: 'Bank transfer',
 };
