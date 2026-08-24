@@ -340,6 +340,13 @@ export const appRoutes: RouteObject[] = [
                   'AdminAuditLogsPage',
                 ),
               },
+              {
+                path: ROUTES.ADMIN_INTERVIEW_INSIGHTS,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminInterviewInsightsPage'),
+                  'AdminInterviewInsightsPage',
+                ),
+              },
             ],
           },
         ],

@@ -59,6 +59,7 @@ export const ROUTES = {
   ADMIN_PAYMENTS: '/admin/payments',
   ADMIN_PAYMENT_DETAILS: '/admin/payments/:paymentId',
   ADMIN_AUDIT_LOGS: '/admin/audit-logs',
+  ADMIN_INTERVIEW_INSIGHTS: '/admin/interview-insights',
 } as const;
 
 export const buildJobDetailsPath = (slug: string): string =>

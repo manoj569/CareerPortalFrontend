@@ -82,6 +82,7 @@ describe('release route structure', () => {
         ROUTES.ADMIN_JOB_DISCOVERY_RUN,
         ROUTES.ADMIN_APPLICATIONS,
         ROUTES.ADMIN_AUDIT_LOGS,
+        ROUTES.ADMIN_INTERVIEW_INSIGHTS,
       ]),
     );
     expect(candidatePaths).not.toEqual(expect.arrayContaining(adminPaths));

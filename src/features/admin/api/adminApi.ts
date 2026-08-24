@@ -48,6 +48,16 @@ import type {
   JobDiscoverySelectionRequest,
   UpdateAdminRecruiterContactArgs,
 } from '../types/adminModels';
+import type {
+  AdminInsightReportQuery,
+  AdminInsightReportResponse,
+  AdminInsightReportsPage,
+  AdminInterviewInsightQuery,
+  AdminInterviewInsightsPage,
+  ModerateInsightReportRequest,
+  ModerateInterviewInsightRequest,
+} from '../types/adminInterviewInsightModels';
+import type { InterviewInsightResponse } from '@/features/interviewInsights/types/interviewInsightModels';
 
 const csvUpload = (file: File): FormData => {
   const formData = new FormData();
@@ -97,6 +107,8 @@ export const adminApi = createApi({
     'AdminAuditLogs',
     'RecruiterContact',
     'JobDiscoveryRuns',
+    'AdminInterviewInsights',
+    'AdminInsightReports',
   ],
   endpoints: (builder) => ({
     getAdminStatistics: builder.query<AdminDashboardStatistics, void>({
@@ -562,6 +574,58 @@ export const adminApi = createApi({
       transformResponse: (response: ApiResponse<AdminAuditLogsPage>) => response.data,
       providesTags: ['AdminAuditLogs'],
     }),
+    getAdminInterviewInsights: builder.query<
+      AdminInterviewInsightsPage,
+      AdminInterviewInsightQuery
+    >({
+      query: (params) => ({ params, url: API_ENDPOINTS.ADMIN.INTERVIEW_INSIGHTS }),
+      transformResponse: (response: ApiResponse<AdminInterviewInsightsPage>) => response.data,
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.items.map((item) => ({ id: item.id, type: 'AdminInterviewInsights' as const })),
+              { id: 'LIST', type: 'AdminInterviewInsights' as const },
+            ]
+          : [{ id: 'LIST', type: 'AdminInterviewInsights' as const }],
+    }),
+    moderateAdminInterviewInsight: builder.mutation<
+      InterviewInsightResponse,
+      { id: string; request: ModerateInterviewInsightRequest }
+    >({
+      query: ({ id, request }) => ({
+        data: request,
+        method: 'PATCH',
+        url: API_ENDPOINTS.ADMIN.INTERVIEW_INSIGHT_MODERATION(id),
+      }),
+      transformResponse: (response: ApiResponse<InterviewInsightResponse>) => response.data,
+      invalidatesTags: (_, __, { id }) => [
+        { id, type: 'AdminInterviewInsights' },
+        { id: 'LIST', type: 'AdminInterviewInsights' },
+      ],
+    }),
+    getAdminInsightReports: builder.query<AdminInsightReportsPage, AdminInsightReportQuery>({
+      query: (params) => ({ params, url: API_ENDPOINTS.ADMIN.INTERVIEW_INSIGHT_REPORTS }),
+      transformResponse: (response: ApiResponse<AdminInsightReportsPage>) => response.data,
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.items.map((item) => ({ id: item.id, type: 'AdminInsightReports' as const })),
+              { id: 'LIST', type: 'AdminInsightReports' as const },
+            ]
+          : [{ id: 'LIST', type: 'AdminInsightReports' as const }],
+    }),
+    moderateAdminInsightReport: builder.mutation<
+      AdminInsightReportResponse,
+      { id: string; request: ModerateInsightReportRequest }
+    >({
+      query: ({ id, request }) => ({
+        data: request,
+        method: 'PATCH',
+        url: API_ENDPOINTS.ADMIN.INTERVIEW_INSIGHT_REPORT(id),
+      }),
+      transformResponse: (response: ApiResponse<AdminInsightReportResponse>) => response.data,
+      invalidatesTags: ['AdminInsightReports', 'AdminInterviewInsights'],
+    }),
   }),
 });
 
@@ -581,6 +645,8 @@ export const {
   useGetAdminApplicationQuery,
   useGetAdminApplicationsQuery,
   useGetAdminAuditLogsQuery,
+  useGetAdminInterviewInsightsQuery,
+  useGetAdminInsightReportsQuery,
   useGetAdminCategoriesQuery,
   useGetAdminCategoryOptionsQuery,
   useGetAdminCategoryQuery,
@@ -609,6 +675,8 @@ export const {
   useUpdateAdminCategoryMutation,
   useUpdateAdminCompanyMutation,
   useUpdateAdminJobMutation,
+  useModerateAdminInterviewInsightMutation,
+  useModerateAdminInsightReportMutation,
   useGetAdminRecruiterContactQuery,
   useUpdateAdminRecruiterContactMutation,
 } = adminApi;

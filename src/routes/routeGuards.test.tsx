@@ -45,6 +45,7 @@ const renderGuardRouter = (initialPath: string, auth: AuthState) => {
         children: [
           { path: '/admin-only', element: <p>Admin content</p> },
           { path: '/admin/companies', element: <p>Company administration</p> },
+          { path: '/admin/interview-insights', element: <p>Insight moderation</p> },
         ],
       },
       {
@@ -97,6 +98,20 @@ describe('route guards', () => {
   it('allows administrators into administrator routes', async () => {
     renderGuardRouter('/admin-only', createAuthState('authenticated', UserRole.Administrator));
     expect(await screen.findByText('Admin content')).toBeInTheDocument();
+  });
+
+  it('protects interview insight moderation from candidate accounts', async () => {
+    const candidateView = renderGuardRouter(
+      '/admin/interview-insights',
+      createAuthState('authenticated', UserRole.Candidate),
+    );
+    expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
+    candidateView.unmount();
+    renderGuardRouter(
+      '/admin/interview-insights',
+      createAuthState('authenticated', UserRole.Administrator),
+    );
+    expect(await screen.findByText('Insight moderation')).toBeInTheDocument();
   });
 
   it('redirects unauthenticated users from payment to login', async () => {

@@ -83,6 +83,12 @@ export const API_ENDPOINTS = {
     APPLICATION_RESUME: (applicationId: string) =>
       `/admin/applications/${encodeURIComponent(applicationId)}/resume`,
     AUDIT_LOGS: '/admin/audit-logs',
+    INTERVIEW_INSIGHTS: '/admin/interview-insights',
+    INTERVIEW_INSIGHT_MODERATION: (insightId: string) =>
+      `/admin/interview-insights/${encodeURIComponent(insightId)}/moderation`,
+    INTERVIEW_INSIGHT_REPORTS: '/admin/interview-insight-reports',
+    INTERVIEW_INSIGHT_REPORT: (reportId: string) =>
+      `/admin/interview-insight-reports/${encodeURIComponent(reportId)}`,
     IMPORTS: {
       COMPANIES_PREVIEW: '/admin/imports/companies/preview',
       COMPANIES_COMMIT: '/admin/imports/companies/commit',
