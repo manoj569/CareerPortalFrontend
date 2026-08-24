@@ -5,4 +5,5 @@ export interface NavigationItem {
   path: string;
   icon?: SvgIconComponent;
   end?: boolean;
+  preserveCurrentLocation?: boolean;
 }

@@ -191,8 +191,9 @@ export const appRoutes: RouteObject[] = [
               {
                 path: ROUTES.INTERVIEW_INSIGHTS,
                 element: lazyPage(
-                  () => import('@/pages/InterviewInsightsPage'),
-                  'InterviewInsightsPage',
+                  () =>
+                    import('@/features/interviewInsights/components/InterviewInsightsMembershipGate'),
+                  'InterviewInsightsMembershipGate',
                 ),
               },
               {

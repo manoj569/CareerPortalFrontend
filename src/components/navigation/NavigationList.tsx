@@ -1,5 +1,5 @@
 import { List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 import type { NavigationItem } from './navigationTypes';
 
@@ -15,9 +15,13 @@ export const NavigationList = ({
   items,
   onNavigate,
   compact = false,
-}: NavigationListProps) => (
+}: NavigationListProps) => {
+  const location = useLocation();
+  const currentLocation = `${location.pathname}${location.search}${location.hash}`;
+
+  return (
   <List component="nav" aria-label={ariaLabel} sx={{ px: compact ? 0.75 : 1 }}>
-    {items.map(({ end, icon: Icon, label, path }) => (
+    {items.map(({ end, icon: Icon, label, path, preserveCurrentLocation }) => (
       <Tooltip key={path} placement="right" title={compact ? label : ''}>
         <ListItemButton
           aria-label={compact ? label : undefined}
@@ -37,6 +41,7 @@ export const NavigationList = ({
               '&:hover': { bgcolor: 'primary.dark' },
             },
           }}
+          state={preserveCurrentLocation ? { from: currentLocation } : undefined}
           to={path}
         >
           {Icon ? (
@@ -49,4 +54,5 @@ export const NavigationList = ({
       </Tooltip>
     ))}
   </List>
-);
+  );
+};

@@ -21,6 +21,7 @@ export const candidateNavigationItems: NavigationItem[] = [
     label: 'Interview insights',
     path: ROUTES.INTERVIEW_INSIGHTS,
     icon: QuestionAnswerOutlinedIcon,
+    preserveCurrentLocation: true,
   },
   { label: 'Membership', path: ROUTES.MEMBERSHIP, icon: WorkspacePremiumOutlinedIcon },
   { label: 'Payments', path: ROUTES.PAYMENTS, icon: PaymentsOutlinedIcon },

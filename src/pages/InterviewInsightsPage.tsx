@@ -195,10 +195,14 @@ interface DetailProps {
   id: string | null;
   onClose: () => void;
   onFeedback: (value: InterviewInsightResponse) => void;
+  onMembershipRequired?: () => void;
 }
-const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailProps) => {
+const InsightDetailDialog = ({ id, onClose, onFeedback, onMembershipRequired }: DetailProps) => {
   const query = useGetInterviewInsightQuery(id ?? '', { skip: !id });
   const data = query.data;
+  useEffect(() => {
+    if (requiresMembership(query.error)) onMembershipRequired?.();
+  }, [onMembershipRequired, query.error]);
   return (
     <Dialog fullWidth maxWidth="lg" onClose={onClose} open={Boolean(id)}>
       <DialogTitle>Interview insight</DialogTitle>
@@ -526,7 +530,14 @@ const MoreFiltersDialog = ({ onApply, onClose, open, params }: MoreFiltersProps)
   );
 };
 
-export const InterviewInsightsPage = () => {
+interface InterviewInsightsPageProps {
+  onMembershipRequired?: () => void;
+}
+
+const requiresMembership = (error: unknown): boolean =>
+  isInterviewInsightsApiError(error) && error.status === 403 && error.code === 'membership_required';
+
+export const InterviewInsightsPage = ({ onMembershipRequired }: InterviewInsightsPageProps = {}) => {
   useDocumentMetadata(
     'Interview insights | Career Harbor',
     'Learn from candidate interview experiences, manage private schedules, and share helpful preparation insights.',
@@ -605,6 +616,15 @@ export const InterviewInsightsPage = () => {
   const contributions = useGetMyInterviewContributionsQuery(undefined, {
     skip: view !== 'contributions',
   });
+  useEffect(() => {
+    if (
+      [insights.error, schedules.error, contributions.error].some((error) =>
+        requiresMembership(error),
+      )
+    ) {
+      onMembershipRequired?.();
+    }
+  }, [contributions.error, insights.error, onMembershipRequired, schedules.error]);
   const [updateSchedule, updateState] = useUpdateInterviewScheduleMutation();
   const feedbackSchedules = useMemo(
     () =>
@@ -1131,6 +1151,7 @@ export const InterviewInsightsPage = () => {
           setDetailId(null);
           setFeedback(item);
         }}
+        onMembershipRequired={onMembershipRequired}
       />
       {feedback ? (
         <InsightFeedbackDialog
