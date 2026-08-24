@@ -35,13 +35,14 @@ describe('PhonePe pending checkout resume', () => {
 });
 
 describe('PhonePe checkout redirect', () => {
-  it('stores only the merchant order and redirects to the exact HTTPS PhonePe host', () => {
+  it.each([
+    'https://mercury-uat.phonepe.com/transact/uat_v3?token=sandbox-token',
+    'https://mercury.phonepe.com/checkout/test',
+  ])('accepts an exact HTTPS PhonePe checkout host: %s', (url) => {
     const assign = vi.fn();
 
-    expect(
-      beginPhonePeRedirect(checkout('https://mercury.phonepe.com/checkout/test'), assign),
-    ).toBe(true);
-    expect(assign).toHaveBeenCalledWith('https://mercury.phonepe.com/checkout/test');
+    expect(beginPhonePeRedirect(checkout(url), assign)).toBe(true);
+    expect(assign).toHaveBeenCalledWith(url);
     expect(sessionStorage.getItem(PHONEPE_ORDER_STORAGE_KEY)).toBe('ch_order123');
     expect(
       [...Array(sessionStorage.length).keys()].map((index) => sessionStorage.key(index)),
@@ -50,8 +51,9 @@ describe('PhonePe checkout redirect', () => {
 
   it.each([
     'http://mercury.phonepe.com/checkout/test',
+    'http://mercury-uat.phonepe.com/transact/uat_v3?token=sandbox-token',
+    'https://evilphonepe.com/checkout',
     'https://mercury.phonepe.com.evil.example/checkout',
-    'https://evil.example/checkout',
     'not-a-url',
   ])('blocks an unsafe redirect without storing a session: %s', (url) => {
     const assign = vi.fn();

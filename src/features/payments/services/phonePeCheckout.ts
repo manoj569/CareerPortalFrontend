@@ -1,7 +1,10 @@
 import type { PhonePeCheckoutResponse } from '../types/paymentModels';
 
 export const PHONEPE_ORDER_STORAGE_KEY = 'careerHarbor.phonePeMerchantOrderId';
-const PHONEPE_CHECKOUT_HOST = 'mercury.phonepe.com';
+const PHONEPE_CHECKOUT_HOSTS = new Set([
+  'mercury-uat.phonepe.com',
+  'mercury.phonepe.com',
+]);
 const merchantOrderPattern = /^ch_[A-Za-z0-9_-]{1,100}$/;
 
 export const isValidPhonePeMerchantOrderId = (value: string | null): value is string =>
@@ -10,7 +13,7 @@ export const isValidPhonePeMerchantOrderId = (value: string | null): value is st
 export const isSafePhonePeRedirectUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && url.hostname === PHONEPE_CHECKOUT_HOST;
+    return url.protocol === 'https:' && PHONEPE_CHECKOUT_HOSTS.has(url.hostname);
   } catch {
     return false;
   }
