@@ -3,6 +3,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import {
   Alert,
   Box,
@@ -46,98 +47,101 @@ import {
 } from '@/features/interviewInsights/api/interviewInsightsApi';
 import {
   InsightFeedbackDialog,
+  InterviewCompanyAutocomplete,
   InterviewScheduleDialog,
   ReportInsightDialog,
   ShareInterviewInsightDialog,
 } from '@/features/interviewInsights/components/InterviewInsightDialogs';
+import { formatLabels, roundLabels } from '@/features/interviewInsights/interviewInsightOptions';
 import {
+  InterviewDifficulty,
+  InterviewFormat,
+  InterviewInsightSort,
+  InterviewInsightStatus,
+  InterviewOutcome,
+  InterviewRoundType,
   InterviewScheduleStatus,
-  type InterviewDifficulty,
-  type InterviewInsightStatus,
+  type InterviewInsightCardResponse,
+  type InterviewInsightCompanyResponse,
   type InterviewInsightResponse,
-  type InterviewOutcome,
-  type InterviewRoundType,
   type InterviewScheduleResponse,
 } from '@/features/interviewInsights/types/interviewInsightModels';
-import { useGetJobFilterOptionsQuery } from '@/features/jobs/api/jobsApi';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 const PAGE_SIZE = 12;
 type PageView = 'insights' | 'schedules' | 'contributions';
+type ScheduleView = 'upcoming' | 'completed' | 'cancelled';
 
-const difficultyLabel = (value: InterviewDifficulty): string =>
-  ({ 1: 'Easy', 2: 'Moderate', 3: 'Hard' })[value] ?? 'Not specified';
-const outcomeLabel = (value: InterviewOutcome | null): string | null =>
-  value
-    ? ({ 1: 'Awaiting', 2: 'Rejected', 3: 'Selected', 4: 'Withdrawn', 5: 'Prefer not to say' }[
-        value
-      ] ?? null)
-    : null;
-const statusLabel = (value: InterviewInsightStatus): string =>
-  ({ 1: 'Pending review', 2: 'Published', 3: 'Rejected', 4: 'Hidden' })[value] ?? 'Unknown';
-const scheduleStatusLabel = (value: InterviewScheduleStatus): string =>
-  ({ 1: 'Scheduled', 2: 'Interview completed', 3: 'Cancelled' })[value] ?? 'Unknown';
-const roundTypeLabel = (value: InterviewRoundType): string =>
-  ({
-    1: 'HR',
-    2: 'Technical',
-    3: 'Managerial',
-    4: 'Coding',
-    5: 'Aptitude',
-    6: 'Group discussion',
-    7: 'Other',
-  })[value] ?? 'Other';
-
+const pretty = (value: string): string => value.replace(/([a-z])([A-Z])/g, '$1 $2');
 const formatMonthYear = (month: number, year: number): string =>
   new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(Date.UTC(year, month - 1, 1)),
   );
-
 const readError = (error: unknown): string =>
   isInterviewInsightsApiError(error)
     ? error.message
     : 'Interview Insights are temporarily unavailable.';
+const moderationLabel = (status: InterviewInsightStatus): string =>
+  ({
+    PendingReview: 'Awaiting review',
+    Published: 'Published',
+    Rejected: 'Needs changes',
+    Hidden: 'Hidden',
+  })[status];
 
 interface InsightCardProps {
-  insight: InterviewInsightResponse;
+  insight: InterviewInsightCardResponse;
   onOpen: (id: string) => void;
   onReport: (id: string) => void;
 }
-
 const InsightCard = ({ insight, onOpen, onReport }: InsightCardProps) => (
-  <Paper component="article" sx={{ height: '100%', p: { xs: 2.5, md: 3 } }}>
+  <Paper
+    component="article"
+    elevation={0}
+    sx={{
+      bgcolor: 'background.paper',
+      boxShadow: '0 10px 30px rgba(25, 71, 138, 0.08)',
+      height: '100%',
+      p: { xs: 2.5, md: 3 },
+    }}
+  >
     <Stack height="100%" spacing={2}>
-      <Stack alignItems="flex-start" direction="row" justifyContent="space-between" spacing={1}>
-        <Box minWidth={0}>
-          <Typography component="h2" sx={{ overflowWrap: 'anywhere' }} variant="h3">
-            {insight.roleTitle}
-          </Typography>
-          <Typography color="text.secondary">{insight.companyName}</Typography>
-        </Box>
-        <Chip
-          color={insight.canReadFull ? 'success' : 'default'}
-          icon={insight.canReadFull ? undefined : <LockOutlinedIcon />}
-          label={insight.canReadFull ? 'Full access' : 'Locked'}
-          size="small"
-        />
-        <Chip label={statusLabel(insight.status)} size="small" variant="outlined" />
-      </Stack>
+      <Box>
+        <Typography color="primary.main" fontWeight={700} variant="body2">
+          {insight.companyName}
+        </Typography>
+        <Typography component="h2" sx={{ mt: 0.5, overflowWrap: 'anywhere' }} variant="h3">
+          {insight.roleTitle}
+        </Typography>
+        <Typography color="text.secondary" variant="body2">
+          {formatMonthYear(insight.interviewMonth, insight.interviewYear)}
+        </Typography>
+      </Box>
       <Stack direction="row" flexWrap="wrap" gap={1}>
         <Chip
-          label={formatMonthYear(insight.interviewMonth, insight.interviewYear)}
+          color={insight.difficulty === InterviewDifficulty.Hard ? 'warning' : 'default'}
+          label={insight.difficulty}
           size="small"
-          variant="outlined"
         />
-        <Chip label={difficultyLabel(insight.overallDifficulty)} size="small" variant="outlined" />
-        {outcomeLabel(insight.outcome) ? (
-          <Chip label={outcomeLabel(insight.outcome)} size="small" variant="outlined" />
-        ) : null}
         <Chip
           label={`${insight.roundCount} round${insight.roundCount === 1 ? '' : 's'}`}
           size="small"
           variant="outlined"
         />
+        {insight.interviewFormat ? (
+          <Chip label={formatLabels[insight.interviewFormat]} size="small" variant="outlined" />
+        ) : null}
+        {insight.outcome ? (
+          <Chip label={pretty(insight.outcome)} size="small" variant="outlined" />
+        ) : null}
       </Stack>
+      {insight.roundTypes.length ? (
+        <Stack direction="row" flexWrap="wrap" gap={0.75}>
+          {insight.roundTypes.map((item) => (
+            <Chip key={item} label={roundLabels[item]} size="small" variant="outlined" />
+          ))}
+        </Stack>
+      ) : null}
       <Typography
         color="text.secondary"
         sx={{
@@ -147,23 +151,25 @@ const InsightCard = ({ insight, onOpen, onReport }: InsightCardProps) => (
           WebkitLineClamp: 3,
         }}
       >
-        {insight.processSummary}
+        {insight.shortSummary}
       </Typography>
+      {insight.topicTags.length ? (
+        <Stack direction="row" flexWrap="wrap" gap={0.75}>
+          {insight.topicTags.map((tag) => (
+            <Chip color="primary" key={tag} label={tag} size="small" variant="outlined" />
+          ))}
+        </Stack>
+      ) : null}
       <Typography variant="body2">
-        Shared by{' '}
-        {insight.isAnonymous ? 'Anonymous candidate' : insight.authorDisplayName || 'Candidate'} ·{' '}
-        {insight.helpfulConfirmedCount} helpful confirmation
-        {insight.helpfulConfirmedCount === 1 ? '' : 's'}
+        Helped {insight.helpfulConfirmedCount} candidate
+        {insight.helpfulConfirmedCount === 1 ? '' : 's'} ·{' '}
+        {insight.isAnonymous ? 'Anonymous candidate' : insight.authorLabel || 'Candidate'}
       </Typography>
       <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} sx={{ mt: 'auto' }}>
         <Button onClick={() => onOpen(insight.id)} variant="contained">
-          View insight
+          Read insight
         </Button>
-        <Button
-          onClick={() => onReport(insight.id)}
-          startIcon={<FlagOutlinedIcon />}
-          variant="text"
-        >
+        <Button onClick={() => onReport(insight.id)} startIcon={<FlagOutlinedIcon />}>
           Report
         </Button>
       </Stack>
@@ -171,29 +177,28 @@ const InsightCard = ({ insight, onOpen, onReport }: InsightCardProps) => (
   </Paper>
 );
 
-interface DetailDialogProps {
+interface DetailProps {
   id: string | null;
   onClose: () => void;
-  onFeedback: (insight: InterviewInsightResponse) => void;
+  onFeedback: (value: InterviewInsightResponse) => void;
 }
-
-const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailDialogProps) => {
-  const { data, error, isFetching, refetch } = useGetInterviewInsightQuery(id ?? '', { skip: !id });
+const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailProps) => {
+  const query = useGetInterviewInsightQuery(id ?? '', { skip: !id });
+  const data = query.data;
   return (
     <Dialog fullWidth maxWidth="md" onClose={onClose} open={Boolean(id)}>
       <DialogTitle>Interview insight</DialogTitle>
       <DialogContent>
-        {isFetching && !data ? (
-          <Stack alignItems="center" role="status" spacing={1} sx={{ py: 5 }}>
-            <Skeleton height={36} width="70%" />
-            <Skeleton height={160} variant="rounded" width="100%" />
-            <Typography>Loading interview insight…</Typography>
+        {query.isFetching && !data ? (
+          <Stack aria-label="Loading interview insight" role="status" spacing={1} sx={{ py: 5 }}>
+            <Skeleton height={40} />
+            <Skeleton height={180} variant="rounded" />
           </Stack>
         ) : null}
-        {error && !data ? (
+        {query.error && !data ? (
           <ErrorState
-            description={readError(error)}
-            onRetry={() => void refetch()}
+            description={readError(query.error)}
+            onRetry={() => void query.refetch()}
             title="Could not load this insight"
           />
         ) : null}
@@ -208,9 +213,9 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailDialogProps) => 
               </Typography>
             </Box>
             <Stack direction="row" flexWrap="wrap" gap={1}>
-              <Chip label={difficultyLabel(data.overallDifficulty)} />
-              <Chip label={`${data.roundCount} rounds`} />
-              <Chip label={statusLabel(data.status)} />
+              <Chip label={data.overallDifficulty} />
+              {data.interviewFormat ? <Chip label={formatLabels[data.interviewFormat]} /> : null}
+              {data.outcome ? <Chip label={pretty(data.outcome)} /> : null}
             </Stack>
             <Box>
               <Typography component="h3" variant="h3">
@@ -220,32 +225,24 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailDialogProps) => 
             </Box>
             {!data.canReadFull ? (
               <Alert icon={<LockOutlinedIcon />} severity="info">
-                <Typography fontWeight={700}>Full interview details are locked</Typography>
+                <Typography fontWeight={700}>Full insight is locked</Typography>
                 <Typography variant="body2">
-                  Apply to a job at this company or add a non-cancelled interview schedule to unlock
-                  round details and preparation content.
+                  Add an interview schedule or apply for a role at this company to unlock detailed
+                  preparation content.
                 </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} sx={{ mt: 2 }}>
-              <Button
-                component={Link}
-                onClick={onClose}
-                to={buildInterviewInsightsPath({
-                  action: 'schedule',
-                  companyId: data.companyId,
-                  companyName: data.companyName,
-                })}
-                variant="contained"
-                  >
-                    Add interview schedule
-                  </Button>
-                  <Button
-                    component={Link}
-                    to={`${ROUTES.DASHBOARD_JOBS}?companyName=${encodeURIComponent(data.companyName)}`}
-                    variant="outlined"
-                  >
-                    Apply to a job at this company
-                  </Button>
-                </Stack>
+                <Button
+                  component={Link}
+                  onClick={onClose}
+                  sx={{ mt: 2 }}
+                  to={buildInterviewInsightsPath({
+                    action: 'schedule',
+                    companyId: data.companyId,
+                    companyName: data.companyName,
+                  })}
+                  variant="contained"
+                >
+                  Add interview schedule
+                </Button>
               </Alert>
             ) : (
               <>
@@ -253,36 +250,59 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailDialogProps) => 
                   <Typography component="h3" variant="h3">
                     Interview rounds
                   </Typography>
-                  <Stack divider={<Divider flexItem />} spacing={2} sx={{ mt: 1.5 }}>
-                    {data.rounds.map((round) => (
-                      <Box key={round.id}>
-                        <Typography fontWeight={700}>
-                          {round.sequence}. {round.roundTitle || roundTypeLabel(round.roundType)}
-                        </Typography>
-                        <Typography color="text.secondary" variant="body2">
-                          {roundTypeLabel(round.roundType)}
-                          {round.durationMinutes ? ` · ${round.durationMinutes} minutes` : ''}
-                        </Typography>
-                        <Typography sx={{ mt: 1, whiteSpace: 'pre-line' }}>
-                          {round.questionsOrTopics}
-                        </Typography>
-                        {round.candidateAdvice ? (
-                          <Typography color="text.secondary" sx={{ mt: 1, whiteSpace: 'pre-line' }}>
-                            <strong>Candidate advice:</strong> {round.candidateAdvice}
+                  <Stack spacing={0} sx={{ mt: 2 }}>
+                    {data.rounds.map((round, index) => (
+                      <Stack direction="row" key={round.id} spacing={2}>
+                        <Stack alignItems="center">
+                          <Box
+                            sx={{
+                              bgcolor: 'primary.main',
+                              borderRadius: '50%',
+                              color: 'primary.contrastText',
+                              display: 'grid',
+                              fontWeight: 700,
+                              height: 30,
+                              placeItems: 'center',
+                              width: 30,
+                            }}
+                          >
+                            {round.sequence}
+                          </Box>
+                          {index < data.rounds.length - 1 ? (
+                            <Divider flexItem orientation="vertical" sx={{ minHeight: 60 }} />
+                          ) : null}
+                        </Stack>
+                        <Box sx={{ pb: 3 }}>
+                          <Typography fontWeight={700}>
+                            {round.roundTitle || roundLabels[round.roundType]}
                           </Typography>
-                        ) : null}
-                      </Box>
+                          <Typography color="text.secondary" variant="body2">
+                            {roundLabels[round.roundType]}
+                            {round.durationMinutes ? ` · ${round.durationMinutes} minutes` : ''}
+                          </Typography>
+                          <Typography sx={{ mt: 1, whiteSpace: 'pre-line' }}>
+                            {round.questionsOrTopics}
+                          </Typography>
+                          {round.candidateAdvice ? (
+                            <Typography color="text.secondary" sx={{ mt: 1 }}>
+                              <strong>Preparation advice:</strong> {round.candidateAdvice}
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      </Stack>
                     ))}
                   </Stack>
                 </Box>
-                <Box>
-                  <Typography component="h3" variant="h3">
-                    Preparation tips
-                  </Typography>
-                  <Typography sx={{ mt: 1, whiteSpace: 'pre-line' }}>
-                    {data.preparationTips}
-                  </Typography>
-                </Box>
+                {data.preparationTips ? (
+                  <Box>
+                    <Typography component="h3" variant="h3">
+                      Preparation tips
+                    </Typography>
+                    <Typography sx={{ mt: 1, whiteSpace: 'pre-line' }}>
+                      {data.preparationTips}
+                    </Typography>
+                  </Box>
+                ) : null}
                 {data.canGiveFeedback ? (
                   <Button
                     onClick={() => onFeedback(data)}
@@ -304,124 +324,350 @@ const InsightDetailDialog = ({ id, onClose, onFeedback }: DetailDialogProps) => 
   );
 };
 
+interface MoreFiltersProps {
+  onApply: (values: Record<string, string | null>) => void;
+  onClose: () => void;
+  open: boolean;
+  params: URLSearchParams;
+}
+const MoreFiltersDialog = ({ onApply, onClose, open, params }: MoreFiltersProps) => {
+  const [roundType, setRoundType] = useState(params.get('roundType') ?? '');
+  const [difficulty, setDifficulty] = useState(params.get('difficulty') ?? '');
+  const [level, setLevel] = useState(params.get('experienceLevel') ?? '');
+  const [outcome, setOutcome] = useState(params.get('outcome') ?? '');
+  const [format, setFormat] = useState(params.get('interviewFormat') ?? '');
+  const [recency, setRecency] = useState(params.get('recencyMonths') ?? '');
+  const [from, setFrom] = useState(
+    params.get('fromYear') && params.get('fromMonth')
+      ? `${params.get('fromYear')}-${params.get('fromMonth')?.padStart(2, '0')}`
+      : '',
+  );
+  useEffect(() => {
+    if (open) {
+      setRoundType(params.get('roundType') ?? '');
+      setDifficulty(params.get('difficulty') ?? '');
+      setLevel(params.get('experienceLevel') ?? '');
+      setOutcome(params.get('outcome') ?? '');
+      setFormat(params.get('interviewFormat') ?? '');
+      setRecency(params.get('recencyMonths') ?? '');
+      setFrom(
+        params.get('fromYear') && params.get('fromMonth')
+          ? `${params.get('fromYear')}-${params.get('fromMonth')?.padStart(2, '0')}`
+          : '',
+      );
+    }
+  }, [open, params]);
+  const apply = () => {
+    const [year, month] = from.split('-');
+    onApply({
+      difficulty: difficulty || null,
+      experienceLevel: level.trim() || null,
+      fromMonth: recency ? null : month || null,
+      fromYear: recency ? null : year || null,
+      interviewFormat: format || null,
+      outcome: outcome || null,
+      recencyMonths: from ? null : recency || null,
+      roundType: roundType || null,
+    });
+  };
+  return (
+    <Dialog
+      fullScreen={false}
+      fullWidth
+      maxWidth="sm"
+      onClose={onClose}
+      open={open}
+      PaperProps={{
+        sx: {
+          alignSelf: { xs: 'flex-end', sm: 'center' },
+          borderRadius: { xs: '20px 20px 0 0', sm: 2 },
+          m: { xs: 0, sm: 4 },
+          width: { xs: '100%', sm: 'calc(100% - 64px)' },
+        },
+      }}
+    >
+      <DialogTitle>More filters</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2.25} sx={{ pt: 1 }}>
+          <FormControl>
+            <InputLabel id="round-filter">Round type</InputLabel>
+            <Select
+              label="Round type"
+              labelId="round-filter"
+              onChange={(e) => setRoundType(e.target.value)}
+              value={roundType}
+            >
+              <MenuItem value="">Any</MenuItem>
+              {Object.values(InterviewRoundType).map((item) => (
+                <MenuItem key={item} value={item}>
+                  {roundLabels[item]}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl>
+            <InputLabel id="difficulty-filter">Difficulty</InputLabel>
+            <Select
+              label="Difficulty"
+              labelId="difficulty-filter"
+              onChange={(e) => setDifficulty(e.target.value)}
+              value={difficulty}
+            >
+              <MenuItem value="">Any</MenuItem>
+              {Object.values(InterviewDifficulty).map((item) => (
+                <MenuItem key={item} value={item}>
+                  {item}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            label="Experience level"
+            onChange={(e) => setLevel(e.target.value)}
+            placeholder="e.g. Entry level"
+            value={level}
+          />
+          <FormControl>
+            <InputLabel id="outcome-filter">Outcome</InputLabel>
+            <Select
+              label="Outcome"
+              labelId="outcome-filter"
+              onChange={(e) => setOutcome(e.target.value)}
+              value={outcome}
+            >
+              <MenuItem value="">Any</MenuItem>
+              {Object.values(InterviewOutcome).map((item) => (
+                <MenuItem key={item} value={item}>
+                  {pretty(item)}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl>
+            <InputLabel id="format-filter">Interview format</InputLabel>
+            <Select
+              label="Interview format"
+              labelId="format-filter"
+              onChange={(e) => setFormat(e.target.value)}
+              value={format}
+            >
+              <MenuItem value="">Any</MenuItem>
+              {Object.values(InterviewFormat).map((item) => (
+                <MenuItem key={item} value={item}>
+                  {formatLabels[item]}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl>
+            <InputLabel id="recency-filter">Recency</InputLabel>
+            <Select
+              label="Recency"
+              labelId="recency-filter"
+              onChange={(e) => {
+                setRecency(e.target.value);
+                if (e.target.value) setFrom('');
+              }}
+              value={recency}
+            >
+              <MenuItem value="">Any time</MenuItem>
+              <MenuItem value="3">Last 3 months</MenuItem>
+              <MenuItem value="6">Last 6 months</MenuItem>
+              <MenuItem value="12">Last 12 months</MenuItem>
+              <MenuItem value="24">Last 24 months</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            InputLabelProps={{ shrink: true }}
+            label="Or from month"
+            onChange={(e) => {
+              setFrom(e.target.value);
+              if (e.target.value) setRecency('');
+            }}
+            type="month"
+            value={from}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={apply} variant="contained">
+          Apply filters
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
 export const InterviewInsightsPage = () => {
   useDocumentMetadata(
     'Interview insights | Career Harbor',
-    'Review candidate interview experiences, manage private schedules, and share safe interview insights.',
+    'Learn from candidate interview experiences, manage private schedules, and share helpful preparation insights.',
   );
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const view = (
-    ['insights', 'schedules', 'contributions'].includes(searchParams.get('view') ?? '')
-      ? searchParams.get('view')
+    ['insights', 'schedules', 'contributions'].includes(params.get('view') ?? '')
+      ? params.get('view')
       : 'insights'
   ) as PageView;
-  const page = Math.max(1, Number(searchParams.get('pageNumber')) || 1);
-  const companyId = searchParams.get('companyId') ?? '';
-  const role = searchParams.get('role') ?? '';
-  const sort = searchParams.get('sort') === 'newest' ? 'newest' : 'mostHelpful';
-  const [roleDraft, setRoleDraft] = useState(role);
+  const page = Math.max(1, Number(params.get('pageNumber')) || 1);
+  const [company, setCompany] = useState<InterviewInsightCompanyResponse | null>(
+    params.get('companyId')
+      ? { id: params.get('companyId')!, companyName: params.get('company') ?? '' }
+      : null,
+  );
+  const [companyText, setCompanyText] = useState(params.get('company') ?? '');
+  const [role, setRole] = useState(params.get('role') ?? '');
+  const [sort, setSort] = useState<InterviewInsightSort>(
+    (Object.values(InterviewInsightSort) as string[]).includes(params.get('sort') ?? '')
+      ? (params.get('sort') as InterviewInsightSort)
+      : InterviewInsightSort.MostHelpful,
+  );
+  const [moreOpen, setMoreOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
-  const [feedbackInsight, setFeedbackInsight] = useState<InterviewInsightResponse | null>(null);
-  const [scheduleOpen, setScheduleOpen] = useState(searchParams.get('action') === 'schedule');
-  const [editingSchedule, setEditingSchedule] = useState<InterviewScheduleResponse | undefined>();
+  const [feedback, setFeedback] = useState<InterviewInsightResponse | null>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(params.get('action') === 'schedule');
+  const [editingSchedule, setEditingSchedule] = useState<InterviewScheduleResponse>();
   const [shareOpen, setShareOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => setRoleDraft(role), [role]);
+  const [scheduleView, setScheduleView] = useState<ScheduleView>('upcoming');
+  const [cancelTarget, setCancelTarget] = useState<InterviewScheduleResponse>();
+  const updateParams = (updates: Record<string, string | null>) => {
+    const next = new URLSearchParams(params);
+    Object.entries(updates).forEach(([key, value]) =>
+      value ? next.set(key, value) : next.delete(key),
+    );
+    setParams(next, { replace: true });
+  };
   useEffect(() => {
-    if (searchParams.get('action') === 'schedule') setScheduleOpen(true);
-  }, [searchParams]);
-
-  const filterOptions = useGetJobFilterOptionsQuery({
-    pageNumber: 1,
-    pageSize: 1,
-    sortBy: 'publishedAt',
-    sortDirection: 'desc',
-  });
-  const companies = useMemo(() => filterOptions.data?.companies ?? [], [filterOptions.data]);
-  const availableCompanies = useMemo(() => {
-    const linkedCompanyId = searchParams.get('companyId');
-    const linkedCompanyName = searchParams.get('companyName');
-    if (
-      !linkedCompanyId ||
-      !linkedCompanyName ||
-      companies.some((item) => item.id === linkedCompanyId)
-    ) {
-      return companies;
-    }
-    return [{ count: 0, id: linkedCompanyId, name: linkedCompanyName }, ...companies];
-  }, [companies, searchParams]);
-  const insights = useGetInterviewInsightsQuery(
-    {
-      pageNumber: page,
-      pageSize: PAGE_SIZE,
-      sort,
-      ...(companyId ? { companyId } : {}),
-      ...(role ? { role } : {}),
-    },
-    { skip: view !== 'insights' },
-  );
+    if (params.get('action') === 'schedule') setScheduleOpen(true);
+  }, [params]);
+  const insightQuery = {
+    pageNumber: page,
+    pageSize: PAGE_SIZE,
+    sort: (Object.values(InterviewInsightSort) as string[]).includes(params.get('sort') ?? '')
+      ? (params.get('sort') as InterviewInsightSort)
+      : InterviewInsightSort.MostHelpful,
+    ...(params.get('companyId')
+      ? { companyId: params.get('companyId')! }
+      : params.get('company')
+        ? { company: params.get('company')!.trim() }
+        : {}),
+    ...(params.get('role') ? { role: params.get('role')!.trim() } : {}),
+    ...(params.get('roundType')
+      ? { roundType: params.get('roundType') as InterviewRoundType }
+      : {}),
+    ...(params.get('difficulty')
+      ? { difficulty: params.get('difficulty') as InterviewDifficulty }
+      : {}),
+    ...(params.get('experienceLevel')
+      ? { experienceLevel: params.get('experienceLevel')!.trim() }
+      : {}),
+    ...(params.get('outcome') ? { outcome: params.get('outcome') as InterviewOutcome } : {}),
+    ...(params.get('interviewFormat')
+      ? { interviewFormat: params.get('interviewFormat') as InterviewFormat }
+      : {}),
+    ...(params.get('recencyMonths') ? { recencyMonths: Number(params.get('recencyMonths')) } : {}),
+    ...(params.get('fromMonth') && params.get('fromYear')
+      ? { fromMonth: Number(params.get('fromMonth')), fromYear: Number(params.get('fromYear')) }
+      : {}),
+  };
+  const insights = useGetInterviewInsightsQuery(insightQuery, { skip: view !== 'insights' });
   const schedules = useGetInterviewSchedulesQuery();
   const contributions = useGetMyInterviewContributionsQuery(undefined, {
     skip: view !== 'contributions',
   });
-  const [updateSchedule, updateScheduleState] = useUpdateInterviewScheduleMutation();
-
-  const matchingFeedbackSchedules = useMemo(
+  const [updateSchedule, updateState] = useUpdateInterviewScheduleMutation();
+  const feedbackSchedules = useMemo(
     () =>
       schedules.data?.filter(
-        (schedule) =>
-          schedule.companyId === feedbackInsight?.companyId &&
-          schedule.feedbackAvailable &&
-          schedule.status !== InterviewScheduleStatus.Cancelled,
+        (item) =>
+          item.companyId === feedback?.companyId &&
+          item.feedbackAvailable &&
+          item.status !== InterviewScheduleStatus.Cancelled,
       ) ?? [],
-    [feedbackInsight?.companyId, schedules.data],
+    [feedback?.companyId, schedules.data],
   );
-
-  const updateParams = (updates: Record<string, string | null>) => {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(updates).forEach(([key, value]) =>
-      value ? next.set(key, value) : next.delete(key),
-    );
-    setSearchParams(next, { replace: true });
+  const filteredSchedules =
+    schedules.data?.filter((item) =>
+      scheduleView === 'upcoming'
+        ? item.status === InterviewScheduleStatus.Scheduled
+        : scheduleView === 'completed'
+          ? item.status === InterviewScheduleStatus.InterviewCompleted
+          : item.status === InterviewScheduleStatus.Cancelled,
+    ) ?? [];
+  const applyVisibleFilters = () =>
+    updateParams({
+      company: companyText.trim() || null,
+      companyId: company?.id ?? null,
+      pageNumber: null,
+      role: role.trim() || null,
+      sort: sort === InterviewInsightSort.MostHelpful ? null : sort,
+    });
+  const clearAll = () => {
+    setCompany(null);
+    setCompanyText('');
+    setRole('');
+    setSort(InterviewInsightSort.MostHelpful);
+    const next = new URLSearchParams();
+    if (view !== 'insights') next.set('view', view);
+    setParams(next, { replace: true });
   };
-
-  const openSchedule = (schedule?: InterviewScheduleResponse) => {
-    setEditingSchedule(schedule);
-    setScheduleOpen(true);
-  };
+  const linkedCompanyId = params.get('companyId');
+  const linkedCompanyName = params.get('companyName') ?? params.get('company');
+  const initialCompany = useMemo(
+    () =>
+      linkedCompanyId
+        ? { id: linkedCompanyId, companyName: linkedCompanyName ?? 'Selected company' }
+        : undefined,
+    [linkedCompanyId, linkedCompanyName],
+  );
   const closeSchedule = () => {
     setScheduleOpen(false);
     setEditingSchedule(undefined);
-    updateParams({ action: null, companyId: searchParams.get('companyId') });
+    updateParams({ action: null, companyName: null, jobId: null, roleTitle: null });
   };
-  const cancelSchedule = async (schedule: InterviewScheduleResponse) => {
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
     try {
       await updateSchedule({
-        id: schedule.id,
+        id: cancelTarget.id,
         data: {
-          interviewAtUtc: schedule.interviewAtUtc,
-          roleTitle: schedule.roleTitle,
+          approximateTimeOfDay: cancelTarget.approximateTimeOfDay,
+          expectedRoundTypes: cancelTarget.expectedRoundTypes,
+          interviewAtUtc: cancelTarget.interviewAtUtc,
+          interviewFormat: cancelTarget.interviewFormat,
+          preparationStatus: cancelTarget.preparationStatus,
+          reminderRequested: cancelTarget.reminderRequested,
+          roleTitle: cancelTarget.roleTitle,
           status: InterviewScheduleStatus.Cancelled,
         },
       }).unwrap();
-    } catch (error: unknown) {
+      setNotice('Interview schedule cancelled.');
+      setCancelTarget(undefined);
+    } catch (error) {
       setNotice(readError(error));
     }
   };
 
   return (
-    <Stack spacing={4}>
+    <Stack spacing={4} sx={{ maxWidth: 1280, mx: 'auto', width: '100%' }}>
       <DashboardPageHeader
-        description="Learn from safe candidate experiences, keep private interview schedules, and help others prepare."
-        eyebrow="Career preparation"
+        description="Learn from candidate experiences, prepare with confidence, and help future candidates."
+        eyebrow="CAREER PREPARATION"
         title="Interview insights"
       />
       {notice ? (
         <Alert
           onClose={() => setNotice(null)}
-          severity={notice.includes('pending') ? 'success' : 'info'}
+          severity={
+            notice.includes('pending review') ||
+            notice.includes('reported') ||
+            notice.includes('cancelled')
+              ? 'success'
+              : 'info'
+          }
         >
           {notice}
         </Alert>
@@ -435,7 +681,7 @@ export const InterviewInsightsPage = () => {
           Share an interview insight
         </Button>
         <Button
-          onClick={() => openSchedule()}
+          onClick={() => setScheduleOpen(true)}
           startIcon={<CalendarMonthOutlinedIcon />}
           variant="outlined"
         >
@@ -444,8 +690,8 @@ export const InterviewInsightsPage = () => {
       </Stack>
       <Tabs
         aria-label="Interview insights sections"
-        onChange={(_, value: PageView) =>
-          updateParams({ pageNumber: null, view: value === 'insights' ? null : value })
+        onChange={(_, next: PageView) =>
+          updateParams({ pageNumber: null, view: next === 'insights' ? null : next })
         }
         scrollButtons="auto"
         value={view}
@@ -460,64 +706,67 @@ export const InterviewInsightsPage = () => {
         <Stack spacing={3}>
           <Paper
             component="form"
+            elevation={0}
             onSubmit={(event) => {
               event.preventDefault();
-              updateParams({ pageNumber: null, role: roleDraft.trim() || null });
+              applyVisibleFilters();
             }}
-            sx={{ p: 2.5 }}
+            sx={{ boxShadow: '0 8px 24px rgba(25, 71, 138, 0.07)', p: 2.5 }}
           >
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <FormControl fullWidth>
-                  <InputLabel id="insight-filter-company-label">Company</InputLabel>
-                  <Select
-                    label="Company"
-                    labelId="insight-filter-company-label"
-                    onChange={(event) =>
-                      updateParams({ companyId: event.target.value || null, pageNumber: null })
-                    }
-                    value={companyId}
-                  >
-                    <MenuItem value="">All companies</MenuItem>
-                    {companies.map((company) => (
-                      <MenuItem key={company.id} value={company.id}>
-                        {company.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <InterviewCompanyAutocomplete
+                  onChange={(selected) => {
+                    setCompany(selected);
+                    if (selected) setCompanyText(selected.companyName);
+                  }}
+                  onInputValueChange={setCompanyText}
+                  value={company}
+                />
               </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <TextField
                   fullWidth
                   label="Role"
-                  onChange={(event) => setRoleDraft(event.target.value)}
+                  onChange={(event) => setRole(event.target.value)}
                   placeholder="e.g. Software Engineer"
-                  value={roleDraft}
+                  value={role}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                 <FormControl fullWidth>
-                  <InputLabel id="insight-sort-label">Sort</InputLabel>
+                  <InputLabel id="sort-label">Sort</InputLabel>
                   <Select
                     label="Sort"
-                    labelId="insight-sort-label"
-                    onChange={(event) =>
-                      updateParams({
-                        pageNumber: null,
-                        sort: event.target.value === 'newest' ? 'newest' : null,
-                      })
-                    }
+                    labelId="sort-label"
+                    onChange={(event) => setSort(event.target.value)}
                     value={sort}
                   >
-                    <MenuItem value="mostHelpful">Most helpful</MenuItem>
-                    <MenuItem value="newest">Newest</MenuItem>
+                    <MenuItem value={InterviewInsightSort.MostHelpful}>Most helpful</MenuItem>
+                    <MenuItem value={InterviewInsightSort.Newest}>Newest</MenuItem>
+                    <MenuItem value={InterviewInsightSort.MostRounds}>Most rounds</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid alignItems="stretch" display="flex" size={{ xs: 12, sm: 6, md: 2 }}>
-                <Button fullWidth type="submit" variant="outlined">
-                  Apply filters
+              <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+                <Button
+                  fullWidth
+                  startIcon={<TuneOutlinedIcon />}
+                  onClick={() => setMoreOpen(true)}
+                  sx={{ height: '100%' }}
+                  variant="outlined"
+                >
+                  More filters
+                </Button>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 1 }}>
+                <Button fullWidth sx={{ height: '100%' }} type="submit" variant="contained">
+                  Apply
+                </Button>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 1 }}>
+                <Button fullWidth onClick={clearAll} sx={{ height: '100%' }}>
+                  Clear all
                 </Button>
               </Grid>
             </Grid>
@@ -525,8 +774,8 @@ export const InterviewInsightsPage = () => {
           {insights.isLoading ? (
             <Grid aria-label="Loading interview insights" container role="status" spacing={2}>
               {Array.from({ length: 6 }, (_, index) => (
-                <Grid key={index} size={{ xs: 12, md: 6 }}>
-                  <Skeleton height={260} variant="rounded" />
+                <Grid key={index} size={{ xs: 12, lg: 6 }}>
+                  <Skeleton height={300} variant="rounded" />
                 </Grid>
               ))}
             </Grid>
@@ -540,16 +789,16 @@ export const InterviewInsightsPage = () => {
           ) : null}
           {insights.data?.items.length === 0 ? (
             <EmptyState
-              description="Try another company or role, or be the first eligible candidate to share a reviewed experience."
+              description="Try changing your filters, or share an eligible interview experience to help future candidates."
               title="No interview insights found"
             />
           ) : null}
-          {insights.data && insights.data.items.length > 0 ? (
+          {insights.data?.items.length ? (
             <>
               <Grid container spacing={2}>
-                {insights.data.items.map((insight) => (
-                  <Grid key={insight.id} size={{ xs: 12, lg: 6 }}>
-                    <InsightCard insight={insight} onOpen={setDetailId} onReport={setReportId} />
+                {insights.data.items.map((item) => (
+                  <Grid key={item.id} size={{ xs: 12, lg: 6 }}>
+                    <InsightCard insight={item} onOpen={setDetailId} onReport={setReportId} />
                   </Grid>
                 ))}
               </Grid>
@@ -571,73 +820,116 @@ export const InterviewInsightsPage = () => {
       ) : null}
 
       {view === 'schedules' ? (
-        <Stack spacing={2}>
+        <Stack spacing={2.5}>
+          <Tabs
+            aria-label="Schedule filters"
+            onChange={(_, next: ScheduleView) => setScheduleView(next)}
+            value={scheduleView}
+            variant="scrollable"
+          >
+            <Tab label="Upcoming" value="upcoming" />
+            <Tab label="Completed" value="completed" />
+            <Tab label="Cancelled" value="cancelled" />
+          </Tabs>
           {schedules.isLoading ? (
-            <Stack aria-label="Loading interview schedules" role="status" spacing={2}>
-              {[1, 2, 3].map((item) => (
-                <Skeleton height={140} key={item} variant="rounded" />
-              ))}
+            <Stack role="status" spacing={2}>
+              <Skeleton height={150} variant="rounded" />
+              <Skeleton height={150} variant="rounded" />
             </Stack>
           ) : null}
-          {schedules.isError && !schedules.data ? (
+          {schedules.isError ? (
             <ErrorState
               description={readError(schedules.error)}
               onRetry={() => void schedules.refetch()}
               title="Could not load schedules"
             />
           ) : null}
-          {schedules.data?.length === 0 ? (
+          {!schedules.isLoading && !schedules.isError && !filteredSchedules.length ? (
             <EmptyState
               actionLabel="Add interview schedule"
-              description="Private schedules unlock relevant preparation content and post-interview feedback."
-              onAction={() => openSchedule()}
-              title="No interview schedules"
+              description="Keep your private interview plans and preparation status in one place."
+              onAction={() => setScheduleOpen(true)}
+              title={`No ${scheduleView} schedules`}
             />
           ) : null}
-          {schedules.data?.map((schedule) => (
-            <Paper component="article" key={schedule.id} sx={{ p: 2.5 }}>
+          {filteredSchedules.map((item) => (
+            <Paper
+              component="article"
+              elevation={0}
+              key={item.id}
+              sx={{ boxShadow: '0 8px 24px rgba(25, 71, 138, 0.07)', p: 2.5 }}
+            >
               <Stack
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
-                direction={{ xs: 'column', sm: 'row' }}
+                direction={{ xs: 'column', md: 'row' }}
                 justifyContent="space-between"
                 spacing={2}
               >
                 <Box>
                   <Typography component="h2" variant="h3">
-                    {schedule.roleTitle || 'Interview'}
+                    {item.roleTitle || 'Interview'}
                   </Typography>
                   <Typography color="text.secondary">
-                    {schedule.companyName} · {new Date(schedule.interviewAtUtc).toLocaleString()}
+                    {item.companyName} · {new Date(item.interviewAtUtc).toLocaleString()}
                   </Typography>
-                  <Chip
-                    color={
-                      schedule.status === InterviewScheduleStatus.Cancelled ? 'default' : 'primary'
-                    }
-                    label={scheduleStatusLabel(schedule.status)}
-                    size="small"
-                    sx={{ mt: 1 }}
-                  />
+                  <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1.5 }}>
+                    <Chip label={pretty(item.status)} size="small" />
+                    {item.interviewFormat ? (
+                      <Chip
+                        label={formatLabels[item.interviewFormat]}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ) : null}
+                    {item.approximateTimeOfDay ? (
+                      <Chip label={item.approximateTimeOfDay} size="small" variant="outlined" />
+                    ) : null}
+                    {item.preparationStatus ? (
+                      <Chip
+                        label={`Preparation: ${pretty(item.preparationStatus)}`}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ) : null}
+                    {item.reminderRequested ? (
+                      <Chip label="Reminder requested" size="small" variant="outlined" />
+                    ) : null}
+                  </Stack>
+                  {item.expectedRoundTypes.length ? (
+                    <Typography color="text.secondary" sx={{ mt: 1 }} variant="body2">
+                      Expected:{' '}
+                      {item.expectedRoundTypes.map((round) => roundLabels[round]).join(', ')}
+                    </Typography>
+                  ) : null}
                 </Box>
-                <Stack direction="row" gap={1}>
-                  {schedule.status !== InterviewScheduleStatus.Cancelled ? (
+                <Stack
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  gap={1}
+                >
+                  {item.status !== InterviewScheduleStatus.Cancelled ? (
                     <>
                       <Tooltip title="Edit schedule">
                         <IconButton
-                          aria-label={`Edit interview schedule for ${schedule.companyName}`}
-                          onClick={() => openSchedule(schedule)}
+                          aria-label={`Edit interview schedule for ${item.companyName}`}
+                          onClick={() => {
+                            setEditingSchedule(item);
+                            setScheduleOpen(true);
+                          }}
                         >
                           <EditOutlinedIcon />
                         </IconButton>
                       </Tooltip>
-                      <Button
-                        color="error"
-                        disabled={updateScheduleState.isLoading}
-                        onClick={() => void cancelSchedule(schedule)}
-                      >
-                        Cancel schedule
+                      <Button color="error" onClick={() => setCancelTarget(item)}>
+                        Cancel
                       </Button>
                     </>
                   ) : null}
+                  <Button
+                    component={Link}
+                    to={`${ROUTES.INTERVIEW_INSIGHTS}?companyId=${encodeURIComponent(item.companyId)}&company=${encodeURIComponent(item.companyName)}`}
+                  >
+                    View insights for company
+                  </Button>
                 </Stack>
               </Stack>
             </Paper>
@@ -647,11 +939,7 @@ export const InterviewInsightsPage = () => {
 
       {view === 'contributions' ? (
         <Stack spacing={3}>
-          <Alert severity="info">
-            Contribution score is based on eligible candidate feedback—not the number of posts
-            submitted.
-          </Alert>
-          {contributions.isLoading ? <Skeleton height={220} variant="rounded" /> : null}
+          {contributions.isLoading ? <Skeleton height={240} variant="rounded" /> : null}
           {contributions.isError ? (
             <ErrorState
               description={readError(contributions.error)}
@@ -660,77 +948,164 @@ export const InterviewInsightsPage = () => {
             />
           ) : null}
           {contributions.data ? (
-            <Grid container spacing={2}>
-              {[
-                { label: 'Contribution score', value: contributions.data.contributionScore },
-                { label: 'Helpful-confirmed', value: contributions.data.candidatesHelped },
-                { label: 'Insights published', value: contributions.data.insightsPublished },
-              ].map((item) => (
-                <Grid key={item.label} size={{ xs: 12, sm: 4 }}>
-                  <Paper sx={{ p: 3 }}>
-                    <Typography color="text.secondary">{item.label}</Typography>
-                    <Typography component="p" variant="h2">
-                      {item.value}
-                    </Typography>
-                  </Paper>
-                </Grid>
-              ))}
-              {contributions.data.badges.length ? (
-                <Grid size={12}>
-                  <Paper sx={{ p: 3 }}>
-                    <Typography component="h2" variant="h3">
-                      Badges
-                    </Typography>
-                    <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 2 }}>
-                      {contributions.data.badges.map((badge) => (
-                        <Chip color="secondary" key={badge} label={badge} />
-                      ))}
-                    </Stack>
-                  </Paper>
-                </Grid>
-              ) : null}
-            </Grid>
+            <>
+              <Grid container spacing={2}>
+                {[
+                  { label: 'Contribution score', value: contributions.data.contributionScore },
+                  { label: 'Helped candidates', value: contributions.data.candidatesHelped },
+                  { label: 'Published insights', value: contributions.data.insightsPublished },
+                  { label: 'Pending review', value: contributions.data.pendingReview },
+                  { label: 'Needs changes', value: contributions.data.needsChanges },
+                ].map((metric) => (
+                  <Grid key={metric.label} size={{ xs: 12, sm: 6, lg: 2.4 }}>
+                    <Paper
+                      elevation={0}
+                      sx={{ boxShadow: '0 8px 24px rgba(25, 71, 138, 0.07)', p: 2.5 }}
+                    >
+                      <Typography color="text.secondary" variant="body2">
+                        {metric.label}
+                      </Typography>
+                      <Typography component="p" variant="h2">
+                        {metric.value}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+              <Paper elevation={0} sx={{ bgcolor: 'primary.50', p: 2.5 }}>
+                <Typography component="h2" variant="h3">
+                  How points work
+                </Typography>
+                <Typography color="text.secondary" sx={{ mt: 1 }}>
+                  Helped = +3 · Partly helped = +1 · Not accurate = +0
+                </Typography>
+              </Paper>
+              {!contributions.data.items?.length ? (
+                <EmptyState
+                  description="Share an eligible interview experience to start helping other candidates."
+                  title="No contributions yet"
+                />
+              ) : (
+                <Stack spacing={2}>
+                  {contributions.data.items.map((item) => (
+                    <Paper
+                      component="article"
+                      elevation={0}
+                      key={item.id}
+                      sx={{ boxShadow: '0 8px 24px rgba(25, 71, 138, 0.07)', p: 2.5 }}
+                    >
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        justifyContent="space-between"
+                        spacing={2}
+                      >
+                        <Box>
+                          <Typography color="primary.main" fontWeight={700}>
+                            {item.companyName}
+                          </Typography>
+                          <Typography component="h2" variant="h3">
+                            {item.roleTitle}
+                          </Typography>
+                          <Typography color="text.secondary">
+                            {formatMonthYear(item.interviewMonth, item.interviewYear)} · Updated{' '}
+                            {new Date(item.updatedAt).toLocaleDateString()}
+                          </Typography>
+                          {item.reviewerChangeRequest &&
+                          item.moderationStatus === InterviewInsightStatus.Rejected ? (
+                            <Alert severity="warning" sx={{ mt: 2 }}>
+                              Reviewer request: {item.reviewerChangeRequest}
+                            </Alert>
+                          ) : null}
+                        </Box>
+                        <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={1}>
+                          <Chip label={moderationLabel(item.moderationStatus)} />
+                          <Typography>
+                            {item.helpfulConfirmedCount} helpful · {item.contributionPoints} points
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  ))}
+                </Stack>
+              )}
+            </>
           ) : null}
         </Stack>
       ) : null}
 
+      <MoreFiltersDialog
+        onApply={(values) => {
+          updateParams({ ...values, pageNumber: null });
+          setMoreOpen(false);
+        }}
+        onClose={() => setMoreOpen(false)}
+        open={moreOpen}
+        params={params}
+      />
       <InterviewScheduleDialog
-        companies={availableCompanies}
-        initialCompanyId={searchParams.get('companyId') ?? undefined}
-        initialJobId={searchParams.get('jobId') ?? undefined}
-        initialRoleTitle={searchParams.get('roleTitle') ?? undefined}
+        initialCompany={initialCompany}
+        initialJobId={params.get('jobId') ?? undefined}
+        initialRoleTitle={params.get('roleTitle') ?? undefined}
         onClose={closeSchedule}
         open={scheduleOpen}
         schedule={editingSchedule}
       />
       <ShareInterviewInsightDialog
-        companies={availableCompanies}
         onClose={() => setShareOpen(false)}
         onSubmitted={() => {
           setShareOpen(false);
-          setNotice('Submitted insight is pending administrator review.');
+          setNotice('Your insight is pending review.');
         }}
         open={shareOpen}
       />
       <InsightDetailDialog
         id={detailId}
         onClose={() => setDetailId(null)}
-        onFeedback={(insight) => {
+        onFeedback={(item) => {
           setDetailId(null);
-          setFeedbackInsight(insight);
+          setFeedback(item);
         }}
       />
-      {feedbackInsight ? (
+      {feedback ? (
         <InsightFeedbackDialog
-          insightId={feedbackInsight.id}
-          onClose={() => setFeedbackInsight(null)}
+          insightId={feedback.id}
+          onClose={() => setFeedback(null)}
           open
-          schedules={matchingFeedbackSchedules}
+          schedules={feedbackSchedules}
         />
       ) : null}
       {reportId ? (
-        <ReportInsightDialog insightId={reportId} onClose={() => setReportId(null)} open />
+        <ReportInsightDialog
+          insightId={reportId}
+          onClose={() => setReportId(null)}
+          onReported={() => setNotice('Insight reported for review.')}
+          open
+        />
       ) : null}
+      <Dialog
+        onClose={updateState.isLoading ? undefined : () => setCancelTarget(undefined)}
+        open={Boolean(cancelTarget)}
+      >
+        <DialogTitle>Cancel interview schedule?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This will mark the private schedule for {cancelTarget?.companyName} as cancelled.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={updateState.isLoading} onClick={() => setCancelTarget(undefined)}>
+            Keep schedule
+          </Button>
+          <Button
+            color="error"
+            disabled={updateState.isLoading}
+            onClick={() => void confirmCancel()}
+            variant="contained"
+          >
+            Cancel schedule
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 };

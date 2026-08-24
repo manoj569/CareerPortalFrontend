@@ -1,15 +1,21 @@
 import AddIcon from '@mui/icons-material/Add';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   Alert,
+  Autocomplete,
   Button,
   Checkbox,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
   FormControlLabel,
+  FormHelperText,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -18,16 +24,17 @@ import {
   StepLabel,
   Stepper,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 
-import type { CompanyFacetOption } from '@/features/jobs/types/jobModels';
 import {
   isInterviewInsightsApiError,
   useAddInsightFeedbackMutation,
   useCreateInterviewInsightMutation,
   useCreateInterviewScheduleMutation,
+  useGetInterviewInsightCompaniesQuery,
   useReportInterviewInsightMutation,
   useUpdateInterviewScheduleMutation,
 } from '../api/interviewInsightsApi';
@@ -35,17 +42,101 @@ import {
   InsightHelpfulness,
   InsightReportReason,
   InterviewDifficulty,
+  InterviewFormat,
   InterviewMatch,
   InterviewOutcome,
+  InterviewPreparationStatus,
   InterviewRoundType,
+  InterviewTimeOfDay,
+  type InterviewInsightCompanyResponse,
   type InterviewRoundRequest,
   type InterviewScheduleResponse,
 } from '../types/interviewInsightModels';
+import { formatLabels, roundLabels } from '../interviewInsightOptions';
+const roundValues = Object.values(InterviewRoundType);
 
 const safeError = (error: unknown): string =>
   isInterviewInsightsApiError(error)
     ? error.message
     : 'We could not complete that request. Please try again.';
+const fieldError = (error: unknown, name: string): string | undefined => {
+  if (!isInterviewInsightsApiError(error) || !error.errors) return undefined;
+  const entry = Object.entries(error.errors).find(
+    ([key]) => key.toLowerCase() === name.toLowerCase(),
+  );
+  return entry?.[1]?.[0];
+};
+
+interface CompanyAutocompleteProps {
+  disabled?: boolean;
+  label?: string;
+  onChange: (value: InterviewInsightCompanyResponse | null) => void;
+  onInputValueChange?: (value: string) => void;
+  required?: boolean;
+  value: InterviewInsightCompanyResponse | null;
+}
+
+export const InterviewCompanyAutocomplete = ({
+  disabled = false,
+  label = 'Company',
+  onChange,
+  onInputValueChange,
+  required = false,
+  value,
+}: CompanyAutocompleteProps) => {
+  const [inputValue, setInputValue] = useState(value?.companyName ?? '');
+  const [query, setQuery] = useState('');
+  useEffect(() => setInputValue(value?.companyName ?? ''), [value]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery(inputValue.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [inputValue]);
+  const search = useGetInterviewInsightCompaniesQuery(
+    { limit: 10, query },
+    { skip: query.length < 2 },
+  );
+  const options = useMemo(() => {
+    const values = search.data ?? [];
+    return value && !values.some((item) => item.id === value.id) ? [value, ...values] : values;
+  }, [search.data, value]);
+  return (
+    <Autocomplete
+      disabled={disabled}
+      filterOptions={(items) => items}
+      getOptionLabel={(option) => option.companyName}
+      inputValue={inputValue}
+      isOptionEqualToValue={(option, selected) => option.id === selected.id}
+      loading={search.isFetching}
+      noOptionsText={query.length < 2 ? 'Type at least 2 characters' : 'No companies found'}
+      onChange={(_, selected) => onChange(selected)}
+      onInputChange={(_, next, reason) => {
+        setInputValue(next);
+        onInputValueChange?.(next);
+        if (reason === 'input' && value && next !== value.companyName) onChange(null);
+      }}
+      options={options}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label={label}
+          required={required}
+          slotProps={{
+            input: {
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {search.isFetching ? <CircularProgress color="inherit" size={18} /> : null}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            },
+          }}
+        />
+      )}
+      value={value}
+    />
+  );
+};
 
 const toLocalInputValue = (value: string): string => {
   const date = new Date(value);
@@ -54,8 +145,7 @@ const toLocalInputValue = (value: string): string => {
 };
 
 interface ScheduleDialogProps {
-  companies: CompanyFacetOption[];
-  initialCompanyId?: string;
+  initialCompany?: InterviewInsightCompanyResponse;
   initialJobId?: string;
   initialRoleTitle?: string;
   onClose: () => void;
@@ -64,17 +154,21 @@ interface ScheduleDialogProps {
 }
 
 export const InterviewScheduleDialog = ({
-  companies,
-  initialCompanyId = '',
+  initialCompany,
   initialJobId,
   initialRoleTitle = '',
   onClose,
   open,
   schedule,
 }: ScheduleDialogProps) => {
-  const [companyId, setCompanyId] = useState('');
+  const [company, setCompany] = useState<InterviewInsightCompanyResponse | null>(null);
   const [roleTitle, setRoleTitle] = useState('');
   const [interviewAt, setInterviewAt] = useState('');
+  const [format, setFormat] = useState<InterviewFormat | ''>('');
+  const [timeOfDay, setTimeOfDay] = useState<InterviewTimeOfDay | ''>('');
+  const [rounds, setRounds] = useState<InterviewRoundType[]>([]);
+  const [preparation, setPreparation] = useState<InterviewPreparationStatus | ''>('');
+  const [reminder, setReminder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createSchedule, createState] = useCreateInterviewScheduleMutation();
   const [updateSchedule, updateState] = useUpdateInterviewScheduleMutation();
@@ -82,43 +176,49 @@ export const InterviewScheduleDialog = ({
 
   useEffect(() => {
     if (!open) return;
-    setCompanyId(schedule?.companyId ?? initialCompanyId);
+    setCompany(
+      schedule
+        ? { id: schedule.companyId, companyName: schedule.companyName }
+        : (initialCompany ?? null),
+    );
     setRoleTitle(schedule?.roleTitle ?? initialRoleTitle);
     setInterviewAt(schedule ? toLocalInputValue(schedule.interviewAtUtc) : '');
+    setFormat(schedule?.interviewFormat ?? '');
+    setTimeOfDay(schedule?.approximateTimeOfDay ?? '');
+    setRounds(schedule?.expectedRoundTypes ?? []);
+    setPreparation(schedule?.preparationStatus ?? '');
+    setReminder(schedule?.reminderRequested ?? false);
     setError(null);
-  }, [initialCompanyId, initialRoleTitle, open, schedule]);
+  }, [initialCompany, initialRoleTitle, open, schedule]);
 
   const submit = async () => {
-    if (!companyId || !interviewAt) {
-      setError('Select a company and interview date and time.');
-      return;
-    }
-    const parsedDate = new Date(interviewAt);
-    if (Number.isNaN(parsedDate.getTime())) {
-      setError('Enter a valid interview date and time.');
-      return;
-    }
+    if (!company || !interviewAt) return setError('Select a company and private interview date.');
+    const parsed = new Date(interviewAt);
+    if (Number.isNaN(parsed.getTime())) return setError('Enter a valid interview date.');
+    const common = {
+      approximateTimeOfDay: timeOfDay || null,
+      expectedRoundTypes: rounds,
+      interviewAtUtc: parsed.toISOString(),
+      interviewFormat: format || null,
+      preparationStatus: preparation || null,
+      reminderRequested: reminder,
+      roleTitle: roleTitle.trim() || null,
+    };
     setError(null);
     try {
-      if (schedule) {
+      if (schedule)
         await updateSchedule({
           id: schedule.id,
-          data: {
-            interviewAtUtc: parsedDate.toISOString(),
-            roleTitle: roleTitle.trim() || null,
-            status: schedule.status,
-          },
+          data: { ...common, status: schedule.status },
         }).unwrap();
-      } else {
+      else
         await createSchedule({
-          companyId,
-          interviewAtUtc: parsedDate.toISOString(),
+          ...common,
+          companyId: company.id,
           jobId: initialJobId ?? null,
-          roleTitle: roleTitle.trim() || null,
         }).unwrap();
-      }
       onClose();
-    } catch (requestError: unknown) {
+    } catch (requestError) {
       setError(safeError(requestError));
     }
   };
@@ -127,52 +227,104 @@ export const InterviewScheduleDialog = ({
     <Dialog fullWidth maxWidth="sm" onClose={pending ? undefined : onClose} open={open}>
       <DialogTitle>{schedule ? 'Edit interview schedule' : 'Add interview schedule'}</DialogTitle>
       <DialogContent>
-        <Stack spacing={2.5} sx={{ pt: 1 }}>
+        <Stack spacing={2.25} sx={{ pt: 1 }}>
           <Alert severity="info">
-            Schedules are private. Career Harbor uses them only to unlock relevant preparation
-            content and post-interview feedback.
+            This schedule and its exact date are private to your account.
           </Alert>
-          {error ? (
-            <Alert aria-live="assertive" severity="error">
-              {error}
-            </Alert>
-          ) : null}
-          <FormControl disabled={Boolean(schedule) || pending} required>
-            <InputLabel id="schedule-company-label">Company</InputLabel>
-            <Select
-              label="Company"
-              labelId="schedule-company-label"
-              onChange={(event) => setCompanyId(event.target.value)}
-              value={companyId}
-            >
-              {companies.map((company) => (
-                <MenuItem key={company.id} value={company.id}>
-                  {company.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {companies.length === 0 ? (
-            <Alert severity="warning">
-              No companies with active jobs are available. Open a job first and add its schedule
-              from the job details page.
-            </Alert>
-          ) : null}
+          {error ? <Alert severity="error">{error}</Alert> : null}
+          <InterviewCompanyAutocomplete
+            disabled={Boolean(schedule) || pending}
+            onChange={setCompany}
+            required
+            value={company}
+          />
           <TextField
             disabled={pending}
-            inputProps={{ maxLength: 160 }}
-            label="Role title"
+            label="Role"
             onChange={(event) => setRoleTitle(event.target.value)}
             value={roleTitle}
           />
           <TextField
             disabled={pending}
             InputLabelProps={{ shrink: true }}
-            label="Interview date and time"
+            label="Private interview date"
             onChange={(event) => setInterviewAt(event.target.value)}
             required
             type="datetime-local"
             value={interviewAt}
+          />
+          <FormControl>
+            <InputLabel id="schedule-format-label">Interview format</InputLabel>
+            <Select
+              label="Interview format"
+              labelId="schedule-format-label"
+              onChange={(event) => setFormat(event.target.value)}
+              value={format}
+            >
+              <MenuItem value="">Not specified</MenuItem>
+              {Object.values(InterviewFormat).map((item) => (
+                <MenuItem key={item} value={item}>
+                  {formatLabels[item]}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl>
+            <InputLabel id="schedule-time-label">Approximate time</InputLabel>
+            <Select
+              label="Approximate time"
+              labelId="schedule-time-label"
+              onChange={(event) => setTimeOfDay(event.target.value)}
+              value={timeOfDay}
+            >
+              <MenuItem value="">Not specified</MenuItem>
+              {Object.values(InterviewTimeOfDay).map((item) => (
+                <MenuItem key={item} value={item}>
+                  {item}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl>
+            <InputLabel id="expected-rounds-label">Expected round types</InputLabel>
+            <Select
+              label="Expected round types"
+              labelId="expected-rounds-label"
+              multiple
+              onChange={(event) => setRounds(event.target.value as InterviewRoundType[])}
+              renderValue={(selected) => selected.map((item) => roundLabels[item]).join(', ')}
+              value={rounds}
+            >
+              {roundValues.map((item) => (
+                <MenuItem key={item} value={item}>
+                  <Checkbox checked={rounds.includes(item)} />
+                  {roundLabels[item]}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl>
+            <InputLabel id="preparation-label">Preparation status</InputLabel>
+            <Select
+              label="Preparation status"
+              labelId="preparation-label"
+              onChange={(event) => setPreparation(event.target.value)}
+              value={preparation}
+            >
+              <MenuItem value="">Not specified</MenuItem>
+              <MenuItem value={InterviewPreparationStatus.NotStarted}>Not started</MenuItem>
+              <MenuItem value={InterviewPreparationStatus.Preparing}>Preparing</MenuItem>
+              <MenuItem value={InterviewPreparationStatus.Ready}>Ready</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={reminder}
+                onChange={(event) => setReminder(event.target.checked)}
+              />
+            }
+            label="Send me an interview reminder"
           />
         </Stack>
       </DialogContent>
@@ -181,7 +333,7 @@ export const InterviewScheduleDialog = ({
           Cancel
         </Button>
         <Button
-          disabled={pending || !companyId || !interviewAt}
+          disabled={pending || !company || !interviewAt}
           onClick={() => void submit()}
           variant="contained"
         >
@@ -199,274 +351,286 @@ const newRound = (): InterviewRoundRequest => ({
   roundTitle: null,
   roundType: InterviewRoundType.Technical,
 });
-
 const containsPrivateContact = (value: string): boolean =>
   /(?:https?:\/\/|www\.|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b|(?:\+?\d[\d\s-]{8,}\d))/i.test(value);
 
 interface ShareDialogProps {
-  companies: CompanyFacetOption[];
   onClose: () => void;
   onSubmitted: () => void;
   open: boolean;
 }
-
-export const ShareInterviewInsightDialog = ({
-  companies,
-  onClose,
-  onSubmitted,
-  open,
-}: ShareDialogProps) => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [companyId, setCompanyId] = useState('');
-  const [roleTitle, setRoleTitle] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState('');
-  const [interviewMonth, setInterviewMonth] = useState('');
+export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: ShareDialogProps) => {
+  const [step, setStep] = useState(0);
+  const [company, setCompany] = useState<InterviewInsightCompanyResponse | null>(null);
+  const [role, setRole] = useState('');
+  const [level, setLevel] = useState('');
+  const [month, setMonth] = useState('');
   const [difficulty, setDifficulty] = useState(InterviewDifficulty.Moderate);
+  const [format, setFormat] = useState<InterviewFormat | ''>('');
   const [outcome, setOutcome] = useState<InterviewOutcome | ''>('');
+  const [anonymous, setAnonymous] = useState(false);
   const [rounds, setRounds] = useState<InterviewRoundRequest[]>([newRound()]);
-  const [processSummary, setProcessSummary] = useState('');
-  const [preparationTips, setPreparationTips] = useState('');
-  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [tips, setTips] = useState('');
   const [accepted, setAccepted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [createInsight, createState] = useCreateInterviewInsightMutation();
-
+  const [error, setError] = useState<unknown>(null);
+  const [create, state] = useCreateInterviewInsightMutation();
   useEffect(() => {
-    if (!open) return;
-    setActiveStep(0);
-    setCompanyId('');
-    setRoleTitle('');
-    setExperienceLevel('');
-    setInterviewMonth('');
-    setDifficulty(InterviewDifficulty.Moderate);
-    setOutcome('');
-    setRounds([newRound()]);
-    setProcessSummary('');
-    setPreparationTips('');
-    setIsAnonymous(false);
-    setAccepted(false);
-    setError(null);
+    if (open) {
+      setStep(0);
+      setCompany(null);
+      setRole('');
+      setLevel('');
+      setMonth('');
+      setDifficulty(InterviewDifficulty.Moderate);
+      setFormat('');
+      setOutcome('');
+      setAnonymous(false);
+      setRounds([newRound()]);
+      setSummary('');
+      setTips('');
+      setAccepted(false);
+      setError(null);
+    }
   }, [open]);
 
-  const selectedCompany = companies.find((company) => company.id === companyId)?.name;
-  const validateStep = (): boolean => {
-    if (activeStep === 0 && (!companyId || !roleTitle.trim() || !interviewMonth)) {
-      setError('Company, role, and interview month are required.');
-      return false;
-    }
-    if (activeStep === 1 && rounds.some((round) => !round.questionsOrTopics.trim())) {
-      setError('Add the questions or topics for every interview round.');
-      return false;
-    }
-    if (activeStep === 2 && (!processSummary.trim() || !preparationTips.trim() || !accepted)) {
-      setError('Process summary, preparation tips, and the safety acknowledgement are required.');
-      return false;
-    }
-    const content = [
-      processSummary,
-      preparationTips,
-      ...rounds.flatMap((round) => [round.questionsOrTopics, round.candidateAdvice ?? '']),
-    ];
-    if (content.some(containsPrivateContact)) {
-      setError('Remove email addresses, phone numbers, and links before continuing.');
-      return false;
-    }
-    setError(null);
-    return true;
+  const validate = () => {
+    let message = '';
+    if (step === 0 && (!company || !role.trim() || !month))
+      message = 'Company, role title, and interview month are required.';
+    if (step === 1 && rounds.some((item) => !item.questionsOrTopics.trim()))
+      message = 'Add questions or topics for every interview round.';
+    if (step === 2 && (!summary.trim() || !tips.trim() || !accepted))
+      message = 'Summary, preparation tips, and the safety acknowledgement are required.';
+    if (
+      [
+        summary,
+        tips,
+        ...rounds.flatMap((item) => [item.questionsOrTopics, item.candidateAdvice ?? '']),
+      ].some(containsPrivateContact)
+    )
+      message = 'Remove email addresses, phone numbers, and links before continuing.';
+    setError(message || null);
+    return !message;
   };
-
+  const updateRound = (index: number, patch: Partial<InterviewRoundRequest>) =>
+    setRounds((items) => items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  const moveRound = (index: number, offset: number) =>
+    setRounds((items) => {
+      const next = [...items];
+      const item = next[index];
+      if (!item) return items;
+      next.splice(index, 1);
+      next.splice(index + offset, 0, item);
+      return next;
+    });
   const submit = async () => {
-    if (!validateStep()) return;
+    if (!company || !validate()) return;
     try {
-      await createInsight({
-        companyId,
-        contentGuidelinesAccepted: accepted,
-        experienceLevel: experienceLevel.trim() || null,
-        interviewDateMonth: `${interviewMonth}-01`,
-        isAnonymous,
+      await create({
+        companyId: company.id,
+        contentGuidelinesAccepted: true,
+        experienceLevel: level.trim() || null,
+        interviewDateMonth: `${month}-01`,
+        interviewFormat: format || null,
+        isAnonymous: anonymous,
         jobId: null,
         outcome: outcome || null,
         overallDifficulty: difficulty,
-        preparationTips: preparationTips.trim(),
-        processSummary: processSummary.trim(),
-        roleTitle: roleTitle.trim(),
-        rounds: rounds.map((round) => ({
-          ...round,
-          candidateAdvice: round.candidateAdvice?.trim() || null,
-          questionsOrTopics: round.questionsOrTopics.trim(),
-          roundTitle: round.roundTitle?.trim() || null,
+        preparationTips: tips.trim(),
+        processSummary: summary.trim(),
+        roleTitle: role.trim(),
+        rounds: rounds.map((item) => ({
+          ...item,
+          candidateAdvice: item.candidateAdvice?.trim() || null,
+          questionsOrTopics: item.questionsOrTopics.trim(),
+          roundTitle: item.roundTitle?.trim() || null,
         })),
       }).unwrap();
       onSubmitted();
-    } catch (requestError: unknown) {
-      setError(safeError(requestError));
+    } catch (requestError) {
+      setError(requestError);
     }
   };
 
-  const updateRound = (index: number, patch: Partial<InterviewRoundRequest>) => {
-    setRounds((current) =>
-      current.map((round, roundIndex) => (roundIndex === index ? { ...round, ...patch } : round)),
-    );
-  };
-
   return (
-    <Dialog
-      fullWidth
-      maxWidth="md"
-      onClose={createState.isLoading ? undefined : onClose}
-      open={open}
-    >
+    <Dialog fullWidth maxWidth="md" onClose={state.isLoading ? undefined : onClose} open={open}>
       <DialogTitle>Share an interview insight</DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ pt: 1 }}>
           <Alert severity="info">Submitted insights are reviewed before publication.</Alert>
-          <Stepper activeStep={activeStep} alternativeLabel>
-            {['Company and role', 'Interview rounds', 'Experience and safety', 'Review'].map(
-              (label) => (
-                <Step key={label}>
-                  <StepLabel>{label}</StepLabel>
-                </Step>
-              ),
-            )}
+          <Stepper activeStep={step} alternativeLabel>
+            {[
+              'Interview basics',
+              'Interview rounds',
+              'Summary and preparation',
+              'Review and submit',
+            ].map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
           </Stepper>
           {error ? (
             <Alert aria-live="assertive" severity="error">
-              {error}
+              {typeof error === 'string' ? error : safeError(error)}
             </Alert>
           ) : null}
-
-          {activeStep === 0 ? (
+          {step === 0 ? (
             <Stack spacing={2}>
-              <FormControl required>
-                <InputLabel id="insight-company-label">Company</InputLabel>
-                <Select
-                  label="Company"
-                  labelId="insight-company-label"
-                  onChange={(event) => setCompanyId(event.target.value)}
-                  value={companyId}
-                >
-                  {companies.map((company) => (
-                    <MenuItem key={company.id} value={company.id}>
-                      {company.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <InterviewCompanyAutocomplete onChange={setCompany} required value={company} />
               <TextField
-                inputProps={{ maxLength: 160 }}
+                error={Boolean(fieldError(error, 'RoleTitle'))}
+                helperText={fieldError(error, 'RoleTitle')}
                 label="Role title"
-                onChange={(event) => setRoleTitle(event.target.value)}
+                onChange={(event) => setRole(event.target.value)}
                 required
-                value={roleTitle}
+                value={role}
               />
               <TextField
-                inputProps={{ maxLength: 80 }}
                 label="Experience level"
-                onChange={(event) => setExperienceLevel(event.target.value)}
-                value={experienceLevel}
+                onChange={(event) => setLevel(event.target.value)}
+                value={level}
               />
               <TextField
                 InputLabelProps={{ shrink: true }}
                 label="Interview month"
-                onChange={(event) => setInterviewMonth(event.target.value)}
+                onChange={(event) => setMonth(event.target.value)}
                 required
                 type="month"
-                value={interviewMonth}
+                value={month}
               />
-              <FormControl required>
-                <InputLabel id="difficulty-label">Overall difficulty</InputLabel>
+              <FormControl>
+                <InputLabel id="share-difficulty">Difficulty</InputLabel>
                 <Select
-                  label="Overall difficulty"
-                  labelId="difficulty-label"
-                  onChange={(event) => setDifficulty(Number(event.target.value))}
+                  label="Difficulty"
+                  labelId="share-difficulty"
+                  onChange={(event) => setDifficulty(event.target.value)}
                   value={difficulty}
                 >
-                  <MenuItem value={InterviewDifficulty.Easy}>Easy</MenuItem>
-                  <MenuItem value={InterviewDifficulty.Moderate}>Moderate</MenuItem>
-                  <MenuItem value={InterviewDifficulty.Hard}>Hard</MenuItem>
+                  {Object.values(InterviewDifficulty).map((item) => (
+                    <MenuItem key={item} value={item}>
+                      {item}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               <FormControl>
-                <InputLabel id="outcome-label">Outcome</InputLabel>
+                <InputLabel id="share-format">Interview format</InputLabel>
+                <Select
+                  label="Interview format"
+                  labelId="share-format"
+                  onChange={(event) => setFormat(event.target.value)}
+                  value={format}
+                >
+                  <MenuItem value="">Not specified</MenuItem>
+                  {Object.values(InterviewFormat).map((item) => (
+                    <MenuItem key={item} value={item}>
+                      {formatLabels[item]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl>
+                <InputLabel id="share-outcome">Outcome</InputLabel>
                 <Select
                   label="Outcome"
-                  labelId="outcome-label"
+                  labelId="share-outcome"
                   onChange={(event) => setOutcome(event.target.value)}
                   value={outcome}
                 >
-                  <MenuItem value="">Prefer not to specify</MenuItem>
-                  <MenuItem value={InterviewOutcome.Awaiting}>Awaiting</MenuItem>
-                  <MenuItem value={InterviewOutcome.Rejected}>Rejected</MenuItem>
-                  <MenuItem value={InterviewOutcome.Selected}>Selected</MenuItem>
-                  <MenuItem value={InterviewOutcome.Withdrawn}>Withdrawn</MenuItem>
-                  <MenuItem value={InterviewOutcome.PreferNotToSay}>Prefer not to say</MenuItem>
+                  <MenuItem value="">Not specified</MenuItem>
+                  {Object.values(InterviewOutcome).map((item) => (
+                    <MenuItem key={item} value={item}>
+                      {item === InterviewOutcome.PreferNotToSay ? 'Prefer not to say' : item}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={anonymous}
+                    onChange={(event) => setAnonymous(event.target.checked)}
+                  />
+                }
+                label="Share as Anonymous candidate"
+              />
             </Stack>
           ) : null}
-
-          {activeStep === 1 ? (
-            <Stack spacing={2.5}>
+          {step === 1 ? (
+            <Stack spacing={2}>
               {rounds.map((round, index) => (
                 <Stack
                   key={index}
                   spacing={2}
-                  sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}
+                  sx={{ bgcolor: 'action.hover', borderRadius: 2, p: 2 }}
                 >
                   <Stack alignItems="center" direction="row" justifyContent="space-between">
                     <Typography component="h3" fontWeight={700}>
                       Round {index + 1}
                     </Typography>
-                    {rounds.length > 1 ? (
-                      <Button
-                        color="error"
-                        onClick={() =>
-                          setRounds((current) =>
-                            current.filter((_, itemIndex) => itemIndex !== index),
-                          )
-                        }
-                        startIcon={<DeleteOutlineIcon />}
-                      >
-                        Remove
-                      </Button>
-                    ) : null}
+                    <Stack direction="row">
+                      <Tooltip title="Move round up">
+                        <span>
+                          <IconButton
+                            aria-label={`Move round ${index + 1} up`}
+                            disabled={index === 0}
+                            onClick={() => moveRound(index, -1)}
+                          >
+                            <ArrowUpwardIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Move round down">
+                        <span>
+                          <IconButton
+                            aria-label={`Move round ${index + 1} down`}
+                            disabled={index === rounds.length - 1}
+                            onClick={() => moveRound(index, 1)}
+                          >
+                            <ArrowDownwardIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      {rounds.length > 1 ? (
+                        <Tooltip title="Remove round">
+                          <IconButton
+                            aria-label={`Remove round ${index + 1}`}
+                            color="error"
+                            onClick={() =>
+                              setRounds((items) => items.filter((_, i) => i !== index))
+                            }
+                          >
+                            <DeleteOutlineIcon />
+                          </IconButton>
+                        </Tooltip>
+                      ) : null}
+                    </Stack>
                   </Stack>
-                  <FormControl required>
+                  <FormControl>
                     <InputLabel id={`round-type-${index}`}>Round type</InputLabel>
                     <Select
                       label="Round type"
                       labelId={`round-type-${index}`}
-                      onChange={(event) =>
-                        updateRound(index, {
-                          roundType: Number(event.target.value),
-                        })
-                      }
+                      onChange={(event) => updateRound(index, { roundType: event.target.value })}
                       value={round.roundType}
                     >
-                      {Object.entries({
-                        HR: 1,
-                        Technical: 2,
-                        Managerial: 3,
-                        Coding: 4,
-                        Aptitude: 5,
-                        'Group discussion': 6,
-                        Other: 7,
-                      }).map(([label, value]) => (
-                        <MenuItem key={value} value={value}>
-                          {label}
+                      {roundValues.map((item) => (
+                        <MenuItem key={item} value={item}>
+                          {roundLabels[item]}
                         </MenuItem>
                       ))}
                     </Select>
                   </FormControl>
                   <TextField
-                    inputProps={{ maxLength: 160 }}
                     label="Round title"
                     onChange={(event) => updateRound(index, { roundTitle: event.target.value })}
                     value={round.roundTitle ?? ''}
                   />
                   <TextField
-                    inputProps={{ min: 1, max: 1440 }}
-                    label="Duration in minutes"
+                    inputProps={{ max: 1440, min: 1 }}
+                    label="Approximate duration (minutes)"
                     onChange={(event) =>
                       updateRound(index, {
                         durationMinutes: event.target.value ? Number(event.target.value) : null,
@@ -476,7 +640,6 @@ export const ShareInterviewInsightDialog = ({
                     value={round.durationMinutes ?? ''}
                   />
                   <TextField
-                    inputProps={{ maxLength: 3000 }}
                     label="Questions or topics"
                     multiline
                     minRows={3}
@@ -487,8 +650,7 @@ export const ShareInterviewInsightDialog = ({
                     value={round.questionsOrTopics}
                   />
                   <TextField
-                    inputProps={{ maxLength: 2000 }}
-                    label="Advice for candidates"
+                    label="Preparation advice"
                     multiline
                     minRows={2}
                     onChange={(event) =>
@@ -500,119 +662,106 @@ export const ShareInterviewInsightDialog = ({
               ))}
               <Button
                 disabled={rounds.length >= 12}
-                onClick={() => setRounds((current) => [...current, newRound()])}
+                onClick={() => setRounds((items) => [...items, newRound()])}
                 startIcon={<AddIcon />}
                 sx={{ alignSelf: 'flex-start' }}
               >
-                Add another round
+                Add round
               </Button>
             </Stack>
           ) : null}
-
-          {activeStep === 2 ? (
+          {step === 2 ? (
             <Stack spacing={2}>
               <TextField
-                inputProps={{ maxLength: 3000 }}
+                error={Boolean(fieldError(error, 'ProcessSummary'))}
+                helperText={fieldError(error, 'ProcessSummary')}
                 label="Process summary"
                 multiline
                 minRows={4}
-                onChange={(event) => setProcessSummary(event.target.value)}
+                onChange={(event) => setSummary(event.target.value)}
                 required
-                value={processSummary}
+                value={summary}
               />
               <TextField
-                inputProps={{ maxLength: 3000 }}
+                error={Boolean(fieldError(error, 'PreparationTips'))}
+                helperText={fieldError(error, 'PreparationTips')}
                 label="Preparation tips"
                 multiline
                 minRows={4}
-                onChange={(event) => setPreparationTips(event.target.value)}
+                onChange={(event) => setTips(event.target.value)}
                 required
-                value={preparationTips}
+                value={tips}
               />
-              <Alert severity="warning">
-                Use plain text. Do not include phone numbers, email addresses, links, private
-                employer documents, answer keys, or confidential material.
-              </Alert>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={isAnonymous}
-                    onChange={(event) => setIsAnonymous(event.target.checked)}
-                  />
-                }
-                label="Publish as Anonymous candidate"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={accepted}
-                    onChange={(event) => setAccepted(event.target.checked)}
-                    required
-                  />
-                }
-                label="I confirm this contains no confidential material, personal data, assessment leaks, or NDA-protected content."
-              />
+              <FormControl error={Boolean(fieldError(error, 'ContentGuidelinesAccepted'))}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={accepted}
+                      onChange={(event) => setAccepted(event.target.checked)}
+                      required
+                    />
+                  }
+                  label="I confirm this is my own experience and contains no confidential company content, personal information, credentials, or protected assessment answers."
+                />
+                {fieldError(error, 'ContentGuidelinesAccepted') ? (
+                  <FormHelperText>{fieldError(error, 'ContentGuidelinesAccepted')}</FormHelperText>
+                ) : null}
+              </FormControl>
             </Stack>
           ) : null}
-
-          {activeStep === 3 ? (
+          {step === 3 ? (
             <Stack spacing={1.5}>
-              <Typography variant="h3">Review before submitting</Typography>
+              <Typography variant="h3">Review your insight</Typography>
               <Typography>
-                <strong>Company:</strong> {selectedCompany}
+                <strong>Company:</strong> {company?.companyName}
               </Typography>
               <Typography>
-                <strong>Role:</strong> {roleTitle}
+                <strong>Role:</strong> {role}
               </Typography>
               <Typography>
-                <strong>Interview month:</strong> {interviewMonth}
+                <strong>Interview month:</strong> {month}
               </Typography>
               <Typography>
                 <strong>Rounds:</strong> {rounds.length}
               </Typography>
               <Typography>
-                <strong>Author:</strong>{' '}
-                {isAnonymous ? 'Anonymous candidate' : 'Your candidate name'}
+                <strong>Sharing as:</strong>{' '}
+                {anonymous ? 'Anonymous candidate' : 'Your candidate name'}
               </Typography>
               <Alert severity="info">
-                Your insight will start as Pending review. It will not be public until an
-                administrator approves it.
+                Your insight will be submitted for review and will not be public until approved.
               </Alert>
             </Stack>
           ) : null}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button disabled={createState.isLoading} onClick={onClose}>
+        <Button disabled={state.isLoading} onClick={onClose}>
           Cancel
         </Button>
-        {activeStep > 0 ? (
+        {step > 0 ? (
           <Button
-            disabled={createState.isLoading}
+            disabled={state.isLoading}
             onClick={() => {
               setError(null);
-              setActiveStep((step) => step - 1);
+              setStep((value) => value - 1);
             }}
           >
             Back
           </Button>
         ) : null}
-        {activeStep < 3 ? (
+        {step < 3 ? (
           <Button
             onClick={() => {
-              if (validateStep()) setActiveStep((step) => step + 1);
+              if (validate()) setStep((value) => value + 1);
             }}
             variant="contained"
           >
             Continue
           </Button>
         ) : (
-          <Button
-            disabled={createState.isLoading}
-            onClick={() => void submit()}
-            variant="contained"
-          >
-            {createState.isLoading ? 'Submitting…' : 'Submit for review'}
+          <Button disabled={state.isLoading} onClick={() => void submit()} variant="contained">
+            {state.isLoading ? 'Submitting…' : 'Submit for review'}
           </Button>
         )}
       </DialogActions>
@@ -626,7 +775,6 @@ interface FeedbackDialogProps {
   open: boolean;
   schedules: InterviewScheduleResponse[];
 }
-
 export const InsightFeedbackDialog = ({
   insightId,
   onClose,
@@ -638,26 +786,23 @@ export const InsightFeedbackDialog = ({
   const [match, setMatch] = useState<InterviewMatch | ''>('');
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [submitFeedback, submitState] = useAddInsightFeedbackMutation();
-  const [success, setSuccess] = useState<string | null>(null);
-
+  const [success, setSuccess] = useState(false);
+  const [submitFeedback, state] = useAddInsightFeedbackMutation();
   useEffect(() => {
-    if (!open) return;
-    setScheduleId(schedules[0]?.id ?? '');
-    setHelpfulness('');
-    setMatch('');
-    setFeedback('');
-    setError(null);
-    setSuccess(null);
-  }, [open, schedules]);
-
-  const submit = async () => {
-    if (!scheduleId || !helpfulness || !match) {
-      setError('Select your interview, helpfulness, and interview match.');
-      return;
+    if (open) {
+      setScheduleId(schedules[0]?.id ?? '');
+      setHelpfulness('');
+      setMatch('');
+      setFeedback('');
+      setError(null);
+      setSuccess(false);
     }
+  }, [open, schedules]);
+  const submit = async () => {
+    if (!scheduleId || !helpfulness || !match)
+      return setError('Select your interview, helpfulness, and interview match.');
     try {
-      const response = await submitFeedback({
+      await submitFeedback({
         id: insightId,
         data: {
           candidateInterviewScheduleId: scheduleId,
@@ -666,72 +811,75 @@ export const InsightFeedbackDialog = ({
           interviewMatch: match,
         },
       }).unwrap();
-      setSuccess(
-        `Feedback recorded. ${response.helpfulConfirmedCount} candidates have confirmed this insight was helpful.`,
-      );
-    } catch (requestError: unknown) {
+      setSuccess(true);
+    } catch (requestError) {
       setError(safeError(requestError));
     }
   };
-
   return (
-    <Dialog
-      fullWidth
-      maxWidth="sm"
-      onClose={submitState.isLoading ? undefined : onClose}
-      open={open}
-    >
+    <Dialog fullWidth maxWidth="sm" onClose={state.isLoading ? undefined : onClose} open={open}>
       <DialogTitle>Did this insight help you?</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           {error ? <Alert severity="error">{error}</Alert> : null}
-          {success ? <Alert severity="success">{success}</Alert> : null}
-          {!success ? (
+          {success ? (
+            <Alert severity="success">Thanks. Your feedback helps keep insights useful.</Alert>
+          ) : (
             <>
               <FormControl required>
-                <InputLabel id="feedback-schedule-label">Your completed interview</InputLabel>
+                <InputLabel id="feedback-schedule">Your completed interview</InputLabel>
                 <Select
                   label="Your completed interview"
-                  labelId="feedback-schedule-label"
+                  labelId="feedback-schedule"
                   onChange={(event) => setScheduleId(event.target.value)}
                   value={scheduleId}
                 >
-                  {schedules.map((schedule) => (
-                    <MenuItem key={schedule.id} value={schedule.id}>
-                      {schedule.companyName} —{' '}
-                      {new Date(schedule.interviewAtUtc).toLocaleDateString()}
+                  {schedules.map((item) => (
+                    <MenuItem key={item.id} value={item.id}>
+                      {item.companyName} — {new Date(item.interviewAtUtc).toLocaleDateString()}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
               <FormControl required>
-                <InputLabel id="helpfulness-label">Helpfulness</InputLabel>
+                <InputLabel id="helpfulness">Helpfulness</InputLabel>
                 <Select
                   label="Helpfulness"
-                  labelId="helpfulness-label"
-                  onChange={(event) => setHelpfulness(Number(event.target.value))}
+                  labelId="helpfulness"
+                  onChange={(event) => setHelpfulness(event.target.value)}
                   value={helpfulness}
                 >
-                  <MenuItem value={InsightHelpfulness.Helped}>Helped</MenuItem>
-                  <MenuItem value={InsightHelpfulness.PartlyHelped}>Partly helped</MenuItem>
-                  <MenuItem value={InsightHelpfulness.DidNotHelp}>Did not help</MenuItem>
+                  {Object.values(InsightHelpfulness).map((item) => (
+                    <MenuItem key={item} value={item}>
+                      {item === InsightHelpfulness.PartlyHelped
+                        ? 'Partly helped'
+                        : item === InsightHelpfulness.DidNotHelp
+                          ? 'Did not help'
+                          : item}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               <FormControl required>
-                <InputLabel id="match-label">Did the interview match?</InputLabel>
+                <InputLabel id="match">Interview match</InputLabel>
                 <Select
-                  label="Did the interview match?"
-                  labelId="match-label"
-                  onChange={(event) => setMatch(Number(event.target.value))}
+                  label="Interview match"
+                  labelId="match"
+                  onChange={(event) => setMatch(event.target.value)}
                   value={match}
                 >
-                  <MenuItem value={InterviewMatch.Matched}>Matched</MenuItem>
-                  <MenuItem value={InterviewMatch.PartlyMatched}>Partly matched</MenuItem>
-                  <MenuItem value={InterviewMatch.DidNotMatch}>Did not match</MenuItem>
+                  {Object.values(InterviewMatch).map((item) => (
+                    <MenuItem key={item} value={item}>
+                      {item === InterviewMatch.PartlyMatched
+                        ? 'Partly matched'
+                        : item === InterviewMatch.DidNotMatch
+                          ? 'Did not match'
+                          : item}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               <TextField
-                inputProps={{ maxLength: 500 }}
                 label="Additional feedback (optional)"
                 multiline
                 minRows={2}
@@ -739,20 +887,20 @@ export const InsightFeedbackDialog = ({
                 value={feedback}
               />
             </>
-          ) : null}
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button disabled={submitState.isLoading} onClick={onClose}>
+        <Button disabled={state.isLoading} onClick={onClose}>
           {success ? 'Close' : 'Cancel'}
         </Button>
         {!success ? (
           <Button
-            disabled={submitState.isLoading || schedules.length === 0}
+            disabled={state.isLoading || !schedules.length}
             onClick={() => void submit()}
             variant="contained"
           >
-            {submitState.isLoading ? 'Submitting…' : 'Submit feedback'}
+            Submit feedback
           </Button>
         ) : null}
       </DialogActions>
@@ -763,26 +911,19 @@ export const InsightFeedbackDialog = ({
 interface ReportDialogProps {
   insightId: string;
   onClose: () => void;
+  onReported?: () => void;
   open: boolean;
 }
-
-export const ReportInsightDialog = ({ insightId, onClose, open }: ReportDialogProps) => {
+export const ReportInsightDialog = ({
+  insightId,
+  onClose,
+  onReported,
+  open,
+}: ReportDialogProps) => {
   const [reason, setReason] = useState(InsightReportReason.Inaccurate);
   const [details, setDetails] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [report, reportState] = useReportInterviewInsightMutation();
-  const labels = useMemo(
-    () =>
-      new Map<number, string>([
-        [1, 'Confidential content'],
-        [2, 'Inaccurate'],
-        [3, 'Abuse'],
-        [4, 'Spam'],
-        [5, 'Personal data'],
-        [6, 'Other'],
-      ]),
-    [],
-  );
+  const [report, state] = useReportInterviewInsightMutation();
   useEffect(() => {
     if (open) {
       setReason(InsightReportReason.Inaccurate);
@@ -793,42 +934,37 @@ export const ReportInsightDialog = ({ insightId, onClose, open }: ReportDialogPr
   const submit = async () => {
     try {
       await report({ id: insightId, data: { details: details.trim() || null, reason } }).unwrap();
+      onReported?.();
       onClose();
-    } catch (requestError: unknown) {
+    } catch (requestError) {
       setError(safeError(requestError));
     }
   };
   return (
-    <Dialog
-      fullWidth
-      maxWidth="sm"
-      onClose={reportState.isLoading ? undefined : onClose}
-      open={open}
-    >
-      <DialogTitle>Report interview insight?</DialogTitle>
+    <Dialog fullWidth maxWidth="sm" onClose={state.isLoading ? undefined : onClose} open={open}>
+      <DialogTitle>Report this insight?</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Typography>
-            Report content that is unsafe, inaccurate, abusive, or exposes private information.
+            Career Harbor will review this report. The author will not see your identity.
           </Typography>
           {error ? <Alert severity="error">{error}</Alert> : null}
           <FormControl required>
-            <InputLabel id="report-reason-label">Reason</InputLabel>
+            <InputLabel id="report-reason">Reason</InputLabel>
             <Select
               label="Reason"
-              labelId="report-reason-label"
-              onChange={(event) => setReason(Number(event.target.value))}
+              labelId="report-reason"
+              onChange={(event) => setReason(event.target.value)}
               value={reason}
             >
-              {Array.from(labels).map(([value, label]) => (
-                <MenuItem key={value} value={value}>
-                  {label}
+              {Object.values(InsightReportReason).map((item) => (
+                <MenuItem key={item} value={item}>
+                  {item.replace(/([A-Z])/g, ' $1').trim()}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
           <TextField
-            inputProps={{ maxLength: 500 }}
             label="Details (optional)"
             multiline
             minRows={3}
@@ -838,16 +974,16 @@ export const ReportInsightDialog = ({ insightId, onClose, open }: ReportDialogPr
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button disabled={reportState.isLoading} onClick={onClose}>
+        <Button disabled={state.isLoading} onClick={onClose}>
           Cancel
         </Button>
         <Button
           color="error"
-          disabled={reportState.isLoading}
+          disabled={state.isLoading}
           onClick={() => void submit()}
           variant="contained"
         >
-          {reportState.isLoading ? 'Reporting…' : 'Confirm report'}
+          {state.isLoading ? 'Reporting…' : 'Confirm report'}
         </Button>
       </DialogActions>
     </Dialog>

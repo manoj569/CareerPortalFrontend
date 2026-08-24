@@ -1,35 +1,60 @@
 import { ROUTES } from '@/constants/routes';
 import {
   InterviewDifficulty,
+  InterviewFormat,
   InterviewInsightStatus,
+  InterviewOutcome,
+  InterviewPreparationStatus,
   InterviewRoundType,
-  InterviewScheduleStatus,
+  InterviewTimeOfDay,
+  type InterviewInsightCardResponse,
   type InterviewInsightResponse,
 } from '@/features/interviewInsights/types/interviewInsightModels';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { AxiosRequestConfig } from 'axios';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AxiosRequestConfig } from 'axios';
 import { InterviewInsightsPage } from './InterviewInsightsPage';
 
 const requestMock = vi.hoisted(() =>
   vi.fn<(config: AxiosRequestConfig) => Promise<{ data: { data: unknown } }>>(),
 );
 vi.mock('@/api/apiClient', () => ({ apiClient: { request: requestMock } }));
-
-const company = { count: 3, id: 'company-id', name: 'HARMAN' };
-const baseInsight: InterviewInsightResponse = {
+const company = { companyName: 'HARMAN', id: 'company-id' };
+const card: InterviewInsightCardResponse = {
+  authorLabel: null,
+  canGiveFeedback: false,
+  canReadFull: false,
+  companyId: company.id,
+  companyName: company.companyName,
+  difficulty: InterviewDifficulty.Moderate,
+  experienceLevel: 'Mid level',
+  helpfulConfirmedCount: 3,
+  id: 'insight-id',
+  interviewFormat: InterviewFormat.Video,
+  interviewMonth: 7,
+  interviewYear: 2026,
+  isAnonymous: true,
+  outcome: InterviewOutcome.Awaiting,
+  roleTitle: 'Frontend Engineer',
+  roundCount: 2,
+  roundTypes: [InterviewRoundType.HR, InterviewRoundType.Technical],
+  shortSummary: 'A concise safe overview of the process.',
+  topicTags: ['React', 'TypeScript'],
+};
+const detail: InterviewInsightResponse = {
   authorDisplayName: null,
   canGiveFeedback: false,
   canReadFull: false,
   companyId: company.id,
   companyLogoUrl: null,
-  companyName: company.name,
-  experienceLevel: null,
+  companyName: company.companyName,
+  experienceLevel: 'Mid level',
   helpfulConfirmedCount: 3,
-  id: 'insight-id',
+  id: card.id,
+  interviewFormat: InterviewFormat.Video,
   interviewMonth: 7,
   interviewYear: 2026,
   isAnonymous: true,
@@ -37,16 +62,16 @@ const baseInsight: InterviewInsightResponse = {
   outcome: null,
   overallDifficulty: InterviewDifficulty.Moderate,
   preparationTips: null,
-  processSummary: 'A concise safe overview of the process.',
+  processSummary: card.shortSummary,
   publishedAtUtc: '2026-08-01T00:00:00Z',
   qualityScore: 10,
-  roleTitle: 'Frontend Engineer',
-  roundCount: 1,
+  roleTitle: card.roleTitle,
+  roundCount: 2,
   rounds: [],
   status: InterviewInsightStatus.Published,
 };
-
-const page = (items: InterviewInsightResponse[]) => ({
+const response = (data: unknown) => Promise.resolve({ data: { data } });
+const page = (items = [card]) => ({
   items,
   pageNumber: 1,
   pageSize: 12,
@@ -54,37 +79,49 @@ const page = (items: InterviewInsightResponse[]) => ({
   totalPages: items.length ? 1 : 0,
 });
 
-const response = (data: unknown) => Promise.resolve({ data: { data } });
-
 const installHandlers = ({
-  detail = baseInsight,
-  insights = [baseInsight],
+  cards = [card],
+  contributions,
+  detailValue = detail,
   schedules = [],
 }: {
-  detail?: InterviewInsightResponse;
-  insights?: InterviewInsightResponse[];
+  cards?: InterviewInsightCardResponse[];
+  contributions?: unknown;
+  detailValue?: InterviewInsightResponse;
   schedules?: unknown[];
 } = {}) => {
   requestMock.mockImplementation((config) => {
-    if (config.url === '/jobs/filter-options') return response({ companies: [company] });
+    if (!config) return response([]);
+    if (config.url === '/candidate/interview-insights/companies') return response([company]);
     if (config.url === '/candidate/interview-insights' && config.method === 'GET')
-      return response(page(insights));
-    if (config.url === '/candidate/interview-insights/insight-id') return response(detail);
+      return response(page(cards));
+    if (config.url === '/candidate/interview-insights/insight-id') return response(detailValue);
     if (config.url === '/candidate/interview-schedules' && config.method === 'GET')
       return response(schedules);
     if (config.url === '/candidate/interview-schedules' && config.method === 'POST')
-      return response({ id: 'new-schedule-id' });
+      return response({ id: 'schedule-id' });
+    if (config.url === '/candidate/interview-schedules/schedule-id' && config.method === 'PATCH')
+      return response({ id: 'schedule-id' });
     if (config.url === '/candidate/interview-insights' && config.method === 'POST')
-      return response({
-        ...baseInsight,
-        id: 'new-insight-id',
-        status: InterviewInsightStatus.PendingReview,
-      });
+      return response({ ...detail, id: 'new-id', status: InterviewInsightStatus.PendingReview });
+    if (config.url === '/candidate/interview-insights/my-contributions')
+      return response(
+        contributions ?? {
+          badges: [],
+          candidatesHelped: 0,
+          contributionScore: 0,
+          insightsPublished: 0,
+          items: [],
+          needsChanges: 0,
+          pendingReview: 0,
+        },
+      );
+    if (config.url === '/candidate/interview-insights/insight-id/report')
+      return response({ id: 'report-id' });
     return Promise.reject(new Error(`Unhandled request: ${config.method} ${config.url}`));
   });
 };
-
-const renderPage = (entry = ROUTES.INTERVIEW_INSIGHTS) =>
+const renderPage = (entry: string = ROUTES.INTERVIEW_INSIGHTS) =>
   renderWithProviders(
     <MemoryRouter initialEntries={[entry]}>
       <InterviewInsightsPage />
@@ -92,174 +129,216 @@ const renderPage = (entry = ROUTES.INTERVIEW_INSIGHTS) =>
   );
 
 describe('InterviewInsightsPage', () => {
-  beforeEach(() => {
-    requestMock.mockReset();
+  beforeEach(() => requestMock.mockReset());
+
+  it('renders the approved header and only safe explore-card fields', async () => {
+    installHandlers();
+    renderPage();
+    expect(await screen.findByRole('heading', { name: 'Interview insights' })).toBeVisible();
+    expect(
+      screen.getByText(
+        'Learn from candidate experiences, prepare with confidence, and help future candidates.',
+      ),
+    ).toBeVisible();
+    expect(screen.getByText('A concise safe overview of the process.')).toBeVisible();
+    expect(screen.getByText('HR')).toBeVisible();
+    expect(screen.getByText('Technical')).toBeVisible();
+    expect(screen.getByText('React')).toBeVisible();
+    expect(screen.getByText(/Anonymous candidate/)).toBeVisible();
+    expect(document.body).not.toHaveTextContent('private@example.com');
+    expect(document.body).not.toHaveTextContent('PendingReview');
   });
 
-  it('renders anonymous locked content without private or full-detail data', async () => {
+  it('maps every explore URL filter to the deployed API query', async () => {
+    installHandlers();
+    renderPage(
+      `${ROUTES.INTERVIEW_INSIGHTS}?companyId=company-id&company=HARMAN&role=Engineer&roundType=Technical&difficulty=Hard&experienceLevel=Senior&outcome=Selected&interviewFormat=Video&fromMonth=4&fromYear=2026&sort=MostRounds&pageNumber=2`,
+    );
+    await screen.findByText('A concise safe overview of the process.');
+    const call = requestMock.mock.calls.find(
+      ([config]) => config.url === '/candidate/interview-insights',
+    )?.[0];
+    expect(call?.params).toEqual({
+      companyId: 'company-id',
+      difficulty: 'Hard',
+      experienceLevel: 'Senior',
+      fromMonth: 4,
+      fromYear: 2026,
+      interviewFormat: 'Video',
+      outcome: 'Selected',
+      pageNumber: 2,
+      pageSize: 12,
+      role: 'Engineer',
+      roundType: 'Technical',
+      sort: 'MostRounds',
+    });
+  });
+
+  it('searches companies only after two characters and applies the selected company id', async () => {
+    installHandlers();
+    renderPage();
+    const user = userEvent.setup();
+    const input = screen.getByRole('combobox', { name: 'Company' });
+    await user.type(input, 'H');
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    expect(
+      requestMock.mock.calls.some(
+        ([config]) => config.url === '/candidate/interview-insights/companies',
+      ),
+    ).toBe(false);
+    await user.type(input, 'A');
+    expect(await screen.findByRole('option', { name: 'HARMAN' }, { timeout: 3_000 })).toBeVisible();
+    await user.click(screen.getByRole('option', { name: 'HARMAN' }));
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() =>
+      expect(
+        requestMock.mock.calls
+          .filter(([config]) => config.url === '/candidate/interview-insights')
+          .at(-1)?.[0].params,
+      ).toEqual(expect.objectContaining({ companyId: 'company-id' })),
+    );
+  });
+
+  it('opens the accessible mobile-friendly more filters dialog with canonical values', async () => {
+    installHandlers();
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'More filters' }));
+    const dialog = screen.getByRole('dialog', { name: 'More filters' });
+    expect(within(dialog).getByRole('combobox', { name: 'Round type' })).toBeVisible();
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Round type' }));
+    expect(screen.getByRole('option', { name: 'Group discussion' })).toBeVisible();
+    expect(screen.queryByRole('option', { name: /Case study/i })).not.toBeInTheDocument();
+  });
+
+  it('uses backend access flags for locked and unlocked details', async () => {
+    installHandlers();
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Read insight' }));
+    expect(await screen.findByText('Full insight is locked')).toBeVisible();
+    expect(
+      screen.getByText(
+        'Add an interview schedule or apply for a role at this company to unlock detailed preparation content.',
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText('Interview rounds')).not.toBeInTheDocument();
+  });
+
+  it('renders an unlocked round timeline and feedback only when allowed', async () => {
     installHandlers({
-      detail: {
-        ...baseInsight,
+      detailValue: {
+        ...detail,
+        canGiveFeedback: true,
+        canReadFull: true,
+        preparationTips: 'Review React trade-offs.',
         rounds: [
           {
-            candidateAdvice: 'Never render locked advice',
-            durationMinutes: 60,
+            candidateAdvice: 'Explain decisions.',
+            durationMinutes: 45,
             id: 'round-id',
-            questionsOrTopics: 'Never render locked questions',
-            roundTitle: 'Private round',
+            questionsOrTopics: 'React rendering',
+            roundTitle: null,
             roundType: InterviewRoundType.Technical,
             sequence: 1,
           },
         ],
-        ...({
-          candidateEmail: 'private@example.com',
-          exactInterviewAtUtc: '2026-07-10T10:00:00Z',
-        } as object),
       },
     });
     renderPage();
-
-    expect(await screen.findByText(/Shared by Anonymous candidate/)).toBeVisible();
-    expect(screen.getByText('Locked')).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'View insight' }));
-    expect(await screen.findByText('Full interview details are locked')).toBeVisible();
-    expect(screen.queryByText('Never render locked questions')).not.toBeInTheDocument();
-    expect(screen.queryByText('private@example.com')).not.toBeInTheDocument();
-    expect(screen.queryByText('2026-07-10T10:00:00Z')).not.toBeInTheDocument();
-  });
-
-  it('renders unlocked rounds and eligible feedback only from backend flags', async () => {
-    const unlocked = {
-      ...baseInsight,
-      canGiveFeedback: true,
-      canReadFull: true,
-      isAnonymous: false,
-      authorDisplayName: 'Avery Patel',
-      preparationTips: 'Review React rendering and communicate trade-offs.',
-      rounds: [
-        {
-          candidateAdvice: 'Explain decisions clearly.',
-          durationMinutes: 45,
-          id: 'round-id',
-          questionsOrTopics: 'React rendering and TypeScript narrowing.',
-          roundTitle: 'Technical discussion',
-          roundType: InterviewRoundType.Technical,
-          sequence: 1,
-        },
-      ],
-    };
-    installHandlers({
-      detail: unlocked,
-      insights: [unlocked],
-      schedules: [
-        {
-          companyId: company.id,
-          companyName: company.name,
-          feedbackAvailable: true,
-          id: 'schedule-id',
-          interviewAtUtc: '2026-07-01T10:00:00Z',
-          jobId: null,
-          roleTitle: 'Frontend Engineer',
-          status: InterviewScheduleStatus.InterviewCompleted,
-        },
-      ],
-    });
-    renderPage();
-    await userEvent.click(await screen.findByRole('button', { name: 'View insight' }));
-    expect(await screen.findByText('React rendering and TypeScript narrowing.')).toBeVisible();
-    expect(screen.getByText('Review React rendering and communicate trade-offs.')).toBeVisible();
+    await userEvent.click(await screen.findByRole('button', { name: 'Read insight' }));
+    expect(await screen.findByText('React rendering')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Did this insight help you?' })).toBeEnabled();
   });
 
-  it('creates a private interview schedule using a real company option', async () => {
+  it('sends canonical schedule metadata while keeping the date private to schedules', async () => {
     installHandlers();
-    renderPage();
+    renderPage(
+      `${ROUTES.INTERVIEW_INSIGHTS}?action=schedule&companyId=company-id&companyName=HARMAN&roleTitle=Frontend%20Engineer`,
+    );
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Add interview schedule' }));
     const dialog = screen.getByRole('dialog', { name: 'Add interview schedule' });
-    await user.click(within(dialog).getByRole('combobox', { name: /Company/ }));
-    await user.click(await screen.findByRole('option', { name: 'HARMAN' }));
-    await user.type(within(dialog).getByLabelText(/Role title/), 'Frontend Engineer');
-    fireEvent.change(within(dialog).getByLabelText(/Interview date and time/), {
+    expect(within(dialog).getByRole('combobox', { name: 'Company' })).toHaveValue('HARMAN');
+    fireEvent.change(within(dialog).getByLabelText(/Private interview date/), {
       target: { value: '2026-08-25T11:00' },
     });
+    await user.click(within(dialog).getByRole('combobox', { name: 'Interview format' }));
+    await user.click(screen.getByRole('option', { name: 'Video' }));
+    await user.click(within(dialog).getByRole('combobox', { name: 'Approximate time' }));
+    await user.click(screen.getByRole('option', { name: 'Morning' }));
+    await user.click(within(dialog).getByRole('combobox', { name: 'Preparation status' }));
+    await user.click(screen.getByRole('option', { name: 'Preparing' }));
+    await user.click(
+      within(dialog).getByRole('checkbox', { name: 'Send me an interview reminder' }),
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Save schedule' }));
-
     await waitFor(() =>
       expect(
         requestMock.mock.calls.some(
-          ([request]) =>
-            request.method === 'POST' && request.url === '/candidate/interview-schedules',
+          ([config]) => config.method === 'POST' && config.url === '/candidate/interview-schedules',
         ),
       ).toBe(true),
     );
-    const scheduleRequest = requestMock.mock.calls.find(
-      ([request]) =>
-        request.method === 'POST' && request.url === '/candidate/interview-schedules',
-    )?.[0];
-    expect(scheduleRequest?.data as unknown).toEqual(
+    const sent: unknown = requestMock.mock.calls.find(
+      ([config]) => config.method === 'POST' && config.url === '/candidate/interview-schedules',
+    )?.[0].data;
+    expect(sent).toEqual(
       expect.objectContaining({
+        approximateTimeOfDay: InterviewTimeOfDay.Morning,
         companyId: company.id,
-        jobId: null,
+        expectedRoundTypes: [],
+        interviewFormat: InterviewFormat.Video,
+        preparationStatus: InterviewPreparationStatus.Preparing,
+        reminderRequested: true,
         roleTitle: 'Frontend Engineer',
       }),
     );
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('dialog', { name: 'Add interview schedule' }),
-      ).not.toBeInTheDocument(),
-    );
+  }, 15_000);
+
+  it('renders contribution statuses and safe reviewer requests without private data', async () => {
+    installHandlers({
+      contributions: {
+        badges: [],
+        candidatesHelped: 7,
+        contributionScore: 18,
+        insightsPublished: 1,
+        needsChanges: 1,
+        pendingReview: 1,
+        items: [
+          {
+            companyName: 'HARMAN',
+            contributionPoints: 4,
+            helpfulConfirmedCount: 2,
+            id: 'mine',
+            interviewMonth: 7,
+            interviewYear: 2026,
+            moderationStatus: InterviewInsightStatus.Rejected,
+            reviewerChangeRequest: 'Please remove confidential details.',
+            roleTitle: 'Engineer',
+            updatedAt: '2026-08-24T00:00:00Z',
+            candidateEmail: 'private@example.com',
+            exactInterviewAtUtc: '2026-07-01T10:00:00Z',
+          },
+        ],
+      },
+    });
+    renderPage(`${ROUTES.INTERVIEW_INSIGHTS}?view=contributions`);
+    expect((await screen.findAllByText('Needs changes')).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Reviewer request: Please remove confidential details.')).toBeVisible();
+    expect(document.body).not.toHaveTextContent('private@example.com');
+    expect(document.body).not.toHaveTextContent('2026-07-01T10:00:00Z');
   });
 
-  it('shows that shared insights are pending review and does not fake publication', async () => {
+  it('requires report confirmation before calling the report endpoint', async () => {
     installHandlers();
     renderPage();
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Share an interview insight' }));
-    const dialog = screen.getByRole('dialog', { name: 'Share an interview insight' });
-    expect(
-      within(dialog).getByText('Submitted insights are reviewed before publication.'),
-    ).toBeVisible();
-
-    await user.click(within(dialog).getByRole('combobox', { name: /Company/ }));
-    await user.click(await screen.findByRole('option', { name: 'HARMAN' }));
-    await user.type(within(dialog).getByLabelText(/Role title/), 'Frontend Engineer');
-    fireEvent.change(within(dialog).getByLabelText(/Interview month/), {
-      target: { value: '2026-07' },
-    });
-    await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
-    await user.type(within(dialog).getByLabelText(/Questions or topics/), 'React rendering topics');
-    await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
-    await user.type(
-      within(dialog).getByLabelText(/Process summary/),
-      'Two structured interview rounds.',
+    await userEvent.click(await screen.findByRole('button', { name: 'Report' }));
+    expect(requestMock.mock.calls.some(([config]) => config.url?.endsWith('/report'))).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm report' }));
+    await waitFor(() =>
+      expect(
+        requestMock.mock.calls.some(
+          ([config]) => config.url === '/candidate/interview-insights/insight-id/report',
+        ),
+      ).toBe(true),
     );
-    await user.type(
-      within(dialog).getByLabelText(/Preparation tips/),
-      'Prepare examples from recent work.',
-    );
-    await user.click(
-      within(dialog).getByRole('checkbox', { name: /I confirm this contains no confidential/i }),
-    );
-    await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
-    expect(within(dialog).getByText(/will start as Pending review/i)).toBeVisible();
-    await user.click(within(dialog).getByRole('button', { name: 'Submit for review' }));
-    expect(
-      await screen.findByText('Submitted insight is pending administrator review.'),
-    ).toBeVisible();
-    expect(screen.queryByText(/published immediately/i)).not.toBeInTheDocument();
-  }, 20_000);
-
-  it('shows a safe retryable error without exposing backend private details', async () => {
-    installHandlers();
-    requestMock.mockImplementation((config) => {
-      if (config.url === '/jobs/filter-options') return response({ companies: [company] });
-      if (config.url === '/candidate/interview-schedules') return response([]);
-      return Promise.reject(new Error('Interview Insights are temporarily unavailable.'));
-    });
-    renderPage();
-    expect(await screen.findByText('Could not load interview insights')).toBeVisible();
-    expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
-    expect(document.body).not.toHaveTextContent('private@example.com');
   });
 });

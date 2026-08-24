@@ -1,68 +1,81 @@
 import type { PaginatedResponse } from '@/types';
 
 export enum InterviewDifficulty {
-  Easy = 1,
-  Moderate,
-  Hard,
+  Easy = 'Easy',
+  Moderate = 'Moderate',
+  Hard = 'Hard',
 }
-
 export enum InterviewOutcome {
-  Awaiting = 1,
-  Rejected,
-  Selected,
-  Withdrawn,
-  PreferNotToSay,
+  Awaiting = 'Awaiting',
+  Rejected = 'Rejected',
+  Selected = 'Selected',
+  Withdrawn = 'Withdrawn',
+  PreferNotToSay = 'PreferNotToSay',
 }
-
 export enum InterviewInsightStatus {
-  PendingReview = 1,
-  Published,
-  Rejected,
-  Hidden,
+  PendingReview = 'PendingReview',
+  Published = 'Published',
+  Rejected = 'Rejected',
+  Hidden = 'Hidden',
 }
-
 export enum InterviewRoundType {
-  HR = 1,
-  Technical,
-  Managerial,
-  Coding,
-  Aptitude,
-  GroupDiscussion,
-  Other,
+  HR = 'HR',
+  Technical = 'Technical',
+  Managerial = 'Managerial',
+  Coding = 'Coding',
+  Aptitude = 'Aptitude',
+  GroupDiscussion = 'GroupDiscussion',
+  Other = 'Other',
 }
-
+export enum InterviewFormat {
+  Online = 'Online',
+  InPerson = 'InPerson',
+  Phone = 'Phone',
+  Video = 'Video',
+}
+export enum InterviewTimeOfDay {
+  Morning = 'Morning',
+  Afternoon = 'Afternoon',
+  Evening = 'Evening',
+}
+export enum InterviewPreparationStatus {
+  NotStarted = 'NotStarted',
+  Preparing = 'Preparing',
+  Ready = 'Ready',
+}
+export enum InterviewInsightSort {
+  MostHelpful = 'MostHelpful',
+  Newest = 'Newest',
+  MostRounds = 'MostRounds',
+}
 export enum InterviewScheduleStatus {
-  Scheduled = 1,
-  InterviewCompleted,
-  Cancelled,
+  Scheduled = 'Scheduled',
+  InterviewCompleted = 'InterviewCompleted',
+  Cancelled = 'Cancelled',
 }
-
 export enum InsightHelpfulness {
-  Helped = 1,
-  PartlyHelped,
-  DidNotHelp,
+  Helped = 'Helped',
+  PartlyHelped = 'PartlyHelped',
+  DidNotHelp = 'DidNotHelp',
 }
-
 export enum InterviewMatch {
-  Matched = 1,
-  PartlyMatched,
-  DidNotMatch,
+  Matched = 'Matched',
+  PartlyMatched = 'PartlyMatched',
+  DidNotMatch = 'DidNotMatch',
 }
-
 export enum InsightReportReason {
-  ConfidentialContent = 1,
-  Inaccurate,
-  Abuse,
-  Spam,
-  PersonalData,
-  Other,
+  ConfidentialContent = 'ConfidentialContent',
+  Inaccurate = 'Inaccurate',
+  Abuse = 'Abuse',
+  Spam = 'Spam',
+  PersonalData = 'PersonalData',
+  Other = 'Other',
 }
-
 export enum InsightReportStatus {
-  Open = 1,
-  Reviewed,
-  Actioned,
-  Dismissed,
+  Open = 'Open',
+  Reviewed = 'Reviewed',
+  Actioned = 'Actioned',
+  Dismissed = 'Dismissed',
 }
 
 export interface InterviewRoundRequest {
@@ -80,6 +93,7 @@ export interface CreateInterviewInsightRequest {
   experienceLevel: string | null;
   interviewDateMonth: string;
   overallDifficulty: InterviewDifficulty;
+  interviewFormat: InterviewFormat | null;
   processSummary: string;
   preparationTips: string;
   outcome: InterviewOutcome | null;
@@ -92,7 +106,6 @@ export type UpdateInterviewInsightRequest = Omit<
   CreateInterviewInsightRequest,
   'companyId' | 'jobId'
 >;
-
 export interface InterviewRoundResponse extends InterviewRoundRequest {
   id: string;
   sequence: number;
@@ -109,6 +122,7 @@ export interface InterviewInsightResponse {
   interviewMonth: number;
   interviewYear: number;
   overallDifficulty: InterviewDifficulty;
+  interviewFormat: InterviewFormat | null;
   processSummary: string;
   preparationTips: string | null;
   outcome: InterviewOutcome | null;
@@ -124,38 +138,70 @@ export interface InterviewInsightResponse {
   rounds: InterviewRoundResponse[];
 }
 
+export interface InterviewInsightCardResponse {
+  id: string;
+  companyId: string;
+  companyName: string;
+  roleTitle: string;
+  interviewMonth: number;
+  interviewYear: number;
+  difficulty: InterviewDifficulty;
+  outcome: InterviewOutcome | null;
+  experienceLevel: string | null;
+  interviewFormat: InterviewFormat | null;
+  roundCount: number;
+  roundTypes: InterviewRoundType[];
+  topicTags: string[];
+  shortSummary: string;
+  helpfulConfirmedCount: number;
+  canReadFull: boolean;
+  canGiveFeedback: boolean;
+  isAnonymous: boolean;
+  authorLabel: string | null;
+}
+
 export interface InterviewInsightQuery {
   companyId?: string;
+  company?: string;
   role?: string;
   roundType?: InterviewRoundType;
   difficulty?: InterviewDifficulty;
-  sort?: 'mostHelpful' | 'newest';
+  experienceLevel?: string;
+  outcome?: InterviewOutcome;
+  interviewFormat?: InterviewFormat;
+  fromMonth?: number;
+  fromYear?: number;
+  recencyMonths?: number;
+  sort: InterviewInsightSort;
   pageNumber: number;
   pageSize: number;
 }
-
-export type InterviewInsightsPage = PaginatedResponse<InterviewInsightResponse>;
+export type InterviewInsightsPage = PaginatedResponse<InterviewInsightCardResponse>;
+export interface InterviewInsightCompanyResponse {
+  id: string;
+  companyName: string;
+}
 
 export interface CreateInterviewScheduleRequest {
   companyId: string;
   jobId: string | null;
   roleTitle: string | null;
   interviewAtUtc: string;
+  interviewFormat: InterviewFormat | null;
+  approximateTimeOfDay: InterviewTimeOfDay | null;
+  expectedRoundTypes: InterviewRoundType[];
+  preparationStatus: InterviewPreparationStatus | null;
+  reminderRequested: boolean;
 }
-
-export interface UpdateInterviewScheduleRequest {
-  roleTitle: string | null;
-  interviewAtUtc: string;
+export interface UpdateInterviewScheduleRequest extends Omit<
+  CreateInterviewScheduleRequest,
+  'companyId' | 'jobId'
+> {
   status: InterviewScheduleStatus;
 }
-
-export interface InterviewScheduleResponse {
+export interface InterviewScheduleResponse extends CreateInterviewScheduleRequest {
   id: string;
-  companyId: string;
   companyName: string;
-  jobId: string | null;
-  roleTitle: string | null;
-  interviewAtUtc: string;
   status: InterviewScheduleStatus;
   confirmFeedbackAvailableAtUtc: string;
   feedbackAvailable: boolean;
@@ -167,7 +213,6 @@ export interface CreateInsightFeedbackRequest {
   interviewMatch: InterviewMatch;
   feedback: string | null;
 }
-
 export interface InsightFeedbackResponse {
   id: string;
   helpfulness: InsightHelpfulness;
@@ -176,25 +221,37 @@ export interface InsightFeedbackResponse {
   helpfulConfirmedCount: number;
   qualityScore: number;
 }
-
 export interface CreateInsightReportRequest {
   reason: InsightReportReason;
   details: string | null;
 }
-
 export interface InsightReportResponse {
   id: string;
   status: InsightReportStatus;
   createdAtUtc: string;
 }
 
+export interface MyInterviewContributionCardResponse {
+  id: string;
+  companyName: string;
+  roleTitle: string;
+  interviewMonth: number;
+  interviewYear: number;
+  moderationStatus: InterviewInsightStatus;
+  helpfulConfirmedCount: number;
+  contributionPoints: number;
+  updatedAt: string;
+  reviewerChangeRequest: string | null;
+}
 export interface MyInterviewContributionsResponse {
   insightsPublished: number;
   candidatesHelped: number;
   contributionScore: number;
   badges: string[];
+  pendingReview: number;
+  needsChanges: number;
+  items: MyInterviewContributionCardResponse[];
 }
-
 export interface CompanyInterviewInsightSummaryResponse {
   companyId: string;
   companyName: string;

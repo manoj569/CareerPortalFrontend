@@ -12,6 +12,7 @@ import type {
   InsightFeedbackResponse,
   InsightReportResponse,
   InterviewInsightQuery,
+  InterviewInsightCompanyResponse,
   InterviewInsightResponse,
   InterviewInsightsPage,
   InterviewScheduleResponse,
@@ -34,6 +35,17 @@ export const interviewInsightsApi = createApi({
       query: (id) => ({ url: API_ENDPOINTS.CANDIDATE.INTERVIEW_INSIGHT(id) }),
       transformResponse: (response: ApiResponse<InterviewInsightResponse>) => response.data,
       providesTags: (_, __, id) => [{ id, type: 'Insights' }],
+    }),
+    getInterviewInsightCompanies: builder.query<
+      InterviewInsightCompanyResponse[],
+      { query: string; limit?: number }
+    >({
+      query: ({ query, limit = 10 }) => ({
+        params: { limit, query },
+        url: API_ENDPOINTS.CANDIDATE.INTERVIEW_INSIGHT_COMPANIES,
+      }),
+      transformResponse: (response: ApiResponse<InterviewInsightCompanyResponse[]>) =>
+        response.data,
     }),
     createInterviewInsight: builder.mutation<
       InterviewInsightResponse,
@@ -132,6 +144,7 @@ export const {
   useCreateInterviewScheduleMutation,
   useDeleteInterviewInsightMutation,
   useGetCompanyInterviewInsightSummaryQuery,
+  useGetInterviewInsightCompaniesQuery,
   useGetInterviewInsightQuery,
   useGetInterviewInsightsQuery,
   useGetInterviewSchedulesQuery,

@@ -6,8 +6,13 @@ import {
   InsightHelpfulness,
   InsightReportReason,
   InterviewDifficulty,
+  InterviewFormat,
+  InterviewInsightSort,
   InterviewMatch,
+  InterviewOutcome,
+  InterviewPreparationStatus,
   InterviewRoundType,
+  InterviewTimeOfDay,
 } from '../types/interviewInsightModels';
 
 const requestMock = vi.hoisted(() =>
@@ -27,10 +32,18 @@ describe('interviewInsightsApi', () => {
       .dispatch(
         interviewInsightsApi.endpoints.getInterviewInsights.initiate({
           companyId: 'company-id',
+          company: 'Har',
+          difficulty: InterviewDifficulty.Hard,
+          experienceLevel: 'Senior',
+          fromMonth: 4,
+          fromYear: 2026,
+          interviewFormat: InterviewFormat.Video,
+          outcome: InterviewOutcome.Selected,
           pageNumber: 1,
           pageSize: 20,
           role: 'Engineer',
-          sort: 'newest',
+          roundType: InterviewRoundType.Technical,
+          sort: InterviewInsightSort.Newest,
         }),
       )
       .unwrap();
@@ -40,10 +53,18 @@ describe('interviewInsightsApi', () => {
         method: 'GET',
         params: {
           companyId: 'company-id',
+          company: 'Har',
+          difficulty: 'Hard',
+          experienceLevel: 'Senior',
+          fromMonth: 4,
+          fromYear: 2026,
+          interviewFormat: 'Video',
+          outcome: 'Selected',
           pageNumber: 1,
           pageSize: 20,
           role: 'Engineer',
-          sort: 'newest',
+          roundType: 'Technical',
+          sort: 'Newest',
         },
         url: '/candidate/interview-insights',
       }),
@@ -64,6 +85,7 @@ describe('interviewInsightsApi', () => {
       companyId: 'company-id',
       contentGuidelinesAccepted: true,
       experienceLevel: null,
+      interviewFormat: InterviewFormat.Video,
       interviewDateMonth: '2026-08-01',
       isAnonymous: true,
       jobId: null,
@@ -95,9 +117,14 @@ describe('interviewInsightsApi', () => {
     );
 
     const scheduleBody = {
+      approximateTimeOfDay: InterviewTimeOfDay.Morning,
       companyId: 'company-id',
+      expectedRoundTypes: [InterviewRoundType.HR, InterviewRoundType.Technical],
       interviewAtUtc: '2026-08-25T05:30:00.000Z',
+      interviewFormat: InterviewFormat.Video,
       jobId: 'job-id',
+      preparationStatus: InterviewPreparationStatus.Preparing,
+      reminderRequested: true,
       roleTitle: 'Engineer',
     };
     respond({ id: 'schedule-id' });
@@ -109,6 +136,23 @@ describe('interviewInsightsApi', () => {
         data: scheduleBody,
         method: 'POST',
         url: '/candidate/interview-schedules',
+      }),
+    );
+  });
+
+  it('uses the deployed company autocomplete endpoint and request parameters', async () => {
+    const store = createAppStore();
+    respond([{ companyName: 'HARMAN', id: 'company-id' }]);
+    await store
+      .dispatch(
+        interviewInsightsApi.endpoints.getInterviewInsightCompanies.initiate({ query: 'HA' }),
+      )
+      .unwrap();
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        params: { limit: 10, query: 'HA' },
+        url: '/candidate/interview-insights/companies',
       }),
     );
   });

@@ -137,6 +137,7 @@ export const API_ENDPOINTS = {
     RECRUITER_CONTACT: (jobId: string) =>
       `/candidate/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
     INTERVIEW_INSIGHTS: '/candidate/interview-insights',
+    INTERVIEW_INSIGHT_COMPANIES: '/candidate/interview-insights/companies',
     INTERVIEW_INSIGHT: (insightId: string) =>
       `/candidate/interview-insights/${encodeURIComponent(insightId)}`,
     INTERVIEW_INSIGHT_FEEDBACK: (insightId: string) =>
