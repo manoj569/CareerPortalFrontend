@@ -41,3 +41,15 @@ export const beginPhonePeRedirect = (
   assign(checkout.redirectUrl);
   return true;
 };
+
+export const resumePhonePeRedirect = (
+  merchantOrderId: string,
+  redirectUrl: string,
+  assign: (url: string) => void = (url) => window.location.assign(url),
+): boolean => {
+  if (!isSafePhonePeRedirectUrl(redirectUrl) || !storePhonePeMerchantOrderId(merchantOrderId)) {
+    return false;
+  }
+  assign(redirectUrl);
+  return true;
+};

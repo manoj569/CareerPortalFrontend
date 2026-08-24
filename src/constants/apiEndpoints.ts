@@ -37,6 +37,9 @@ export const API_ENDPOINTS = {
     CREATE_PHONEPE_CHECKOUT: '/payments/phonepe/checkout',
     PHONEPE_RETURN: (merchantOrderId: string) =>
       `/payments/phonepe/return/${encodeURIComponent(merchantOrderId)}`,
+    PENDING_MEMBERSHIP_CHECKOUT: '/payments/pending-membership-checkout',
+    CANCEL_PENDING_MEMBERSHIP_CHECKOUT: (publicReference: string) =>
+      `/payments/pending-membership-checkout/${encodeURIComponent(publicReference)}/cancel`,
     CREATE_RAZORPAY_ORDER: '/payments/razorpay/orders',
     CONFIRM_RAZORPAY: (paymentId: string) =>
       `/payments/${encodeURIComponent(paymentId)}/razorpay/confirm`,

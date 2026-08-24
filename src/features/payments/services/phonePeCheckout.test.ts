@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PhonePeCheckoutResponse } from '../types/paymentModels';
-import { beginPhonePeRedirect, PHONEPE_ORDER_STORAGE_KEY } from './phonePeCheckout';
+import {
+  beginPhonePeRedirect,
+  PHONEPE_ORDER_STORAGE_KEY,
+  resumePhonePeRedirect,
+} from './phonePeCheckout';
 
 const checkout = (redirectUrl: string): PhonePeCheckoutResponse => ({
   amountInMinorUnits: 9_900,
@@ -11,6 +15,23 @@ const checkout = (redirectUrl: string): PhonePeCheckoutResponse => ({
   merchantOrderId: 'ch_order123',
   planName: 'Career Harbor Membership',
   redirectUrl,
+});
+
+describe('PhonePe pending checkout resume', () => {
+  it('stores only the public merchant reference before resuming', () => {
+    const assign = vi.fn();
+    expect(
+      resumePhonePeRedirect('ch_order123', 'https://mercury.phonepe.com/checkout/resume', assign),
+    ).toBe(true);
+    expect(assign).toHaveBeenCalledWith('https://mercury.phonepe.com/checkout/resume');
+    expect(sessionStorage.getItem(PHONEPE_ORDER_STORAGE_KEY)).toBe('ch_order123');
+  });
+
+  it('blocks an untrusted resume URL', () => {
+    const assign = vi.fn();
+    expect(resumePhonePeRedirect('ch_order123', 'https://evil.example/resume', assign)).toBe(false);
+    expect(assign).not.toHaveBeenCalled();
+  });
 });
 
 describe('PhonePe checkout redirect', () => {

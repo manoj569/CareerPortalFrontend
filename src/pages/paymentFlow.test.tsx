@@ -7,17 +7,22 @@ import { ROUTES } from '@/constants/routes';
 import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
 import {
+  useCancelPendingMembershipCheckoutMutation,
   useCreatePhonePeCheckoutMutation,
+  useGetPendingMembershipCheckoutQuery,
   useLazyGetPhonePeReturnQuery,
 } from '@/features/payments/api/paymentsApi';
 import type * as PaymentsApiModule from '@/features/payments/api/paymentsApi';
 import {
   beginPhonePeRedirect,
   PHONEPE_ORDER_STORAGE_KEY,
+  resumePhonePeRedirect,
 } from '@/features/payments/services/phonePeCheckout';
 import type * as PhonePeCheckoutModule from '@/features/payments/services/phonePeCheckout';
 import {
   PhonePePaymentStatus,
+  MembershipCheckoutStatus,
+  type PendingMembershipCheckoutResponse,
   type PhonePeCheckoutResponse,
 } from '@/features/payments/types/paymentModels';
 import { useAppDispatch } from '@/hooks/reduxHooks';
@@ -34,12 +39,15 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => ({
 vi.mock('@/features/payments/api/paymentsApi', async (importOriginal) => ({
   ...(await importOriginal<typeof PaymentsApiModule>()),
   useCreatePhonePeCheckoutMutation: vi.fn(),
+  useCancelPendingMembershipCheckoutMutation: vi.fn(),
+  useGetPendingMembershipCheckoutQuery: vi.fn(),
   useLazyGetPhonePeReturnQuery: vi.fn(),
 }));
 
 vi.mock('@/features/payments/services/phonePeCheckout', async (importOriginal) => ({
   ...(await importOriginal<typeof PhonePeCheckoutModule>()),
   beginPhonePeRedirect: vi.fn(),
+  resumePhonePeRedirect: vi.fn(),
 }));
 
 vi.mock('@/hooks/reduxHooks', async (importOriginal) => ({
@@ -58,10 +66,24 @@ const checkout: PhonePeCheckoutResponse = {
 };
 
 const createTrigger = vi.fn();
+const cancelTrigger = vi.fn();
 const statusTrigger = vi.fn();
 const dispatch = vi.fn(() => ({ unsubscribe: vi.fn() }));
 let createState = { isLoading: false };
+let pendingState: Record<string, unknown> = {};
 let statusState: Record<string, unknown> = { isFetching: false };
+
+const pendingCheckout: PendingMembershipCheckoutResponse = {
+  amount: 99,
+  canCancel: true,
+  canResume: true,
+  createdAtUtc: '2026-08-24T10:30:00Z',
+  currency: 'INR',
+  provider: 'PhonePe',
+  publicReference: 'ch_order123',
+  redirectUrl: 'https://mercury.phonepe.com/checkout/resume',
+  status: MembershipCheckoutStatus.Pending,
+};
 
 const renderRoute = (path: string, element: React.ReactNode) => {
   const router = createMemoryRouter(
@@ -79,9 +101,14 @@ const renderRoute = (path: string, element: React.ReactNode) => {
 describe('PhonePe membership checkout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useGetMembershipsQuery).mockReturnValue({ data: [] } as unknown as ReturnType<
-      typeof useGetMembershipsQuery
-    >);
+    vi.mocked(useGetMembershipsQuery).mockReturnValue({
+      data: [],
+      refetch: vi.fn(),
+    } as ReturnType<typeof useGetMembershipsQuery>);
+    pendingState = { data: null, isError: false, isLoading: false, refetch: vi.fn() };
+    vi.mocked(useGetPendingMembershipCheckoutQuery).mockImplementation(
+      () => pendingState as unknown as ReturnType<typeof useGetPendingMembershipCheckoutQuery>,
+    );
     createState = { isLoading: false };
     vi.mocked(useCreatePhonePeCheckoutMutation).mockImplementation(
       () =>
@@ -90,7 +117,20 @@ describe('PhonePe membership checkout', () => {
         >,
     );
     createTrigger.mockReturnValue({ unwrap: () => Promise.resolve(checkout) });
+    cancelTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve({
+          ...pendingCheckout,
+          canCancel: false,
+          status: MembershipCheckoutStatus.Cancelled,
+        }),
+    });
+    vi.mocked(useCancelPendingMembershipCheckoutMutation).mockReturnValue([
+      cancelTrigger,
+      { isLoading: false },
+    ] as unknown as ReturnType<typeof useCancelPendingMembershipCheckoutMutation>);
     vi.mocked(beginPhonePeRedirect).mockReturnValue(true);
+    vi.mocked(resumePhonePeRedirect).mockReturnValue(true);
   });
 
   it('uses PhonePe without invoking or rendering Razorpay checkout', () => {
@@ -102,7 +142,8 @@ describe('PhonePe membership checkout', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Continue to PhonePe' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Continue to Pay ₹99' })).toBeEnabled();
+    expect(screen.getByText('Secure payment powered by PhonePe')).toBeVisible();
     expect(screen.queryByText(/razorpay/i)).not.toBeInTheDocument();
     expect(document.querySelector('script[src*="razorpay"]')).toBeNull();
   });
@@ -115,7 +156,7 @@ describe('PhonePe membership checkout', () => {
         })}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to Pay ₹99' }));
 
     expect(createTrigger).toHaveBeenCalledWith();
     expect(beginPhonePeRedirect).toHaveBeenCalledWith(checkout);
@@ -143,10 +184,112 @@ describe('PhonePe membership checkout', () => {
         })}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to Pay ₹99' }));
 
     expect(await screen.findByText(/destination could not be verified/i)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+  });
+
+  it('refreshes the pending card for a pending_membership_checkout conflict', async () => {
+    const refetch = vi.fn().mockResolvedValue({ data: pendingCheckout });
+    pendingState = { ...pendingState, refetch };
+    createTrigger.mockReturnValue({
+      unwrap: () =>
+        Promise.reject(
+          Object.assign(new Error('Internal conflict details'), {
+            code: 'pending_membership_checkout',
+            status: 409,
+          }),
+        ),
+    });
+    const router = createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+      initialEntries: [ROUTES.MEMBERSHIP],
+    });
+    const view = renderWithProviders(<RouterProvider router={router} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to Pay ₹99' }));
+
+    expect(refetch).toHaveBeenCalled();
+    expect(screen.queryByText(/Internal conflict details/i)).not.toBeInTheDocument();
+    pendingState = { ...pendingState, data: pendingCheckout };
+    view.rerender(<RouterProvider router={router} />);
+    expect(screen.getByRole('heading', { name: 'You have a pending payment' })).toBeVisible();
+  });
+
+  it('shows the authoritative pending checkout card and hides new checkout', () => {
+    pendingState = { ...pendingState, data: pendingCheckout };
+    renderWithProviders(
+      <RouterProvider
+        router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+          initialEntries: [ROUTES.MEMBERSHIP],
+        })}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'You have a pending payment' })).toBeVisible();
+    expect(screen.getAllByText(/PhonePe/)[0]).toBeVisible();
+    expect(screen.getByText(/₹99\.00/)).toBeVisible();
+    expect(screen.getByText(/Pending/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Continue to Pay ₹99' })).not.toBeInTheDocument();
+  });
+
+  it('resumes only through the validated PhonePe redirect helper', async () => {
+    pendingState = { ...pendingState, data: pendingCheckout };
+    renderWithProviders(
+      <RouterProvider
+        router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+          initialEntries: [ROUTES.MEMBERSHIP],
+        })}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Resume payment' }));
+
+    expect(resumePhonePeRedirect).toHaveBeenCalledWith(
+      pendingCheckout.publicReference,
+      pendingCheckout.redirectUrl,
+    );
+  });
+
+  it('confirms cancellation, sends only the public reference, and refreshes data', async () => {
+    const pendingRefetch = vi.fn().mockResolvedValue({ data: null });
+    const membershipRefetch = vi.fn().mockResolvedValue({ data: [] });
+    pendingState = { ...pendingState, data: pendingCheckout, refetch: pendingRefetch };
+    vi.mocked(useGetMembershipsQuery).mockReturnValue({
+      data: [],
+      refetch: membershipRefetch,
+    } as ReturnType<typeof useGetMembershipsQuery>);
+    renderWithProviders(
+      <RouterProvider
+        router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+          initialEntries: [ROUTES.MEMBERSHIP],
+        })}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel pending payment' }));
+    expect(screen.getByRole('dialog', { name: 'Cancel this pending payment?' })).toBeVisible();
+    expect(cancelTrigger).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel payment' }));
+
+    expect(cancelTrigger).toHaveBeenCalledWith('ch_order123');
+    expect(pendingRefetch).toHaveBeenCalled();
+    expect(membershipRefetch).toHaveBeenCalled();
+  });
+
+  it('keeps the confirmation open and shows a safe cancellation error', async () => {
+    pendingState = { ...pendingState, data: pendingCheckout };
+    cancelTrigger.mockReturnValue({ unwrap: () => Promise.reject(new Error('provider secret')) });
+    renderWithProviders(
+      <RouterProvider
+        router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+          initialEntries: [ROUTES.MEMBERSHIP],
+        })}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel pending payment' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel payment' }));
+
+    expect(await screen.findByText(/could not cancel this pending payment safely/i)).toBeVisible();
+    expect(screen.queryByText(/provider secret/i)).not.toBeInTheDocument();
   });
 });
 

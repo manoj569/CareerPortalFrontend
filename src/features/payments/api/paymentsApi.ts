@@ -11,6 +11,7 @@ import type {
   PaymentOrder,
   PhonePeCheckoutResponse,
   PhonePeReturnStatusResponse,
+  PendingMembershipCheckoutResponse,
   PaymentStatusResponse,
   PaymentsPage,
   PaymentsQuery,
@@ -20,7 +21,7 @@ export const paymentsApi = createApi({
   reducerPath: 'paymentsApi',
   baseQuery: axiosBaseQuery(),
   keepUnusedDataFor: 60,
-  tagTypes: ['Payments', 'PaymentHistory', 'PaymentStatus'],
+  tagTypes: ['Payments', 'PaymentHistory', 'PaymentStatus', 'PendingCheckout'],
   endpoints: (builder) => ({
     createPhonePeCheckout: builder.mutation<PhonePeCheckoutResponse, void>({
       query: () => ({
@@ -35,6 +36,29 @@ export const paymentsApi = createApi({
         url: API_ENDPOINTS.PAYMENTS.PHONEPE_RETURN(merchantOrderId),
       }),
       transformResponse: (response: ApiResponse<PhonePeReturnStatusResponse>) => response.data,
+    }),
+    getPendingMembershipCheckout: builder.query<PendingMembershipCheckoutResponse | null, void>({
+      query: () => ({ url: API_ENDPOINTS.PAYMENTS.PENDING_MEMBERSHIP_CHECKOUT }),
+      transformResponse: (response: ApiResponse<PendingMembershipCheckoutResponse | null>) =>
+        response.data,
+      providesTags: ['PendingCheckout'],
+    }),
+    cancelPendingMembershipCheckout: builder.mutation<PendingMembershipCheckoutResponse, string>({
+      query: (publicReference) => ({
+        method: 'POST',
+        url: API_ENDPOINTS.PAYMENTS.CANCEL_PENDING_MEMBERSHIP_CHECKOUT(publicReference),
+      }),
+      transformResponse: (response: ApiResponse<PendingMembershipCheckoutResponse>) =>
+        response.data,
+      invalidatesTags: ['PendingCheckout', 'Payments', 'PaymentHistory', 'PaymentStatus'],
+      onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
+        try {
+          await queryFulfilled;
+          dispatch(dashboardApi.util.invalidateTags(['Memberships']));
+        } catch {
+          // Authoritative membership state is unchanged when cancellation fails.
+        }
+      },
     }),
     createRazorpayOrder: builder.mutation<PaymentOrder, void>({
       query: () => ({
@@ -97,11 +121,13 @@ export const paymentsApi = createApi({
 });
 
 export const {
+  useCancelPendingMembershipCheckoutMutation,
   useCreatePhonePeCheckoutMutation,
   useConfirmRazorpayPaymentMutation,
   useCreateRazorpayOrderMutation,
   useGetPaymentHistoryQuery,
   useGetPaymentStatusQuery,
+  useGetPendingMembershipCheckoutQuery,
   useGetPaymentsQuery,
   useLazyGetPhonePeReturnQuery,
   useReconcileRazorpayPaymentMutation,

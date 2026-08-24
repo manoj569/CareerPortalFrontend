@@ -43,6 +43,29 @@ export interface PhonePeReturnStatusResponse {
   status: PhonePePaymentStatus;
 }
 
+export enum MembershipCheckoutStatus {
+  Created = 'Created',
+  Pending = 'Pending',
+  Failed = 'Failed',
+  Cancelled = 'Cancelled',
+  Completed = 'Completed',
+}
+
+export type MembershipCheckoutProvider =
+  'Unknown' | 'Stripe' | 'Razorpay' | 'PayPal' | 'BankTransfer' | 'PhonePe';
+
+export interface PendingMembershipCheckoutResponse {
+  publicReference: string;
+  provider: MembershipCheckoutProvider;
+  status: MembershipCheckoutStatus;
+  amount: number;
+  currency: string;
+  createdAtUtc: string;
+  canResume: boolean;
+  canCancel: boolean;
+  redirectUrl: string | null;
+}
+
 export interface PaymentOrder {
   paymentId: string;
   membershipId: string;

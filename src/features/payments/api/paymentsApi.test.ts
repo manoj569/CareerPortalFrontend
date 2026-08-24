@@ -98,7 +98,7 @@ describe('Razorpay payment API integration', () => {
       .mockResolvedValueOnce({ data: { data: payment } });
 
     await store.dispatch(paymentsApi.endpoints.getPaymentStatus.initiate()).unwrap();
-    expect(mockRequest).toHaveBeenLastCalledWith(
+    expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'GET', url: '/payments/status' }),
     );
 
@@ -187,6 +187,41 @@ describe('PhonePe payment API integration', () => {
       expect.objectContaining({
         method: 'GET',
         url: '/payments/phonepe/return/ch_order123',
+      }),
+    );
+  });
+
+  it('loads and cancels pending checkout using only its public reference', async () => {
+    const store = createAppStore();
+    const pending = {
+      amount: 99,
+      canCancel: true,
+      canResume: false,
+      createdAtUtc: '2026-08-24T10:30:00Z',
+      currency: 'INR',
+      provider: 'PhonePe',
+      publicReference: 'ch_order123',
+      redirectUrl: null,
+      status: 'Pending',
+    };
+    mockRequest.mockResolvedValue({ data: { data: pending } });
+
+    await store.dispatch(paymentsApi.endpoints.getPendingMembershipCheckout.initiate()).unwrap();
+    expect(mockRequest).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: '/payments/pending-membership-checkout',
+      }),
+    );
+
+    await store
+      .dispatch(paymentsApi.endpoints.cancelPendingMembershipCheckout.initiate('ch_order123'))
+      .unwrap();
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: undefined,
+        method: 'POST',
+        url: '/payments/pending-membership-checkout/ch_order123/cancel',
       }),
     );
   });
