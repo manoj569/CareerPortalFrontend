@@ -92,7 +92,7 @@ const installHandlers = ({
 } = {}) => {
   requestMock.mockImplementation((config) => {
     if (!config) return response([]);
-    if (config.url === '/candidate/interview-insights/companies') return response([company]);
+    if (config.url === '/candidate/companies/search') return response([company]);
     if (config.url === '/candidate/interview-insights' && config.method === 'GET')
       return response(page(cards));
     if (config.url === '/candidate/interview-insights/insight-id') return response(detailValue);
@@ -183,7 +183,7 @@ describe('InterviewInsightsPage', () => {
     await new Promise((resolve) => window.setTimeout(resolve, 350));
     expect(
       requestMock.mock.calls.some(
-        ([config]) => config.url === '/candidate/interview-insights/companies',
+        ([config]) => config.url === '/candidate/companies/search',
       ),
     ).toBe(false);
     await user.type(input, 'A');

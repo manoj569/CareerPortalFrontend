@@ -152,7 +152,23 @@ describe('interviewInsightsApi', () => {
       expect.objectContaining({
         method: 'GET',
         params: { limit: 10, query: 'HA' },
-        url: '/candidate/interview-insights/companies',
+        url: '/candidate/companies/search',
+      }),
+    );
+
+    respond({ companyName: 'New Company', id: 'new-company-id' });
+    await store
+      .dispatch(
+        interviewInsightsApi.endpoints.createCandidateCompany.initiate({
+          companyName: 'New Company',
+        }),
+      )
+      .unwrap();
+    expect(requestMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: { companyName: 'New Company' },
+        method: 'POST',
+        url: '/candidate/companies',
       }),
     );
   });

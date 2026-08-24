@@ -36,6 +36,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   isInterviewInsightsApiError,
   useAddInsightFeedbackMutation,
+  useCreateCandidateCompanyMutation,
   useCreateInterviewInsightMutation,
   useCreateInterviewScheduleMutation,
   useGetInterviewInsightCompaniesQuery,
@@ -72,6 +73,7 @@ const fieldError = (error: unknown, name: string): string | undefined => {
 };
 
 interface CompanyAutocompleteProps {
+  allowCreate?: boolean;
   disabled?: boolean;
   label?: string;
   onChange: (value: InterviewInsightCompanyResponse | null) => void;
@@ -80,7 +82,24 @@ interface CompanyAutocompleteProps {
   value: InterviewInsightCompanyResponse | null;
 }
 
+interface AddCompanyOption {
+  companyName: string;
+  inputValue: string;
+  isAddOption: true;
+}
+
+type CompanyOption = InterviewInsightCompanyResponse | AddCompanyOption;
+const isAddCompanyOption = (option: CompanyOption): option is AddCompanyOption =>
+  'isAddOption' in option;
+const normalizeCompanyName = (name: string): string =>
+  name.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+const isValidCompanyName = (name: string): boolean => {
+  const trimmed = name.trim();
+  return trimmed.length >= 2 && trimmed.length <= 160 && /[\p{L}\p{N}]/u.test(trimmed) && !/[<>\r\n]/.test(trimmed);
+};
+
 export const InterviewCompanyAutocomplete = ({
+  allowCreate = false,
   disabled = false,
   label = 'Company',
   onChange,
@@ -90,6 +109,10 @@ export const InterviewCompanyAutocomplete = ({
 }: CompanyAutocompleteProps) => {
   const [inputValue, setInputValue] = useState(value?.companyName ?? '');
   const [query, setQuery] = useState('');
+  const [message, setMessage] = useState<{ severity: 'error' | 'success'; text: string } | null>(
+    null,
+  );
+  const [createCompany, createState] = useCreateCandidateCompanyMutation();
   useEffect(() => setInputValue(value?.companyName ?? ''), [value]);
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(inputValue.trim()), 300);
@@ -99,23 +122,58 @@ export const InterviewCompanyAutocomplete = ({
     { limit: 10, query },
     { skip: query.length < 2 },
   );
-  const options = useMemo(() => {
+  const options = useMemo<CompanyOption[]>(() => {
     const values = search.data ?? [];
-    return value && !values.some((item) => item.id === value.id) ? [value, ...values] : values;
-  }, [search.data, value]);
+    const existing = value && !values.some((item) => item.id === value.id) ? [value, ...values] : values;
+    const typed = inputValue.trim();
+    const hasExactMatch = values.some(
+      (item) => item.companyName.trim().toLocaleLowerCase() === typed.toLocaleLowerCase(),
+    );
+    return allowCreate && query === typed && isValidCompanyName(typed) && !hasExactMatch
+      ? [...existing, { companyName: typed, inputValue: typed, isAddOption: true }]
+      : existing;
+  }, [allowCreate, inputValue, query, search.data, value]);
+  const selectOption = async (selected: CompanyOption | null) => {
+    setMessage(null);
+    if (!selected) return onChange(null);
+    if (!isAddCompanyOption(selected)) return onChange(selected);
+    try {
+      const created = await createCompany({ companyName: selected.inputValue }).unwrap();
+      const wasAlreadyKnown = (search.data ?? []).some(
+        (item) =>
+          item.id === created.id ||
+          normalizeCompanyName(item.companyName) === normalizeCompanyName(created.companyName),
+      );
+      onChange(created);
+      if (!wasAlreadyKnown) setMessage({ severity: 'success', text: 'Company added and selected.' });
+    } catch (error) {
+      setMessage({
+        severity: 'error',
+        text: fieldError(error, 'CompanyName') ?? safeError(error),
+      });
+    }
+  };
   return (
-    <Autocomplete
-      disabled={disabled}
+    <Stack spacing={0.75}>
+    <Autocomplete<CompanyOption>
+      disabled={disabled || createState.isLoading}
       filterOptions={(items) => items}
-      getOptionLabel={(option) => option.companyName}
+      getOptionLabel={(option) =>
+        isAddCompanyOption(option) ? `+ Add ‘${option.inputValue}’` : option.companyName
+      }
       inputValue={inputValue}
-      isOptionEqualToValue={(option, selected) => option.id === selected.id}
-      loading={search.isFetching}
+      isOptionEqualToValue={(option, selected) =>
+        !isAddCompanyOption(option) && !isAddCompanyOption(selected) && option.id === selected.id
+      }
+      loading={search.isFetching || createState.isLoading}
       noOptionsText={query.length < 2 ? 'Type at least 2 characters' : 'No companies found'}
-      onChange={(_, selected) => onChange(selected)}
+      onChange={(_, selected) => void selectOption(selected)}
       onInputChange={(_, next, reason) => {
-        setInputValue(next);
-        onInputValueChange?.(next);
+        if (reason === 'input' || reason === 'clear') {
+          setInputValue(next);
+          onInputValueChange?.(next);
+        }
+        if (reason === 'input') setMessage(null);
         if (reason === 'input' && value && next !== value.companyName) onChange(null);
       }}
       options={options}
@@ -129,7 +187,9 @@ export const InterviewCompanyAutocomplete = ({
               ...params.InputProps,
               endAdornment: (
                 <>
-                  {search.isFetching ? <CircularProgress color="inherit" size={18} /> : null}
+                  {search.isFetching || createState.isLoading ? (
+                    <CircularProgress color="inherit" size={18} />
+                  ) : null}
                   {params.InputProps.endAdornment}
                 </>
               ),
@@ -139,6 +199,8 @@ export const InterviewCompanyAutocomplete = ({
       )}
       value={value}
     />
+    {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
+    </Stack>
   );
 };
 
@@ -237,6 +299,7 @@ export const InterviewScheduleDialog = ({
           </Alert>
           {error ? <Alert severity="error">{error}</Alert> : null}
           <InterviewCompanyAutocomplete
+            allowCreate
             disabled={Boolean(schedule) || pending}
             onChange={setCompany}
             required
@@ -492,7 +555,7 @@ export const ShareInterviewInsightDialog = ({ onClose, onSubmitted, open }: Shar
           ) : null}
           {step === 0 ? (
             <Stack spacing={2}>
-              <InterviewCompanyAutocomplete onChange={setCompany} required value={company} />
+              <InterviewCompanyAutocomplete allowCreate onChange={setCompany} required value={company} />
               <TextField
                 error={Boolean(fieldError(error, 'RoleTitle'))}
                 helperText={fieldError(error, 'RoleTitle')}

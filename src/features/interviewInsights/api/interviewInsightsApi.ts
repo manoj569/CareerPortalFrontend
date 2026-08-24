@@ -42,10 +42,17 @@ export const interviewInsightsApi = createApi({
     >({
       query: ({ query, limit = 10 }) => ({
         params: { limit, query },
-        url: API_ENDPOINTS.CANDIDATE.INTERVIEW_INSIGHT_COMPANIES,
+        url: API_ENDPOINTS.CANDIDATE.COMPANY_SEARCH,
       }),
       transformResponse: (response: ApiResponse<InterviewInsightCompanyResponse[]>) =>
         response.data,
+    }),
+    createCandidateCompany: builder.mutation<
+      InterviewInsightCompanyResponse,
+      { companyName: string }
+    >({
+      query: (data) => ({ data, method: 'POST', url: API_ENDPOINTS.CANDIDATE.COMPANIES }),
+      transformResponse: (response: ApiResponse<InterviewInsightCompanyResponse>) => response.data,
     }),
     createInterviewInsight: builder.mutation<
       InterviewInsightResponse,
@@ -142,6 +149,7 @@ export const {
   useAddInsightFeedbackMutation,
   useCreateInterviewInsightMutation,
   useCreateInterviewScheduleMutation,
+  useCreateCandidateCompanyMutation,
   useDeleteInterviewInsightMutation,
   useGetCompanyInterviewInsightSummaryQuery,
   useGetInterviewInsightCompaniesQuery,
