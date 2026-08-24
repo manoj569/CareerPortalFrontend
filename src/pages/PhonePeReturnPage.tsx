@@ -12,7 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
@@ -51,8 +51,10 @@ export const PhonePeReturnPage = () => {
     'Check the server-verified status of your Career Harbor membership payment.',
   );
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const dispatch = useAppDispatch();
-  const merchantOrderId = searchParams.get('merchantOrderId');
+  const isLegacyReturn = location.pathname === ROUTES.PHONEPE_RETURN_LEGACY;
+  const merchantOrderId = searchParams.get(isLegacyReturn ? 'order' : 'merchantOrderId');
   const storedOrderId = getStoredPhonePeMerchantOrderId();
   const sessionMatches =
     isValidPhonePeMerchantOrderId(merchantOrderId) && merchantOrderId === storedOrderId;
@@ -68,14 +70,14 @@ export const PhonePeReturnPage = () => {
   }, []);
 
   const requestStatus = useCallback(async () => {
-    if (!sessionMatches || !merchantOrderId || document.hidden) return;
+    if (isLegacyReturn || !sessionMatches || !merchantOrderId || document.hidden) return;
     await checkStatus(merchantOrderId, false);
-  }, [checkStatus, merchantOrderId, sessionMatches]);
+  }, [checkStatus, isLegacyReturn, merchantOrderId, sessionMatches]);
 
   useEffect(() => {
-    if (!sessionMatches) return;
+    if (isLegacyReturn || !sessionMatches) return;
     void requestStatus();
-  }, [requestStatus, sessionMatches]);
+  }, [isLegacyReturn, requestStatus, sessionMatches]);
 
   useEffect(() => {
     clearTimer();
@@ -136,6 +138,15 @@ export const PhonePeReturnPage = () => {
       dashboardApi.endpoints.getMemberships.initiate(undefined, { forceRefetch: true }),
     );
   }, [dispatch, merchantOrderId, query.data]);
+
+  if (isLegacyReturn && sessionMatches && merchantOrderId) {
+    return (
+      <Navigate
+        replace
+        to={`${ROUTES.PHONEPE_RETURN}?${new URLSearchParams({ merchantOrderId }).toString()}`}
+      />
+    );
+  }
 
   if (!sessionMatches) {
     return (

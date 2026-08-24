@@ -38,6 +38,7 @@ export const ROUTES = {
   PAYMENT_PENDING: '/payment/pending',
   PAYMENT_FAILED: '/payment/failed',
   PHONEPE_RETURN: '/payment/phonepe/return',
+  PHONEPE_RETURN_LEGACY: '/payments/phonepe/return',
   ADMIN: '/admin',
   ADMIN_JOBS: '/admin/jobs',
   ADMIN_JOB_CREATE: '/admin/jobs/create',

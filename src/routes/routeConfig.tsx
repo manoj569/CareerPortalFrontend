@@ -243,6 +243,10 @@ export const appRoutes: RouteObject[] = [
                 path: ROUTES.PHONEPE_RETURN,
                 element: lazyPage(() => import('@/pages/PhonePeReturnPage'), 'PhonePeReturnPage'),
               },
+              {
+                path: ROUTES.PHONEPE_RETURN_LEGACY,
+                element: lazyPage(() => import('@/pages/PhonePeReturnPage'), 'PhonePeReturnPage'),
+              },
             ],
           },
         ],

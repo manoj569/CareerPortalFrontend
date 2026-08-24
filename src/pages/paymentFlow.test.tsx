@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event';
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -92,6 +92,7 @@ const renderRoute = (path: string, element: React.ReactNode) => {
       { path: ROUTES.INTERVIEW_INSIGHTS, element: <div>Interview Insights destination</div> },
       { path: ROUTES.DASHBOARD, element: <div>Dashboard destination</div> },
       { path: ROUTES.PHONEPE_RETURN, element },
+      { path: ROUTES.PHONEPE_RETURN_LEGACY, element },
     ],
     { initialEntries: [path] },
   );
@@ -311,6 +312,46 @@ describe('PhonePe return status', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
+
+  it('renders the canonical return route and checks its merchantOrderId', async () => {
+    statusState = {
+      data: { merchantOrderId: 'ch_order123', status: PhonePePaymentStatus.Pending },
+      isFetching: false,
+    };
+    renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123', <PhonePeReturnPage />);
+
+    expect(screen.getByRole('heading', { name: 'We are confirming your payment' })).toBeVisible();
+    await waitFor(() => expect(statusTrigger).toHaveBeenCalledWith('ch_order123', false));
+  });
+
+  it('normalizes a matching legacy order to the canonical route with replace', async () => {
+    statusState = {
+      data: { merchantOrderId: 'ch_order123', status: PhonePePaymentStatus.Pending },
+      isFetching: false,
+    };
+    const { router } = renderRoute(
+      '/payments/phonepe/return?order=ch_order123',
+      <PhonePeReturnPage />,
+    );
+
+    await waitFor(() =>
+      expect(`${router.state.location.pathname}${router.state.location.search}`).toBe(
+        '/payment/phonepe/return?merchantOrderId=ch_order123',
+      ),
+    );
+    expect(router.state.historyAction).toBe('REPLACE');
+    await waitFor(() => expect(statusTrigger).toHaveBeenCalledWith('ch_order123', false));
+  });
+
+  it.each(['/payments/phonepe/return', '/payments/phonepe/return?order=ch_other'])(
+    'shows a safe state for an invalid legacy alias: %s',
+    (path) => {
+      renderRoute(path, <PhonePeReturnPage />);
+
+      expect(screen.getByRole('heading', { name: 'Payment session not found' })).toBeVisible();
+      expect(statusTrigger).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ['/payment/phonepe/return', 'Payment session not found'],
