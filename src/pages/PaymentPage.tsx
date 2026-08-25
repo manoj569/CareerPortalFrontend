@@ -13,10 +13,11 @@ import {
   DialogTitle,
   Divider,
   Stack,
+  Skeleton,
   Typography,
 } from '@mui/material';
 import { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
@@ -30,7 +31,9 @@ import {
   beginPhonePeRedirect,
   isSafePhonePeRedirectUrl,
   resumePhonePeRedirect,
+  storePhonePeReturnTo,
 } from '@/features/payments/services/phonePeCheckout';
+import { getSafeMembershipReturnTo } from '@/features/interviewInsights/utils/membershipAccess';
 import { findActiveMembership } from '@/features/payments/utils/entitlement';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
@@ -72,6 +75,8 @@ export const PaymentPage = () => {
     'Purchase a 30-day Career Harbor membership through secure PhonePe checkout.',
   );
   const memberships = useGetMembershipsQuery();
+  const [searchParams] = useSearchParams();
+  const safeReturnTo = getSafeMembershipReturnTo(searchParams.get('returnTo'));
   const pendingCheckout = useGetPendingMembershipCheckoutQuery();
   const activeMembership = findActiveMembership(memberships.data);
   const [createCheckout, createState] = useCreatePhonePeCheckoutMutation();
@@ -89,6 +94,8 @@ export const PaymentPage = () => {
       if (!beginPhonePeRedirect(checkout)) {
         setError('The secure PhonePe destination could not be verified. Please try again.');
         window.requestAnimationFrame(() => purchaseButtonRef.current?.focus());
+      } else {
+        storePhonePeReturnTo(safeReturnTo);
       }
     } catch (checkoutError: unknown) {
       if (
@@ -113,6 +120,8 @@ export const PaymentPage = () => {
       !resumePhonePeRedirect(pending.publicReference, pending.redirectUrl)
     ) {
       setError('The secure PhonePe destination could not be verified. Please try again.');
+    } else {
+      storePhonePeReturnTo(safeReturnTo);
     }
   };
 
@@ -128,6 +137,10 @@ export const PaymentPage = () => {
       setCancelError('We could not cancel this pending payment safely. Please try again.');
     }
   };
+
+  if (memberships.isLoading || pendingCheckout.isLoading) {
+    return <Stack aria-label="Loading membership" role="status" spacing={3} sx={{ maxWidth: 920, mx: 'auto' }}><Typography sx={{ position: 'absolute', height: 1, overflow: 'hidden', width: 1 }}>Loading…</Typography><Skeleton height={100} variant="rounded" /><Skeleton height={420} variant="rounded" /></Stack>;
+  }
 
   return (
     <Stack spacing={3} sx={{ maxWidth: 920, mx: 'auto' }}>

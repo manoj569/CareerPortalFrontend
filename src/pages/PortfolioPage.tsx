@@ -97,6 +97,14 @@ export const PortfolioPage = () => {
     setSearchParams(next, { replace: true });
   }, [editor, searchParams, setSearchParams, tab]);
 
+  useEffect(() => {
+    if (tab !== 'profile' || searchParams.get('action') !== 'basic-details') return;
+    setProfileEditorRequest((current) => current + 1);
+    const next = new URLSearchParams(searchParams);
+    next.delete('action');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, tab]);
+
 
   const copyLink = async () => {
     if (!publicUrl) return;

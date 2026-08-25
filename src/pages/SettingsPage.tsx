@@ -1,10 +1,12 @@
 import LockResetOutlinedIcon from '@mui/icons-material/LockResetOutlined';
+import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
+import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Alert, Button, Divider, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Button, Chip, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { applyApiValidationErrors } from '@/api/formErrors';
 import { ROUTES } from '@/constants/routes';
@@ -13,6 +15,8 @@ import { logout } from '@/features/auth/store/authSlice';
 import {
   isDashboardApiError,
   useChangePasswordMutation,
+  useGetCandidateBasicDetailsQuery,
+  useGetMembershipsQuery,
 } from '@/features/dashboard/api/dashboardApi';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import {
@@ -21,6 +25,9 @@ import {
 } from '@/features/dashboard/validation/dashboardSchemas';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { useAppDispatch } from '@/hooks/reduxHooks';
+import { MembershipStatus } from '@/features/dashboard/types/dashboardModels';
+import { formatDashboardDate } from '@/features/dashboard/utils/dashboardFormatting';
+import { findActiveMembership } from '@/features/payments/utils/entitlement';
 
 export const SettingsPage = () => {
   useDocumentMetadata(
@@ -30,6 +37,8 @@ export const SettingsPage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [changePassword] = useChangePasswordMutation();
+  const basicDetails = useGetCandidateBasicDetailsQuery();
+  const memberships = useGetMembershipsQuery();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     formState: { errors, isSubmitting },
@@ -75,6 +84,12 @@ export const SettingsPage = () => {
       );
     }
   };
+
+  if (basicDetails.isLoading || memberships.isLoading) {
+    return <Stack aria-label="Loading settings" role="status" spacing={3}><Typography sx={{ position: 'absolute', height: 1, overflow: 'hidden', width: 1 }}>Loading…</Typography><Skeleton height={90} variant="rounded" /><Skeleton height={330} variant="rounded" /><Skeleton height={180} variant="rounded" /></Stack>;
+  }
+
+  const activeMembership = findActiveMembership(memberships.data);
 
   return (
     <Stack spacing={4}>
@@ -142,18 +157,13 @@ export const SettingsPage = () => {
       </Paper>
 
       <Paper component="section" sx={{ p: { xs: 3, md: 4 } }}>
-        <Stack spacing={2}>
-          <Typography component="h2" variant="h3">
-            Other account controls unavailable
-          </Typography>
-          <Divider />
-          <Typography color="text.secondary">
-            The backend currently has no routes to change an email address, manage communication
-            preferences, export account data, or delete an account. This frontend does not simulate
-            those operations.
-          </Typography>
+        <Stack spacing={2.5}>
+          <Stack alignItems="center" direction="row" spacing={1.5}><SecurityOutlinedIcon color="primary" /><Typography component="h2" variant="h3">Account security</Typography></Stack>
+          {basicDetails.isError ? <Alert action={<Button color="inherit" onClick={() => void basicDetails.refetch()}>Retry</Button>} severity="warning">Security status is temporarily unavailable.</Alert> : basicDetails.data ? <Stack alignItems="center" direction="row" justifyContent="space-between"><Typography>Mobile verification</Typography><Chip color={basicDetails.data.mobileVerified ? 'success' : 'default'} label={basicDetails.data.mobileVerified ? 'Verified' : 'Not verified'} size="small" /></Stack> : null}
         </Stack>
       </Paper>
+
+      <Paper component="section" sx={{ p: { xs: 3, md: 4 } }}><Stack spacing={2.5}><Stack alignItems="center" direction="row" spacing={1.5}><WorkspacePremiumOutlinedIcon color="primary" /><Typography component="h2" variant="h3">Membership</Typography></Stack>{memberships.isError ? <Alert action={<Button color="inherit" onClick={() => void memberships.refetch()}>Retry</Button>} severity="warning">Membership status is temporarily unavailable.</Alert> : <Stack spacing={0.75}><Typography fontWeight={750}>{activeMembership ? MembershipStatus[activeMembership.status] : 'No active membership'}</Typography>{activeMembership?.endsAtUtc ? <Typography color="text.secondary" variant="body2">Expires {formatDashboardDate(activeMembership.endsAtUtc) ?? 'date unavailable'}</Typography> : null}</Stack>}<Button component={Link} sx={{ alignSelf: 'flex-start' }} to={ROUTES.MEMBERSHIP} variant="outlined">Manage membership</Button></Stack></Paper>
     </Stack>
   );
 };

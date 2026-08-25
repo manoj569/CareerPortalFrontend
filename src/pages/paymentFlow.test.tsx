@@ -16,6 +16,7 @@ import type * as PaymentsApiModule from '@/features/payments/api/paymentsApi';
 import {
   beginPhonePeRedirect,
   PHONEPE_ORDER_STORAGE_KEY,
+  PHONEPE_RETURN_TO_STORAGE_KEY,
   resumePhonePeRedirect,
 } from '@/features/payments/services/phonePeCheckout';
 import type * as PhonePeCheckoutModule from '@/features/payments/services/phonePeCheckout';
@@ -383,20 +384,18 @@ describe('PhonePe return status', () => {
     expect(statusTrigger).toHaveBeenCalledTimes(2);
   });
 
-  it('shows backend-confirmed completion, clears the session, and refreshes memberships', () => {
+  it('redirects a backend-confirmed active membership to the safe Interview Insights return path', async () => {
     statusState = {
       data: { merchantOrderId: 'ch_order123', status: PhonePePaymentStatus.Completed },
       isFetching: false,
     };
-    renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123', <PhonePeReturnPage />);
+    sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, ROUTES.INTERVIEW_INSIGHTS);
+    dispatch.mockImplementation(() => ({ unsubscribe: vi.fn(), unwrap: () => Promise.resolve([{ id: 'membership', planName: 'Career Harbor Membership', status: 2, startsAtUtc: '2026-08-25T00:00:00Z', endsAtUtc: '2026-09-24T00:00:00Z', autoRenew: false }]) }) as never);
+    const { router } = renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123', <PhonePeReturnPage />);
 
-    expect(screen.getByRole('heading', { name: 'Membership activated' })).toBeVisible();
+    await waitFor(() => expect(router.state.location.pathname).toBe(ROUTES.INTERVIEW_INSIGHTS));
     expect(sessionStorage.getItem(PHONEPE_ORDER_STORAGE_KEY)).toBeNull();
-    expect(dispatch).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('link', { name: 'Explore Interview Insights' })).toHaveAttribute(
-      'href',
-      ROUTES.INTERVIEW_INSIGHTS,
-    );
+    expect(sessionStorage.getItem(PHONEPE_RETURN_TO_STORAGE_KEY)).toBeNull();
   });
 
   it.each([

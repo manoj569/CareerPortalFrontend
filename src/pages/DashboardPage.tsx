@@ -44,6 +44,15 @@ const profileSteps: { label: string; value: ProfileCompletionStep }[] = [
   { label: 'Resume', value: 'Resume' },
   { label: 'Profile summary', value: 'ProfileSummary' },
 ];
+const profileStepActions: Record<ProfileCompletionStep, { label: string; path: string }> = {
+  BasicDetails: { label: 'Add basic details', path: `${ROUTES.PORTFOLIO}?tab=profile&action=basic-details` },
+  Skills: { label: 'Add skills', path: `${ROUTES.PORTFOLIO}?tab=profile&action=basic-details` },
+  CareerPreferences: { label: 'Add career preferences', path: `${ROUTES.PORTFOLIO}?tab=profile#candidate-career-preferences` },
+  Education: { label: 'Add education', path: `${ROUTES.PORTFOLIO}?tab=profile#candidate-profile-education` },
+  Employment: { label: 'Add employment', path: `${ROUTES.PORTFOLIO}?tab=profile#candidate-profile-employment` },
+  Resume: { label: 'Upload resume', path: `${ROUTES.PORTFOLIO}?tab=profile#candidate-profile-resume` },
+  ProfileSummary: { label: 'Add profile summary', path: `${ROUTES.PORTFOLIO}?tab=profile#candidate-profile-about` },
+};
 
 export const DashboardPage = () => {
   useDocumentMetadata(
@@ -179,6 +188,7 @@ export const DashboardPage = () => {
               })}
             </Stack>
             {completion.data.nextRecommendedIncompleteStep ? <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}><Typography color="text.secondary" variant="body2">Next recommended step: {profileSteps.find((step) => step.value === completion.data?.nextRecommendedIncompleteStep)?.label}</Typography><Button component={Link} size="small" to={ROUTES.PORTFOLIO} variant="contained">Continue profile</Button></Stack> : <Typography color="success.main" fontWeight={700} variant="body2">Your profile is complete.</Typography>}
+            {completion.data.missingSections.length ? <Stack spacing={1.25}><Typography component="h3" variant="h4">What is left to complete?</Typography>{profileSteps.filter((step) => completion.data?.missingSections.includes(step.value)).map((step) => <Stack alignItems="center" direction="row" justifyContent="space-between" key={step.value} spacing={2}><Typography color="text.secondary" variant="body2">{step.label}</Typography><Button component={Link} size="small" to={profileStepActions[step.value].path}>{profileStepActions[step.value].label}</Button></Stack>)}</Stack> : null}
           </Stack>
         </Paper>
       ) : null}

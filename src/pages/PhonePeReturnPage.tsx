@@ -12,7 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
@@ -22,12 +22,16 @@ import {
 } from '@/features/payments/api/paymentsApi';
 import {
   clearPhonePeMerchantOrderId,
+  clearPhonePeReturnTo,
+  getStoredPhonePeReturnTo,
   getStoredPhonePeMerchantOrderId,
   isValidPhonePeMerchantOrderId,
 } from '@/features/payments/services/phonePeCheckout';
 import { PhonePePaymentStatus } from '@/features/payments/types/paymentModels';
 import { useAppDispatch } from '@/hooks/reduxHooks';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { getSafeMembershipReturnTo } from '@/features/interviewInsights/utils/membershipAccess';
+import { findActiveMembership } from '@/features/payments/utils/entitlement';
 
 const POLL_INTERVAL_MS = 3_000;
 const POLL_LIMIT_MS = 60_000;
@@ -52,6 +56,7 @@ export const PhonePeReturnPage = () => {
   );
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const isLegacyReturn = location.pathname === ROUTES.PHONEPE_RETURN_LEGACY;
   const merchantOrderId = searchParams.get(isLegacyReturn ? 'order' : 'merchantOrderId');
@@ -63,6 +68,8 @@ export const PhonePeReturnPage = () => {
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const deadlineRef = useRef(Date.now() + POLL_LIMIT_MS);
   const completedHandled = useRef(false);
+  const [activationConfirmed, setActivationConfirmed] = useState(false);
+  const [activationError, setActivationError] = useState(false);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -132,12 +139,25 @@ export const PhonePeReturnPage = () => {
     )
       return;
     completedHandled.current = true;
-    clearPhonePeMerchantOrderId();
-    dispatch(dashboardApi.util.invalidateTags(['Memberships']));
-    void dispatch(
-      dashboardApi.endpoints.getMemberships.initiate(undefined, { forceRefetch: true }),
-    );
-  }, [dispatch, merchantOrderId, query.data]);
+    const confirmMembership = async () => {
+      try {
+        dispatch(dashboardApi.util.invalidateTags(['Memberships']));
+        const memberships = await dispatch(dashboardApi.endpoints.getMemberships.initiate(undefined, { forceRefetch: true })).unwrap();
+        if (!findActiveMembership(memberships)) {
+          setActivationError(true);
+          return;
+        }
+        setActivationConfirmed(true);
+        clearPhonePeMerchantOrderId();
+        const returnTo = getSafeMembershipReturnTo(getStoredPhonePeReturnTo());
+        clearPhonePeReturnTo();
+        if (returnTo) void navigate(returnTo, { replace: true });
+      } catch {
+        setActivationError(true);
+      }
+    };
+    void confirmMembership();
+  }, [dispatch, merchantOrderId, navigate, query.data]);
 
   if (isLegacyReturn && sessionMatches && merchantOrderId) {
     return (
@@ -227,6 +247,9 @@ export const PhonePeReturnPage = () => {
 
   const status = query.data?.status;
   if (status === PhonePePaymentStatus.Completed) {
+    if (!activationConfirmed) {
+      return <ResultCard><Stack alignItems="center" aria-live="polite" role="status" spacing={2} textAlign="center"><CircularProgress /><Typography component="h1" variant="h2">Confirming membership activation</Typography>{activationError ? <Alert severity="warning">Payment completed, but active membership could not yet be confirmed. Return to Membership to check again.</Alert> : <Typography color="text.secondary">We are refreshing your authoritative membership status.</Typography>}<Button component={Link} to={ROUTES.MEMBERSHIP}>Return to Membership</Button></Stack></ResultCard>;
+    }
     return (
       <ResultCard>
         <Stack alignItems="center" spacing={2} textAlign="center">

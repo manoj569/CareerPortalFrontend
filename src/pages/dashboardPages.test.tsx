@@ -7,6 +7,7 @@ import {
   useGetApplicationQuery,
   useGetApplicationsQuery,
   useGetCandidateSkillsQuery,
+  useGetCandidateBasicDetailsQuery,
   useGetMembershipsQuery,
   useGetOnboardingQuery,
   useGetNotificationsQuery,
@@ -44,6 +45,7 @@ import {
 } from '@/features/jobs/types/jobModels';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
+import { ROUTES } from '@/constants/routes';
 import { UserRole } from '@/types';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -69,6 +71,7 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
     useGetApplicationQuery: vi.fn(),
     useGetApplicationsQuery: vi.fn(),
     useGetCandidateSkillsQuery: vi.fn(),
+    useGetCandidateBasicDetailsQuery: vi.fn(),
     useGetMembershipsQuery: vi.fn(),
     useGetOnboardingQuery: vi.fn(),
     useGetNotificationsQuery: vi.fn(),
@@ -91,6 +94,7 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
 const mockProfile = vi.mocked(useGetProfileQuery);
 const mockCompletion = vi.mocked(useGetProfileCompletionQuery);
 const mockCandidateSkills = vi.mocked(useGetCandidateSkillsQuery);
+const mockBasicDetails = vi.mocked(useGetCandidateBasicDetailsQuery);
 const mockOnboarding = vi.mocked(useGetOnboardingQuery);
 const mockResumeStatus = vi.mocked(useGetResumeStatusQuery);
 const mockApplication = vi.mocked(useGetApplicationQuery);
@@ -295,6 +299,7 @@ beforeEach(() => {
   );
   mockApplication.mockReturnValue(queryResult({ data: application }));
   mockMemberships.mockReturnValue(queryResult({ data: [] }));
+  mockBasicDetails.mockReturnValue(queryResult({ data: { email: 'avery@example.com', mobileNumber: '+919876543210', mobileVerified: true, workStatus: 'Experienced', isOutsideIndia: false, currentCountry: 'India', currentCity: 'Pune', currentArea: null, noticePeriod: 'OneMonth', availabilityToJoin: null, currentAnnualSalary: null, currentFixedAnnualSalary: null, currentVariableAnnualSalary: null, salaryUnit: 'INR per annum' } }));
   mockNotifications.mockReturnValue(
     queryResult({
       data: {
@@ -527,6 +532,12 @@ describe('candidate dashboard pages', () => {
       mutation.tuple as unknown as ReturnType<typeof useChangePasswordMutation>,
     );
     const { store } = renderPage(<SettingsPage />);
+
+    expect(screen.getByRole('heading', { name: 'Account security' })).toBeVisible();
+    expect(screen.getByText('Mobile verification')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Membership' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Manage membership' })).toHaveAttribute('href', ROUTES.MEMBERSHIP);
+    expect(screen.queryByText(/Other account controls unavailable/i)).not.toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText(/^Current password/i), 'OldPassword!123');
     await userEvent.type(screen.getByLabelText(/^New password/i), 'NewPassword!123');

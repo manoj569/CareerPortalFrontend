@@ -86,7 +86,7 @@ const renderGate = (entries: Array<string | Partial<Location>>) => {
         ),
       },
       {
-        path: ROUTES.PRICING,
+        path: ROUTES.MEMBERSHIP,
         element: (
           <>
             <div>Membership pricing</div>
@@ -150,7 +150,7 @@ describe('InterviewInsightsMembershipGate', () => {
 
     expect(screen.getByText('Membership pricing')).toBeVisible();
     expect(screen.getByLabelText('location')).toHaveTextContent(
-      '/membership?returnTo=%2Fdashboard%2Finterview-insights',
+      '/dashboard/membership?returnTo=%2Fdashboard%2Finterview-insights',
     );
   });
 

@@ -331,8 +331,12 @@ describe('Candidate profile workspace', () => {
     const dialog = screen.getByRole('dialog', { name: 'Edit basic details' });
     expect(within(dialog).queryByRole('tab')).not.toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: 'Resume headline' })).toBeRequired();
+    expect(within(dialog).getByRole('combobox', { name: 'Work status' })).toBeVisible();
+    expect(within(dialog).getByRole('combobox', { name: 'Are you currently outside India?' })).toBeVisible();
+    expect(within(dialog).getByRole('textbox', { name: 'Country' })).toBeRequired();
     expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toBeEnabled();
     expect(within(dialog).getByRole('textbox', { name: 'City' })).toBeRequired();
+    expect(within(dialog).getByRole('textbox', { name: 'Area' })).toBeVisible();
     expect(within(dialog).queryByRole('textbox', { name: 'State' })).not.toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: 'Notice period' })).toBeVisible();
     expect(within(dialog).getByRole('textbox', { name: 'Skills' })).toBeVisible();

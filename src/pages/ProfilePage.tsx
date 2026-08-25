@@ -51,6 +51,7 @@ import {
   type CandidateBasicDetails,
   type CandidateCareerPreferences,
   type CandidateNoticePeriod,
+  type CandidateWorkStatus,
   type CandidateEmploymentPreference,
   type CandidateJobType,
   type CandidateShiftPreference,
@@ -149,10 +150,10 @@ export const CandidateProfileContent = ({
         </Grid>
 
         <Grid size={{ xs: 12, md: 8 }}>
-          <Stack spacing={{ xs: 2, md: 3 }}>
+          <Stack id="candidate-profile-about" spacing={{ xs: 2, md: 3 }}>
             <CareerPreferencesCard preferences={preferences} />
-            <ProfileEducationRecords />
-            <ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} />
+            <Box id="candidate-profile-education"><ProfileEducationRecords /></Box>
+            <Box id="candidate-profile-employment"><ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} /></Box>
           </Stack>
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
@@ -327,13 +328,17 @@ const HeroProfileEditor = ({
   const dispatch = useAppDispatch();
   const [headline, setHeadline] = useState(candidate.headline ?? '');
   const [city, setCity] = useState(basicDetails?.currentCity || getLocationCity(candidate.location));
+  const [workStatus, setWorkStatus] = useState<CandidateWorkStatus | ''>(basicDetails?.workStatus ?? '');
+  const [isOutsideIndia, setIsOutsideIndia] = useState<boolean | null>(basicDetails?.isOutsideIndia ?? null);
+  const [country, setCountry] = useState(basicDetails?.currentCountry ?? '');
+  const [area, setArea] = useState(basicDetails?.currentArea ?? '');
   const existingMobile = basicDetails?.mobileNumber ?? candidate.mobileNumber ?? candidate.phoneNumber ?? null;
   const [mobileNumber, setMobileNumber] = useState(getEditableMobile(existingMobile));
   const [noticePeriod, setNoticePeriod] = useState<CandidateNoticePeriod | ''>(basicDetails?.noticePeriod ?? '');
   const [skillNames, setSkillNames] = useState<string[]>(skills.data?.map((skill) => skill.name) ?? candidate.skills);
   const [skillInput, setSkillInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<'headline' | 'mobileNumber' | 'city' | 'skills', string | undefined>>({ city: undefined, headline: undefined, mobileNumber: undefined, skills: undefined });
+  const [fieldErrors, setFieldErrors] = useState<Record<'headline' | 'workStatus' | 'isOutsideIndia' | 'country' | 'mobileNumber' | 'city' | 'skills', string | undefined>>({ city: undefined, country: undefined, headline: undefined, isOutsideIndia: undefined, mobileNumber: undefined, skills: undefined, workStatus: undefined });
   const [updateProfile, updateState] = useUpdateProfileMutation();
   const [updateBasicDetails, basicUpdateState] = useUpdateCandidateBasicDetailsMutation();
   const [addSkill, addState] = useAddCandidateSkillMutation();
@@ -359,9 +364,12 @@ const HeroProfileEditor = ({
     const nextSkills = skillNames.map((name) => name.trim()).filter(Boolean);
     const nextErrors = {
       city: nextCity ? undefined : 'City is required.',
+      country: country.trim() ? undefined : 'Country is required.',
       headline: nextHeadline ? undefined : 'Resume headline is required.',
+      isOutsideIndia: isOutsideIndia === null ? 'Select whether you are currently outside India.' : undefined,
       mobileNumber: mobileNumber.trim() && !/^\d{10}$/.test(mobileNumber.trim()) ? 'Enter a valid 10-digit Indian mobile number.' : undefined,
       skills: nextSkills.length ? undefined : 'Add at least one skill.',
+      workStatus: workStatus ? undefined : 'Work status is required.',
     };
     setFieldErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean)) {
@@ -398,11 +406,11 @@ const HeroProfileEditor = ({
         Object.assign(draft, updatedProfile);
       }));
       const basicPayload: UpdateCandidateBasicDetailsRequest = {
-        ...(basicDetails?.workStatus ? { workStatus: basicDetails.workStatus } : {}),
-        ...(basicDetails?.isOutsideIndia !== null && basicDetails?.isOutsideIndia !== undefined ? { isOutsideIndia: basicDetails.isOutsideIndia } : {}),
-        ...(basicDetails?.currentCountry ? { currentCountry: basicDetails.currentCountry } : {}),
+        workStatus: workStatus || undefined,
+        isOutsideIndia: isOutsideIndia ?? undefined,
+        currentCountry: country.trim() || undefined,
         currentCity: nextCity,
-        currentArea: basicDetails?.currentArea ?? null,
+        currentArea: area.trim() || null,
         noticePeriod: noticePeriod || null,
         availabilityToJoin: basicDetails?.availabilityToJoin ?? null,
         currentAnnualSalary: basicDetails?.currentAnnualSalary ?? null,
@@ -424,9 +432,12 @@ const HeroProfileEditor = ({
         setFieldErrors((current) => ({
           ...current,
           city: get(['currentCity', 'location']) ?? current.city,
+          country: get(['currentCountry']) ?? current.country,
           headline: get(['headline']) ?? current.headline,
           mobileNumber: get(['mobileNumber']) ?? current.mobileNumber,
+          isOutsideIndia: get(['isOutsideIndia']) ?? current.isOutsideIndia,
           skills: get(['skills', 'name']) ?? current.skills,
+          workStatus: get(['workStatus']) ?? current.workStatus,
         }));
       }
       setError(isDashboardApiError(saveError) ? saveError.message : saveError instanceof Error ? saveError.message : 'Unable to save your profile. Please review the fields and try again.');
@@ -436,6 +447,13 @@ const HeroProfileEditor = ({
   return (
     <Stack component="section" spacing={2.25}>
       <TextField autoFocus disabled={isSaving} error={Boolean(fieldErrors.headline)} helperText={fieldErrors.headline} label="Resume headline" onChange={(event) => { setHeadline(event.target.value); setFieldErrors((current) => ({ ...current, headline: undefined })); }} required value={headline} />
+      <TextField disabled={isSaving} error={Boolean(fieldErrors.workStatus)} helperText={fieldErrors.workStatus} label="Work status" onChange={(event) => { setWorkStatus(event.target.value as CandidateWorkStatus); setFieldErrors((current) => ({ ...current, workStatus: undefined })); }} required select value={workStatus}>
+        <MenuItem value="Fresher">Fresher</MenuItem><MenuItem value="Experienced">Experienced</MenuItem>
+      </TextField>
+      <TextField disabled={isSaving} error={Boolean(fieldErrors.isOutsideIndia)} helperText={fieldErrors.isOutsideIndia} label="Are you currently outside India?" onChange={(event) => { setIsOutsideIndia(event.target.value === 'true'); setFieldErrors((current) => ({ ...current, isOutsideIndia: undefined })); }} required select value={isOutsideIndia === null ? '' : String(isOutsideIndia)}>
+        <MenuItem value="false">No</MenuItem><MenuItem value="true">Yes</MenuItem>
+      </TextField>
+      <TextField disabled={isSaving} error={Boolean(fieldErrors.country)} helperText={fieldErrors.country} label="Country" onChange={(event) => { setCountry(event.target.value); setFieldErrors((current) => ({ ...current, country: undefined })); }} required value={country} />
       <TextField
         disabled={isSaving}
         error={Boolean(fieldErrors.mobileNumber)}
@@ -446,6 +464,7 @@ const HeroProfileEditor = ({
         value={mobileNumber}
       />
       <TextField disabled={isSaving} error={Boolean(fieldErrors.city)} fullWidth helperText={fieldErrors.city} label="City" onChange={(event) => { setCity(event.target.value); setFieldErrors((current) => ({ ...current, city: undefined })); }} required value={city} />
+      <TextField disabled={isSaving} label="Area" onChange={(event) => setArea(event.target.value)} value={area} />
       <TextField disabled={isSaving} label="Notice period" onChange={(event) => setNoticePeriod(event.target.value as CandidateNoticePeriod | '')} select value={noticePeriod}>
         <MenuItem value=""><em>Not specified</em></MenuItem>
         {Object.entries(noticePeriodLabels).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}

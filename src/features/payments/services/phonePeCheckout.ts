@@ -1,6 +1,7 @@
 import type { PhonePeCheckoutResponse } from '../types/paymentModels';
 
 export const PHONEPE_ORDER_STORAGE_KEY = 'careerHarbor.phonePeMerchantOrderId';
+export const PHONEPE_RETURN_TO_STORAGE_KEY = 'careerHarbor.phonePeReturnTo';
 const PHONEPE_CHECKOUT_HOSTS = new Set([
   'mercury-uat.phonepe.com',
   'mercury.phonepe.com',
@@ -27,6 +28,17 @@ export const storePhonePeMerchantOrderId = (merchantOrderId: string): boolean =>
 
 export const clearPhonePeMerchantOrderId = (): void =>
   sessionStorage.removeItem(PHONEPE_ORDER_STORAGE_KEY);
+
+export const storePhonePeReturnTo = (returnTo: string | undefined): void => {
+  if (returnTo) sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, returnTo);
+  else sessionStorage.removeItem(PHONEPE_RETURN_TO_STORAGE_KEY);
+};
+
+export const getStoredPhonePeReturnTo = (): string | null =>
+  sessionStorage.getItem(PHONEPE_RETURN_TO_STORAGE_KEY);
+
+export const clearPhonePeReturnTo = (): void =>
+  sessionStorage.removeItem(PHONEPE_RETURN_TO_STORAGE_KEY);
 
 export const getStoredPhonePeMerchantOrderId = (): string | null =>
   sessionStorage.getItem(PHONEPE_ORDER_STORAGE_KEY);
