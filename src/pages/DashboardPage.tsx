@@ -2,13 +2,14 @@ import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlin
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import {
   Alert,
   Box,
   Button,
   Chip,
   Grid,
-  LinearProgress,
   Link as MuiLink,
   Paper,
   Skeleton,
@@ -23,6 +24,7 @@ import {
   useGetApplicationsQuery,
   useGetMembershipsQuery,
   useGetNotificationsQuery,
+  useGetProfileCompletionQuery,
   useGetProfileQuery,
   useGetSavedJobsQuery,
 } from '@/features/dashboard/api/dashboardApi';
@@ -31,6 +33,17 @@ import { DashboardStatCard } from '@/features/dashboard/components/DashboardStat
 import { formatDashboardDate } from '@/features/dashboard/utils/dashboardFormatting';
 import { isMembershipActive } from '@/features/payments/utils/entitlement';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import type { ProfileCompletionStep } from '@/features/dashboard/types/dashboardModels';
+
+const profileSteps: { label: string; value: ProfileCompletionStep }[] = [
+  { label: 'Basic details', value: 'BasicDetails' },
+  { label: 'Skills', value: 'Skills' },
+  { label: 'Career preferences', value: 'CareerPreferences' },
+  { label: 'Education', value: 'Education' },
+  { label: 'Employment', value: 'Employment' },
+  { label: 'Resume', value: 'Resume' },
+  { label: 'Profile summary', value: 'ProfileSummary' },
+];
 
 export const DashboardPage = () => {
   useDocumentMetadata(
@@ -39,42 +52,30 @@ export const DashboardPage = () => {
   );
 
   const profile = useGetProfileQuery();
+  const completion = useGetProfileCompletionQuery();
   const savedJobs = useGetSavedJobsQuery({ pageNumber: 1, pageSize: 3 });
   const applications = useGetApplicationsQuery({ pageNumber: 1, pageSize: 5 });
   const memberships = useGetMembershipsQuery();
   const notifications = useGetNotificationsQuery({ pageNumber: 1, pageSize: 5 });
   const isInitialLoading =
     profile.isLoading ||
+    completion.isLoading ||
     savedJobs.isLoading ||
     applications.isLoading ||
     memberships.isLoading ||
     notifications.isLoading;
   const hasCompleteFailure =
     profile.isError &&
+    completion.isError &&
     savedJobs.isError &&
     applications.isError &&
     memberships.isError &&
     notifications.isError;
   const activeMemberships =
     memberships.data?.filter((membership) => isMembershipActive(membership)).length ?? 0;
-  const completedProfileFields = profile.data
-    ? [
-        profile.data.firstName,
-        profile.data.lastName,
-        profile.data.headline,
-        profile.data.bio,
-        profile.data.location,
-        profile.data.skills.length ? profile.data.skills : null,
-        profile.data.education.length ? profile.data.education : null,
-        profile.data.experience.length ? profile.data.experience : null,
-        profile.data.preferredJobTypes.length ? profile.data.preferredJobTypes : null,
-        profile.data.resume,
-      ].filter(Boolean).length
-    : 0;
-  const profileCompletion = Math.round((completedProfileFields / 10) * 100);
-
   const retryDashboard = () => {
     void profile.refetch();
+    void completion.refetch();
     void savedJobs.refetch();
     void applications.refetch();
     void memberships.refetch();
@@ -113,6 +114,7 @@ export const DashboardPage = () => {
       />
 
       {profile.isError ||
+      completion.isError ||
       savedJobs.isError ||
       applications.isError ||
       memberships.isError ||
@@ -160,24 +162,23 @@ export const DashboardPage = () => {
         </Grid>
       </Grid>
 
-      {profile.data ? (
+      {profile.data && completion.data ? (
         <Paper component="section" sx={{ p: 3 }}>
-          <Stack spacing={1.5}>
+          <Stack spacing={2}>
             <Stack alignItems="center" direction="row" justifyContent="space-between">
               <Typography component="h2" variant="h3">
-                Profile readiness
+                Profile completion
               </Typography>
-              <Typography fontWeight={700}>{profileCompletion}%</Typography>
+              <Typography fontWeight={700}>{completion.data.completionPercentage}%</Typography>
             </Stack>
-            <LinearProgress
-              aria-label={`Profile ${profileCompletion}% complete`}
-              value={profileCompletion}
-              variant="determinate"
-            />
-            <Typography color="text.secondary" variant="body2">
-              Add your headline, skills, experience, preferences, and resume to strengthen your
-              candidate profile.
-            </Typography>
+            <Stack component="ol" direction={{ xs: 'column', sm: 'row' }} gap={{ xs: 1, sm: 1.5 }} sx={{ listStyle: 'none', m: 0, overflowX: { sm: 'auto' }, p: 0 }}>
+              {profileSteps.map((step) => {
+                const completed = completion.data?.completedSections.includes(step.value) ?? false;
+                const current = completion.data?.nextRecommendedIncompleteStep === step.value;
+                return <Stack alignItems="center" aria-label={`${step.label}: ${completed ? 'completed' : current ? 'recommended next step' : 'incomplete'}`} component="li" direction="row" key={step.value} spacing={0.75} sx={{ color: completed ? 'success.main' : current ? 'primary.main' : 'text.disabled', flex: { sm: 1 }, minWidth: { sm: 120 } }}>{completed ? <CheckCircleIcon fontSize="small" /> : <RadioButtonUncheckedIcon fontSize="small" />}<Typography color={completed ? 'success.dark' : current ? 'primary.main' : 'text.secondary'} fontWeight={current ? 800 : 600} variant="caption">{step.label}</Typography></Stack>;
+              })}
+            </Stack>
+            {completion.data.nextRecommendedIncompleteStep ? <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}><Typography color="text.secondary" variant="body2">Next recommended step: {profileSteps.find((step) => step.value === completion.data?.nextRecommendedIncompleteStep)?.label}</Typography><Button component={Link} size="small" to={ROUTES.PORTFOLIO} variant="contained">Continue profile</Button></Stack> : <Typography color="success.main" fontWeight={700} variant="body2">Your profile is complete.</Typography>}
           </Stack>
         </Paper>
       ) : null}

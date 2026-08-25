@@ -167,6 +167,22 @@ describe('premium public homepage', () => {
     );
   });
 
+  it('routes Interview Insights intent safely for guests and directly for Candidates', async () => {
+    const guestRouter = createMemoryRouter([
+      { path: '/', element: <HomePage /> },
+      { path: '/login', element: <p>Login destination</p> },
+    ], { initialEntries: ['/'] });
+    const guestView = renderWithProviders(<RouterProvider router={guestRouter} />);
+    await userEvent.click(screen.getByRole('link', { name: 'Explore interview insights' }));
+    expect(guestRouter.state.location.pathname).toBe('/login');
+    expect(guestRouter.state.location.state).toEqual({ from: { pathname: '/dashboard/interview-insights' } });
+    guestView.unmount();
+
+    const candidateRouter = createMemoryRouter([{ path: '/', element: <HomePage /> }], { initialEntries: ['/'] });
+    renderWithProviders(<RouterProvider router={candidateRouter} />, { auth: candidateAuth });
+    expect(screen.getByRole('link', { name: 'Explore interview insights' })).toHaveAttribute('href', '/dashboard/interview-insights');
+  });
+
   it('renders an accessible illustrative preview and the complete three-step flow without private API calls', () => {
     const router = createMemoryRouter([{ path: '/', element: <HomePage /> }], {
       initialEntries: ['/'],

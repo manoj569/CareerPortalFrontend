@@ -185,6 +185,21 @@ export const HomePage = () => {
         ctaState={portfolioCtaState}
       />
 
+      <Box aria-labelledby="interview-insights-home-heading" component="section" sx={{ ...wideSectionStyles, bgcolor: 'common.white' }}>
+        <Container maxWidth={false} sx={{ ...wideContainerStyles, py: { xs: 7, md: 10 } }}>
+          <Box sx={{ maxWidth: 820 }}><Typography color="primary.main" fontWeight={850} letterSpacing=".12em" variant="overline">Career preparation</Typography><Typography component="h2" id="interview-insights-home-heading" sx={{ color: '#0b1739', fontSize: { xs: '2.25rem', md: '3.2rem' }, fontWeight: 800, letterSpacing: '-.04em', lineHeight: 1.08, mt: 1 }}>Prepare smarter for your next interview</Typography><Typography color="text.secondary" sx={{ fontSize: { xs: '1rem', md: '1.12rem' }, lineHeight: 1.75, mt: 2 }}>Explore candidate-shared interview rounds, common questions, preparation tips, and real experiences by company and role.</Typography></Box>
+          <Grid container spacing={2.5} sx={{ mt: 3 }}>{[
+            ['Real interview experiences', 'Learn from candidate-shared experiences by company and role.'],
+            ['Round-by-round preparation', 'Prepare for technical, HR, coding, and managerial rounds.'],
+            ['Help future candidates', 'Share useful questions and tips with the candidate community.'],
+          ].map(([title, description]) => <Grid key={title} size={{ xs: 12, md: 4 }}><Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, height: '100%' }}><CardContent sx={{ p: 3 }}><CheckCircleOutlineIcon color="primary" /><Typography component="h3" sx={{ mt: 2 }} variant="h3">{title}</Typography><Typography color="text.secondary" sx={{ lineHeight: 1.7, mt: 1 }}>{description}</Typography></CardContent></Card></Grid>)}</Grid>
+          <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 3 }}>
+            {user?.role !== UserRole.Administrator ? <Button component={Link} endIcon={<ArrowForwardIcon />} state={isCandidate ? undefined : { from: { pathname: ROUTES.INTERVIEW_INSIGHTS } }} to={isCandidate ? ROUTES.INTERVIEW_INSIGHTS : ROUTES.LOGIN} variant="contained">Explore interview insights</Button> : null}
+            <Typography color="text.secondary" variant="body2">Interview Insights requires an active Career Harbor membership.</Typography>
+          </Stack>
+        </Container>
+      </Box>
+
       <Box aria-labelledby="opportunities-heading" component="section" sx={{ bgcolor: 'common.white', left: 'calc((100% - 100vw) / 2)', position: 'relative', width: '100vw' }}>
         <Container maxWidth={false} sx={{ ...wideContainerStyles, pb: { xs: 6, md: 8 }, pt: { xs: 6, md: 9 } }}>
           <Box sx={{ mx: 'auto', maxWidth: 820, textAlign: 'center' }}>

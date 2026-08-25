@@ -1,5 +1,6 @@
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
@@ -7,7 +8,7 @@ import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
 import {
   Alert,
   Avatar,
-  Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, TextField,
+  Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, TextField, MenuItem,
   Chip,
   Grid,
   LinearProgress,
@@ -49,6 +50,7 @@ import {
   type UserProfile,
   type CandidateBasicDetails,
   type CandidateCareerPreferences,
+  type CandidateNoticePeriod,
   type CandidateEmploymentPreference,
   type CandidateJobType,
   type CandidateShiftPreference,
@@ -248,6 +250,7 @@ const IdentityCard = ({ basicDetails, candidate, completionPercentage, onEdit, s
               {skills.map((skill) => <Chip key={skill} label={skill} size="small" variant="outlined" />)}
             </Stack>
           ) : null}
+          {basicDetails?.noticePeriod ? <IdentityDetail icon={<EventAvailableOutlinedIcon fontSize="small" />} text={`Availability: ${noticePeriodLabels[basicDetails.noticePeriod]}`} /> : null}
           {completionPercentage === undefined ? null : (
             <Stack spacing={0.5} sx={{ maxWidth: 440 }}>
               <Stack direction="row" justifyContent="space-between" spacing={1}>
@@ -293,9 +296,13 @@ const ProfileAvatar = ({ fullName, initials }: { fullName: string; initials: str
   return <><Box sx={{ position: 'relative' }}><Avatar aria-label={`${fullName || 'Candidate'} initials`} imgProps={{ onError: () => { revoke(photoUrlRef.current); photoUrlRef.current = null; setPhotoUrl(null); } }} src={photoUrl ?? undefined} sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: '1.55rem', fontWeight: 850, height: 76, width: 76 }}>{initials}</Avatar><Tooltip title="Change profile photo"><IconButton aria-label="Change profile photo" onClick={() => setOpen(true)} ref={triggerRef} size="small" sx={{ bgcolor: 'background.paper', bottom: -6, boxShadow: 1, minHeight: 44, minWidth: 44, position: 'absolute', right: -8 }}><PhotoCameraOutlinedIcon fontSize="small" /></IconButton></Tooltip></Box><Dialog aria-describedby="profile-photo-description" fullWidth maxWidth="xs" onClose={close} open={open}><DialogTitle>Profile photo</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><Typography color="text.secondary" id="profile-photo-description">Use a JPEG, PNG, or WebP image up to 1 MB.</Typography>{(preview || photoUrl) ? <Avatar aria-label="Profile photo preview" src={preview ?? photoUrl ?? undefined} sx={{ height: 112, width: 112 }} /> : null}{error ? <Alert severity="error">{error}</Alert> : null}<input accept="image/jpeg,image/png,image/webp" aria-label="Choose profile photo" hidden onChange={(event) => choose(event.target.files?.[0])} ref={inputRef} type="file" /><Button disabled={saving} onClick={() => inputRef.current?.click()} variant="outlined">{photoUrl ? 'Replace photo' : 'Upload photo'}</Button></Stack></DialogContent><DialogActions><Button disabled={saving} onClick={close}>Cancel</Button>{photoUrl ? <Button color="error" disabled={saving} onClick={() => setConfirmRemove(true)}>Remove photo</Button> : null}<Button disabled={!file || saving} onClick={() => void save()} variant="contained">{saving ? 'Saving…' : 'Save photo'}</Button></DialogActions></Dialog><Dialog aria-describedby="remove-photo-description" onClose={() => !saving && setConfirmRemove(false)} open={confirmRemove}><DialogTitle>Remove profile photo?</DialogTitle><DialogContent><Typography id="remove-photo-description">Your initials will be shown instead.</Typography>{error ? <Alert severity="error">{error}</Alert> : null}</DialogContent><DialogActions><Button disabled={saving} onClick={() => setConfirmRemove(false)}>Cancel</Button><Button color="error" disabled={saving} onClick={() => void remove()}>{saving ? 'Removing…' : 'Remove photo'}</Button></DialogActions></Dialog></>;
 };
 
-const splitLocation = (location: string | null): { city: string; state: string } => {
-  const [city = '', ...stateParts] = (location ?? '').split(',');
-  return { city: city.trim(), state: stateParts.join(',').trim() };
+const noticePeriodLabels: Record<CandidateNoticePeriod, string> = {
+  ImmediateJoiner: 'Immediate joiner', FifteenDaysOrLess: '15 days', OneMonth: '1 month', ThreeMonths: '3 months', Other: 'Other',
+};
+const getLocationCity = (location: string | null): string => (location ?? '').split(',')[0]?.trim() ?? '';
+const getEditableMobile = (mobile: string | null): string => {
+  const digits = mobile?.replace(/\D/g, '') ?? '';
+  return digits.length > 10 ? digits.slice(-10) : digits;
 };
 
 const HeroProfileEditor = ({
@@ -318,16 +325,15 @@ const HeroProfileEditor = ({
   skills: { data?: CandidateSkill[]; isError: boolean; isLoading: boolean; refetch: () => unknown };
 }) => {
   const dispatch = useAppDispatch();
-  const location = splitLocation(candidate.location);
   const [headline, setHeadline] = useState(candidate.headline ?? '');
-  const [city, setCity] = useState(location.city || basicDetails?.currentCity || '');
-  const [state, setState] = useState(location.state);
+  const [city, setCity] = useState(basicDetails?.currentCity || getLocationCity(candidate.location));
   const existingMobile = basicDetails?.mobileNumber ?? candidate.mobileNumber ?? candidate.phoneNumber ?? null;
-  const [mobileNumber, setMobileNumber] = useState(existingMobile ?? '');
+  const [mobileNumber, setMobileNumber] = useState(getEditableMobile(existingMobile));
+  const [noticePeriod, setNoticePeriod] = useState<CandidateNoticePeriod | ''>(basicDetails?.noticePeriod ?? '');
   const [skillNames, setSkillNames] = useState<string[]>(skills.data?.map((skill) => skill.name) ?? candidate.skills);
   const [skillInput, setSkillInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<'headline' | 'mobileNumber' | 'city' | 'state' | 'skills', string | undefined>>({ city: undefined, headline: undefined, mobileNumber: undefined, skills: undefined, state: undefined });
+  const [fieldErrors, setFieldErrors] = useState<Record<'headline' | 'mobileNumber' | 'city' | 'skills', string | undefined>>({ city: undefined, headline: undefined, mobileNumber: undefined, skills: undefined });
   const [updateProfile, updateState] = useUpdateProfileMutation();
   const [updateBasicDetails, basicUpdateState] = useUpdateCandidateBasicDetailsMutation();
   const [addSkill, addState] = useAddCandidateSkillMutation();
@@ -350,14 +356,12 @@ const HeroProfileEditor = ({
     if (isSaving) return;
     const nextHeadline = headline.trim();
     const nextCity = city.trim();
-    const nextState = state.trim();
     const nextSkills = skillNames.map((name) => name.trim()).filter(Boolean);
     const nextErrors = {
       city: nextCity ? undefined : 'City is required.',
       headline: nextHeadline ? undefined : 'Resume headline is required.',
-      mobileNumber: !existingMobile && mobileNumber.trim() && !/^\d{10}$/.test(mobileNumber.trim()) ? 'Enter a valid 10-digit Indian mobile number.' : undefined,
+      mobileNumber: mobileNumber.trim() && !/^\d{10}$/.test(mobileNumber.trim()) ? 'Enter a valid 10-digit Indian mobile number.' : undefined,
       skills: nextSkills.length ? undefined : 'Add at least one skill.',
-      state: nextState ? undefined : 'State is required.',
     };
     setFieldErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean)) {
@@ -385,7 +389,7 @@ const HeroProfileEditor = ({
         experience: candidate.experience,
         headline: nextHeadline,
         linkedInUrl: candidate.linkedInUrl,
-        location: `${nextCity}, ${nextState}`,
+        location: nextCity,
         portfolioUrl: candidate.portfolioUrl,
         preferredJobTypes: candidate.preferredJobTypes,
         skills: candidate.skills,
@@ -393,24 +397,20 @@ const HeroProfileEditor = ({
       dispatch(dashboardApi.util.updateQueryData('getProfile', undefined, (draft) => {
         Object.assign(draft, updatedProfile);
       }));
-      if (!existingMobile && mobileNumber.trim()) {
-        if (!basicDetails?.workStatus || basicDetails.isOutsideIndia === null || !basicDetails.currentCountry) {
-          throw new Error('Complete the existing basic profile details before adding a mobile number.');
-        }
-        const basicPayload: UpdateCandidateBasicDetailsRequest = {
-          availabilityToJoin: basicDetails.availabilityToJoin,
-          currentAnnualSalary: basicDetails.currentAnnualSalary,
-          currentArea: basicDetails.currentArea,
-          currentCity: basicDetails.currentCity ?? nextCity,
-          currentCountry: basicDetails.currentCountry,
-          currentFixedAnnualSalary: basicDetails.currentFixedAnnualSalary,
-          currentVariableAnnualSalary: basicDetails.currentVariableAnnualSalary,
-          isOutsideIndia: basicDetails.isOutsideIndia,
-          mobileNumber: mobileNumber.trim(),
-          workStatus: basicDetails.workStatus,
-        };
-        await updateBasicDetails(basicPayload).unwrap();
-      }
+      const basicPayload: UpdateCandidateBasicDetailsRequest = {
+        ...(basicDetails?.workStatus ? { workStatus: basicDetails.workStatus } : {}),
+        ...(basicDetails?.isOutsideIndia !== null && basicDetails?.isOutsideIndia !== undefined ? { isOutsideIndia: basicDetails.isOutsideIndia } : {}),
+        ...(basicDetails?.currentCountry ? { currentCountry: basicDetails.currentCountry } : {}),
+        currentCity: nextCity,
+        currentArea: basicDetails?.currentArea ?? null,
+        noticePeriod: noticePeriod || null,
+        availabilityToJoin: basicDetails?.availabilityToJoin ?? null,
+        currentAnnualSalary: basicDetails?.currentAnnualSalary ?? null,
+        currentFixedAnnualSalary: basicDetails?.currentFixedAnnualSalary ?? null,
+        currentVariableAnnualSalary: basicDetails?.currentVariableAnnualSalary ?? null,
+        mobileNumber: mobileNumber.trim() || null,
+      };
+      await updateBasicDetails(basicPayload).unwrap();
       await Promise.all([
         ...removed.map((skill) => deleteSkill(skill.id).unwrap()),
         ...added.map((name) => addSkill({ name, proficiency: null, yearsOfExperience: null }).unwrap()),
@@ -427,7 +427,6 @@ const HeroProfileEditor = ({
           headline: get(['headline']) ?? current.headline,
           mobileNumber: get(['mobileNumber']) ?? current.mobileNumber,
           skills: get(['skills', 'name']) ?? current.skills,
-          state: get(['state']) ?? current.state,
         }));
       }
       setError(isDashboardApiError(saveError) ? saveError.message : saveError instanceof Error ? saveError.message : 'Unable to save your profile. Please review the fields and try again.');
@@ -438,18 +437,19 @@ const HeroProfileEditor = ({
     <Stack component="section" spacing={2.25}>
       <TextField autoFocus disabled={isSaving} error={Boolean(fieldErrors.headline)} helperText={fieldErrors.headline} label="Resume headline" onChange={(event) => { setHeadline(event.target.value); setFieldErrors((current) => ({ ...current, headline: undefined })); }} required value={headline} />
       <TextField
-        disabled={isSaving || Boolean(existingMobile)}
+        disabled={isSaving}
         error={Boolean(fieldErrors.mobileNumber)}
-        helperText={fieldErrors.mobileNumber ?? (existingMobile ? (basicDetails?.mobileVerified ? 'Verified mobile number' : 'Mobile number is not verified') : 'Add a 10-digit Indian mobile number. It will remain unverified until verification is completed.')}
+        helperText={fieldErrors.mobileNumber ?? (basicDetails?.mobileVerified ? 'Verified mobile number' : 'Enter a 10-digit Indian mobile number.')}
         inputProps={{ inputMode: 'numeric', maxLength: 10 }}
         label="Mobile number"
         onChange={(event) => { setMobileNumber(event.target.value.replace(/\D/g, '').slice(0, 10)); setFieldErrors((current) => ({ ...current, mobileNumber: undefined })); }}
         value={mobileNumber}
       />
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 6 }}><TextField disabled={isSaving} error={Boolean(fieldErrors.city)} fullWidth helperText={fieldErrors.city} label="City" onChange={(event) => { setCity(event.target.value); setFieldErrors((current) => ({ ...current, city: undefined })); }} required value={city} /></Grid>
-        <Grid size={{ xs: 12, sm: 6 }}><TextField disabled={isSaving} error={Boolean(fieldErrors.state)} fullWidth helperText={fieldErrors.state} label="State" onChange={(event) => { setState(event.target.value); setFieldErrors((current) => ({ ...current, state: undefined })); }} required value={state} /></Grid>
-      </Grid>
+      <TextField disabled={isSaving} error={Boolean(fieldErrors.city)} fullWidth helperText={fieldErrors.city} label="City" onChange={(event) => { setCity(event.target.value); setFieldErrors((current) => ({ ...current, city: undefined })); }} required value={city} />
+      <TextField disabled={isSaving} label="Notice period" onChange={(event) => setNoticePeriod(event.target.value as CandidateNoticePeriod | '')} select value={noticePeriod}>
+        <MenuItem value=""><em>Not specified</em></MenuItem>
+        {Object.entries(noticePeriodLabels).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+      </TextField>
       <Stack spacing={1}>
         <Stack alignItems="flex-start" direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <TextField disabled={isSaving} fullWidth label="Skills" onChange={(event) => setSkillInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addSkillName(); } }} value={skillInput} />

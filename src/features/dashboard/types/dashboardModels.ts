@@ -80,6 +80,7 @@ export interface CandidateProfile {
 }
 
 export type CandidateWorkStatus = 'Fresher' | 'Experienced';
+export type CandidateNoticePeriod = 'ImmediateJoiner' | 'FifteenDaysOrLess' | 'OneMonth' | 'ThreeMonths' | 'Other';
 export enum CandidateAvailability {
   FifteenDaysOrLess = 1,
   OneMonth,
@@ -91,8 +92,8 @@ export enum CandidateAvailability {
 export type CandidateJobType = 'Permanent' | 'Contractual';
 export type CandidateEmploymentPreference = 'FullTime' | 'PartTime';
 export type CandidateShiftPreference = 'Day' | 'Night' | 'Flexible';
-export interface CandidateBasicDetails { email: string; mobileNumber: string | null; mobileVerified: boolean; workStatus: CandidateWorkStatus | null; isOutsideIndia: boolean | null; currentCountry: string | null; currentCity: string | null; currentArea: string | null; availabilityToJoin: CandidateAvailability | null; currentAnnualSalary: number | null; currentFixedAnnualSalary: number | null; currentVariableAnnualSalary: number | null; salaryUnit: string; }
-export interface UpdateCandidateBasicDetailsRequest { workStatus: CandidateWorkStatus; isOutsideIndia: boolean; currentCountry: string; currentCity: string; currentArea: string | null; availabilityToJoin: CandidateAvailability | null; currentAnnualSalary: number | null; currentFixedAnnualSalary: number | null; currentVariableAnnualSalary: number | null; mobileNumber: string | null; }
+export interface CandidateBasicDetails { email: string; mobileNumber: string | null; mobileVerified: boolean; workStatus: CandidateWorkStatus | null; isOutsideIndia: boolean | null; currentCountry: string | null; currentCity: string | null; currentArea: string | null; noticePeriod?: CandidateNoticePeriod | null; availabilityToJoin: CandidateAvailability | null; currentAnnualSalary: number | null; currentFixedAnnualSalary: number | null; currentVariableAnnualSalary: number | null; salaryUnit: string; }
+export interface UpdateCandidateBasicDetailsRequest { workStatus?: CandidateWorkStatus; isOutsideIndia?: boolean; currentCountry?: string; currentCity?: string; currentArea?: string | null; noticePeriod?: CandidateNoticePeriod | null; availabilityToJoin?: CandidateAvailability | null; currentAnnualSalary?: number | null; currentFixedAnnualSalary?: number | null; currentVariableAnnualSalary?: number | null; mobileNumber?: string | null; }
 export interface CandidateCareerPreferences { preferredJobRoles: string[]; preferredCities: string[]; expectedAnnualSalary: number | null; jobTypes: CandidateJobType[]; employmentTypes: CandidateEmploymentPreference[]; preferredShifts: CandidateShiftPreference[]; salaryUnit: string; }
 export interface UpdateCandidateCareerPreferencesRequest { preferredJobRoles: string[]; preferredCities: string[]; expectedAnnualSalary: number | null; jobTypes: CandidateJobType[]; employmentTypes: CandidateEmploymentPreference[]; preferredShifts: CandidateShiftPreference[]; }
 export interface ProfilePhotoMetadata { hasProfilePhoto: boolean; version: string | null; }
@@ -141,12 +142,14 @@ export interface ProfileSectionCompletion {
   section: string;
   weight: number;
 }
+export type ProfileCompletionStep = 'BasicDetails' | 'Skills' | 'CareerPreferences' | 'Education' | 'Employment' | 'Resume' | 'ProfileSummary';
 
 export interface CandidateProfileCompletion {
   completedSections: string[];
   completionPercentage: number;
   missingSections: string[];
   sections: ProfileSectionCompletion[];
+  nextRecommendedIncompleteStep?: ProfileCompletionStep | null;
 }
 
 export enum CareerStage {

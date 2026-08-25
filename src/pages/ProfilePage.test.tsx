@@ -333,7 +333,8 @@ describe('Candidate profile workspace', () => {
     expect(within(dialog).getByRole('textbox', { name: 'Resume headline' })).toBeRequired();
     expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toBeEnabled();
     expect(within(dialog).getByRole('textbox', { name: 'City' })).toBeRequired();
-    expect(within(dialog).getByRole('textbox', { name: 'State' })).toBeRequired();
+    expect(within(dialog).queryByRole('textbox', { name: 'State' })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: 'Notice period' })).toBeVisible();
     expect(within(dialog).getByRole('textbox', { name: 'Skills' })).toBeVisible();
     expect(within(dialog).queryByText('Career preferences')).not.toBeInTheDocument();
     expect(within(dialog).queryByText('Education')).not.toBeInTheDocument();
@@ -374,20 +375,18 @@ describe('Candidate profile workspace', () => {
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
     const dialog = screen.getByRole('dialog', { name: 'Edit basic details' });
-    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toHaveValue('+918080875878');
-    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toBeDisabled();
+    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toHaveValue('8080875878');
+    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toBeEnabled();
     expect(within(dialog).getByText('Verified mobile number')).toBeVisible();
     await userEvent.clear(within(dialog).getByRole('textbox', { name: 'Resume headline' }));
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Resume headline' }), 'Principal frontend engineer');
-    await userEvent.clear(within(dialog).getByRole('textbox', { name: 'State' }));
-    await userEvent.type(within(dialog).getByRole('textbox', { name: 'State' }), 'Maharashtra');
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Skills' }), 'TypeScript');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Add skill' }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save basic details' }));
 
     await waitFor(() => expect(updateTrigger).toHaveBeenCalledWith(expect.objectContaining({
       headline: 'Principal frontend engineer',
-      location: 'Pune, Maharashtra',
+      location: 'Pune',
     })));
     expect(addTrigger).toHaveBeenCalledWith({ name: 'TypeScript', proficiency: null, yearsOfExperience: null });
     expect(profileRefetch).toHaveBeenCalled();
@@ -395,7 +394,7 @@ describe('Candidate profile workspace', () => {
     expect(completionRefetch).toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit basic details' })).not.toBeInTheDocument());
     expect(screen.getByText('Principal frontend engineer')).toBeVisible();
-    expect(screen.getByText('Pune, Maharashtra')).toBeVisible();
+    expect(screen.getByText('Pune')).toBeVisible();
     expect(screen.getByText('+918080875878')).toBeVisible();
     expect(screen.getAllByText('React').length).toBeGreaterThan(0);
     expect(screen.getByText('TypeScript')).toBeVisible();
@@ -417,7 +416,6 @@ describe('Candidate profile workspace', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
     const dialog = screen.getByRole('dialog', { name: 'Edit basic details' });
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Mobile number' }), '9876543210');
-    await userEvent.type(within(dialog).getByRole('textbox', { name: 'State' }), 'Maharashtra');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save basic details' }));
 
     await waitFor(() => expect(basicMutation.trigger).toHaveBeenCalledWith({
@@ -430,6 +428,7 @@ describe('Candidate profile workspace', () => {
       currentVariableAnnualSalary: 200000,
       isOutsideIndia: false,
       mobileNumber: '9876543210',
+      noticePeriod: null,
       workStatus: 'Experienced',
     }));
     expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toHaveAccessibleDescription(mobileError);
@@ -437,7 +436,7 @@ describe('Candidate profile workspace', () => {
     expect(dialog).toBeVisible();
   });
 
-  it('shows an existing unverified mobile as readonly without calling it verified', async () => {
+  it('keeps an existing unverified mobile editable without calling it verified', async () => {
     mocks.getBasicDetails.mockReturnValue(queryResult({ data: {
       email: 'avery@example.com', mobileNumber: '+919876543210', mobileVerified: false, workStatus: 'Experienced', isOutsideIndia: false,
       currentCountry: 'India', currentCity: 'Pune', currentArea: null, availabilityToJoin: null,
@@ -446,8 +445,19 @@ describe('Candidate profile workspace', () => {
     renderPage();
     await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
     const mobile = within(screen.getByRole('dialog', { name: 'Edit basic details' })).getByRole('textbox', { name: 'Mobile number' });
-    expect(mobile).toBeDisabled();
-    expect(mobile).toHaveAccessibleDescription('Mobile number is not verified');
+    expect(mobile).toBeEnabled();
+    expect(mobile).toHaveValue('9876543210');
+    expect(mobile).toHaveAccessibleDescription('Enter a 10-digit Indian mobile number.');
+  });
+
+  it('shows canonical notice-period availability in the private profile hero', () => {
+    mocks.getBasicDetails.mockReturnValue(queryResult({ data: {
+      email: 'avery@example.com', mobileNumber: null, mobileVerified: false, workStatus: 'Experienced', isOutsideIndia: false,
+      currentCountry: 'India', currentCity: 'Pune', currentArea: null, noticePeriod: 'OneMonth', availabilityToJoin: null,
+      currentAnnualSalary: null, currentFixedAnnualSalary: null, currentVariableAnnualSalary: null, salaryUnit: 'INR per annum',
+    } }));
+    renderPage();
+    expect(screen.getByText('Availability: 1 month')).toBeVisible();
   });
 
   it('prepopulates and submits the exact trimmed about request', async () => {

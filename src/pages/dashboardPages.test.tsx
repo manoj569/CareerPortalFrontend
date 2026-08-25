@@ -53,7 +53,6 @@ import { ApplicationsPage } from './ApplicationsPage';
 import { ApplicationDetailsPage } from './ApplicationDetailsPage';
 import { DashboardPage } from './DashboardPage';
 import { NotificationsPage } from './NotificationsPage';
-import { ProfilePage } from './ProfilePage';
 import { ResumePage } from './ResumePage';
 import { SavedJobsPage } from './SavedJobsPage';
 import { SettingsPage } from './SettingsPage';
@@ -263,16 +262,16 @@ beforeEach(() => {
   mockCompletion.mockReturnValue(
     queryResult({
       data: {
-        completedSections: ['basicDetails', 'resumeHeadline', 'profileSummary', 'skills'],
+        completedSections: ['BasicDetails', 'Skills', 'ProfileSummary'],
         completionPercentage: 60,
-        missingSections: ['resume', 'careerPreferences'],
+        missingSections: ['CareerPreferences', 'Education', 'Employment', 'Resume'],
+        nextRecommendedIncompleteStep: 'CareerPreferences',
         sections: [
-          { isCompleted: true, section: 'basicDetails', weight: 15 },
-          { isCompleted: true, section: 'resumeHeadline', weight: 10 },
-          { isCompleted: true, section: 'profileSummary', weight: 15 },
-          { isCompleted: true, section: 'skills', weight: 20 },
-          { isCompleted: false, section: 'resume', weight: 20 },
-          { isCompleted: false, section: 'careerPreferences', weight: 20 },
+          { isCompleted: true, section: 'BasicDetails', weight: 15 },
+          { isCompleted: true, section: 'Skills', weight: 20 },
+          { isCompleted: true, section: 'ProfileSummary', weight: 15 },
+          { isCompleted: false, section: 'Resume', weight: 20 },
+          { isCompleted: false, section: 'CareerPreferences', weight: 20 },
         ],
       },
     }),
@@ -384,6 +383,8 @@ describe('candidate dashboard pages', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Job Application Access')).toBeInTheDocument();
     expect(screen.getByText(job.title)).toBeInTheDocument();
+    expect(screen.getByText('60%')).toBeInTheDocument();
+    expect(screen.getByLabelText('Career preferences: recommended next step')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Edit profile' })).toHaveAttribute(
       'href',
       '/dashboard/portfolio',
@@ -394,28 +395,6 @@ describe('candidate dashboard pages', () => {
     mockProfile.mockReturnValue(queryResult({ isLoading: true }));
     renderPage(<DashboardPage />);
     expect(screen.getByLabelText('Loading candidate dashboard')).toBeInTheDocument();
-  });
-
-  it('keeps existing additional profile updates through the Candidate API', async () => {
-    const updated = { ...profile, location: 'Bengaluru' };
-    const mutation = mutationResult(updated);
-    mockUpdateProfile.mockReturnValue(
-      mutation.tuple as unknown as ReturnType<typeof useUpdateProfileMutation>,
-    );
-    renderPage(<ProfilePage />);
-
-    const profileDetails = screen.getByRole('heading', { name: 'Profile details' }).closest('section')!;
-    await userEvent.click(within(profileDetails).getByRole('button', { name: 'Edit' }));
-    const location = screen.getByRole('textbox', { name: 'Current location' });
-    await userEvent.clear(location);
-    await userEvent.type(location, 'Bengaluru');
-    await userEvent.click(screen.getByRole('button', { name: 'Save additional details' }));
-
-    await waitFor(() => {
-      expect(mutation.trigger).toHaveBeenCalledWith(
-        expect.objectContaining({ location: 'Bengaluru' }),
-      );
-    });
   });
 
   it('validates and uploads a supported resume file', async () => {
