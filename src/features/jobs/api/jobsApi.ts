@@ -166,7 +166,6 @@ export const jobsApi = createApi({
 });
 
 export const {
-  // useApplyToJobMutation,
   useGetFeaturedJobsQuery,
   useGetJobFilterOptionsQuery,
   useGetSupplementalJobFilterCountsQuery,

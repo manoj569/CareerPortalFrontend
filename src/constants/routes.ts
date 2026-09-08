@@ -28,6 +28,15 @@ export const ROUTES = {
   APPLICATIONS: '/dashboard/applications',
   APPLICATION_DETAILS: '/dashboard/applications/:applicationId',
   INTERVIEW_INSIGHTS: '/dashboard/interview-insights',
+  AI_APPLY: '/ai-apply',
+  AI_APPLY_SETUP: '/ai-apply/setup',
+  AI_APPLY_APPLICATIONS: '/ai-apply/applications',
+  AI_APPLY_APPLICATION_DETAILS: '/ai-apply/applications/:id',
+  AI_APPLY_QUESTIONS: '/ai-apply/questions',
+  AI_APPLY_QUESTION_DETAILS: '/ai-apply/questions/:id',
+  AI_APPLY_ANSWERS: '/ai-apply/answers',
+  AI_APPLY_SUBSCRIPTION: '/ai-apply/subscription',
+  AI_APPLY_CONNECTIONS: '/ai-apply/connections',
   INTERVIEW_INSIGHT_CONTRIBUTIONS: '/dashboard/interview-insights/my-contributions',
   NOTIFICATIONS: '/dashboard/notifications',
   SETTINGS: '/dashboard/settings',
@@ -62,6 +71,7 @@ export const ROUTES = {
   ADMIN_PAYMENT_DETAILS: '/admin/payments/:paymentId',
   ADMIN_AUDIT_LOGS: '/admin/audit-logs',
   ADMIN_INTERVIEW_INSIGHTS: '/admin/interview-insights',
+  ADMIN_AI_APPLY: '/admin/ai-apply',
 } as const;
 
 export const buildJobDetailsPath = (slug: string): string =>
@@ -69,6 +79,12 @@ export const buildJobDetailsPath = (slug: string): string =>
 
 export const buildApplicationDetailsPath = (applicationId: string): string =>
   ROUTES.APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+
+export const buildAIApplyApplicationDetailsPath = (id: string): string =>
+  ROUTES.AI_APPLY_APPLICATION_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildAIApplyQuestionDetailsPath = (id: string): string =>
+  ROUTES.AI_APPLY_QUESTION_DETAILS.replace(':id', encodeURIComponent(id));
 
 export const buildInterviewInsightsPath = (params?: Record<string, string>): string => {
   const search = new URLSearchParams(params);

@@ -102,6 +102,7 @@ export interface Payment {
   createdAtUtc: string;
   providerOrderCreatedAtUtc: string | null;
   lastReconciledAtUtc: string | null;
+  planCode?: string | null;
 }
 
 export interface PaymentHistoryEvent {

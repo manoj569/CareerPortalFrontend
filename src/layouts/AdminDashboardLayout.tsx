@@ -6,6 +6,7 @@ import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import PolicyOutlinedIcon from '@mui/icons-material/PolicyOutlined';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
@@ -18,7 +19,12 @@ export const adminNavigationItems: NavigationItem[] = [
   { label: 'Jobs', path: ROUTES.ADMIN_JOBS, icon: WorkOutlineIcon },
   { label: 'Users', path: ROUTES.ADMIN_USERS, icon: PeopleOutlineIcon },
   { label: 'Applications', path: ROUTES.ADMIN_APPLICATIONS, icon: AssignmentOutlinedIcon },
-  { label: 'Interview insights', path: ROUTES.ADMIN_INTERVIEW_INSIGHTS, icon: QuestionAnswerOutlinedIcon },
+  {
+    label: 'Interview insights',
+    path: ROUTES.ADMIN_INTERVIEW_INSIGHTS,
+    icon: QuestionAnswerOutlinedIcon,
+  },
+  { label: 'AI Apply Operations', path: ROUTES.ADMIN_AI_APPLY, icon: SmartToyOutlinedIcon },
   { label: 'Payments', path: ROUTES.ADMIN_PAYMENTS, icon: PaymentsOutlinedIcon },
   { label: 'Audit logs', path: ROUTES.ADMIN_AUDIT_LOGS, icon: PolicyOutlinedIcon },
   { label: 'View public site', path: ROUTES.HOME, icon: PublicOutlinedIcon },

@@ -16,6 +16,8 @@ import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import { jobsApi } from '@/features/jobs/api/jobsApi';
 import { paymentsApi } from '@/features/payments/api/paymentsApi';
 import { interviewInsightsApi } from '@/features/interviewInsights/api/interviewInsightsApi';
+import { aiApplyApi } from '@/features/aiApply/api/aiApplyApi';
+import { adminAIApplyApi } from '@/features/admin/aiApply/api/adminAIApplyApi';
 import { UserRole } from '@/types';
 
 const rootReducer = combineReducers({
@@ -25,6 +27,8 @@ const rootReducer = combineReducers({
   [paymentsApi.reducerPath]: paymentsApi.reducer,
   [adminApi.reducerPath]: adminApi.reducer,
   [interviewInsightsApi.reducerPath]: interviewInsightsApi.reducer,
+  [aiApplyApi.reducerPath]: aiApplyApi.reducer,
+  [adminAIApplyApi.reducerPath]: adminAIApplyApi.reducer,
 });
 
 const privateCacheListener = createListenerMiddleware();
@@ -37,6 +41,8 @@ privateCacheListener.startListening({
         listenerApi.dispatch(paymentsApi.util.resetApiState());
         listenerApi.dispatch(adminApi.util.resetApiState());
         listenerApi.dispatch(interviewInsightsApi.util.resetApiState());
+        listenerApi.dispatch(aiApplyApi.util.resetApiState());
+        listenerApi.dispatch(adminAIApplyApi.util.resetApiState());
         return;
       }
       const originalState = listenerApi.getOriginalState() as {
@@ -48,6 +54,7 @@ privateCacheListener.startListening({
       if (isSameAccount) {
         if (action.payload.user.role !== UserRole.Administrator) {
           listenerApi.dispatch(adminApi.util.resetApiState());
+          listenerApi.dispatch(adminAIApplyApi.util.resetApiState());
         }
         return;
       }
@@ -57,6 +64,8 @@ privateCacheListener.startListening({
     listenerApi.dispatch(paymentsApi.util.resetApiState());
     listenerApi.dispatch(adminApi.util.resetApiState());
     listenerApi.dispatch(interviewInsightsApi.util.resetApiState());
+    listenerApi.dispatch(aiApplyApi.util.resetApiState());
+    listenerApi.dispatch(adminAIApplyApi.util.resetApiState());
   },
 });
 
@@ -75,6 +84,8 @@ export const createAppStore = (preloadedState?: Partial<RootState>) =>
           paymentsApi.middleware,
           adminApi.middleware,
           interviewInsightsApi.middleware,
+          aiApplyApi.middleware,
+          adminAIApplyApi.middleware,
         ),
   });
 

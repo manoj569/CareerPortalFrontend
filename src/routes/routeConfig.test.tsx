@@ -70,6 +70,7 @@ describe('release route structure', () => {
         ROUTES.APPLICATION_DETAILS,
         ROUTES.INTERVIEW_INSIGHTS,
         ROUTES.INTERVIEW_INSIGHT_CONTRIBUTIONS,
+        ROUTES.AI_APPLY_CONNECTIONS,
         ROUTES.MEMBERSHIP,
         ROUTES.PAYMENT,
       ]),

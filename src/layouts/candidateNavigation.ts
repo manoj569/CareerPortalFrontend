@@ -7,6 +7,7 @@ import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
 import { ROUTES } from '@/constants/routes';
@@ -17,6 +18,7 @@ export const candidateNavigationItems: NavigationItem[] = [
   { label: 'Portfolio', path: ROUTES.PORTFOLIO, icon: WebOutlinedIcon },
   { label: 'Saved jobs', path: ROUTES.SAVED_JOBS, icon: BookmarkBorderIcon },
   { label: 'Applied jobs', path: ROUTES.APPLICATIONS, icon: DescriptionOutlinedIcon },
+  { label: 'AI Apply', path: ROUTES.AI_APPLY, icon: AutoAwesomeOutlinedIcon },
   {
     label: 'Interview insights',
     path: ROUTES.INTERVIEW_INSIGHTS,

@@ -11,7 +11,6 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForgotPasswordPage } from './ForgotPasswordPage';
 import { LoginPage } from './LoginPage';
-// import { MobileOtpLoginPage } from './MobileOtpLoginPage';
 import { RegisterPage } from './RegisterPage';
 import { RegistrationOtpPage } from './RegistrationOtpPage';
 import { ResetPasswordPage } from './ResetPasswordPage';
@@ -351,7 +350,6 @@ describe('mobile authentication pages', () => {
   it('creates a Candidate session after mobile OTP login', async () => {
     mockedAuthService.requestLoginOtp.mockResolvedValue({ message: 'Accepted.' });
     mockedAuthService.loginWithOtp.mockResolvedValue(authenticationResponse(UserRole.Candidate));
-    // const { store } = renderAuthRoute(ROUTES.MOBILE_OTP_LOGIN, <MobileOtpLoginPage />);
     const user = userEvent.setup();
     await user.type(screen.getByLabelText(/mobile number/i), '9876543210');
     await user.click(screen.getByRole('button', { name: 'Send OTP' }));
@@ -367,7 +365,6 @@ describe('mobile authentication pages', () => {
       phoneNumber: '9876543210',
     });
     expect(await screen.findByText('Candidate dashboard')).toBeVisible();
-    // expect(store.getState().auth.status).toBe('authenticated');
   });
 
   it('requests an email reset link and always displays the privacy-safe success message', async () => {

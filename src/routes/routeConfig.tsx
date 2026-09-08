@@ -197,6 +197,63 @@ export const appRoutes: RouteObject[] = [
                 ),
               },
               {
+                path: ROUTES.AI_APPLY,
+                element: lazyPage(
+                  () => import('@/pages/AIApplyDashboardPage'),
+                  'AIApplyDashboardPage',
+                ),
+              },
+              {
+                path: ROUTES.AI_APPLY_SETUP,
+                element: lazyPage(() => import('@/pages/AIApplyPage'), 'AIApplyPage'),
+              },
+              {
+                path: ROUTES.AI_APPLY_APPLICATIONS,
+                element: lazyPage(
+                  () => import('@/pages/AIApplyApplicationsPage'),
+                  'AIApplyApplicationsPage',
+                ),
+              },
+              {
+                path: ROUTES.AI_APPLY_APPLICATION_DETAILS,
+                element: lazyPage(
+                  () => import('@/pages/AIApplyApplicationDetailPage'),
+                  'AIApplyApplicationDetailPage',
+                ),
+              },
+              {
+                path: ROUTES.AI_APPLY_QUESTIONS,
+                element: lazyPage(
+                  () => import('@/pages/AIApplyQuestionsPage'),
+                  'AIApplyQuestionsPage',
+                ),
+              },
+              {
+                path: ROUTES.AI_APPLY_QUESTION_DETAILS,
+                element: lazyPage(
+                  () => import('@/pages/AIApplyQuestionDetailPage'),
+                  'AIApplyQuestionDetailPage',
+                ),
+              },
+              {
+                path: ROUTES.AI_APPLY_ANSWERS,
+                element: lazyPage(() => import('@/pages/AIApplyAnswersPage'), 'AIApplyAnswersPage'),
+              },
+              {
+                path: ROUTES.AI_APPLY_SUBSCRIPTION,
+                element: lazyPage(
+                  () => import('@/pages/AIApplySubscriptionPage'),
+                  'AIApplySubscriptionPage',
+                ),
+              },
+              {
+                path: ROUTES.AI_APPLY_CONNECTIONS,
+                element: lazyPage(
+                  () => import('@/pages/AIApplyExternalConnectionsPage'),
+                  'AIApplyExternalConnectionsPage',
+                ),
+              },
+              {
                 path: ROUTES.INTERVIEW_INSIGHT_CONTRIBUTIONS,
                 element: (
                   <Navigate replace to={`${ROUTES.INTERVIEW_INSIGHTS}?view=contributions`} />
@@ -354,6 +411,13 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(
                   () => import('@/pages/admin/AdminInterviewInsightsPage'),
                   'AdminInterviewInsightsPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_AI_APPLY,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminAIApplyOperationsPage'),
+                  'AdminAIApplyOperationsPage',
                 ),
               },
             ],
