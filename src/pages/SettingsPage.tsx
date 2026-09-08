@@ -1,6 +1,7 @@
 import LockResetOutlinedIcon from '@mui/icons-material/LockResetOutlined';
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Alert, Button, Chip, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
@@ -164,6 +165,18 @@ export const SettingsPage = () => {
       </Paper>
 
       <Paper component="section" sx={{ p: { xs: 3, md: 4 } }}><Stack spacing={2.5}><Stack alignItems="center" direction="row" spacing={1.5}><WorkspacePremiumOutlinedIcon color="primary" /><Typography component="h2" variant="h3">Membership</Typography></Stack>{memberships.isError ? <Alert action={<Button color="inherit" onClick={() => void memberships.refetch()}>Retry</Button>} severity="warning">Membership status is temporarily unavailable.</Alert> : <Stack spacing={0.75}><Typography fontWeight={750}>{activeMembership ? MembershipStatus[activeMembership.status] : 'No active membership'}</Typography>{activeMembership?.endsAtUtc ? <Typography color="text.secondary" variant="body2">Expires {formatDashboardDate(activeMembership.endsAtUtc) ?? 'date unavailable'}</Typography> : null}</Stack>}<Button component={Link} sx={{ alignSelf: 'flex-start' }} to={ROUTES.MEMBERSHIP} variant="outlined">Manage membership</Button></Stack></Paper>
+
+      <Paper component="section" sx={{ p: { xs: 3, md: 4 } }}>
+        <Stack spacing={2.5}>
+          <Stack alignItems="center" direction="row" spacing={1.5}><AutoAwesomeOutlinedIcon color="primary" /><Typography component="h2" variant="h3">AI Apply preferences</Typography></Stack>
+          <Typography color="text.secondary">Manage setup details, verified answer memory, and connected job sites when you need them.</Typography>
+          <Stack alignItems="flex-start" direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button component={Link} to={ROUTES.AI_APPLY_SETUP} variant="outlined">Profile and preferences</Button>
+            <Button component={Link} to={ROUTES.AI_APPLY_ANSWERS} variant="outlined">Saved answers</Button>
+            <Button component={Link} to={ROUTES.AI_APPLY_CONNECTIONS} variant="outlined">Connected job sites</Button>
+          </Stack>
+        </Stack>
+      </Paper>
     </Stack>
   );
 };

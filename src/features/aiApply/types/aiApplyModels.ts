@@ -179,6 +179,19 @@ export interface AIApplyApplication {
   externalApplication?: ExternalApplicationInfo | null;
   actions?: AIApplyApplicationActions | null;
   message?: string | null;
+  jobTitle: string | null;
+  companyName: string | null;
+  progressState:
+    | 'Queued'
+    | 'Processing'
+    | 'WaitingForCandidate'
+    | 'Submitted'
+    | 'NeedsReview'
+    | 'Failed'
+    | 'Cancelled';
+  submittedAtUtc: string | null;
+  updatedAtUtc: string | null;
+  resumeUsed: { fileName: string } | null;
 }
 export interface AIApplyAnalytics {
   fromUtc: string;
@@ -195,6 +208,9 @@ export interface AIApplyAnalytics {
 export interface AIApplyApplicationsQuery {
   fromUtc?: string;
   toUtc?: string;
+}
+export interface QueueAIApplyRequest {
+  jobId: string;
 }
 
 export enum AIApplyQuestionStatus {

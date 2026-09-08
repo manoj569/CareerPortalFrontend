@@ -132,9 +132,15 @@ export const JobCard = ({
       <CardActions
         sx={{
           flexWrap: 'wrap',
+          gap: 1,
           px: compact ? { xs: 2, sm: 2.25 } : 3,
           pb: compact ? { xs: 2, sm: 2.25 } : 3,
           pt: 0,
+          '& > :not(style)': {
+            flex: { xs: '1 1 100%', sm: '0 0 auto' },
+            m: '0 !important',
+            minHeight: 44,
+          },
         }}
       >
         <Button

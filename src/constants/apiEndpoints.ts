@@ -64,6 +64,7 @@ export const API_ENDPOINTS = {
     RULE: (id: string) => `/ai-apply/rules/${encodeURIComponent(id)}`,
     DASHBOARD: '/ai-apply/dashboard',
     APPLICATIONS: '/ai-apply/applications',
+    QUEUE_APPLICATION: '/ai-apply/applications/queue',
     APPLICATION: (id: string) => `/ai-apply/applications/${encodeURIComponent(id)}`,
     CANCEL_APPLICATION: (id: string) => `/ai-apply/applications/${encodeURIComponent(id)}/cancel`,
     CONTINUE_APPLICATION: (id: string) =>

@@ -6,14 +6,12 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Stack,
-  Step,
-  StepLabel,
-  Stepper,
   Typography,
 } from '@mui/material';
 import { Link, useParams } from 'react-router-dom';
@@ -22,7 +20,6 @@ import { LoadingIndicator } from '@/components/feedback/LoadingIndicator';
 import { buildAIApplyQuestionDetailsPath, ROUTES } from '@/constants/routes';
 import { AIApplySectionNavigation } from '@/features/aiApply/components/AIApplySectionNavigation';
 import { AIApplyHandoffCard } from '@/features/aiApply/components/AIApplyHandoffCard';
-import { AIApplyStatusChip } from '@/features/aiApply/components/AIApplyStatusChip';
 import {
   useCancelAIApplyApplicationMutation,
   useContinueAIApplyApplicationMutation,
@@ -105,15 +102,6 @@ export const AIApplyApplicationDetailPage = () => {
       setContinueError(safeMessage);
     }
   };
-  const milestones = [
-    { label: 'Application queued', date: application.scheduledAtUtc },
-    ...(application.startedAtUtc
-      ? [{ label: 'Application started', date: application.startedAtUtc }]
-      : []),
-    ...(application.completedAtUtc
-      ? [{ label: display.label, date: application.completedAtUtc }]
-      : []),
-  ];
   return (
     <Stack spacing={3} sx={{ maxWidth: 900, mx: 'auto', pb: 6 }}>
       <Box>
@@ -121,11 +109,20 @@ export const AIApplyApplicationDetailPage = () => {
           Back to applications
         </Button>
         <Typography component="h1" variant="h3">
-          Application Details
+          {application.jobTitle ?? 'Application details'}
         </Typography>
-        <Typography color="text.secondary">Job reference {application.jobId}</Typography>
+        {application.companyName ? (
+          <Typography color="text.secondary">{application.companyName}</Typography>
+        ) : null}
       </Box>
       <AIApplySectionNavigation />
+      {application.progressState === 'Submitted' ? (
+        <Alert severity="success">
+          <Typography fontWeight={850} variant="h5">Application submitted</Typography>
+          <Typography>Career Harbor confirmed this submission.</Typography>
+          <Typography variant="body2">Method: AI Apply</Typography>
+        </Alert>
+      ) : null}
       {['login', 'verification', 'review'].includes(attentionKind) && (
         <AIApplyHandoffCard
           application={application}
@@ -139,8 +136,12 @@ export const AIApplyApplicationDetailPage = () => {
         <CardContent>
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}>
-              <Typography variant="h4">Application {application.id.slice(0, 8)}</Typography>
-              <AIApplyStatusChip status={application.status} />
+              <Typography variant="h4">Current progress</Typography>
+              <Chip
+                color={application.progressState === 'Submitted' ? 'success' : 'primary'}
+                label={application.progressState}
+                variant="outlined"
+              />
             </Stack>
             <Alert severity={display.tone === 'default' ? 'info' : display.tone}>
               {display.description}
@@ -179,8 +180,15 @@ export const AIApplyApplicationDetailPage = () => {
             <Typography variant="h5">Application summary</Typography>
             <DateRow label="Queued at" value={application.scheduledAtUtc} />
             <DateRow label="Started at" value={application.startedAtUtc} />
-            <DateRow label="Completed at" value={application.completedAtUtc} />
+            <DateRow label="Submitted at" value={application.submittedAtUtc} />
+            <DateRow label="Updated at" value={application.updatedAtUtc} />
             <DateRow label="Created at" value={application.createdAtUtc} />
+            {application.resumeUsed ? (
+              <Stack direction="row" justifyContent="space-between" gap={2}>
+                <Typography color="text.secondary">Resume used</Typography>
+                <Typography>{application.resumeUsed.fileName}</Typography>
+              </Stack>
+            ) : null}
             <Stack direction="row" justifyContent="space-between">
               <Typography color="text.secondary">Attempts</Typography>
               <Typography>{application.retryCount + 1}</Typography>
@@ -192,28 +200,6 @@ export const AIApplyApplicationDetailPage = () => {
               </Stack>
             )}
           </Stack>
-        </CardContent>
-      </Card>
-      <Card variant="outlined">
-        <CardContent>
-          <Typography variant="h5" mb={2}>
-            Status timeline
-          </Typography>
-          <Stepper activeStep={milestones.length - 1} orientation="vertical">
-            {milestones.map((item) => (
-              <Step key={item.label} completed>
-                <StepLabel
-                  optional={
-                    <Typography variant="caption">
-                      {new Date(item.date).toLocaleString()}
-                    </Typography>
-                  }
-                >
-                  {item.label}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
         </CardContent>
       </Card>
       {(application.actions

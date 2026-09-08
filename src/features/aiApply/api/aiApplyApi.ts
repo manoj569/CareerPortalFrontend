@@ -21,6 +21,7 @@ import type {
   ExternalSessionMetadata,
   ExternalSessionSite,
   MembershipPlan,
+  QueueAIApplyRequest,
   UpdateAIApplyAnswerRequest,
   UpdateAIApplyPreferencesRequest,
   UpdateAIApplyProfileRequest,
@@ -138,6 +139,15 @@ export const aiApplyApi = createApi({
       query: (params) => ({ url: API_ENDPOINTS.AI_APPLY.APPLICATIONS, params }),
       transformResponse: (r: ApiResponse<AIApplyApplication[]>) => r.data,
       providesTags: ['Applications'],
+    }),
+    queueAIApplyApplication: builder.mutation<AIApplyApplication, QueueAIApplyRequest>({
+      query: (data) => ({
+        url: API_ENDPOINTS.AI_APPLY.QUEUE_APPLICATION,
+        method: 'POST',
+        data,
+      }),
+      transformResponse: (r: ApiResponse<AIApplyApplication>) => r.data,
+      invalidatesTags: ['Applications', 'Analytics'],
     }),
     getAIApplyApplication: builder.query<AIApplyApplication, string>({
       query: (id) => ({ url: API_ENDPOINTS.AI_APPLY.APPLICATION(id) }),
@@ -267,6 +277,7 @@ export const aiApplyApi = createApi({
 });
 export const {
   useGetAIApplyAccessQuery,
+  useLazyGetAIApplyAccessQuery,
   useGetAIApplyProfileQuery,
   useUpdateAIApplyProfileMutation,
   useGetAIApplyPreferencesQuery,
@@ -282,6 +293,7 @@ export const {
   useCreateAIApplyCheckoutMutation,
   useGetAIApplyDashboardQuery,
   useGetAIApplyApplicationsQuery,
+  useQueueAIApplyApplicationMutation,
   useGetAIApplyApplicationQuery,
   useCancelAIApplyApplicationMutation,
   useContinueAIApplyApplicationMutation,

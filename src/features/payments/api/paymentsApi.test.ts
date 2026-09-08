@@ -162,17 +162,27 @@ describe('PhonePe payment API integration', () => {
           expiresAtUtc: null,
           merchantOrderId: 'ch_order123',
           planName: 'Career Harbor Membership',
+          planCode: 'CareerHarborMembership',
+          returnTo: null,
           redirectUrl: 'https://mercury.phonepe.com/checkout/test',
         },
       },
     });
 
-    await store.dispatch(paymentsApi.endpoints.createPhonePeCheckout.initiate()).unwrap();
+    await store
+      .dispatch(
+        paymentsApi.endpoints.createPhonePeCheckout.initiate({
+          planCode: 'CareerHarborMembership',
+        }),
+      )
+      .unwrap();
 
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'POST', url: '/payments/phonepe/checkout' }),
     );
-    expect(mockRequest.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ data: undefined }));
+    expect(mockRequest.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ data: { planCode: 'CareerHarborMembership' } }),
+    );
   });
 
   it('checks the encoded merchant order return endpoint', async () => {

@@ -29,6 +29,14 @@ export interface PhonePeCheckoutResponse {
   amountInMinorUnits: number;
   currencyCode: string;
   durationDays: number;
+  returnTo: string | null;
+  planCode: string;
+}
+
+export type PhonePePlanCode = 'CareerHarborMembership' | 'AIApply' | 'AIApplyPro';
+
+export interface CreatePhonePeCheckoutRequest {
+  planCode: PhonePePlanCode;
 }
 
 export enum PhonePePaymentStatus {

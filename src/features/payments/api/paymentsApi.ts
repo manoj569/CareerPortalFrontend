@@ -6,6 +6,7 @@ import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import type { ApiResponse } from '@/types';
 import type {
   ConfirmPaymentArgs,
+  CreatePhonePeCheckoutRequest,
   Payment,
   PaymentHistoryPage,
   PaymentOrder,
@@ -23,8 +24,9 @@ export const paymentsApi = createApi({
   keepUnusedDataFor: 60,
   tagTypes: ['Payments', 'PaymentHistory', 'PaymentStatus', 'PendingCheckout'],
   endpoints: (builder) => ({
-    createPhonePeCheckout: builder.mutation<PhonePeCheckoutResponse, void>({
-      query: () => ({
+    createPhonePeCheckout: builder.mutation<PhonePeCheckoutResponse, CreatePhonePeCheckoutRequest>({
+      query: (request) => ({
+        data: request,
         method: 'POST',
         url: API_ENDPOINTS.PAYMENTS.CREATE_PHONEPE_CHECKOUT,
       }),

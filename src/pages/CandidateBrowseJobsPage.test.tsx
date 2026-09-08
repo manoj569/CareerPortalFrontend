@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,6 +41,10 @@ import { UserDashboardLayout } from '@/layouts/UserDashboardLayout';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { UserRole } from '@/types';
 import { CandidateBrowseJobsPage } from './CandidateBrowseJobsPage';
+
+vi.mock('@/features/aiApply/components/AIApplyToJobButton', () => ({
+  AIApplyToJobButton: () => <button type="button">AI Apply</button>,
+}));
 
 vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
   const actual = await importOriginal<typeof JobsApiModule>();
@@ -324,12 +328,13 @@ describe('Candidate Browse jobs', () => {
 
   it('debounces keyword search into shareable URL state', async () => {
     renderPage();
+    vi.useFakeTimers();
     fireEvent.change(screen.getByRole('textbox', { name: 'Skills, job title or company' }), {
       target: { value: 'react' },
     });
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('q=react'), {
-      timeout: 1_500,
-    });
+    await act(() => vi.advanceTimersByTimeAsync(400));
+    vi.useRealTimers();
+    expect(screen.getByTestId('location')).toHaveTextContent('q=react');
     expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
       keyword: 'react',
       pageNumber: 1,
@@ -632,11 +637,12 @@ describe('Candidate Browse jobs', () => {
     renderPage();
 
     await userEvent.click(screen.getByRole('button', { name: `Save ${job.title}` }));
-    await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply manually' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to company website' }));
     expect(saveMutation[0]).toHaveBeenCalledWith(job.id);
     expect(mockFetchJobApplicationUrl).toHaveBeenCalledWith(job.slug);
-    expect(applicationMutation[0]).toHaveBeenCalledWith({ applicationMethod: 'External', jobId: job.id });
-    expect(screen.queryByText(job.title)).not.toBeInTheDocument();
+    await waitFor(() => expect(applicationMutation[0]).toHaveBeenCalledWith({ applicationMethod: 'External', jobId: job.id }));
+    await waitFor(() => expect(screen.queryByText(job.title)).not.toBeInTheDocument());
     expect(open).toHaveBeenCalledWith(
       'https://careers.example.com/jobs/senior-react-engineer',
       '_blank',
@@ -761,8 +767,9 @@ describe('Candidate Browse jobs', () => {
     expect(screen.getByText('• Matches skills: React')).toBeVisible();
     expect(mockRecommended).toHaveBeenCalledWith({ pageNumber: 3, pageSize: 20 }, { skip: false });
     expect(mockSearchJobs.mock.calls.at(-1)?.[1]).toEqual({ skip: true });
-    await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
-    expect(screen.queryByText(job.title)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Apply manually' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to company website' }));
+    await waitFor(() => expect(screen.queryByText(job.title)).not.toBeInTheDocument());
     open.mockRestore();
   });
 

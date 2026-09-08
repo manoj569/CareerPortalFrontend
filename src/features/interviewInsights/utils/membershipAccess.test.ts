@@ -15,8 +15,9 @@ describe('membership access return paths', () => {
     expect(getSafeCandidateDashboardReturnPath('/admin')).toBe(ROUTES.DASHBOARD);
   });
 
-  it('only accepts Interview Insights as the public membership returnTo', () => {
+  it('only accepts supported candidate feature destinations as membership returnTo', () => {
     expect(getSafeMembershipReturnTo(ROUTES.INTERVIEW_INSIGHTS)).toBe(ROUTES.INTERVIEW_INSIGHTS);
+    expect(getSafeMembershipReturnTo(ROUTES.AI_APPLY)).toBe(ROUTES.AI_APPLY);
     expect(getSafeMembershipReturnTo('https://malicious.example')).toBeUndefined();
     expect(getSafeMembershipReturnTo('//malicious.example')).toBeUndefined();
   });

@@ -241,10 +241,7 @@ export const appRoutes: RouteObject[] = [
               },
               {
                 path: ROUTES.AI_APPLY_SUBSCRIPTION,
-                element: lazyPage(
-                  () => import('@/pages/AIApplySubscriptionPage'),
-                  'AIApplySubscriptionPage',
-                ),
+                element: <Navigate replace to={ROUTES.MEMBERSHIP} />,
               },
               {
                 path: ROUTES.AI_APPLY_CONNECTIONS,

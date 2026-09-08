@@ -33,7 +33,7 @@ export const getSafeCandidateDashboardReturnPath = (
 };
 
 export const getSafeMembershipReturnTo = (value: string | null): string | undefined =>
-  value === ROUTES.INTERVIEW_INSIGHTS ? value : undefined;
+  value === ROUTES.INTERVIEW_INSIGHTS || value === ROUTES.AI_APPLY ? value : undefined;
 
 export const interviewInsightsMembershipPath = `${ROUTES.MEMBERSHIP}?${new URLSearchParams({
   returnTo: ROUTES.INTERVIEW_INSIGHTS,

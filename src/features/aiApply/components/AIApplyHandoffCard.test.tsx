@@ -25,6 +25,12 @@ const application = (
   requiresUserInput: true,
   matchScore: null,
   createdAtUtc: '',
+  jobTitle: 'Frontend Engineer',
+  companyName: 'Northstar Labs',
+  progressState: 'WaitingForCandidate',
+  submittedAtUtc: null,
+  updatedAtUtc: '',
+  resumeUsed: null,
 });
 const renderCard = (failureKind: AIApplyFailureKind, status?: AIApplyRunStatus) =>
   render(

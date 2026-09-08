@@ -24,6 +24,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { ROUTES } from '@/constants/routes';
 import { ApplicationQuotaIndicator } from '@/features/dashboard/components/ApplicationQuotaIndicator';
 import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
+import { AIApplyToJobButton } from '@/features/aiApply/components/AIApplyToJobButton';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import {
   isDashboardApiError,
@@ -515,20 +516,31 @@ export const CandidateBrowseJobsPage = () => {
                     ) : null}
                     <JobCard
                       additionalAction={
-                        <ApplyToJobButton
-                          applicationUrl={null}
+                        <AIApplyToJobButton
+                          companyName={job.companyName}
                           jobId={job.id}
-                          jobSlug={job.slug}
-                          label="Apply"
-                          loadApplicationUrl={() => fetchJobApplicationUrl(job.slug)}
-                          onApplied={(jobId) => setAppliedJobIds((current) => new Set(current).add(jobId))}
-                          size="medium"
+                          jobTitle={job.title}
                         />
+                      }
+                      secondaryAction={
+                        <>
+                          <ApplyToJobButton
+                            applicationUrl={null}
+                            companyName={job.companyName}
+                            jobId={job.id}
+                            jobSlug={job.slug}
+                            jobTitle={job.title}
+                            label="Apply manually"
+                            loadApplicationUrl={() => fetchJobApplicationUrl(job.slug)}
+                            onApplied={(jobId) => setAppliedJobIds((current) => new Set(current).add(jobId))}
+                            size="medium"
+                          />
+                          <SaveJobButton jobId={job.id} jobTitle={job.title} />
+                        </>
                       }
                       job={job}
                       returnPath={ROUTES.DASHBOARD_JOBS}
                       returnSearch={searchParams.toString()}
-                      secondaryAction={<SaveJobButton jobId={job.id} jobTitle={job.title} />}
                       compact
                       showExtendedDetails
                       viewActionLabel="View job"

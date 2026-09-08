@@ -33,6 +33,7 @@ import { buildInterviewInsightsPath, buildJobDetailsPath, ROUTES } from '@/const
 import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
 import { ApplicationQuotaIndicator } from '@/features/dashboard/components/ApplicationQuotaIndicator';
 import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
+import { AIApplyToJobButton } from '@/features/aiApply/components/AIApplyToJobButton';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import { useGetCompanyInterviewInsightSummaryQuery } from '@/features/interviewInsights/api/interviewInsightsApi';
 import {
@@ -321,7 +322,7 @@ export const JobDetailsPage = () => {
     highlights.push({ label: 'Internship duration', value: internshipDuration });
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3} sx={{ pb: { xs: 10, sm: 0 } }}>
       <Button
         component={Link}
         startIcon={<ArrowBackIcon />}
@@ -426,9 +427,18 @@ export const JobDetailsPage = () => {
               <ApplyToJobButton
                 applicationUrl={job.applicationUrl}
                 ariaDescribedBy="application-action-help"
+                companyName={job.companyName}
                 jobId={job.id}
                 jobSlug={job.slug}
-                label={applicationUrl ? 'Apply on company site' : 'Apply'}
+                jobTitle={job.title}
+                label="Apply manually"
+              />
+
+              <AIApplyToJobButton
+                companyName={job.companyName}
+                jobId={job.id}
+                jobTitle={job.title}
+                size="large"
               />
 
               <SaveJobButton jobId={job.id} jobTitle={job.title} />
@@ -674,6 +684,38 @@ export const JobDetailsPage = () => {
           </DialogActions>
         </Dialog>
       )}
+      {currentUser?.role === UserRole.Candidate ? (
+        <Paper
+          aria-label="Job application actions"
+          elevation={8}
+          sx={{
+            bottom: 0,
+            display: { xs: 'block', sm: 'none' },
+            left: 0,
+            p: 1.5,
+            position: 'fixed',
+            right: 0,
+            zIndex: (theme) => theme.zIndex.appBar,
+          }}
+        >
+          <Stack direction="row" spacing={1}>
+            <ApplyToJobButton
+              applicationUrl={job.applicationUrl}
+              companyName={job.companyName}
+              jobId={job.id}
+              jobSlug={job.slug}
+              jobTitle={job.title}
+              label="Apply manually"
+              size="medium"
+            />
+            <AIApplyToJobButton
+              companyName={job.companyName}
+              jobId={job.id}
+              jobTitle={job.title}
+            />
+          </Stack>
+        </Paper>
+      ) : null}
     </Stack>
   );
 };

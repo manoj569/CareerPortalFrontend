@@ -94,6 +94,19 @@ describe('AI Apply API', () => {
     );
   });
 
+  it('queues only the candidate-selected job', async () => {
+    mockRequest.mockResolvedValue({ data: { data: { id: 'application-id', status: 1 } } });
+    const store = createAppStore();
+    await store.dispatch(aiApplyApi.endpoints.queueAIApplyApplication.initiate({ jobId: 'job-id' })).unwrap();
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { jobId: 'job-id' },
+        method: 'POST',
+        url: '/ai-apply/applications/queue',
+      }),
+    );
+  });
+
   it('continues one application through the dedicated endpoint without a request body', async () => {
     mockRequest.mockResolvedValue({ data: { data: { id: 'application-id', status: 1 } } });
     const store = createAppStore();

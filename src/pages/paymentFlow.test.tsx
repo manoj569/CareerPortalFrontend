@@ -31,6 +31,13 @@ import type * as ReduxHooksModule from '@/hooks/reduxHooks';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { PaymentPage } from './PaymentPage';
 import { PhonePeReturnPage } from './PhonePeReturnPage';
+import { useGetAIApplyPlansQuery } from '@/features/aiApply/api/aiApplyApi';
+import type * as AIApplyApiModule from '@/features/aiApply/api/aiApplyApi';
+
+vi.mock('@/features/aiApply/api/aiApplyApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof AIApplyApiModule>()),
+  useGetAIApplyPlansQuery: vi.fn(),
+}));
 
 vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => ({
   ...(await importOriginal<typeof DashboardApiModule>()),
@@ -63,6 +70,8 @@ const checkout: PhonePeCheckoutResponse = {
   expiresAtUtc: null,
   merchantOrderId: 'ch_order123',
   planName: 'Career Harbor Membership',
+  planCode: 'CareerHarborMembership',
+  returnTo: null,
   redirectUrl: 'https://mercury.phonepe.com/checkout/test',
 };
 
@@ -107,6 +116,16 @@ describe('PhonePe membership checkout', () => {
       data: [],
       refetch: vi.fn(),
     } as ReturnType<typeof useGetMembershipsQuery>);
+    vi.mocked(useGetAIApplyPlansQuery).mockReturnValue({
+      data: [
+        { planCode: 'CareerHarborMembership', displayName: 'Basic', price: 99, currency: 'INR', durationDays: 30, canUseStandardMembership: true, canUseAIApply: false, canUseAIApplyPro: false },
+        { planCode: 'AIApply', displayName: 'AI Apply', price: 999, currency: 'INR', durationDays: 30, canUseStandardMembership: true, canUseAIApply: true, canUseAIApplyPro: false },
+        { planCode: 'AIApplyPro', displayName: 'AI Apply Pro', price: 1499, currency: 'INR', durationDays: 30, canUseStandardMembership: true, canUseAIApply: true, canUseAIApplyPro: true },
+      ],
+      isError: false,
+      isLoading: false,
+      refetch: vi.fn(),
+    });
     pendingState = { data: null, isError: false, isLoading: false, refetch: vi.fn() };
     vi.mocked(useGetPendingMembershipCheckoutQuery).mockImplementation(
       () => pendingState as unknown as ReturnType<typeof useGetPendingMembershipCheckoutQuery>,
@@ -145,12 +164,12 @@ describe('PhonePe membership checkout', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Continue to Pay ₹99' })).toBeEnabled();
-    expect(screen.getByText('Secure payment powered by PhonePe')).toBeVisible();
+    expect(screen.getAllByText('Secure payment powered by PhonePe')).toHaveLength(3);
     expect(screen.queryByText(/razorpay/i)).not.toBeInTheDocument();
     expect(document.querySelector('script[src*="razorpay"]')).toBeNull();
   });
 
-  it('creates checkout without arguments and sends the validated response to redirect handling', async () => {
+  it('creates checkout with only the selected plan code and sends the response to redirect handling', async () => {
     renderWithProviders(
       <RouterProvider
         router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
@@ -160,8 +179,28 @@ describe('PhonePe membership checkout', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Continue to Pay ₹99' }));
 
-    expect(createTrigger).toHaveBeenCalledWith();
+    expect(createTrigger).toHaveBeenCalledWith({ planCode: 'CareerHarborMembership' });
     expect(beginPhonePeRedirect).toHaveBeenCalledWith(checkout);
+  });
+
+  it.each([
+    ['AI Apply', 'Continue to Pay ₹999', 'AIApply'],
+    ['AI Apply Pro', 'Continue to Pay ₹1,499', 'AIApplyPro'],
+  ])('checks out the %s card with its exact plan code', async (_, buttonName, planCode) => {
+    createTrigger.mockReturnValue({
+      unwrap: () => Promise.resolve({ ...checkout, planCode }),
+    });
+    renderWithProviders(
+      <RouterProvider
+        router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+          initialEntries: [ROUTES.MEMBERSHIP],
+        })}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: buttonName }));
+    expect(createTrigger).toHaveBeenCalledWith({ planCode });
+    expect(createTrigger.mock.calls[0]?.[0]).not.toHaveProperty('amount');
+    expect(createTrigger.mock.calls[0]?.[0]).not.toHaveProperty('durationDays');
   });
 
   it('disables checkout and shows its loading label', () => {
@@ -174,7 +213,10 @@ describe('PhonePe membership checkout', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Creating secure checkout…' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /Continue to Pay/ })).toHaveLength(3);
+    screen.getAllByRole('button', { name: /Continue to Pay/ }).forEach((button) =>
+      expect(button).toBeDisabled(),
+    );
   });
 
   it('blocks an invalid provider redirect and offers a safe retry', async () => {
@@ -229,7 +271,7 @@ describe('PhonePe membership checkout', () => {
 
     expect(screen.getByRole('heading', { name: 'You have a pending payment' })).toBeVisible();
     expect(screen.getAllByText(/PhonePe/)[0]).toBeVisible();
-    expect(screen.getByText(/₹99\.00/)).toBeVisible();
+    expect(screen.getAllByText(/₹99\.00/)[0]).toBeVisible();
     expect(screen.getByText(/Pending/)).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Continue to Pay ₹99' })).not.toBeInTheDocument();
   });

@@ -1,5 +1,4 @@
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import {
   Alert,
   Box,
@@ -12,6 +11,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Grid,
   Stack,
   Skeleton,
   Typography,
@@ -36,19 +36,45 @@ import {
 import { getSafeMembershipReturnTo } from '@/features/interviewInsights/utils/membershipAccess';
 import { findActiveMembership } from '@/features/payments/utils/entitlement';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { useGetAIApplyPlansQuery } from '@/features/aiApply/api/aiApplyApi';
+import type { MembershipPlan } from '@/features/aiApply/types/aiApplyModels';
 
-const benefits = [
-  '30 days access',
-  'Interview Insights access',
-  'Apply to jobs access',
-  'No auto-renewal',
-];
+const planBenefits = (plan: MembershipPlan): string[] => {
+  if (plan.canUseAIApplyPro) return [
+    'Everything in AI Apply',
+    'Higher automation processing priority',
+    'AI-tailored resume and cover letters',
+    'Advanced company and job preference rules',
+    'Application quality and follow-up tracking',
+    'Interview preparation',
+  ];
+  if (plan.canUseAIApply) return [
+    'AI job matching',
+    'Automatic form filling and resume autofill',
+    'Verified answer reuse',
+    'Missing-information notifications',
+    'Application tracking and daily summary',
+  ];
+  return ['Manual job applications', 'Browse and save jobs', 'Resume-powered recommendations', 'Application tracking', 'Standard candidate features'];
+};
 
 const formatPendingAmount = (amount: number, currency: string): string => {
   try {
     return new Intl.NumberFormat('en-IN', { currency, style: 'currency' }).format(amount);
   } catch {
     return `${currency} ${amount.toFixed(2)}`;
+  }
+};
+
+const formatPlanAmount = (amount: number, currency: string): string => {
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      currency,
+      maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+      style: 'currency',
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount}`;
   }
 };
 
@@ -75,6 +101,7 @@ export const PaymentPage = () => {
     'Purchase a 30-day Career Harbor membership through secure PhonePe checkout.',
   );
   const memberships = useGetMembershipsQuery();
+  const plans = useGetAIApplyPlansQuery();
   const [searchParams] = useSearchParams();
   const safeReturnTo = getSafeMembershipReturnTo(searchParams.get('returnTo'));
   const pendingCheckout = useGetPendingMembershipCheckoutQuery();
@@ -82,20 +109,26 @@ export const PaymentPage = () => {
   const [createCheckout, createState] = useCreatePhonePeCheckoutMutation();
   const [cancelPendingCheckout, cancelState] = useCancelPendingMembershipCheckoutMutation();
   const [error, setError] = useState<string | null>(null);
+  const [selectedPlanCode, setSelectedPlanCode] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const purchaseButtonRef = useRef<HTMLButtonElement>(null);
 
-  const handleCheckout = async () => {
-    if (createState.isLoading || activeMembership || pendingCheckout.data) return;
+  const handleCheckout = async (plan: MembershipPlan) => {
+    if (createState.isLoading || pendingCheckout.data) return;
     setError(null);
+    setSelectedPlanCode(plan.planCode);
     try {
-      const checkout = await createCheckout().unwrap();
-      if (!beginPhonePeRedirect(checkout)) {
+      const checkout = await createCheckout({
+        planCode: plan.planCode as 'CareerHarborMembership' | 'AIApply' | 'AIApplyPro',
+      }).unwrap();
+      if (checkout.planCode !== plan.planCode || !beginPhonePeRedirect(checkout)) {
         setError('The secure PhonePe destination could not be verified. Please try again.');
         window.requestAnimationFrame(() => purchaseButtonRef.current?.focus());
       } else {
-        storePhonePeReturnTo(safeReturnTo);
+        storePhonePeReturnTo(
+          getSafeMembershipReturnTo(checkout.returnTo ?? safeReturnTo ?? null),
+        );
       }
     } catch (checkoutError: unknown) {
       if (
@@ -162,7 +195,10 @@ export const PaymentPage = () => {
             <Button
               color="inherit"
               disabled={createState.isLoading}
-              onClick={() => void handleCheckout()}
+              onClick={() => {
+                const plan = plans.data?.find((item) => item.planCode === selectedPlanCode) ?? plans.data?.[0];
+                if (plan) void handleCheckout(plan);
+              }}
             >
               Retry
             </Button>
@@ -261,77 +297,61 @@ export const PaymentPage = () => {
         </Card>
       ) : null}
 
-      <Card
-        sx={{
-          background: 'linear-gradient(145deg, #FFFFFF 0%, #F6F7FF 100%)',
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 3,
-          boxShadow: '0 18px 45px rgba(41, 56, 126, 0.12)',
-        }}
-      >
-        <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
-          <Stack spacing={3}>
-            <Stack
-              alignItems="flex-start"
-              direction={{ xs: 'column', sm: 'row' }}
-              justifyContent="space-between"
-              spacing={2}
-            >
-              <Box>
-                <Chip color="primary" label="30-day plan" size="small" />
-                <Typography component="h2" sx={{ mt: 1.5 }} variant="h2">
-                  Career Harbor Membership
-                </Typography>
-              </Box>
-              <Box textAlign={{ xs: 'left', sm: 'right' }}>
-                <Typography component="p" fontWeight={900} variant="h1">
-                  ₹99
-                </Typography>
-                <Typography color="text.secondary">INR · one-time payment</Typography>
-              </Box>
-            </Stack>
+      {plans.isLoading ? (
+        <Grid aria-label="Loading membership plans" container role="status" spacing={2}>
+          {[0, 1, 2].map((item) => <Grid key={item} size={{ xs: 12, md: 4 }}><Skeleton height={360} variant="rounded" /></Grid>)}
+        </Grid>
+      ) : plans.isError ? (
+        <Alert action={<Button color="inherit" onClick={() => void plans.refetch()}>Retry</Button>} severity="error">
+          Membership plans could not be loaded.
+        </Alert>
+      ) : plans.data?.length ? (
+        <Grid container spacing={2}>
+          {plans.data.map((plan) => {
+            const isPro = plan.canUseAIApplyPro;
+            const isAI = plan.canUseAIApply && !isPro;
+            return (
+              <Grid key={plan.planCode} size={{ xs: 12, md: 4 }}>
+                <Card sx={{ border: '1px solid', borderColor: isPro ? 'secondary.main' : isAI ? 'primary.main' : 'divider', height: '100%' }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack spacing={2}>
+                      <Stack alignItems="flex-start" direction="row" justifyContent="space-between" gap={1}>
+                        <Typography component="h2" variant="h3">{plan.displayName}</Typography>
+                        {isAI ? <Chip color="primary" label="Popular" size="small" /> : isPro ? <Chip color="secondary" label="Best Value" size="small" /> : null}
+                      </Stack>
+                      <Box><Typography fontWeight={900} variant="h2">{formatPlanAmount(plan.price, plan.currency)}</Typography><Typography color="text.secondary">{plan.durationDays} days</Typography></Box>
+                      <Stack component="ul" spacing={1} sx={{ listStyle: 'none', m: 0, p: 0 }}>
+                        {planBenefits(plan).map((benefit) => <Stack component="li" direction="row" key={benefit} spacing={1}><CheckCircleIcon color="primary" fontSize="small" /><Typography variant="body2">{benefit}</Typography></Stack>)}
+                      </Stack>
+                      {!pendingCheckout.isLoading && !pendingCheckout.isError && !pendingCheckout.data ? (
+                        <Stack spacing={0.75} sx={{ mt: 'auto' }}>
+                          <Button
+                            disabled={createState.isLoading}
+                            onClick={() => void handleCheckout(plan)}
+                            ref={purchaseButtonRef}
+                            variant="contained"
+                          >
+                            {createState.isLoading && selectedPlanCode === plan.planCode
+                              ? 'Creating secure checkout…'
+                              : `Continue to Pay ${formatPlanAmount(plan.price, plan.currency)}`}
+                          </Button>
+                          <Typography color="text.secondary" textAlign="center" variant="caption">
+                            Secure payment powered by PhonePe
+                          </Typography>
+                        </Stack>
+                      ) : null}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+      ) : null}
 
-            <Stack component="ul" spacing={1.5} sx={{ listStyle: 'none', m: 0, p: 0 }}>
-              {benefits.map((benefit) => (
-                <Stack component="li" direction="row" key={benefit} spacing={1.25}>
-                  <CheckCircleIcon aria-hidden color="primary" fontSize="small" />
-                  <Typography>{benefit}</Typography>
-                </Stack>
-              ))}
-            </Stack>
-
-            <Box sx={{ bgcolor: '#EEF4FF', borderRadius: 2, p: 2 }}>
-              <Stack alignItems="center" direction="row" spacing={1}>
-                <LockOutlinedIcon aria-hidden color="primary" fontSize="small" />
-                <Typography color="text.secondary" variant="body2">
-                  You will be redirected to PhonePe to complete payment.
-                </Typography>
-              </Stack>
-            </Box>
-
-            {!pendingCheckout.isLoading && !pendingCheckout.isError && !pendingCheckout.data ? (
-              <Stack spacing={0.75}>
-                <Button
-                  disabled={createState.isLoading || Boolean(activeMembership)}
-                  onClick={() => void handleCheckout()}
-                  ref={purchaseButtonRef}
-                  size="large"
-                  variant="contained"
-                >
-                  {createState.isLoading ? 'Creating secure checkout…' : 'Continue to Pay ₹99'}
-                </Button>
-                <Typography color="text.secondary" textAlign="center" variant="caption">
-                  Secure payment powered by PhonePe
-                </Typography>
-              </Stack>
-            ) : null}
-            <Button component={Link} to={ROUTES.PAYMENTS} variant="text">
-              View payment history
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
+      <Button component={Link} sx={{ alignSelf: 'center' }} to={ROUTES.PAYMENTS} variant="text">
+        View payment history
+      </Button>
 
       <Typography color="text.secondary" textAlign="center" variant="caption">
         No job, interview, recruiter response, or selection is guaranteed.

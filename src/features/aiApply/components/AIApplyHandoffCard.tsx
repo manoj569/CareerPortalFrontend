@@ -80,7 +80,7 @@ export const AIApplyHandoffCard = ({
                   target="_blank"
                   variant="outlined"
                 >
-                  Open application site (opens in new tab)
+                  Open application site
                 </Button>
               ) : null}
               {canContinue && onContinue ? (

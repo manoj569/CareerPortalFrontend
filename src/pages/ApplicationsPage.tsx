@@ -1,6 +1,7 @@
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import {
   Box,
+  Chip,
   FormControl,
   Grid,
   InputLabel,
@@ -33,6 +34,8 @@ import {
   getWorkplaceTypeLabel,
 } from '@/features/jobs/constants/jobOptions';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { useGetAIApplyAccessQuery, useGetAIApplyApplicationsQuery } from '@/features/aiApply/api/aiApplyApi';
+import { AIApplyApplicationCard } from '@/features/aiApply/components/AIApplyApplicationCard';
 
 const PAGE_SIZE = 10;
 const statuses = Object.values(JobApplicationStatus).filter(
@@ -51,6 +54,12 @@ export const ApplicationsPage = () => {
     pageSize: PAGE_SIZE,
     ...(status ? { status } : {}),
   });
+  const aiAccess = useGetAIApplyAccessQuery();
+  const aiApplications = useGetAIApplyApplicationsQuery({}, { skip: !aiAccess.data?.canUseAIApply });
+  const manualJobIds = new Set(data?.items.map((application) => application.jobId) ?? []);
+  const uniqueAIApplications = aiApplications.data?.filter(
+    (application) => !manualJobIds.has(application.jobId),
+  );
 
   return (
     <Stack spacing={4}>
@@ -130,6 +139,7 @@ export const ApplicationsPage = () => {
                   </Typography>
                 </Box>
                 <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={1}>
+                  <Chip label="Manual" size="small" variant="outlined" />
                   <ApplicationStatusChip status={application.status} />
                   <MuiLink
                     component={Link}
@@ -168,6 +178,32 @@ export const ApplicationsPage = () => {
             />
           ) : null}
         </Stack>
+      ) : null}
+      {aiAccess.data?.canUseAIApply ? (
+        <Box component="section">
+          <Typography component="h2" sx={{ mb: 2 }} variant="h3">AI Applied</Typography>
+          {aiApplications.isLoading ? (
+            <Stack aria-label="Loading AI applied jobs" role="status" spacing={2}>
+              <Skeleton height={120} variant="rounded" />
+              <Skeleton height={120} variant="rounded" />
+            </Stack>
+          ) : aiApplications.isError ? (
+            <Typography color="text.secondary">AI Apply history is temporarily unavailable.</Typography>
+          ) : uniqueAIApplications?.length ? (
+            <Grid container spacing={2}>
+              {uniqueAIApplications.map((application) => (
+                <Grid key={application.id} size={{ xs: 12, md: 6 }}>
+                  <Stack spacing={1}>
+                    <Chip color="secondary" label="AI Applied" size="small" sx={{ alignSelf: 'flex-start' }} />
+                    <AIApplyApplicationCard application={application} />
+                  </Stack>
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Typography color="text.secondary">No AI Apply applications yet.</Typography>
+          )}
+        </Box>
       ) : null}
     </Stack>
   );

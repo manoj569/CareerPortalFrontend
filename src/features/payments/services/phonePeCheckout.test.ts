@@ -14,6 +14,8 @@ const checkout = (redirectUrl: string): PhonePeCheckoutResponse => ({
   expiresAtUtc: null,
   merchantOrderId: 'ch_order123',
   planName: 'Career Harbor Membership',
+  planCode: 'CareerHarborMembership',
+  returnTo: null,
   redirectUrl,
 });
 

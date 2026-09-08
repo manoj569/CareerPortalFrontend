@@ -30,6 +30,8 @@ const application = {
   failureKind: AIApplyFailureKind.LoginRequired,
   id: 'application-id',
   jobId: 'job-id',
+  jobTitle: 'Senior React Engineer',
+  companyName: 'Northstar Labs',
   matchScore: 80,
   message: 'Complete the requested action.',
   priority: 1,
@@ -38,6 +40,10 @@ const application = {
   scheduledAtUtc: '2026-09-04T10:00:00Z',
   startedAtUtc: '2026-09-04T10:01:00Z',
   status: AIApplyRunStatus.WaitingForUser,
+  progressState: 'WaitingForCandidate' as const,
+  submittedAtUtc: null,
+  updatedAtUtc: '2026-09-04T10:02:00Z',
+  resumeUsed: { fileName: 'react-engineer.pdf' },
 };
 
 vi.mock('@/features/aiApply/api/aiApplyApi', () => ({
@@ -83,5 +89,9 @@ describe('AI Apply application continuation', () => {
       expect(mocks.questionsRefetch).toHaveBeenCalled();
     });
     expect(screen.queryByText(/^Submitted$/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Senior React Engineer' })).toBeVisible();
+    expect(screen.getByText('Northstar Labs')).toBeVisible();
+    expect(screen.getByText('react-engineer.pdf')).toBeVisible();
+    expect(screen.queryByText('Completed at')).not.toBeInTheDocument();
   });
 });

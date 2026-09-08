@@ -1,6 +1,16 @@
 import CheckOutlinedIcon from '@mui/icons-material/CheckOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
-import { Alert, Button, Snackbar } from '@mui/material';
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Snackbar,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -23,6 +33,8 @@ interface ApplyToJobButtonProps {
   ariaDescribedBy?: string;
   jobId: string;
   jobSlug: string;
+  companyName?: string;
+  jobTitle?: string;
   label?: string;
   loadApplicationUrl?: () => Promise<string | null | undefined>;
   onApplied?: (jobId: string) => void;
@@ -39,6 +51,8 @@ export const ApplyToJobButton = ({
   ariaDescribedBy,
   jobId,
   jobSlug,
+  companyName,
+  jobTitle,
   label = 'Apply on company site',
   loadApplicationUrl,
   onApplied,
@@ -55,16 +69,23 @@ export const ApplyToJobButton = ({
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isResolvingUrl, setIsResolvingUrl] = useState(false);
   const [isApplied, setIsApplied] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const safeApplicationUrl = getSafeExternalUrl(applicationUrl);
   const isAdministrator = user?.role === UserRole.Administrator;
   const isPending = isResolvingUrl || submitState.isLoading;
 
-  const apply = async () => {
+  const requestApply = async () => {
     if (!isAuthenticated) {
       await navigate(ROUTES.LOGIN, { state: { from: location } });
       return;
     }
 
+    if (isAdministrator || isPending) return;
+
+    setConfirmOpen(true);
+  };
+
+  const apply = async () => {
     if (isAdministrator || isPending) return;
 
     setFeedback(null);
@@ -99,6 +120,7 @@ export const ApplyToJobButton = ({
         jobId,
       }).unwrap();
       setIsApplied(true);
+      setConfirmOpen(false);
       onApplied?.(jobId);
       if (destinationUrl) {
         window.open(destinationUrl, '_blank', 'noopener,noreferrer');
@@ -132,12 +154,45 @@ export const ApplyToJobButton = ({
         aria-describedby={ariaDescribedBy}
         disabled={isAdministrator || isPending || isApplied}
         endIcon={isApplied ? <CheckOutlinedIcon /> : safeApplicationUrl ? <OpenInNewOutlinedIcon /> : undefined}
-        onClick={() => void apply()}
+        onClick={() => void requestApply()}
         size={size}
         variant="contained"
       >
         {isApplied ? 'Applied' : isPending ? 'Processing application…' : label}
       </Button>
+      <Dialog
+        aria-describedby="manual-apply-description"
+        aria-labelledby="manual-apply-title"
+        fullWidth
+        maxWidth="sm"
+        onClose={() => !isPending && setConfirmOpen(false)}
+        open={confirmOpen}
+        PaperProps={{ sx: { borderRadius: { xs: '20px 20px 0 0', sm: 3 }, bottom: { xs: 0, sm: 'auto' }, m: { xs: 0, sm: 2 }, position: { xs: 'fixed', sm: 'relative' }, width: { xs: '100%', sm: 'calc(100% - 32px)' } } }}
+      >
+        <DialogTitle id="manual-apply-title">Apply on company website</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>
+            <Stack spacing={0.25}>
+              <Typography color="text.secondary" variant="caption">Job</Typography>
+              <Typography fontWeight={750}>{jobTitle ?? 'Selected job'}</Typography>
+              <Typography color="text.secondary" variant="caption" sx={{ mt: 1 }}>Company</Typography>
+              <Typography fontWeight={750}>{companyName ?? 'Employer'}</Typography>
+            </Stack>
+            <Typography id="manual-apply-description">
+              You&apos;ll continue to the employer&apos;s application website.
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              Career Harbor can track this application where supported.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ flexDirection: { xs: 'column-reverse', sm: 'row' }, px: 3, pb: 3 }}>
+          <Button disabled={isPending} fullWidth onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button disabled={isPending} fullWidth onClick={() => void apply()} variant="contained">
+            {isPending ? 'Opening…' : 'Continue to company website'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Snackbar
         autoHideDuration={10_000}
         onClose={() => setFeedback(null)}

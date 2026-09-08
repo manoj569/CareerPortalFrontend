@@ -22,6 +22,12 @@ const application = (
   requiresUserInput: false,
   matchScore: null,
   createdAtUtc: '',
+  jobTitle: 'Frontend Engineer',
+  companyName: 'Northstar Labs',
+  progressState: 'WaitingForCandidate',
+  submittedAtUtc: null,
+  updatedAtUtc: '',
+  resumeUsed: null,
 });
 
 describe('AI Apply candidate action policy', () => {
