@@ -11,7 +11,8 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { ButtonSpinner } from '@/components/feedback/ButtonSpinner';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
@@ -29,6 +30,9 @@ import {
 const APPLICATION_OPENED_MESSAGE = 'Opening the employer’s official application page in a new tab.';
 
 interface ApplyToJobButtonProps {
+  onClosed?: () => void;
+  initialOpen?: boolean;
+  hideTrigger?: boolean;
   applicationUrl: string | null | undefined;
   ariaDescribedBy?: string;
   jobId: string;
@@ -47,6 +51,9 @@ interface Feedback {
 }
 
 export const ApplyToJobButton = ({
+  onClosed,
+  initialOpen = false,
+  hideTrigger = false,
   applicationUrl,
   ariaDescribedBy,
   jobId,
@@ -69,7 +76,8 @@ export const ApplyToJobButton = ({
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isResolvingUrl, setIsResolvingUrl] = useState(false);
   const [isApplied, setIsApplied] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(initialOpen);
+  const applicationInFlight = useRef(false);
   const safeApplicationUrl = getSafeExternalUrl(applicationUrl);
   const isAdministrator = user?.role === UserRole.Administrator;
   const isPending = isResolvingUrl || submitState.isLoading;
@@ -86,7 +94,7 @@ export const ApplyToJobButton = ({
   };
 
   const apply = async () => {
-    if (isAdministrator || isPending) return;
+    if (isAdministrator || isPending || applicationInFlight.current) return;
 
     setFeedback(null);
     if (quota.data && quota.data.remainingApplications <= 0) {
@@ -98,6 +106,7 @@ export const ApplyToJobButton = ({
       return;
     }
 
+    applicationInFlight.current = true;
     try {
       let rawDestinationUrl = applicationUrl;
       if (!rawDestinationUrl && loadApplicationUrl) {
@@ -140,17 +149,23 @@ export const ApplyToJobButton = ({
       }
       if (failure.kind === 'duplicate') {
         setIsApplied(true);
+        setConfirmOpen(false);
         onApplied?.(jobId);
         setFeedback({ message: failure.message, severity: 'info' });
         return;
       }
       setFeedback({ message: failure.message, severity: 'error' });
+    } finally {
+      applicationInFlight.current = false;
     }
   };
 
   return (
     <>
       <Button
+        sx={hideTrigger ? { display: 'none' } : undefined}
+        aria-busy={isPending}
+        startIcon={isPending ? <ButtonSpinner /> : undefined}
         aria-describedby={ariaDescribedBy}
         disabled={isAdministrator || isPending || isApplied}
         endIcon={isApplied ? <CheckOutlinedIcon /> : safeApplicationUrl ? <OpenInNewOutlinedIcon /> : undefined}
@@ -161,6 +176,7 @@ export const ApplyToJobButton = ({
         {isApplied ? 'Applied' : isPending ? 'Processing application…' : label}
       </Button>
       <Dialog
+        TransitionProps={{ onExited: onClosed }}
         aria-describedby="manual-apply-description"
         aria-labelledby="manual-apply-title"
         fullWidth
@@ -172,6 +188,7 @@ export const ApplyToJobButton = ({
         <DialogTitle id="manual-apply-title">Apply on company website</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
+            {feedback && <Alert severity={feedback.severity}>{feedback.message}</Alert>}
             <Stack spacing={0.25}>
               <Typography color="text.secondary" variant="caption">Job</Typography>
               <Typography fontWeight={750}>{jobTitle ?? 'Selected job'}</Typography>
@@ -196,7 +213,7 @@ export const ApplyToJobButton = ({
       <Snackbar
         autoHideDuration={10_000}
         onClose={() => setFeedback(null)}
-        open={Boolean(feedback)}
+        open={Boolean(feedback) && !confirmOpen}
       >
         <Alert
           aria-live={feedback?.severity === 'error' ? 'assertive' : 'polite'}

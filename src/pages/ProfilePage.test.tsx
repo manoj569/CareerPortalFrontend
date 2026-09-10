@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
 import type * as PortfolioApiModule from '@/features/portfolio/api/portfolioApi';
@@ -303,6 +303,8 @@ beforeEach(() => {
   employmentMocks.update.mockReturnValue(mutationResult().tuple);
   employmentMocks.delete.mockReturnValue(mutationResult().tuple);
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe('Candidate profile workspace', () => {
   it('renders real profile data, backend completion, missing sections, and career navigation', () => {
@@ -1206,6 +1208,9 @@ describe('Candidate profile workspace', () => {
   });
 
   it('shows populated employment safely with an accessible pencil action', async () => {
+    // The current role's duration is relative to today; keep the asserted date deterministic.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-08-01T12:00:00Z'));
     employmentMocks.get.mockReturnValue(queryResult({ data: [employment, {
       ...employment,
       companyName: 'Career Harbor',

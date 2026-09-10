@@ -551,7 +551,7 @@ describe('job details page', () => {
 
       renderDetailsPage(authenticated);
 
-      await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+      await clickManualApply();
 
       expect(submitApplication).toHaveBeenCalledWith({
         applicationMethod: 'External',
@@ -562,7 +562,7 @@ describe('job details page', () => {
         '_blank',
         'noopener,noreferrer',
       );
-      expect(screen.getByText(expectedQuota)).toBeVisible();
+      expect(screen.queryByText(expectedQuota)).not.toBeInTheDocument();
       expect(
         await screen.findByText('Opening the employer’s official application page in a new tab.'),
       ).toBeVisible();
@@ -584,7 +584,7 @@ describe('job details page', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
     const { router } = renderDetailsPage(authenticated);
-    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+    await clickManualApply();
 
     expect(await screen.findByText('Membership destination')).toBeVisible();
     expect(router.state.location.pathname).toBe(ROUTES.MEMBERSHIP);
@@ -609,7 +609,7 @@ describe('job details page', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
     const { router } = renderDetailsPage(authenticated);
-    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+    await clickManualApply();
 
     expect(await screen.findByText('Membership destination')).toBeVisible();
     expect(submitApplication).not.toHaveBeenCalled();
@@ -628,15 +628,15 @@ describe('job details page', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
     const { router } = renderDetailsPage(authenticated);
-    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+    await clickManualApply();
 
     expect(
       await screen.findByText(
-        'You have reached today’s premium application limit of 35 jobs. Your quota resets tomorrow. You can still save jobs and apply again after the reset.',
+        'Applications are temporarily limited. You can still save jobs and try applying again later.',
       ),
     ).toBeVisible();
     expect(router.state.location.pathname).toBe(`/jobs/${job.slug}`);
-    expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+    expect(screen.getByRole('dialog')).toBeVisible();
     expect(open).not.toHaveBeenCalled();
     open.mockRestore();
   });
@@ -651,10 +651,10 @@ describe('job details page', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
     renderDetailsPage(authenticated);
-    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+    await clickManualApply();
 
     expect(await screen.findByText('You have already applied for this job.')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Applied' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Applied' })).toBeDisabled();
     expect(open).not.toHaveBeenCalled();
     open.mockRestore();
   });
@@ -664,7 +664,7 @@ describe('job details page', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
     const { router } = renderDetailsPage(unauthenticated, `/jobs/${job.slug}?source=featured`);
-    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+    await clickManualApply();
 
     expect(await screen.findByText('Login destination')).toBeVisible();
     expect(router.state.location.state).toMatchObject({
@@ -684,7 +684,7 @@ describe('job details page', () => {
 
     renderDetailsPage(administrator);
 
-    expect(screen.getByRole('button', { name: 'Apply on company site' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Apply manually' })[0]).toBeDisabled();
     expect(screen.getByText('Administrator accounts cannot apply for jobs.')).toBeVisible();
     expect(submitApplication.mock.calls).toHaveLength(0);
   });
@@ -698,7 +698,7 @@ describe('job details page', () => {
 
     renderDetailsPage(authenticated);
 
-    expect(screen.getByRole('button', { name: 'Processing application…' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Processing application…' })[0]).toBeDisabled();
   });
 
   it('does not render the internal cover-letter application flow', async () => {
@@ -707,9 +707,9 @@ describe('job details page', () => {
 
     renderDetailsPage(authenticated);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Apply on company site' }));
+    await clickManualApply();
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.queryByRole('textbox', { name: 'Cover letter' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Submit application' })).not.toBeInTheDocument();
 
@@ -724,7 +724,7 @@ describe('job details page', () => {
       const open = vi.spyOn(window, 'open').mockReturnValue(null);
       renderDetailsPage(authenticated);
 
-      await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+      await clickManualApply();
       expect(
         await screen.findByText('Application link is unavailable for this job.'),
       ).toBeVisible();
@@ -741,7 +741,7 @@ describe('job details page', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
     renderDetailsPage(authenticated);
-    await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await clickManualApply();
 
     expect(submitApplication).toHaveBeenCalledWith({ applicationMethod: 'Portal', jobId: job.id });
     expect(open).not.toHaveBeenCalled();
@@ -788,6 +788,15 @@ describe('job details page', () => {
       expect.objectContaining({ text: `View ${job.title} at ${job.companyName}` }),
     );
     expect(loadContact).toHaveBeenCalledWith(job.id);
+  });
+
+  it('does not promise fixed application volume in the recruiter-contact upsell', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    renderDetailsPage(authenticated);
+    await userEvent.click(screen.getByRole('button', { name: 'Unlock recruiter contact' }));
+    expect(await screen.findByText('Unlock Recruiter Contact')).toBeVisible();
+    expect(screen.queryByText(/35 daily|10 monthly|applications per day/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View Premium Plans' })).toBeEnabled();
   });
 
   it('keeps related jobs visible in the compact sidebar', () => {
@@ -873,3 +882,13 @@ describe('share button', () => {
     });
   });
 });
+
+
+const clickManualApply = async () => {
+  const trigger = screen.getAllByRole('button', { name: 'Apply manually' })[0];
+  expect(trigger).toBeDefined();
+  if (!trigger) throw new Error('Manual application trigger missing');
+  await userEvent.click(trigger);
+  const confirmation = screen.queryByRole('button', { name: 'Continue to company website' });
+  if (confirmation) await userEvent.click(confirmation);
+};

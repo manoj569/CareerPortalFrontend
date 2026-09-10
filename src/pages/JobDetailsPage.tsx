@@ -25,7 +25,9 @@ import {
   Typography,
 } from '@mui/material';
 import { useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ResumeMatchPanel } from '@/features/jobs/components/ResumeMatchPanel';
+import { readResumeMatch } from '@/features/jobs/utils/resumeMatch';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -200,6 +202,7 @@ export const JobDetailsPage = () => {
   const navigate = useNavigate();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
+  const routeLocation = useLocation();
 
   // ✅ FIXED: Strict typing to avoid "Unsafe assignment" ESLint error
   const [showRecruiterDialog, setShowRecruiterDialog] = useState<boolean>(false);
@@ -244,7 +247,7 @@ export const JobDetailsPage = () => {
 
   if (isLoading) {
     return (
-      <Stack aria-label="Loading job details" role="status" spacing={3}>
+      <Stack aria-busy="true" aria-label="Loading job details" role="status" spacing={3}>
         <Skeleton height={40} width={180} />
         <Paper sx={{ p: { xs: 3, md: 5 } }}>
           <Stack spacing={2}>
@@ -422,6 +425,7 @@ export const JobDetailsPage = () => {
           <Divider />
 
           <Stack alignItems={{ xs: 'stretch', sm: 'flex-start' }} spacing={1.25}>
+            {currentUser?.role === UserRole.Candidate && readResumeMatch(routeLocation.state, job.id) ? <ResumeMatchPanel match={readResumeMatch(routeLocation.state, job.id)!} /> : null}
             <ApplicationQuotaIndicator />
             <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={1.25}>
               <ApplyToJobButton
@@ -435,6 +439,7 @@ export const JobDetailsPage = () => {
               />
 
               <AIApplyToJobButton
+                jobSlug={job.slug}
                 companyName={job.companyName}
                 jobId={job.id}
                 jobTitle={job.title}
@@ -670,7 +675,6 @@ export const JobDetailsPage = () => {
                 </Typography>
                 <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
                   <li>Direct recruiter contact details (Email & Phone)</li>
-                  <li>35 daily job applications instead of 10 monthly</li>
                   <li>Get your application prioritized</li>
                 </ul>
               </Alert>
@@ -709,6 +713,7 @@ export const JobDetailsPage = () => {
               size="medium"
             />
             <AIApplyToJobButton
+              jobSlug={job.slug}
               companyName={job.companyName}
               jobId={job.id}
               jobTitle={job.title}

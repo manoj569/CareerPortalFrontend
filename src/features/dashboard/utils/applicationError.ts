@@ -1,7 +1,7 @@
 import type { AxiosBaseQueryError } from '@/api/axiosBaseQuery';
 
 export const PREMIUM_DAILY_LIMIT_MESSAGE =
-  'You have reached today’s premium application limit of 35 jobs. Your quota resets tomorrow. You can still save jobs and apply again after the reset.';
+  'Applications are temporarily limited. You can still save jobs and try applying again later.';
 
 export const DUPLICATE_APPLICATION_MESSAGE = 'You have already applied for this job.';
 

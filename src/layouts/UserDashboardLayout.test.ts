@@ -10,7 +10,6 @@ describe('candidate navigation', () => {
       'Portfolio',
       'Saved jobs',
       'Applied jobs',
-      'AI Apply',
       'Interview insights',
       'Membership',
       'Payments',

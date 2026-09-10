@@ -98,7 +98,7 @@ export const CandidateProfileContent = ({
 
   if (profile.isLoading) {
     return (
-      <Grid aria-label="Loading profile" container role="status" spacing={3}>
+      <Grid aria-busy="true" aria-label="Loading profile" container role="status" spacing={3}>
         <Grid size={{ xs: 12, md: 8 }}><Skeleton height={230} variant="rounded" /></Grid>
         <Grid size={{ xs: 12, md: 4 }}><Skeleton height={230} variant="rounded" /></Grid>
         <Grid size={{ xs: 12, md: 8 }}><Skeleton height={260} variant="rounded" /></Grid>

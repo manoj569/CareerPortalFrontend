@@ -1,7 +1,7 @@
 import { Card, CardContent, Skeleton, Stack } from '@mui/material';
 
 export const JobCardSkeleton = () => (
-  <Card aria-label="Loading job" component="article">
+  <Card aria-busy="true" aria-label="Loading job" component="article">
     <CardContent sx={{ p: 3 }}>
       <Stack spacing={2}>
         <Skeleton height={52} variant="rounded" width={52} />

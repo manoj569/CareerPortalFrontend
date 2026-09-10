@@ -13,7 +13,11 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
+import { LoadingIndicator } from '@/components/feedback/LoadingIndicator';
+import { ButtonSpinner } from '@/components/feedback/ButtonSpinner';
+import { fetchJobApplicationUrl } from '@/features/jobs/api/jobsApi';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -39,6 +43,7 @@ const capabilities = [
 ];
 
 interface AIApplyToJobButtonProps {
+  jobSlug?: string;
   companyName: string;
   fullWidth?: boolean;
   jobId: string;
@@ -47,6 +52,7 @@ interface AIApplyToJobButtonProps {
 }
 
 export const AIApplyToJobButton = ({
+  jobSlug,
   companyName,
   fullWidth = false,
   jobId,
@@ -59,6 +65,9 @@ export const AIApplyToJobButton = ({
   const user = useAppSelector(selectCurrentUser);
   const isCandidate = user?.role === UserRole.Candidate;
   const [open, setOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const queueInFlight = useRef(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkAccess, access] = useLazyGetAIApplyAccessQuery();
   const profile = useGetProfileQuery(undefined, { skip: !open || !isCandidate });
@@ -70,14 +79,16 @@ export const AIApplyToJobButton = ({
       await navigate(ROUTES.LOGIN, { state: { from: location } });
       return;
     }
-    if (!isCandidate) return;
+    if (!isCandidate || access.isFetching || queueState.isLoading) return;
+    setManualOpen(false);
     setError(null);
     setOpen(true);
     void checkAccess();
   };
 
   const start = async () => {
-    if (!entitled || queueState.isLoading) return;
+    if (!entitled || queueState.isLoading || queueInFlight.current) return;
+    queueInFlight.current = true;
     setError(null);
     try {
       const application = await queue({ jobId }).unwrap();
@@ -94,17 +105,21 @@ export const AIApplyToJobButton = ({
       } else {
         setError('AI Apply could not start for this job. Please try again.');
       }
+    } finally {
+      queueInFlight.current = false;
     }
   };
 
   return (
     <>
       <Button
-        disabled={user?.role === UserRole.Administrator}
+        ref={triggerRef}
+        disabled={user?.role === UserRole.Administrator || access.isFetching || queueState.isLoading}
+        aria-busy={access.isFetching || queueState.isLoading}
         fullWidth={fullWidth}
         onClick={() => void openDialog()}
         size={size}
-        startIcon={<AutoAwesomeOutlinedIcon />}
+        startIcon={access.isFetching ? <ButtonSpinner /> : <AutoAwesomeOutlinedIcon />}
         sx={{
           background: 'linear-gradient(135deg, #3154D9 0%, #7C3AED 100%)',
           color: 'common.white',
@@ -125,10 +140,13 @@ export const AIApplyToJobButton = ({
         open={open}
         PaperProps={{ sx: { borderRadius: { xs: '20px 20px 0 0', sm: 3 }, m: { xs: 0, sm: 2 }, position: { xs: 'fixed', sm: 'relative' }, bottom: { xs: 0, sm: 'auto' }, width: { xs: '100%', sm: 'calc(100% - 32px)' } } }}
       >
-        {access.isLoading ? (
+        {access.isFetching || access.isLoading ? (
+          <>
+          <DialogTitle id="ai-apply-dialog-title">Checking AI Apply access</DialogTitle>
           <DialogContent>
-            <Typography aria-live="polite">Checking AI Apply access…</Typography>
+            <div id="ai-apply-dialog-description"><LoadingIndicator label="Checking AI Apply access…" /></div>
           </DialogContent>
+          </>
         ) : entitled ? (
           <>
             <DialogTitle id="ai-apply-dialog-title">AI Apply</DialogTitle>
@@ -171,29 +189,32 @@ export const AIApplyToJobButton = ({
             </DialogContent>
             <DialogActions sx={{ flexDirection: { xs: 'column-reverse', sm: 'row' }, px: 3, pb: 3, '& > :not(style) ~ :not(style)': { ml: { xs: 0, sm: 1 }, mb: { xs: 1, sm: 0 } } }}>
               <Button disabled={queueState.isLoading} fullWidth onClick={() => setOpen(false)}>Cancel</Button>
-              <Button disabled={queueState.isLoading} fullWidth onClick={() => void start()} startIcon={<AutoAwesomeOutlinedIcon />} variant="contained">
+              <Button aria-busy={queueState.isLoading} disabled={queueState.isLoading} fullWidth onClick={() => void start()} startIcon={queueState.isLoading ? <ButtonSpinner /> : <AutoAwesomeOutlinedIcon />} variant="contained">
                 {queueState.isLoading ? 'Starting AI Apply…' : 'Start AI Apply'}
               </Button>
             </DialogActions>
           </>
         ) : (
           <>
-            <DialogTitle id="ai-apply-dialog-title">AI Apply requires an active AI Apply plan</DialogTitle>
+            <DialogTitle id="ai-apply-dialog-title"><AutoAwesomeOutlinedIcon color="primary" sx={{ display: 'block', mb: 2 }} />AI Apply requires a plan</DialogTitle>
             <DialogContent>
               <Stack spacing={2}>
                 <Typography id="ai-apply-dialog-description">
-                  Automate applications to suitable jobs using your verified Career Harbor profile.
+                  Unlock automated job applications and save time on repetitive application forms.
                 </Typography>
+                {['Apply to matching jobs with AI assistance', 'Automatic form filling and resume upload', 'Track AI applications', 'We pause when your input is required'].map((benefit) => <Stack direction="row" spacing={1} key={benefit}><CheckCircleOutlineIcon color="success" fontSize="small" /><Typography variant="body2">{benefit}</Typography></Stack>)}
+                {access.isError ? <Alert severity="error" action={<Button onClick={() => void checkAccess()}>Retry</Button>}>AI Apply access could not be confirmed.</Alert> : null}
                 {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
               </Stack>
             </DialogContent>
             <DialogActions sx={{ flexDirection: { xs: 'column-reverse', sm: 'row' }, px: 3, pb: 3 }}>
-              <Button fullWidth onClick={() => setOpen(false)}>Continue manually</Button>
+              <Button fullWidth onClick={() => { setOpen(false); setManualOpen(true); }}>Continue manually</Button>
               <Button fullWidth onClick={() => void navigate(ROUTES.MEMBERSHIP)} variant="contained">View membership plans</Button>
             </DialogActions>
           </>
         )}
       </Dialog>
+      {manualOpen && jobSlug ? <ApplyToJobButton initialOpen hideTrigger onClosed={() => triggerRef.current?.focus()} applicationUrl={null} loadApplicationUrl={() => fetchJobApplicationUrl(jobSlug)} jobId={jobId} jobSlug={jobSlug} jobTitle={jobTitle} companyName={companyName} /> : null}
     </>
   );
 };

@@ -49,7 +49,7 @@ export const PaymentsPage = () => {
 
   if (payments.isLoading || history.isLoading || status.isLoading) {
     return (
-      <Stack aria-label="Loading membership and payment history" role="status" spacing={3}>
+      <Stack aria-busy="true" aria-label="Loading membership and payment history" role="status" spacing={3}>
         <Skeleton height={80} variant="rounded" />
         <Skeleton height={180} variant="rounded" />
         <Skeleton height={360} variant="rounded" />

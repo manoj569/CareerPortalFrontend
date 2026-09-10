@@ -87,7 +87,7 @@ export const SettingsPage = () => {
   };
 
   if (basicDetails.isLoading || memberships.isLoading) {
-    return <Stack aria-label="Loading settings" role="status" spacing={3}><Typography sx={{ position: 'absolute', height: 1, overflow: 'hidden', width: 1 }}>Loading…</Typography><Skeleton height={90} variant="rounded" /><Skeleton height={330} variant="rounded" /><Skeleton height={180} variant="rounded" /></Stack>;
+    return <Stack aria-busy="true" aria-label="Loading settings" role="status" spacing={3}><Typography sx={{ position: 'absolute', height: 1, overflow: 'hidden', width: 1 }}>Loading…</Typography><Skeleton height={90} variant="rounded" /><Skeleton height={330} variant="rounded" /><Skeleton height={180} variant="rounded" /></Stack>;
   }
 
   const activeMembership = findActiveMembership(memberships.data);

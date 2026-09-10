@@ -6,7 +6,7 @@ interface LoadingIndicatorProps {
 }
 
 export const LoadingIndicator = ({ label = 'Loading…', size = 28 }: LoadingIndicatorProps) => (
-  <Stack alignItems="center" direction="row" gap={1.5} role="status">
+  <Stack aria-busy="true" alignItems="center" direction="row" gap={1.5} role="status">
     <CircularProgress aria-hidden size={size} />
     <Typography color="text.secondary">{label}</Typography>
   </Stack>

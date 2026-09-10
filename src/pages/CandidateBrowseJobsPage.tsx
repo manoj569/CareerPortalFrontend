@@ -5,7 +5,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Drawer,
   Grid,
   IconButton,
@@ -489,8 +488,8 @@ export const CandidateBrowseJobsPage = () => {
           </Stack>
 
           {resultsLoading ? (
-            <Grid aria-label="Loading Candidate jobs" container role="status" spacing={2}>
-              {Array.from({ length: 4 }, (_, index) => (
+            <Grid aria-busy="true" aria-label="Loading Candidate jobs" container role="status" spacing={2}>
+              {Array.from({ length: 3 }, (_, index) => (
                 <Grid key={index} size={{ xs: 12 }}>
                   <JobCardSkeleton />
                 </Grid>
@@ -508,15 +507,11 @@ export const CandidateBrowseJobsPage = () => {
 
                   return (
                   <Grid key={job.id} size={{ xs: 12 }}>
-                    {recommendation ? (
-                      <Stack sx={{ mb: 1 }} spacing={0.5}>
-                        <Chip color="primary" label={`Resume match ${recommendation.matchScore}%`} size="small" sx={{ alignSelf: 'flex-start' }} />
-                        {recommendation.matchReasons.slice(0, 3).map((reason) => <Typography color="text.secondary" key={reason} variant="body2">• {reason}</Typography>)}
-                      </Stack>
-                    ) : null}
                     <JobCard
+                      match={recommendation}
                       additionalAction={
                         <AIApplyToJobButton
+                          jobSlug={job.slug}
                           companyName={job.companyName}
                           jobId={job.id}
                           jobTitle={job.title}
@@ -524,6 +519,7 @@ export const CandidateBrowseJobsPage = () => {
                       }
                       secondaryAction={
                         <>
+                          <SaveJobButton jobId={job.id} jobTitle={job.title} />
                           <ApplyToJobButton
                             applicationUrl={null}
                             companyName={job.companyName}
@@ -535,7 +531,6 @@ export const CandidateBrowseJobsPage = () => {
                             onApplied={(jobId) => setAppliedJobIds((current) => new Set(current).add(jobId))}
                             size="medium"
                           />
-                          <SaveJobButton jobId={job.id} jobTitle={job.title} />
                         </>
                       }
                       job={job}
@@ -543,7 +538,7 @@ export const CandidateBrowseJobsPage = () => {
                       returnSearch={searchParams.toString()}
                       compact
                       showExtendedDetails
-                      viewActionLabel="View job"
+                      viewActionLabel="View details"
                     />
                   </Grid>
                   );
@@ -562,11 +557,12 @@ export const CandidateBrowseJobsPage = () => {
               ) : null}
             </Stack>
           ) : (
+            <Stack spacing={1}>
             <EmptyState
               actionLabel={
-                isRecommended ? 'View all jobs' : appliedCount > 0 || state.keyword ? 'Clear search and filters' : undefined
+                isRecommended ? 'Browse all jobs' : appliedCount > 0 || state.keyword ? 'Clear search and filters' : undefined
               }
-              description={isRecommended ? 'No resume-matched jobs are available right now.' : 'Try a broader keyword or remove one or more filters.'}
+              description={isRecommended ? "We couldn't find a strong match with your current resume." : 'Try a broader keyword or remove one or more filters.'}
               onAction={
                 isRecommended
                   ? () => setTab('all')
@@ -577,8 +573,10 @@ export const CandidateBrowseJobsPage = () => {
                     }
                   : undefined
               }
-              title={isRecommended ? 'No resume matches found' : 'No jobs match your search'}
+              title={isRecommended ? 'No matching jobs yet' : 'No jobs match your search'}
             />
+            {isRecommended ? <Button onClick={() => fileInput.current?.click()} sx={{ alignSelf: 'center' }}>Update resume</Button> : null}
+            </Stack>
           )}
         </Box>
       </Stack>

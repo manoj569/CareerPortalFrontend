@@ -151,7 +151,7 @@ export const PortfolioPage = () => {
 
   if (portfolio.isLoading) {
     return (
-      <Stack aria-label="Loading portfolio workspace" role="status" spacing={3}>
+      <Stack aria-busy="true" aria-label="Loading portfolio workspace" role="status" spacing={3}>
         <Skeleton height={90} variant="rounded" />
         <Skeleton height={180} variant="rounded" />
         <Skeleton height={480} variant="rounded" />

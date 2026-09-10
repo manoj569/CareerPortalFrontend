@@ -169,6 +169,19 @@ describe('PhonePe membership checkout', () => {
     expect(document.querySelector('script[src*="razorpay"]')).toBeNull();
   });
 
+  it.each(['Basic', 'AI Apply'])('orders plans Basic, AI Apply, Pro and retains checkout with active %s', (planName) => {
+    vi.mocked(useGetMembershipsQuery).mockReturnValue({
+      data: [{ id: 'active', planName, status: 2, startsAtUtc: '2026-01-01T00:00:00Z', endsAtUtc: '2099-01-01T00:00:00Z', autoRenew: false }],
+      refetch: vi.fn(),
+    } as ReturnType<typeof useGetMembershipsQuery>);
+    renderWithProviders(<RouterProvider router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], { initialEntries: [ROUTES.MEMBERSHIP] })} />);
+    expect(screen.getByText('Your active plans')).toBeVisible();
+    expect(screen.getByText('You can purchase another plan while your current plan is active.')).toBeVisible();
+    const buttons = screen.getAllByRole('button', { name: /Continue to Pay/ });
+    expect(buttons.map((button) => button.textContent)).toEqual(['Continue to Pay ₹99', 'Continue to Pay ₹999', 'Continue to Pay ₹1,499']);
+    buttons.forEach((button) => expect(button).toBeEnabled());
+  });
+
   it('creates checkout with only the selected plan code and sends the response to redirect handling', async () => {
     renderWithProviders(
       <RouterProvider

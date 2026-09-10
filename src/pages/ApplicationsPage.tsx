@@ -96,7 +96,7 @@ export const ApplicationsPage = () => {
       ) : null}
 
       {isLoading && !data ? (
-        <Stack aria-label="Loading applied jobs" role="status" spacing={2}>
+        <Stack aria-busy="true" aria-label="Loading applied jobs" role="status" spacing={2}>
           {Array.from({ length: 4 }, (_, index) => (
             <Skeleton key={index} height={132} variant="rounded" />
           ))}
@@ -183,7 +183,7 @@ export const ApplicationsPage = () => {
         <Box component="section">
           <Typography component="h2" sx={{ mb: 2 }} variant="h3">AI Applied</Typography>
           {aiApplications.isLoading ? (
-            <Stack aria-label="Loading AI applied jobs" role="status" spacing={2}>
+            <Stack aria-busy="true" aria-label="Loading AI applied jobs" role="status" spacing={2}>
               <Skeleton height={120} variant="rounded" />
               <Skeleton height={120} variant="rounded" />
             </Stack>

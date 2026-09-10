@@ -93,7 +93,7 @@ export const DashboardPage = () => {
 
   if (isInitialLoading) {
     return (
-      <Stack aria-label="Loading candidate dashboard" role="status" spacing={3}>
+      <Stack aria-busy="true" aria-label="Loading candidate dashboard" role="status" spacing={3}>
         <Skeleton height={76} variant="rounded" />
         <Grid container spacing={2}>
           {Array.from({ length: 4 }, (_, index) => (

@@ -53,7 +53,7 @@ export const ResumeRecommendationCard = ({
 
   return (
     <Paper component="section" sx={{ overflow: 'hidden', p: { xs: 2, sm: 2.5 } }}>
-      <Stack alignItems={{ xs: 'stretch', md: 'center' }} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+      <Stack alignItems={{ xs: 'stretch', xl: 'center' }} direction={{ xs: 'column', xl: 'row' }} justifyContent="space-between" spacing={2}>
         <Box minWidth={0}>
           <Stack alignItems="center" direction="row" flexWrap="wrap" gap={1}>
             <Typography component="h2" variant="h3">Resume-powered recommendations</Typography>
@@ -88,7 +88,7 @@ export const ResumeRecommendationCard = ({
                 {isProcessing ? 'Analyzing resume…' : isReady ? 'Resume analyzed' : isFailed ? 'Your resume is stored, but recommendations could not be prepared.' : 'Preparing recommendations'}
               </Typography>
               {lastUpdated ? <Typography color="text.secondary" variant="caption">Updated {lastUpdated}</Typography> : null}
-              {isReady ? <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">We use your skills and experience to rank relevant jobs.</Typography> : null}
+              {isReady ? <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">Jobs below are ranked using your skills, experience and preferences.</Typography> : null}
             </>
           )}
           {error ? <Alert aria-live="assertive" severity="error" sx={{ mt: 1 }}>{error}</Alert> : null}

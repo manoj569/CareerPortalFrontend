@@ -40,6 +40,7 @@ import { AdminDashboardLayout } from '@/layouts/AdminDashboardLayout';
 import { UserDashboardLayout } from '@/layouts/UserDashboardLayout';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { UserRole } from '@/types';
+import { JobCard } from '@/features/jobs/components/JobCard';
 import { CandidateBrowseJobsPage } from './CandidateBrowseJobsPage';
 
 vi.mock('@/features/aiApply/components/AIApplyToJobButton', () => ({
@@ -297,13 +298,25 @@ beforeEach(() => {
 });
 
 describe('Candidate Browse jobs', () => {
+  it.each([
+    { score: 92, color: 'Success' },
+    { score: 74, color: 'Info' },
+    { score: 58, color: 'Warning' },
+  ])('shows one $score% badge without inventing empty match reasons', ({ score, color }) => {
+    renderWithProviders(<RouterProvider router={createMemoryRouter([{ path: '/', element: <JobCard compact job={job} match={{ matchScore: score, matchReasons: [] }} /> }])} />);
+    expect(screen.getAllByText(`${score}% Match`)).toHaveLength(1);
+    expect(screen.getByText(`${score}% Match`).closest('.MuiChip-root')).toHaveClass(`MuiChip-color${color}`);
+    expect(screen.queryByRole('list', { name: 'Why this job matches you' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+  });
+
   it('keeps selected facets in the URL and renders exact backend counts', async () => {
     renderPage('/dashboard/jobs?workMode=remote&page=2');
 
     expect(screen.getByRole('checkbox', { name: 'Remote, 14 jobs' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Last 24 hours (3)' })).toBeInTheDocument();
     expect(screen.getByText('Applied (1)')).toBeVisible();
-    expect(screen.getByText('Free applications: 3 of 10 used this month')).toBeVisible();
+    expect(screen.queryByText(/applications:.*used/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Location' }));
     expect(screen.getByRole('checkbox', { name: 'Pune, 15 jobs' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Department' }));
@@ -763,8 +776,9 @@ describe('Candidate Browse jobs', () => {
       }], message: 'Personalized recommendations based on your resume.', pageNumber: 1, pageSize: 20, totalCount: 1, totalPages: 1 }) as ReturnType<typeof useGetRecommendedJobsQuery>,
     );
     renderPage('/dashboard/jobs?mode=recommended&companyName=Ignored&page=3');
-    expect(screen.getByText('Resume match 92%')).toBeVisible();
-    expect(screen.getByText('• Matches skills: React')).toBeVisible();
+    expect(screen.getAllByText('92% Match')).toHaveLength(1);
+    expect(screen.getByText('Matches skills: React').closest('article')).toContainElement(screen.getByText('92% Match'));
+    expect(screen.getByText('Matches skills: React')).toBeVisible();
     expect(mockRecommended).toHaveBeenCalledWith({ pageNumber: 3, pageSize: 20 }, { skip: false });
     expect(mockSearchJobs.mock.calls.at(-1)?.[1]).toEqual({ skip: true });
     await userEvent.click(screen.getByRole('button', { name: 'Apply manually' }));
@@ -778,7 +792,7 @@ describe('Candidate Browse jobs', () => {
       queryResult({ extractedAtUtc: null, extractionStatus: 2, hasResume: true, message: 'Ready' }, { fulfilledTimeStamp: Date.now() }) as ReturnType<typeof useGetResumeStatusQuery>,
     );
     renderPage('/dashboard/jobs?mode=recommended');
-    await userEvent.click(screen.getByRole('button', { name: 'View all jobs' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Browse all jobs' }));
     expect(screen.getByTestId('location')).toHaveTextContent('mode=all');
   });
 
@@ -829,7 +843,7 @@ describe('Candidate Browse jobs', () => {
         'Search and filters apply to All jobs. Recommended jobs are ranked from your resume.',
       ),
     ).toBeNull();
-    expect(screen.getByRole('link', { name: `View job for ${job.title} at ${job.companyName}` })).toBeVisible();
+    expect(screen.getByRole('link', { name: `View details for ${job.title} at ${job.companyName}` })).toBeVisible();
 
     await userEvent.click(screen.getByRole('tab', { name: 'Internships' }));
     await waitFor(() =>

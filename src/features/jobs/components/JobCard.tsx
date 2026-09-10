@@ -27,6 +27,7 @@ import { formatExperienceRange, formatJobDate, formatSalary } from '../utils/job
 import { CompanyLogoFallback } from './CompanyLogoFallback';
 
 interface JobCardProps {
+  match?: { matchScore: number; matchReasons: string[] };
   additionalAction?: ReactNode;
   compact?: boolean;
   job: PublicJobSummary;
@@ -38,6 +39,7 @@ interface JobCardProps {
 }
 
 export const JobCard = ({
+  match,
   additionalAction,
   compact = false,
   job,
@@ -55,24 +57,18 @@ export const JobCard = ({
   );
 
   return (
-    <Card component="article" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Card component="article" sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, height: compact ? 'auto' : '100%' }}>
       <CardContent sx={{ flex: 1, p: compact ? { xs: 2, sm: 2.25 } : 3 }}>
         <Stack spacing={compact ? 1.5 : 2.25}>
-          <Stack alignItems="flex-start" direction="row" justifyContent="space-between" spacing={2}>
+          <Stack alignItems="flex-start" direction="row" justifyContent="space-between" spacing={1.5}>
             <CompanyLogoFallback companyName={job.companyName} logoUrl={job.companyLogoUrl} />
-            {job.isFeatured ? <Chip color="primary" label="Featured" size="small" /> : null}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography component="h2" sx={{ overflowWrap: 'anywhere' }} variant="h3">{job.title}</Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5 }}>{job.companyName}{showExtendedDetails && job.companyType ? ` · ${getCompanyTypeLabel(job.companyType)}` : ''}</Typography>
+            </Box>
+            {match ? <Chip color={match.matchScore >= 85 ? 'success' : match.matchScore >= 65 ? 'info' : 'warning'} label={`${match.matchScore}% Match`} size="small" variant="outlined" /> : null}
+            {job.isFeatured && !match ? <Chip color="primary" label="Featured" size="small" /> : null}
           </Stack>
-          <Box>
-            <Typography component="h2" sx={{ overflowWrap: 'anywhere' }} variant="h3">
-              {job.title}
-            </Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-              {job.companyName}
-              {showExtendedDetails && job.companyType
-                ? ` · ${getCompanyTypeLabel(job.companyType)}`
-                : ''}
-            </Typography>
-          </Box>
           <Stack color="text.secondary" spacing={1}>
             {job.location ? (
               <Stack alignItems="center" direction="row" spacing={1}>
@@ -107,6 +103,11 @@ export const JobCard = ({
             ) : null}
           </Stack>
           <Chip label={job.categoryName} size="small" sx={{ alignSelf: 'flex-start' }} />
+          {match && match.matchReasons.length > 0 ? (
+            <Stack component="ul" spacing={0.75} sx={{ m: 0, pl: 2.5 }} aria-label="Why this job matches you">
+              {match.matchReasons.slice(0, 3).map((reason) => <Typography component="li" color="text.secondary" key={reason} variant="body2" sx={{ overflowWrap: 'anywhere' }}>{reason}</Typography>)}
+            </Stack>
+          ) : null}
           {showExtendedDetails ? (
             <Stack direction="row" flexWrap="wrap" gap={0.75}>
               {job.department ? (
@@ -146,7 +147,7 @@ export const JobCard = ({
         <Button
           aria-label={`${viewActionLabel} for ${job.title} at ${job.companyName}`}
           component={Link}
-          state={{ jobsPath: returnPath, jobsSearch: returnSearch }}
+          state={{ jobsPath: returnPath, jobsSearch: returnSearch, ...(match ? { recommendedJobId: job.id, resumeMatch: match } : {}) }}
           to={buildJobDetailsPath(job.slug)}
           variant="outlined"
         >
