@@ -1,9 +1,5 @@
-import { Box } from '@mui/material';
-
-import { LoadingIndicator } from './LoadingIndicator';
+import { PageLoadingIndicator } from './PageLoadingIndicator';
 
 export const RouteLoadingFallback = () => (
-  <Box alignItems="center" display="flex" justifyContent="center" minHeight={280} role="status">
-    <LoadingIndicator label="Loading page…" />
-  </Box>
+  <PageLoadingIndicator label="Loading page…" />
 );

@@ -1,20 +1,8 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
-import {
-  Alert,
-  Box,
-  Button,
-  Drawer,
-  Grid,
-  IconButton,
-  LinearProgress,
-  Pagination,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Drawer, Grid, IconButton, LinearProgress, Pagination, Paper, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -49,7 +37,7 @@ import {
 } from '@/features/jobs/api/jobsApi';
 import { CandidateJobFilters } from '@/features/jobs/components/CandidateJobFilters';
 import { JobCard } from '@/features/jobs/components/JobCard';
-import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
+
 import { ActiveFilterChips } from '@/features/jobs/components/candidateBrowse/ActiveFilterChips';
 import {
   JobModeTabs,
@@ -332,13 +320,7 @@ export const CandidateBrowseJobsPage = () => {
   const refetchResults = isRecommended ? recommended.refetch : jobs.refetch;
 
   const renderFilterPanel = (onCollapse?: () => void) =>
-    filterOptions.isLoading || supplementalCounts.isLoading ? (
-      <Stack aria-label="Loading job filters" role="status" spacing={2}>
-        {Array.from({ length: 8 }, (_, index) => (
-          <Skeleton height={72} key={index} variant="rounded" />
-        ))}
-      </Stack>
-    ) : filterOptions.isError ||
+    filterOptions.isLoading || supplementalCounts.isLoading ? <PageLoadingIndicator compact label="Loading job filters" /> : filterOptions.isError ||
       !filterOptions.data ||
       supplementalCounts.isError ||
       !supplementalCounts.data ? (
@@ -487,15 +469,7 @@ export const CandidateBrowseJobsPage = () => {
             ) : null}
           </Stack>
 
-          {resultsLoading ? (
-            <Grid aria-busy="true" aria-label="Loading Candidate jobs" container role="status" spacing={2}>
-              {Array.from({ length: 3 }, (_, index) => (
-                <Grid key={index} size={{ xs: 12 }}>
-                  <JobCardSkeleton />
-                </Grid>
-              ))}
-            </Grid>
-          ) : resultsError ? (
+          {resultsLoading ? <PageLoadingIndicator label="Loading Candidate jobs" /> : resultsError ? (
             <ErrorState onRetry={() => void refetchResults()} title="Jobs unavailable" />
           ) : displayedJobs?.length ? (
             <Stack spacing={3}>

@@ -1,25 +1,5 @@
-import {
-  Alert,
-  Card,
-  CardContent,
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Pagination,
-  Paper,
-  Select,
-  Skeleton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Alert, Card, CardContent, FormControl, Grid, InputLabel, MenuItem, Pagination, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -161,13 +141,7 @@ export const AdminAuditLogsPage = () => {
           </Grid>
         </Grid>
       </Paper>
-      {logs.isLoading ? (
-        <Stack aria-label="Loading audit logs" role="status" spacing={2}>
-          {Array.from({ length: 6 }, (_, index) => (
-            <Skeleton height={76} key={index} variant="rounded" />
-          ))}
-        </Stack>
-      ) : logs.isError ? (
+      {logs.isLoading ? <PageLoadingIndicator label="Loading audit logs" /> : logs.isError ? (
         <ErrorState onRetry={() => void logs.refetch()} title="Audit logs unavailable" />
       ) : logs.data?.items.length ? (
         <>

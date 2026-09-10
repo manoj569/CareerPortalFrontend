@@ -1,26 +1,5 @@
-import {
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Pagination,
-  Paper,
-  Select,
-  Skeleton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Button, Card, CardActions, CardContent, FormControl, Grid, InputLabel, MenuItem, Pagination, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -200,13 +179,7 @@ export const AdminApplicationsPage = () => {
           </Grid>
         </Grid>
       </Paper>
-      {applications.isLoading ? (
-        <Stack aria-label="Loading applications" role="status" spacing={2}>
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton height={80} key={index} variant="rounded" />
-          ))}
-        </Stack>
-      ) : applications.isError ? (
+      {applications.isLoading ? <PageLoadingIndicator label="Loading applications" /> : applications.isError ? (
         <ErrorState onRetry={() => void applications.refetch()} title="Applications unavailable" />
       ) : applications.data?.items.length ? (
         <>

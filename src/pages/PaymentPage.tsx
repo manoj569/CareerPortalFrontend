@@ -1,21 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  Grid,
-  Stack,
-  Skeleton,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, Stack, Typography } from '@mui/material';
 import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -181,7 +166,7 @@ export const PaymentPage = () => {
   };
 
   if (memberships.isLoading || pendingCheckout.isLoading) {
-    return <Stack aria-busy="true" aria-label="Loading membership" role="status" spacing={3} sx={{ maxWidth: 1120, width: '100%', mx: 'auto' }}><Typography>Loading membership…</Typography><Skeleton height={100} variant="rounded" /><Grid container spacing={2}>{[0, 1, 2].map((item) => <Grid key={item} size={{ xs: 12, sm: 6, lg: 4 }}><Skeleton height={420} variant="rounded" /></Grid>)}</Grid></Stack>;
+    return <PageLoadingIndicator label="Loading membership" />;
   }
 
   return (
@@ -310,11 +295,7 @@ export const PaymentPage = () => {
         </Card>
       ) : null}
 
-      {plans.isLoading ? (
-        <Grid aria-busy="true" aria-label="Loading membership plans" container role="status" spacing={2}>
-          {[0, 1, 2].map((item) => <Grid key={item} size={{ xs: 12, sm: 6, lg: 4 }}><Skeleton height={360} variant="rounded" /></Grid>)}
-        </Grid>
-      ) : plans.isError ? (
+      {plans.isLoading ? <PageLoadingIndicator label="Loading membership plans" /> : plans.isError ? (
         <Alert action={<Button color="inherit" onClick={() => void plans.refetch()}>Retry</Button>} severity="error">
           Membership plans could not be loaded.
         </Alert>

@@ -1,14 +1,5 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Divider,
-  Pagination,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Alert, Box, Button, Divider, Pagination, Paper, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -48,13 +39,7 @@ export const PaymentsPage = () => {
   const status = useGetPaymentStatusQuery();
 
   if (payments.isLoading || history.isLoading || status.isLoading) {
-    return (
-      <Stack aria-busy="true" aria-label="Loading membership and payment history" role="status" spacing={3}>
-        <Skeleton height={80} variant="rounded" />
-        <Skeleton height={180} variant="rounded" />
-        <Skeleton height={360} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading membership and payment history" />;
   }
 
   if (payments.isError || status.isError || !status.data) {

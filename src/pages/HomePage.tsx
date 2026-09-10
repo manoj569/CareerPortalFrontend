@@ -1,3 +1,4 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import BusinessCenterOutlinedIcon from '@mui/icons-material/BusinessCenterOutlined';
 import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
@@ -43,7 +44,7 @@ import {
   useGetLatestJobsQuery,
   useGetPopularCompaniesQuery,
 } from '@/features/jobs/api/jobsApi';
-import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
+
 import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
 import { experienceLevelOptions, getExperienceLevelLabel, getWorkplaceTypeLabel } from '@/features/jobs/constants/jobOptions';
 import type { PopularCompany, PublicJobSummary } from '@/features/jobs/types/jobModels';
@@ -513,7 +514,7 @@ const PortfolioDemoPreview = () => (
 );
 
 const JobCollection = ({ jobs }: { jobs: { data?: { items: PublicJobSummary[] }; isError: boolean; isLoading: boolean } }) => {
-  if (jobs.isLoading) return <Grid aria-label="Loading homepage jobs" container role="status" spacing={2}>{Array.from({ length: 2 }, (_, index) => <Grid key={index} size={{ xs: 12, sm: 6 }}><JobCardSkeleton /></Grid>)}</Grid>;
+  if (jobs.isLoading) return <PageLoadingIndicator label="Loading homepage jobs" />;
   if (jobs.isError || !jobs.data?.items.length) return <JobCollectionUnavailable />;
 
   return <Grid container spacing={2}>{jobs.data.items.slice(0, 2).map((job) => <Grid key={job.id} size={{ xs: 12, sm: 6 }}><DiscoveryJobCard job={job} /></Grid>)}</Grid>;

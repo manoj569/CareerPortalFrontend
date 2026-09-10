@@ -1,3 +1,4 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
@@ -5,18 +6,7 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
-import {
-  Alert,
-  Avatar,
-  Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, TextField, MenuItem,
-  Chip,
-  Grid,
-  LinearProgress,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Avatar, Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, TextField, MenuItem, Chip, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -97,14 +87,7 @@ export const CandidateProfileContent = ({
   }, [openEditorRequest]);
 
   if (profile.isLoading) {
-    return (
-      <Grid aria-busy="true" aria-label="Loading profile" container role="status" spacing={3}>
-        <Grid size={{ xs: 12, md: 8 }}><Skeleton height={230} variant="rounded" /></Grid>
-        <Grid size={{ xs: 12, md: 4 }}><Skeleton height={230} variant="rounded" /></Grid>
-        <Grid size={{ xs: 12, md: 8 }}><Skeleton height={260} variant="rounded" /></Grid>
-        <Grid size={{ xs: 12, md: 4 }}><Skeleton height={260} variant="rounded" /></Grid>
-      </Grid>
-    );
+    return <PageLoadingIndicator label="Loading profile" />;
   }
 
   if (profile.isError || !profile.data) {
@@ -479,7 +462,7 @@ const HeroProfileEditor = ({
         </Stack>
         {fieldErrors.skills ? <FormHelperText error>{fieldErrors.skills}</FormHelperText> : null}
       </Stack>
-      {skills.isLoading ? <Skeleton aria-label="Loading profile skills" height={48} variant="rounded" /> : null}
+      {skills.isLoading ? <PageLoadingIndicator compact label="Loading profile skills" /> : null}
       {skills.isError ? <Alert action={<Button color="inherit" onClick={() => void skills.refetch()}>Retry</Button>} severity="error">Your skills could not be loaded.</Alert> : null}
       {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
       <DialogActions sx={{ px: 0 }}>
@@ -611,7 +594,7 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
           </Stack>
           <Tooltip title="Edit career preferences"><span><IconButton aria-label="Edit career preferences" disabled={!displayed || preferences.isLoading} onClick={openEditor}><EditOutlinedIcon /></IconButton></span></Tooltip>
         </Stack>
-        {preferences.isLoading ? <Skeleton aria-label="Loading career preferences" height={96} variant="rounded" /> : null}
+        {preferences.isLoading ? <PageLoadingIndicator compact label="Loading career preferences" /> : null}
         {preferences.isError ? <Alert action={<Button color="inherit" onClick={() => void preferences.refetch()}>Retry</Button>} severity="warning">Your career preferences are temporarily unavailable.</Alert> : null}
         {displayed && hasCareerPreferences(displayed) ? <CareerPreferenceSummary data={displayed} /> : null}
         {displayed && !hasCareerPreferences(displayed) ? <Typography color="text.secondary">Add your preferred roles, locations, and working preferences.</Typography> : null}

@@ -1,14 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import BookmarkOutlinedIcon from '@mui/icons-material/BookmarkOutlined';
-import {
-  Button,
-  Grid,
-  Link as MuiLink,
-  Pagination,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Button, Grid, Link as MuiLink, Pagination, Paper, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -49,15 +41,7 @@ export const SavedJobsPage = () => {
         </Typography>
       ) : null}
 
-      {isLoading && !data ? (
-        <Grid aria-busy="true" aria-label="Loading saved jobs" container role="status" spacing={2.5}>
-          {Array.from({ length: 4 }, (_, index) => (
-            <Grid key={index} size={{ xs: 12, md: 6 }}>
-              <Skeleton height={230} variant="rounded" />
-            </Grid>
-          ))}
-        </Grid>
-      ) : null}
+      {isLoading && !data ? <PageLoadingIndicator label="Loading saved jobs" /> : null}
 
       {isError && !data ? <ErrorState onRetry={() => void refetch()} /> : null}
 

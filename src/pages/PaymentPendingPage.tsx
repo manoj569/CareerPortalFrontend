@@ -1,5 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import HourglassTopOutlinedIcon from '@mui/icons-material/HourglassTopOutlined';
-import { Alert, Button, Skeleton, Stack } from '@mui/material';
+import { Alert, Button, Stack } from '@mui/material';
 import { useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
@@ -45,9 +46,7 @@ export const PaymentPendingPage = () => {
   }
 
   if (status.isLoading) {
-    return (
-      <Skeleton aria-label="Checking payment status" height={360} role="status" variant="rounded" />
-    );
+    return <PageLoadingIndicator label="Checking payment status" />;
   }
   if (status.isError || !status.data) {
     return (

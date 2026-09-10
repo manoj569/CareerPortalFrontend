@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 import LinkOffOutlinedIcon from '@mui/icons-material/LinkOffOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
-import { Alert, Button, Card, CardContent, Chip, Skeleton, Stack, Typography } from '@mui/material';
+import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { useState } from 'react';
 import { enqueueSnackbar } from 'notistack';
 
@@ -170,10 +171,7 @@ export const ExternalSessionConnectionCard = ({
           </Stack>
 
           {sessionQuery.isLoading ? (
-            <Stack aria-label={`Loading ${displayName} connection`} role="status" spacing={1}>
-              <Skeleton width="75%" />
-              <Skeleton width="55%" />
-            </Stack>
+            <PageLoadingIndicator compact label={`Loading ${displayName} connection`} />
           ) : sessionQuery.isError && !notConnected ? (
             <Alert
               action={

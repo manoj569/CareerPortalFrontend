@@ -1,3 +1,4 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import BlockOutlinedIcon from '@mui/icons-material/BlockOutlined';
@@ -9,31 +10,7 @@ import PublishOutlinedIcon from '@mui/icons-material/PublishOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Pagination,
-  Paper,
-  Select,
-  Skeleton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Card, CardActions, CardContent, FormControl, Grid, InputLabel, MenuItem, Pagination, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -473,13 +450,7 @@ export const AdminJobsPage = () => {
         </Grid>
       </Paper>
 
-      {jobs.isLoading ? (
-        <Stack aria-label="Loading admin jobs" role="status" spacing={2}>
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton height={82} key={index} variant="rounded" />
-          ))}
-        </Stack>
-      ) : jobs.isError ? (
+      {jobs.isLoading ? <PageLoadingIndicator label="Loading admin jobs" /> : jobs.isError ? (
         <ErrorState onRetry={() => void jobs.refetch()} title="Jobs unavailable" />
       ) : jobs.data?.items.length ? (
         <>

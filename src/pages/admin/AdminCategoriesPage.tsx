@@ -1,27 +1,8 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import {
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  FormControlLabel,
-  Grid,
-  Pagination,
-  Paper,
-  Skeleton,
-  Stack,
-  Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Button, Card, CardActions, CardContent, FormControlLabel, Grid, Pagination, Paper, Stack, Switch, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -166,13 +147,7 @@ export const AdminCategoriesPage = () => {
           </Grid>
         </Grid>
       </Paper>
-      {categories.isLoading ? (
-        <Stack aria-label="Loading categories" role="status" spacing={2}>
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton height={76} key={index} variant="rounded" />
-          ))}
-        </Stack>
-      ) : categories.isError ? (
+      {categories.isLoading ? <PageLoadingIndicator label="Loading categories" /> : categories.isError ? (
         <ErrorState onRetry={() => void categories.refetch()} title="Categories unavailable" />
       ) : categories.data?.items.length ? (
         <>

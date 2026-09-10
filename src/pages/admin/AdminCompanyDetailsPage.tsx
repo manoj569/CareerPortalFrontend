@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { ROUTES, buildAdminCompanyEditPath } from '@/constants/routes';
 import {
   isAdminApiError,
@@ -37,7 +38,7 @@ export const AdminCompanyDetailsPage = () => {
     );
   }
   if (company.isLoading || !company.data) {
-    return <Typography aria-live="polite">Loading company…</Typography>;
+    return <PageLoadingIndicator label="Loading company…" />;
   }
 
   const remove = async () => {

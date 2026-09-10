@@ -2,7 +2,8 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import HourglassTopOutlinedIcon from '@mui/icons-material/HourglassTopOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
-import { Alert, Box, Button, Card, CardContent, Chip, Grid, Skeleton, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, Grid, Stack, Typography } from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -14,7 +15,7 @@ import { AIApplyQuestionStatus } from '@/features/aiApply/types/aiApplyModels';
 import { isHandoffAttention } from '@/features/aiApply/utils/aiApplyActions';
 
 const range = (days: number) => ({ fromUtc: new Date(Date.now() - days * 86_400_000).toISOString(), toUtc: new Date().toISOString() });
-const Loading = ({ label }: { label: string }) => <Stack aria-label={label} role="status" spacing={2}><Typography sx={{ position: 'absolute', height: 1, overflow: 'hidden', width: 1 }}>Loading…</Typography><Skeleton height={100} /><Skeleton height={160} /><Skeleton height={260} /></Stack>;
+const Loading = PageLoadingIndicator;
 const Metric = ({ icon, label, value }: { icon: ReactNode; label: string; value: number }) => <Grid size={{ xs: 6, md: 3 }}><Card sx={{ height: '100%' }} variant="outlined"><CardContent sx={{ p: { xs: 2, sm: 2.5 } }}><Box color="primary.main">{icon}</Box><Typography component="p" fontWeight={850} sx={{ mt: 1 }} variant="h3">{value}</Typography><Typography color="text.secondary" variant="body2">{label}</Typography></CardContent></Card></Grid>;
 
 export const AIApplyDashboardPage = () => {

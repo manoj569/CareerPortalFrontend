@@ -1,3 +1,4 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
@@ -7,23 +8,7 @@ import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  Grid,
-  Link as MuiLink,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, Link as MuiLink, Paper, Stack, Typography } from '@mui/material';
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ResumeMatchPanel } from '@/features/jobs/components/ResumeMatchPanel';
@@ -246,18 +231,7 @@ export const JobDetailsPage = () => {
   };
 
   if (isLoading) {
-    return (
-      <Stack aria-busy="true" aria-label="Loading job details" role="status" spacing={3}>
-        <Skeleton height={40} width={180} />
-        <Paper sx={{ p: { xs: 3, md: 5 } }}>
-          <Stack spacing={2}>
-            <Skeleton height={64} width="75%" />
-            <Skeleton width="45%" />
-            <Skeleton height={160} variant="rounded" />
-          </Stack>
-        </Paper>
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading job details" />;
   }
 
   if (isError && isJobsApiError(error) && error.status === 404) {
@@ -567,9 +541,7 @@ export const JobDetailsPage = () => {
                     Interview insights
                   </Typography>
                 </Stack>
-                {companyInsightSummary.isLoading ? (
-                  <Skeleton height={60} variant="rounded" />
-                ) : null}
+                {companyInsightSummary.isLoading ? <PageLoadingIndicator compact label="Loading company insights…" /> : null}
                 {companyInsightSummary.isError ? (
                   <Typography color="text.secondary" variant="body2">
                     Interview insight summary is temporarily unavailable.
@@ -620,13 +592,7 @@ export const JobDetailsPage = () => {
               Related jobs
             </Typography>
 
-            {isRelatedJobsLoading ? (
-              <Stack spacing={2} sx={{ mt: 2.5 }}>
-                {Array.from({ length: 3 }, (_, index) => (
-                  <Skeleton height={150} key={index} variant="rounded" />
-                ))}
-              </Stack>
-            ) : null}
+            {isRelatedJobsLoading ? <PageLoadingIndicator compact label="Loading related jobs…" /> : null}
 
             {isRelatedJobsError ? (
               <Stack alignItems="flex-start" spacing={1.5} sx={{ mt: 2.5 }}>

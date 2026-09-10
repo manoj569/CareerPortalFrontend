@@ -1,4 +1,5 @@
-import { Skeleton, Stack } from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Stack } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -44,9 +45,7 @@ export const AdminCategoryFormPage = () => {
     );
   }
   if (options.isLoading || (editing && category.isLoading)) {
-    return (
-      <Skeleton aria-label="Loading category form" height={600} role="status" variant="rounded" />
-    );
+    return <PageLoadingIndicator label="Loading category form" />;
   }
   if (options.isError || (editing && (category.isError || !category.data))) {
     return (

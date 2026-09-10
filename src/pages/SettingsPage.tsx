@@ -1,9 +1,10 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import LockResetOutlinedIcon from '@mui/icons-material/LockResetOutlined';
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Alert, Button, Chip, Paper, Skeleton, Stack, Typography } from '@mui/material';
+import { Alert, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -87,7 +88,7 @@ export const SettingsPage = () => {
   };
 
   if (basicDetails.isLoading || memberships.isLoading) {
-    return <Stack aria-busy="true" aria-label="Loading settings" role="status" spacing={3}><Typography sx={{ position: 'absolute', height: 1, overflow: 'hidden', width: 1 }}>Loading…</Typography><Skeleton height={90} variant="rounded" /><Skeleton height={330} variant="rounded" /><Skeleton height={180} variant="rounded" /></Stack>;
+    return <PageLoadingIndicator label="Loading settings" />;
   }
 
   const activeMembership = findActiveMembership(memberships.data);

@@ -15,7 +15,6 @@ import {
   Pagination,
   Paper,
   Select,
-  Skeleton,
   Stack,
   Tab,
   Table,
@@ -33,6 +32,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { DashboardStatCard } from '@/features/dashboard/components/DashboardStatCard';
 import {
@@ -92,11 +92,7 @@ const number = (value: number | null) =>
     : new Intl.NumberFormat('en-IN', { maximumFractionDigits: 4 }).format(value);
 
 const LoadingRows = () => (
-  <Stack aria-label="Loading AI Apply operations" role="status" spacing={1}>
-    {Array.from({ length: 4 }, (_, i) => (
-      <Skeleton height={64} key={i} variant="rounded" />
-    ))}
-  </Stack>
+  <PageLoadingIndicator label="Loading AI Apply operations" />
 );
 
 export const AdminAIApplyOperationsPage = () => {

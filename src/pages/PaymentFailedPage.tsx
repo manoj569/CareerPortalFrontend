@@ -1,5 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { Skeleton } from '@mui/material';
+
 import { Navigate, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
@@ -49,9 +50,7 @@ export const PaymentFailedPage = () => {
     );
   }
   if (status.isLoading) {
-    return (
-      <Skeleton aria-label="Checking payment status" height={360} role="status" variant="rounded" />
-    );
+    return <PageLoadingIndicator label="Checking payment status" />;
   }
 
   const pendingPath =

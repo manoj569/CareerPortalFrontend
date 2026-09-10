@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { ROUTES, buildAdminCategoryEditPath } from '@/constants/routes';
 import {
   isAdminApiError,
@@ -37,7 +38,7 @@ export const AdminCategoryDetailsPage = () => {
     );
   }
   if (category.isLoading || !category.data) {
-    return <Typography aria-live="polite">Loading category…</Typography>;
+    return <PageLoadingIndicator label="Loading category…" />;
   }
 
   const remove = async () => {

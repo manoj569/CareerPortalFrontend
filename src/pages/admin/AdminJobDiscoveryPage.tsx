@@ -1,4 +1,5 @@
 import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import {
   Alert,
@@ -85,7 +86,7 @@ export const AdminJobDiscoveryPage = () => {
         <Typography component="h2" sx={{ mb: 2 }} variant="h6">
           Discovery run history
         </Typography>
-        {runs.isLoading ? <CircularProgress aria-label="Loading discovery runs" size={28} /> : null}
+        {runs.isLoading ? <PageLoadingIndicator label="Loading discovery runs" /> : null}
         {runs.isError ? (
           <Alert
             action={<Button onClick={() => void runs.refetch()}>Retry</Button>}

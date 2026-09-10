@@ -1,26 +1,5 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  Skeleton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Alert, Box, Button, Card, CardContent, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -174,13 +153,7 @@ export const AdminPaymentsPage = () => {
         </Grid>
       </Paper>
 
-      {payments.isLoading ? (
-        <Stack aria-label="Loading recent admin payments" role="status" spacing={2}>
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton height={76} key={index} variant="rounded" />
-          ))}
-        </Stack>
-      ) : payments.isError ? (
+      {payments.isLoading ? <PageLoadingIndicator label="Loading recent admin payments" /> : payments.isError ? (
         <ErrorState onRetry={() => void payments.refetch()} title="Recent payments unavailable" />
       ) : filteredPayments.length ? (
         <>

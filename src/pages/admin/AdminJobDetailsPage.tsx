@@ -1,5 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import { Button, Chip, Divider, Grid, Paper, Skeleton, Stack, Typography } from '@mui/material';
+import { Button, Chip, Divider, Grid, Paper, Stack, Typography } from '@mui/material';
 import { Link, useParams } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -23,9 +24,7 @@ export const AdminJobDetailsPage = () => {
   const job = useGetAdminJobQuery(jobId, { skip: !isGuid(jobId) });
 
   if (job.isLoading) {
-    return (
-      <Skeleton aria-label="Loading job details" height={600} role="status" variant="rounded" />
-    );
+    return <PageLoadingIndicator label="Loading job details" />;
   }
   if (!isGuid(jobId) || job.isError || !job.data) {
     return (

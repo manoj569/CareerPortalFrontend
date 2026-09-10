@@ -1,3 +1,4 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlined';
@@ -5,20 +6,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
 import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Skeleton,
-  Stack,
-  Tab,
-  Tabs,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Chip, Paper, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -150,13 +138,7 @@ export const PortfolioPage = () => {
   };
 
   if (portfolio.isLoading) {
-    return (
-      <Stack aria-busy="true" aria-label="Loading portfolio workspace" role="status" spacing={3}>
-        <Skeleton height={90} variant="rounded" />
-        <Skeleton height={180} variant="rounded" />
-        <Skeleton height={480} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading portfolio workspace" />;
   }
 
   if (portfolio.isError || !editor) {
@@ -411,7 +393,7 @@ const PortfolioPreviewWorkspace = ({ editor, onBack }: { editor: PortfolioEditor
         </Stack>
       </Paper>
 
-      {preview.isLoading ? <Skeleton aria-label="Loading portfolio preview" height={600} variant="rounded" /> : null}
+      {preview.isLoading ? <PageLoadingIndicator label="Loading portfolio preview" /> : null}
       {preview.isError ? (
         <Paper sx={{ p: 3 }}>
           <Alert action={<Button color="inherit" onClick={() => void preview.refetch()}>Retry</Button>} severity="error">Portfolio preview is unavailable.</Alert>

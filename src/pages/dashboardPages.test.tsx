@@ -400,6 +400,8 @@ describe('candidate dashboard pages', () => {
     mockProfile.mockReturnValue(queryResult({ isLoading: true }));
     renderPage(<DashboardPage />);
     expect(screen.getByLabelText('Loading candidate dashboard')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading candidate dashboard' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Loading candidate dashboard')).toBeVisible();
   });
 
   it('validates and uploads a supported resume file', async () => {

@@ -1,37 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import CloseIcon from '@mui/icons-material/Close';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Drawer,
-  FormControl,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Pagination,
-  Paper,
-  Select,
-  Skeleton,
-  Stack,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tabs,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Drawer, FormControl, IconButton, InputLabel, MenuItem, Pagination, Paper, Select, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -156,7 +125,7 @@ export const AdminInterviewInsightsPage = () => {
               {Object.values(InsightReportStatus).map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
             </Select>
           </FormControl>
-          {reports.isLoading ? <Skeleton aria-label="Loading insight reports" height={280} role="status" variant="rounded" /> : reports.isError ? <ErrorState description={errorMessage(reports.error)} onRetry={() => void reports.refetch()} title="Reports unavailable" /> : reports.data?.items.length ? (
+          {reports.isLoading ? <PageLoadingIndicator label="Loading insight reports" /> : reports.isError ? <ErrorState description={errorMessage(reports.error)} onRetry={() => void reports.refetch()} title="Reports unavailable" /> : reports.data?.items.length ? (
             <>
               <TableContainer component={Paper}><Table aria-label="Interview insight reports"><TableHead><TableRow><TableCell>Reported</TableCell><TableCell>Reason</TableCell><TableCell>Insight</TableCell><TableCell>Status</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead><TableBody>
                 {reports.data.items.map((report) => <TableRow key={report.id}><TableCell>{new Date(report.createdAtUtc).toLocaleDateString()}</TableCell><TableCell>{report.reason}{report.details ? <Typography color="text.secondary" variant="body2">{report.details}</Typography> : null}</TableCell><TableCell>{report.insightId}</TableCell><TableCell><Chip label={report.status} size="small" /></TableCell><TableCell align="right"><Stack direction="row" justifyContent="flex-end" gap={1}>{([InsightReportStatus.Reviewed, InsightReportStatus.Dismissed, InsightReportStatus.Actioned] as const).map((status) => <Button color={status === InsightReportStatus.Actioned ? 'error' : 'primary'} key={status} onClick={() => { setReportTarget(report); setReportAction(status); setActionError(null); }} size="small">{status}</Button>)}</Stack></TableCell></TableRow>)}
@@ -165,9 +134,7 @@ export const AdminInterviewInsightsPage = () => {
             </>
           ) : <EmptyState title="No reports found" description="No reports match this backend status." />}
         </Stack>
-      ) : insights.isLoading ? (
-        <Stack aria-label="Loading interview insight moderation queue" role="status" spacing={1}>{[1,2,3,4].map((item) => <Skeleton height={78} key={item} variant="rounded" />)}</Stack>
-      ) : insights.isError ? (
+      ) : insights.isLoading ? <PageLoadingIndicator label="Loading interview insight moderation queue" /> : insights.isError ? (
         <ErrorState description={errorMessage(insights.error)} onRetry={() => void insights.refetch()} title="Moderation queue unavailable" />
       ) : insights.data?.items.length ? (
         <>

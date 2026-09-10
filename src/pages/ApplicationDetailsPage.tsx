@@ -1,17 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Paper, Stack, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -64,12 +53,7 @@ export const ApplicationDetailsPage = () => {
   };
 
   if (application.isLoading) {
-    return (
-      <Stack aria-label="Loading application details" role="status" spacing={3}>
-        <Skeleton height={76} variant="rounded" />
-        <Skeleton height={360} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading application details" />;
   }
 
   if (

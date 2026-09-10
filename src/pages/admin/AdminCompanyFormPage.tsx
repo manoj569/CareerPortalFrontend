@@ -1,4 +1,5 @@
-import { Skeleton, Stack } from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Stack } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -42,9 +43,7 @@ export const AdminCompanyFormPage = () => {
     );
   }
   if (editing && company.isLoading) {
-    return (
-      <Skeleton aria-label="Loading company form" height={700} role="status" variant="rounded" />
-    );
+    return <PageLoadingIndicator label="Loading company form" />;
   }
   if (editing && (company.isError || !company.data)) {
     return (

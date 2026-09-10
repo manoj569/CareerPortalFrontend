@@ -1,5 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import { Alert, Skeleton, Stack, Typography } from '@mui/material';
+import { Alert, Stack, Typography } from '@mui/material';
 import { useEffect, useRef } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
@@ -45,11 +46,7 @@ export const PaymentSuccessPage = () => {
   }
 
   if (status.isLoading || status.isFetching) {
-    return (
-      <Stack aria-label="Verifying successful payment" role="status" spacing={2}>
-        <Skeleton height={360} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Verifying successful payment" />;
   }
 
   if (status.isError || !status.data) {

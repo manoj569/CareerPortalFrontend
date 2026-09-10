@@ -1,18 +1,8 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import CloudDownloadOutlinedIcon from '@mui/icons-material/CloudDownloadOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useRef, useState, type ChangeEvent } from 'react';
 
@@ -116,12 +106,7 @@ export const ResumePage = () => {
   };
 
   if (profile.isLoading) {
-    return (
-      <Stack aria-label="Loading resume" role="status" spacing={3}>
-        <Skeleton height={76} variant="rounded" />
-        <Skeleton height={280} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading resume" />;
   }
 
   if (profile.isError || !profile.data) {

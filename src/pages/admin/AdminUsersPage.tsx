@@ -1,26 +1,5 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  Skeleton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Alert, Box, Button, Card, CardContent, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -113,13 +92,7 @@ export const AdminUsersPage = () => {
         </Grid>
       </Paper>
 
-      {users.isLoading ? (
-        <Stack aria-label="Loading recent users" role="status" spacing={2}>
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton height={76} key={index} variant="rounded" />
-          ))}
-        </Stack>
-      ) : users.isError ? (
+      {users.isLoading ? <PageLoadingIndicator label="Loading recent users" /> : users.isError ? (
         <ErrorState onRetry={() => void users.refetch()} title="Recent users unavailable" />
       ) : filteredUsers.length ? (
         <>

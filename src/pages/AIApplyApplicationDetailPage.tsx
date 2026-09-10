@@ -1,3 +1,4 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 /* eslint-disable @typescript-eslint/no-misused-promises */
 import { useEffect, useState } from 'react';
 import {
@@ -16,7 +17,7 @@ import {
 } from '@mui/material';
 import { Link, useParams } from 'react-router-dom';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { LoadingIndicator } from '@/components/feedback/LoadingIndicator';
+
 import { buildAIApplyQuestionDetailsPath, ROUTES } from '@/constants/routes';
 import { AIApplySectionNavigation } from '@/features/aiApply/components/AIApplySectionNavigation';
 import { AIApplyHandoffCard } from '@/features/aiApply/components/AIApplyHandoffCard';
@@ -71,7 +72,7 @@ export const AIApplyApplicationDetailPage = () => {
       document.removeEventListener('visibilitychange', refresh);
     };
   }, [refetch]);
-  if (query.isLoading) return <LoadingIndicator label="Loading application details…" />;
+  if (query.isLoading) return <PageLoadingIndicator label="Loading application details…" />;
   if (query.isError || !query.data)
     return (
       <ErrorState

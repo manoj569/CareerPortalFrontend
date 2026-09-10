@@ -1,4 +1,5 @@
-import { Skeleton, Stack } from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Stack } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -61,12 +62,7 @@ export const AdminEditJobPage = () => {
   }
 
   if (job.isLoading || companiesQuery.isLoading || categoriesQuery.isLoading) {
-    return (
-      <Stack aria-label="Loading job editor" role="status" spacing={3}>
-        <Skeleton height={80} variant="rounded" />
-        <Skeleton height={900} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading job editor" />;
   }
 
   if (job.isError || !job.data) {

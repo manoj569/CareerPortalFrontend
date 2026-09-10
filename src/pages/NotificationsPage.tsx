@@ -1,18 +1,7 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import {
-  Box,
-  Button,
-  Chip,
-  Link as MuiLink,
-  Pagination,
-  Paper,
-  Skeleton,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Chip, Link as MuiLink, Pagination, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -112,13 +101,7 @@ export const NotificationsPage = () => {
         </Typography>
       ) : null}
 
-      {isLoading && !data ? (
-        <Stack aria-label="Loading notifications" role="status" spacing={2}>
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} height={128} variant="rounded" />
-          ))}
-        </Stack>
-      ) : null}
+      {isLoading && !data ? <PageLoadingIndicator label="Loading notifications" /> : null}
 
       {isError && !data ? <ErrorState onRetry={() => void refetch()} /> : null}
 

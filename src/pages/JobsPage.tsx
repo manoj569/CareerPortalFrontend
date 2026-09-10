@@ -1,17 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import {
-  Box,
-  Button,
-  Chip,
-  Drawer,
-  Grid,
-  LinearProgress,
-  Pagination,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Chip, Drawer, Grid, LinearProgress, Pagination, Paper, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -22,7 +11,7 @@ import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import { useGetPopularCompaniesQuery, useSearchJobsQuery } from '@/features/jobs/api/jobsApi';
 import { JobDiscoveryHighlights } from '@/features/jobs/components/JobDiscoveryHighlights';
 import { JobCard } from '@/features/jobs/components/JobCard';
-import { JobCardSkeleton } from '@/features/jobs/components/JobCardSkeleton';
+
 import { JobFilters } from '@/features/jobs/components/JobFilters';
 import { SearchInput } from '@/features/jobs/components/SearchInput';
 import {
@@ -258,19 +247,7 @@ export const JobsPage = () => {
           <Typography color="text.secondary" sx={{ mt: 0.75 }}>
             Browse employers with the most active opportunities.
           </Typography>
-          {isPopularCompaniesLoading ? (
-            <Stack
-              aria-label="Loading popular companies"
-              direction="row"
-              role="status"
-              spacing={1}
-              sx={{ mt: 2 }}
-            >
-              {Array.from({ length: 5 }, (_, index) => (
-                <Skeleton height={40} key={index} variant="rounded" width={130} />
-              ))}
-            </Stack>
-          ) : null}
+          {isPopularCompaniesLoading ? <PageLoadingIndicator compact label="Loading popular companies" /> : null}
           {isPopularCompaniesError ? (
             <Stack alignItems="flex-start" spacing={1} sx={{ mt: 2 }}>
               <Typography color="text.secondary">
@@ -317,15 +294,7 @@ export const JobsPage = () => {
             </Stack>
             {isFetching && data ? <LinearProgress aria-label="Updating job results" /> : null}
 
-            {isLoading && !data ? (
-              <Grid aria-label="Loading jobs" container role="status" spacing={2.5}>
-                {Array.from({ length: 6 }, (_, index) => (
-                  <Grid key={index} size={{ xs: 12, md: 6 }}>
-                    <JobCardSkeleton />
-                  </Grid>
-                ))}
-              </Grid>
-            ) : null}
+            {isLoading && !data ? <PageLoadingIndicator label="Loading jobs" /> : null}
 
             {isError && !data ? <ErrorState onRetry={() => void refetch()} /> : null}
 

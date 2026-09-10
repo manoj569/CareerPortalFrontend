@@ -1,10 +1,11 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 /* eslint-disable @typescript-eslint/no-misused-promises */
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Card, CardContent, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { LoadingIndicator } from '@/components/feedback/LoadingIndicator';
+
 import { ROUTES } from '@/constants/routes';
 import { useAnswerAIApplyQuestionMutation, useGetAIApplyQuestionQuery, useSkipAIApplyQuestionMutation } from '@/features/aiApply/api/aiApplyApi';
 import { AIApplySectionNavigation } from '@/features/aiApply/components/AIApplySectionNavigation';
@@ -17,7 +18,7 @@ export const AIApplyQuestionDetailPage = () => {
   const [answer, setAnswer] = useState(''); const [saveToMemory, setSaveToMemory] = useState(false); const [error, setError] = useState<string | null>(null); const [confirmSkip, setConfirmSkip] = useState(false);
   const [submitAnswer, submitState] = useAnswerAIApplyQuestionMutation(); const [skipQuestion, skipState] = useSkipAIApplyQuestionMutation();
   useEffect(() => { if (query.data?.finalAnswer) setAnswer(query.data.finalAnswer); }, [query.data?.finalAnswer]);
-  if (query.isLoading) return <LoadingIndicator label="Loading question…" />;
+  if (query.isLoading) return <PageLoadingIndicator label="Loading question…" />;
   if (query.isError || !query.data) return <ErrorState title="Question not found" description="This question could not be found or is not available to your account." onRetry={query.refetch} />;
   const question = query.data; const pending = question.status === AIApplyQuestionStatus.Pending;
   const submit = async () => { const value = answer.trim(); if (!value) { setError('Enter an answer before continuing.'); return; } if (value.length > 4000) { setError('Answer must be 4,000 characters or fewer.'); return; } setError(null); try { await submitAnswer({ id: question.id, request: { answer: value, saveToMemory } }).unwrap(); enqueueSnackbar('Answer submitted.', { variant: 'success' }); void navigate(ROUTES.AI_APPLY_QUESTIONS); } catch (caught) { if (isConflict(caught)) { setError('This question has already been resolved.'); void query.refetch(); } else setError('We could not submit your answer. Please try again.'); } };

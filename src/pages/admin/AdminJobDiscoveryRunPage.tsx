@@ -1,11 +1,11 @@
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import {
   Alert,
   Box,
   Button,
   Checkbox,
   Chip,
-  CircularProgress,
   FormControlLabel,
   Grid,
   Link as MuiLink,
@@ -96,12 +96,7 @@ export const AdminJobDiscoveryRunPage = () => {
   };
 
   if (details.isLoading) {
-    return (
-      <Stack alignItems="center" spacing={2} sx={{ py: 8 }}>
-        <CircularProgress aria-label="Loading discovery run" />
-        <Typography color="text.secondary">Loading discovery run…</Typography>
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading discovery run…" />;
   }
   if (details.isError || !details.data) {
     return (

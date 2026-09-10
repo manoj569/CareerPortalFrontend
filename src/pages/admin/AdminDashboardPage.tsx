@@ -1,3 +1,4 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
@@ -5,18 +6,7 @@ import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Grid,
-  Link as MuiLink,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Chip, Grid, Link as MuiLink, Paper, Stack, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -53,7 +43,7 @@ export const AdminDashboardPage = () => {
   });
 
   const queries = [statistics, recentUsers, recentPayments, charts, recentJobs];
-  const isInitialLoading = queries.every((query) => query.isLoading);
+  const isInitialLoading = queries.some((query) => query.isLoading);
   const hasCompleteFailure = queries.every((query) => query.isError);
   const hasPartialFailure = queries.some((query) => query.isError);
   const retryAll = () => {
@@ -65,19 +55,7 @@ export const AdminDashboardPage = () => {
   };
 
   if (isInitialLoading) {
-    return (
-      <Stack aria-label="Loading admin overview" role="status" spacing={3}>
-        <Skeleton height={80} variant="rounded" />
-        <Grid container spacing={2}>
-          {Array.from({ length: 6 }, (_, index) => (
-            <Grid key={index} size={{ xs: 12, sm: 6, lg: 3 }}>
-              <Skeleton height={108} variant="rounded" />
-            </Grid>
-          ))}
-        </Grid>
-        <Skeleton height={320} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading admin overview" />;
   }
 
   if (hasCompleteFailure) {

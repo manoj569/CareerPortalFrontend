@@ -1,19 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
-import {
-  Box,
-  Chip,
-  FormControl,
-  Grid,
-  InputLabel,
-  Link as MuiLink,
-  MenuItem,
-  Pagination,
-  Paper,
-  Select,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Chip, FormControl, Grid, InputLabel, Link as MuiLink, MenuItem, Pagination, Paper, Select, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -95,13 +82,7 @@ export const ApplicationsPage = () => {
         </Typography>
       ) : null}
 
-      {isLoading && !data ? (
-        <Stack aria-busy="true" aria-label="Loading applied jobs" role="status" spacing={2}>
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} height={132} variant="rounded" />
-          ))}
-        </Stack>
-      ) : null}
+      {isLoading && !data ? <PageLoadingIndicator label="Loading applied jobs" /> : null}
 
       {isError && !data ? <ErrorState onRetry={() => void refetch()} /> : null}
 
@@ -182,12 +163,7 @@ export const ApplicationsPage = () => {
       {aiAccess.data?.canUseAIApply ? (
         <Box component="section">
           <Typography component="h2" sx={{ mb: 2 }} variant="h3">AI Applied</Typography>
-          {aiApplications.isLoading ? (
-            <Stack aria-busy="true" aria-label="Loading AI applied jobs" role="status" spacing={2}>
-              <Skeleton height={120} variant="rounded" />
-              <Skeleton height={120} variant="rounded" />
-            </Stack>
-          ) : aiApplications.isError ? (
+          {aiApplications.isLoading ? <PageLoadingIndicator label="Loading AI applied jobs" /> : aiApplications.isError ? (
             <Typography color="text.secondary">AI Apply history is temporarily unavailable.</Typography>
           ) : uniqueAIApplications?.length ? (
             <Grid container spacing={2}>

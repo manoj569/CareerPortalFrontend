@@ -1,4 +1,5 @@
-import { Alert, Grid, Paper, Skeleton, Stack, Typography } from '@mui/material';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { Alert, Grid, Paper, Stack, Typography } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -33,14 +34,7 @@ export const AdminPaymentDetailsPage = () => {
     );
   }
   if (payments.isLoading) {
-    return (
-      <Skeleton
-        aria-label="Loading admin payment summary"
-        height={420}
-        role="status"
-        variant="rounded"
-      />
-    );
+    return <PageLoadingIndicator label="Loading admin payment summary" />;
   }
   if (payments.isError) {
     return (

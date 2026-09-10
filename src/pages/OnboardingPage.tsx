@@ -1,25 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { yupResolver } from '@hookform/resolvers/yup';
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  CircularProgress,
-  Divider,
-  FormControl,
-  FormControlLabel,
-  FormHelperText,
-  FormLabel,
-  Grid,
-  LinearProgress,
-  Paper,
-  Radio,
-  RadioGroup,
-  Skeleton,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Checkbox, CircularProgress, Divider, FormControl, FormControlLabel, FormHelperText, FormLabel, Grid, LinearProgress, Paper, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -187,12 +168,7 @@ export const OnboardingPage = () => {
   };
 
   if (isLoading) {
-    return (
-      <Stack aria-label="Loading candidate onboarding" role="status" spacing={3}>
-        <Skeleton height={100} variant="rounded" />
-        <Skeleton height={560} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading candidate onboarding" />;
   }
 
   if (isError || !data) {

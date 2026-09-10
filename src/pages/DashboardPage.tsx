@@ -1,21 +1,11 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Grid,
-  Link as MuiLink,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Chip, Grid, Link as MuiLink, Paper, Stack, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -92,19 +82,7 @@ export const DashboardPage = () => {
   };
 
   if (isInitialLoading) {
-    return (
-      <Stack aria-busy="true" aria-label="Loading candidate dashboard" role="status" spacing={3}>
-        <Skeleton height={76} variant="rounded" />
-        <Grid container spacing={2}>
-          {Array.from({ length: 4 }, (_, index) => (
-            <Grid key={index} size={{ xs: 12, sm: 6, lg: 3 }}>
-              <Skeleton height={104} variant="rounded" />
-            </Grid>
-          ))}
-        </Grid>
-        <Skeleton height={280} variant="rounded" />
-      </Stack>
-    );
+    return <PageLoadingIndicator label="Loading candidate dashboard" />;
   }
 
   if (hasCompleteFailure) return <ErrorState headingLevel="h1" onRetry={retryDashboard} />;

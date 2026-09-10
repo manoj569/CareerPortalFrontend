@@ -1,3 +1,4 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
@@ -23,7 +24,6 @@ import {
   Pagination,
   Paper,
   Select,
-  Skeleton,
   Stack,
   Tab,
   Tabs,
@@ -208,10 +208,7 @@ const InsightDetailDialog = ({ id, onClose, onFeedback, onMembershipRequired }: 
       <DialogTitle>Interview insight</DialogTitle>
       <DialogContent>
         {query.isFetching && !data ? (
-          <Stack aria-label="Loading interview insight" role="status" spacing={1} sx={{ py: 5 }}>
-            <Skeleton height={40} />
-            <Skeleton height={180} variant="rounded" />
-          </Stack>
+          <PageLoadingIndicator label="Loading interview insight" />
         ) : null}
         {query.error && !data ? (
           <ErrorState
@@ -832,15 +829,7 @@ export const InterviewInsightsPage = ({ onMembershipRequired }: InterviewInsight
               </Grid>
             </Grid>
           </Paper>
-          {insights.isLoading ? (
-            <Grid aria-label="Loading interview insights" container role="status" spacing={2}>
-              {Array.from({ length: 6 }, (_, index) => (
-                <Grid key={index} size={{ xs: 12, md: 6, xl: 4 }}>
-                  <Skeleton height={300} variant="rounded" />
-                </Grid>
-              ))}
-            </Grid>
-          ) : null}
+          {insights.isLoading ? <PageLoadingIndicator label="Loading interview insights" /> : null}
           {insights.isError && !insights.data ? (
             <ErrorState
               description={readError(insights.error)}
@@ -898,12 +887,7 @@ export const InterviewInsightsPage = ({ onMembershipRequired }: InterviewInsight
             <Tab label="Completed" value="completed" />
             <Tab label="Cancelled" value="cancelled" />
           </Tabs>
-          {schedules.isLoading ? (
-            <Stack role="status" spacing={2}>
-              <Skeleton height={150} variant="rounded" />
-              <Skeleton height={150} variant="rounded" />
-            </Stack>
-          ) : null}
+          {schedules.isLoading ? <PageLoadingIndicator label="Loading…" /> : null}
           {schedules.isError ? (
             <ErrorState
               description={readError(schedules.error)}
@@ -1016,7 +1000,7 @@ export const InterviewInsightsPage = ({ onMembershipRequired }: InterviewInsight
       {view === 'contributions' ? (
         <Stack spacing={3}>
           <Typography component="h2" variant="h2">My contributions</Typography>
-          {contributions.isLoading ? <Skeleton height={240} variant="rounded" /> : null}
+          {contributions.isLoading ? <PageLoadingIndicator label="Loading…" /> : null}
           {contributions.isError ? (
             <ErrorState
               description={readError(contributions.error)}

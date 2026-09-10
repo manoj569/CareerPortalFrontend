@@ -1,30 +1,8 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import {
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  Chip,
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Pagination,
-  Paper,
-  Select,
-  Skeleton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Button, Card, CardActions, CardContent, Chip, FormControl, Grid, InputLabel, MenuItem, Pagination, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -197,13 +175,7 @@ export const AdminCompaniesPage = () => {
         </Grid>
       </Paper>
 
-      {companies.isLoading ? (
-        <Stack aria-label="Loading companies" role="status" spacing={2}>
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton height={76} key={index} variant="rounded" />
-          ))}
-        </Stack>
-      ) : companies.isError ? (
+      {companies.isLoading ? <PageLoadingIndicator label="Loading companies" /> : companies.isError ? (
         <ErrorState onRetry={() => void companies.refetch()} title="Companies unavailable" />
       ) : companies.data?.items.length ? (
         <>

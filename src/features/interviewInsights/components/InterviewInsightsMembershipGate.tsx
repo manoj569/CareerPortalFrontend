@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { FullPageLoader } from '@/components/feedback/FullPageLoader';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { ROUTES } from '@/constants/routes';
 import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
 import { findActiveMembership } from '@/features/payments/utils/entitlement';
@@ -33,7 +33,7 @@ export const InterviewInsightsMembershipGate = () => {
     [location.state],
   );
 
-  if (memberships.isLoading || memberships.isUninitialized) return <FullPageLoader />;
+  if (memberships.isLoading || memberships.isUninitialized) return <PageLoadingIndicator label="Checking membership access…" />;
 
   if (memberships.isError || !memberships.data) {
     return (

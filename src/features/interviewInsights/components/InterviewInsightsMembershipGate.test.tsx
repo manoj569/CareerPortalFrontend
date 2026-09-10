@@ -107,6 +107,15 @@ describe('InterviewInsightsMembershipGate', () => {
     vi.mocked(useGetMembershipsQuery).mockReturnValue(queryResult([]));
   });
 
+  it('shows the centered loading status without mounting protected content while checking access', () => {
+    vi.mocked(useGetMembershipsQuery).mockReturnValue({ ...queryResult([]), isLoading: true });
+    renderGate([ROUTES.INTERVIEW_INSIGHTS]);
+    expect(screen.getByRole('status', { name: 'Checking membership access…' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Checking membership access…')).toBeVisible();
+    expect(insightPageRender).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('blocks a direct route before rendering or querying insight content', () => {
     renderGate([ROUTES.INTERVIEW_INSIGHTS]);
 

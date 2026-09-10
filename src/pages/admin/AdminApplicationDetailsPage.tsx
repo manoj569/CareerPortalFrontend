@@ -1,16 +1,6 @@
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
-import {
-  Alert,
-  Button,
-  Chip,
-  Divider,
-  Grid,
-  Paper,
-  Skeleton,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Chip, Divider, Grid, Paper, Stack, TextField, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -53,14 +43,7 @@ export const AdminApplicationDetailsPage = () => {
   const [updateStatus, updateState] = useUpdateAdminApplicationStatusMutation();
 
   if (application.isLoading) {
-    return (
-      <Skeleton
-        aria-label="Loading application review"
-        height={700}
-        role="status"
-        variant="rounded"
-      />
-    );
+    return <PageLoadingIndicator label="Loading application review" />;
   }
   if (!isGuid(applicationId) || application.isError || !application.data) {
     return (
