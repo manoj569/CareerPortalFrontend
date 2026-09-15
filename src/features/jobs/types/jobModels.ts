@@ -142,6 +142,10 @@ export interface StringFacetOption {
   count: number;
 }
 
+export interface LabeledStringFacetOption extends StringFacetOption {
+  label: string;
+}
+
 export interface EnumFacetOption<TValue extends number> {
   value: TValue;
   count: number;
@@ -173,15 +177,15 @@ export interface IntegerRangeFacet {
 }
 
 export interface PublicJobFilterOptions {
-  locations: StringFacetOption[];
+  locations: LabeledStringFacetOption[];
   workModes: EnumFacetOption<WorkplaceType>[];
-  departments: StringFacetOption[];
-  roleCategories: StringFacetOption[];
+  departments: LabeledStringFacetOption[];
+  roleCategories: LabeledStringFacetOption[];
   employmentTypes: EnumFacetOption<EmploymentType>[];
   companyTypes: EnumFacetOption<CompanyType>[];
   companies: CompanyFacetOption[];
   industries: StringFacetOption[];
-  educationRequirements: StringFacetOption[];
+  educationRequirements: LabeledStringFacetOption[];
   postedByTypes: EnumFacetOption<PostedByType>[];
   internshipDurations: InternshipDurationFacetOption[];
   salaryRange: DecimalRangeFacet;

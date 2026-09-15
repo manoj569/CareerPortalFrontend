@@ -80,7 +80,7 @@ describe('public jobs advanced search API', () => {
     expect(request?.params?.get('pageNumber')).toBe('2');
   });
 
-  it('uses the completed filter-options endpoint with the same selected facets', async () => {
+  it('uses the canonical facets endpoint with all contextual repeated filters', async () => {
     const store = createAppStore();
     mockRequest.mockResolvedValue({
       data: {
@@ -106,6 +106,10 @@ describe('public jobs advanced search API', () => {
       .dispatch(
         jobsApi.endpoints.getJobFilterOptions.initiate({
           keyword: 'design',
+          roleCategories: ['Software Development', 'Product Management - Technology'],
+          locations: ['Pune', 'Mumbai'],
+          departments: ['Engineering - Software & QA'],
+          educationRequirements: ['B.Tech / B.E.', 'Any Graduate'],
           pageNumber: 1,
           pageSize: 1,
           sortBy: PublicJobSort.Recommended,
@@ -116,7 +120,11 @@ describe('public jobs advanced search API', () => {
       .unwrap();
 
     const request = mockRequest.mock.calls[0]?.[0] as CapturedRequest | undefined;
-    expect(request?.url).toBe('/jobs/filter-options');
+    expect(request?.url).toBe('/jobs/facets');
+    expect(request?.params?.getAll('roleCategories')).toEqual(['Software Development', 'Product Management - Technology']);
+    expect(request?.params?.getAll('locations')).toEqual(['Pune', 'Mumbai']);
+    expect(request?.params?.getAll('departments')).toEqual(['Engineering - Software & QA']);
+    expect(request?.params?.getAll('educationRequirements')).toEqual(['B.Tech / B.E.', 'Any Graduate']);
     expect(request?.params?.getAll('workModes')).toEqual(['2']);
     expect(request?.params?.get('keyword')).toBe('design');
   });

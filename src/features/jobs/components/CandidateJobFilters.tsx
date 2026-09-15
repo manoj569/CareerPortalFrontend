@@ -24,15 +24,10 @@ import {
   type SupplementalJobFilterCounts,
 } from '../types/jobModels';
 import type { CandidateJobSearchState } from '../utils/candidateJobSearchParams';
-import { JobNameFilters } from './JobNameFilters';
 import {
   FacetSelectionFilter,
   type FacetSelectionOption,
 } from './candidateBrowse/FacetSelectionFilter';
-import {
-  getEducationDisplayLabel,
-  getLocationDisplayLabel,
-} from './candidateBrowse/facetDisplay';
 
 const EXPERIENCE_MAXIMUM = 45;
 const SALARY_MAXIMUM_LPA = 50;
@@ -111,7 +106,7 @@ interface CandidateJobFiltersProps {
   onCollapse?: () => void;
   options: PublicJobFilterOptions;
   state: CandidateJobSearchState;
-  supplementalCounts: SupplementalJobFilterCounts;
+  supplementalCounts?: SupplementalJobFilterCounts;
 }
 
 export const CandidateJobFilters = ({
@@ -198,7 +193,7 @@ export const CandidateJobFilters = ({
             <FormControlLabel
               control={<Radio size="small" />}
               key={days}
-              label={`${label} (${supplementalCounts.freshness[days as 1 | 3 | 7 | 15 | 30]})`}
+              label={`${label}${supplementalCounts ? ` (${supplementalCounts.freshness[days as 1 | 3 | 7 | 15 | 30]})` : ''}`}
               value={String(days)}
             />
           ))}
@@ -281,16 +276,18 @@ export const CandidateJobFilters = ({
         />
       </FilterSection>
 
-      <FilterSection defaultExpanded={Boolean(state.categoryName)} title="Category">
-        <JobNameFilters
-          categoryName={state.categoryName}
-          companyName=""
-          fields="category"
-          onChange={onChange}
+      {options.roleCategories.length > 0 ? <FilterSection defaultExpanded title="Role category">
+        <FacetSelectionFilter
+          dialogTitle="Role category"
+          facetLabel="Role category"
+          onApply={(roleCategories) => onChange({ roleCategories })}
+          options={options.roleCategories.map((option) => ({ count: option.count, key: option.value, label: option.label }))}
+          searchLabel="Search role categories"
+          selected={state.roleCategories}
         />
-      </FilterSection>
+      </FilterSection> : null}
 
-      <FilterSection defaultExpanded={state.locations.length > 0} title="Location">
+      {options.locations.length > 0 ? <FilterSection defaultExpanded title="Location">
         <FacetSelectionFilter
           dialogTitle="Select locations"
           facetLabel="Location"
@@ -298,14 +295,14 @@ export const CandidateJobFilters = ({
           options={options.locations.map((option) => ({
             count: option.count,
             key: option.value,
-            label: getLocationDisplayLabel(option.value),
+            label: option.label,
           }))}
           searchLabel="Search locations"
           selected={state.locations}
         />
-      </FilterSection>
+      </FilterSection> : null}
 
-      <FilterSection defaultExpanded={state.departments.length > 0} title="Department">
+      {options.departments.length > 0 ? <FilterSection defaultExpanded title="Department">
         <FacetSelectionFilter
           dialogTitle="Select departments"
           facetLabel="Department"
@@ -313,14 +310,14 @@ export const CandidateJobFilters = ({
           options={options.departments.map((option) => ({
             count: option.count,
             key: option.value,
-            label: option.value.trim(),
+            label: option.label,
           }))}
           searchLabel="Search departments"
           selected={state.departments}
         />
-      </FilterSection>
+      </FilterSection> : null}
 
-      <FilterSection defaultExpanded={state.educationRequirements.length > 0} title="Education">
+      {options.educationRequirements.length > 0 ? <FilterSection defaultExpanded title="Education">
         <FacetSelectionFilter
           dialogTitle="Select education"
           facetLabel="Education"
@@ -328,12 +325,12 @@ export const CandidateJobFilters = ({
           options={options.educationRequirements.map((option) => ({
             count: option.count,
             key: option.value,
-            label: getEducationDisplayLabel(option.value),
+            label: option.label,
           }))}
           searchLabel="Search education"
           selected={state.educationRequirements}
         />
-      </FilterSection>
+      </FilterSection> : null}
     </Stack>
   );
 };

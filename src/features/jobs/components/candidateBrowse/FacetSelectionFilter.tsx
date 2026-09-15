@@ -38,20 +38,15 @@ interface FacetSelectionFilterProps {
 const dedupeOptions = (options: FacetSelectionOption[]): FacetSelectionOption[] => {
   const byIdentity = new Map<string, FacetSelectionOption>();
   options.forEach((option) => {
-    const key = option.key.trim();
-    if (!key) return;
+    const key = option.key;
+    if (!key.trim()) return;
     const identity = normalizeFacetIdentity(key);
     const existing = byIdentity.get(identity);
     if (!existing) {
       byIdentity.set(identity, { ...option, key });
       return;
     }
-    if (option.count !== undefined) {
-      byIdentity.set(identity, {
-        ...existing,
-        count: (existing.count ?? 0) + option.count,
-      });
-    }
+    // Duplicate identities must never add or otherwise manufacture backend counts.
   });
   return Array.from(byIdentity.values());
 };
@@ -97,10 +92,10 @@ const OptionCheckbox = ({
     }
     label={
       <Stack alignItems="baseline" direction="row" gap={0.75} minWidth={0}>
-        <Typography component="span" variant="body2">{option.label}</Typography>
+        <Typography component="span" variant="body2" sx={{ overflowWrap: 'anywhere' }}>{option.label}</Typography>
         {option.count === undefined ? null : (
           <Typography color="text.secondary" component="span" variant="caption">
-            {option.count}
+            ({option.count})
           </Typography>
         )}
       </Stack>
@@ -130,15 +125,8 @@ export const FacetSelectionFilter = ({
     () => new Set(selected.map(normalizeFacetIdentity)),
     [selected],
   );
-  const availableOptions = useMemo(
-    () =>
-      uniqueOptions.filter(
-        (option) =>
-          (option.count ?? 1) > 0 || selectedIdentities.has(normalizeFacetIdentity(option.key)),
-      ),
-    [selectedIdentities, uniqueOptions],
-  );
-  const mainOptions = filterOptions(availableOptions, inlineSearch, selectedIdentities).slice(0, 5);
+  const availableOptions = uniqueOptions;
+  const mainOptions = filterOptions(availableOptions, inlineSearch, selectedIdentities).slice(0, 7);
   const draftIdentities = new Set(draftSelection.map(normalizeFacetIdentity));
   const dialogOptions = filterOptions(availableOptions, dialogSearch, draftIdentities);
 
@@ -155,12 +143,12 @@ export const FacetSelectionFilter = ({
   };
 
   if (availableOptions.length === 0) {
-    return <Typography color="text.secondary" variant="body2">No options available.</Typography>;
+    return null;
   }
 
   return (
     <Stack spacing={1}>
-      {availableOptions.length > 5 ? (
+      {availableOptions.length > 7 ? (
         <TextField
           fullWidth
           label={searchLabel}
@@ -181,7 +169,7 @@ export const FacetSelectionFilter = ({
           ))}
         </FormGroup>
       </Box>
-      {availableOptions.length > 5 ? (
+      {availableOptions.length > 7 ? (
         <Button
           aria-label={`View more ${facetLabel.toLocaleLowerCase()}`}
           onClick={() => {
@@ -205,6 +193,7 @@ export const FacetSelectionFilter = ({
         onClose={closeDialog}
         open={dialogOpen}
         slotProps={{
+          transition: { onExited: () => viewMoreButtonRef.current?.focus() },
           paper: {
             sx: { maxWidth: '100%', overflowX: 'hidden' },
           },
@@ -270,8 +259,8 @@ export const FacetSelectionFilter = ({
             py: 1.5,
           }}
         >
-          <Button disabled={draftSelection.length === 0} onClick={() => setDraftSelection([])}>
-            Clear selection
+          <Button onClick={() => setDraftSelection([])}>
+            Clear
           </Button>
           <Box sx={{ flex: 1 }} />
           <Button onClick={closeDialog}>Cancel</Button>

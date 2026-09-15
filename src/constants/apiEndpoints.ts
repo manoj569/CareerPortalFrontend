@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
   JOBS: {
     SEARCH: '/jobs',
     FILTER_OPTIONS: '/jobs/filter-options',
+    FACETS: '/jobs/facets',
     LATEST: '/jobs/latest',
     NEWEST: '/jobs/newest',
     FEATURED: '/jobs/featured',

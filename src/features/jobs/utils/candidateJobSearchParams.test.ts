@@ -9,6 +9,13 @@ import {
 } from './candidateJobSearchParams';
 
 describe('Candidate job search URL state', () => {
+  it('round-trips canonical repeated facets from shared URLs', () => {
+    const params = new URLSearchParams('roleCategories=Software&roleCategories=Product&locations=Pune&locations=Mumbai&departments=Engineering&educationRequirements=Any+Graduate&page=4');
+    const state = parseCandidateJobSearchParams(params);
+    expect(toCandidatePublicJobQuery(state)).toMatchObject({ roleCategories: ['Software', 'Product'], locations: ['Pune', 'Mumbai'], departments: ['Engineering'], educationRequirements: ['Any Graduate'], pageNumber: 4 });
+    expect(parseCandidateJobSearchParams(serializeCandidateJobSearchState(state))).toEqual(state);
+    expect(countCandidateJobFilters(state)).toBe(6);
+  });
   it('round-trips the nine retained filter groups and pagination', () => {
     const params = new URLSearchParams(
       'q=react&categoryName=Artificial%20Intelligence&workMode=remote&workMode=hybrid&companyType=startup&department=Engineering&education=B.Tech&location=Pune&minExperience=1&maxExperience=3&minAmount=500000&maxAmount=2500000&freshness=7&sort=closing&page=2',
@@ -59,7 +66,7 @@ describe('Candidate job search URL state', () => {
     ].forEach((name) => expect(serialized.has(name)).toBe(false));
     expect(query).not.toHaveProperty('companyName');
     expect(query).not.toHaveProperty('featuredOnly');
-    expect(query).not.toHaveProperty('roleCategories');
+    expect(query.roleCategories).toBeUndefined();
   });
 
   it('maps retained URL state to the backend query and de-duplicates text facets', () => {

@@ -5,7 +5,7 @@ import {
   getWorkplaceTypeLabel,
 } from '@/features/jobs/constants/jobOptions';
 import type { CandidateJobSearchState } from '@/features/jobs/utils/candidateJobSearchParams';
-import { getEducationDisplayLabel, getLocationDisplayLabel } from './facetDisplay';
+import type { PublicJobFilterOptions } from '@/features/jobs/types/jobModels';
 
 const RUPEES_PER_LAKH = 100_000;
 
@@ -13,6 +13,7 @@ interface ActiveFilterChipsProps {
   onChange: (changes: Partial<CandidateJobSearchState>) => void;
   onKeywordClear: () => void;
   state: CandidateJobSearchState;
+  options?: PublicJobFilterOptions;
 }
 
 interface ActiveFilter {
@@ -30,17 +31,24 @@ const formatLpa = (amount: number | undefined, fallback: string): string =>
 const formatSalaryRange = (state: CandidateJobSearchState): string =>
   `Salary: ₹${formatLpa(state.minAmount, '0')}–₹${formatLpa(state.maxAmount, '50+')} LPA`;
 
-export const ActiveFilterChips = ({ onChange, onKeywordClear, state }: ActiveFilterChipsProps) => {
+export const ActiveFilterChips = ({ onChange, onKeywordClear, state, options }: ActiveFilterChipsProps) => {
+  const labelFor = (facet: 'roleCategories' | 'locations' | 'departments' | 'educationRequirements', value: string) =>
+    options?.[facet].find((option) => option.value === value)?.label ?? value;
   const filters: ActiveFilter[] = [];
   const add = (key: string, label: string, remove: () => void) =>
     filters.push({ key, label, remove });
 
   if (state.keyword) add('keyword', `Search: ${state.keyword}`, onKeywordClear);
+  state.roleCategories.forEach((value) =>
+    add(`role-${value}`, labelFor('roleCategories', value), () =>
+      onChange({ roleCategories: state.roleCategories.filter((item) => item !== value) }),
+    ),
+  );
   if (state.categoryName) {
     add('category', `Category: ${state.categoryName}`, () => onChange({ categoryName: '' }));
   }
   state.locations.forEach((value) =>
-    add(`location-${value}`, `Location: ${getLocationDisplayLabel(value)}`, () =>
+    add(`location-${value}`, labelFor('locations', value), () =>
       onChange({ locations: state.locations.filter((item) => item !== value) }),
     ),
   );
@@ -60,7 +68,7 @@ export const ActiveFilterChips = ({ onChange, onKeywordClear, state }: ActiveFil
     );
   }
   state.departments.forEach((value) =>
-    add(`department-${value}`, `Department: ${value}`, () =>
+    add(`department-${value}`, labelFor('departments', value), () =>
       onChange({ departments: state.departments.filter((item) => item !== value) }),
     ),
   );
@@ -70,7 +78,7 @@ export const ActiveFilterChips = ({ onChange, onKeywordClear, state }: ActiveFil
     ),
   );
   state.educationRequirements.forEach((value) =>
-    add(`education-${value}`, `Education: ${getEducationDisplayLabel(value)}`, () =>
+    add(`education-${value}`, labelFor('educationRequirements', value), () =>
       onChange({
         educationRequirements: state.educationRequirements.filter((item) => item !== value),
       }),

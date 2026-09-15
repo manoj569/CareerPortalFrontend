@@ -47,7 +47,7 @@ export const jobsApi = createApi({
     getJobFilterOptions: builder.query<PublicJobFilterOptions, PublicJobQuery>({
       query: (query) => ({
         params: toJobApiSearchParams(query),
-        url: API_ENDPOINTS.JOBS.FILTER_OPTIONS,
+        url: API_ENDPOINTS.JOBS.FACETS,
       }),
       transformResponse: (response: BackendApiResponse<PublicJobFilterOptions>) => response.data,
     }),

@@ -320,23 +320,22 @@ export const CandidateBrowseJobsPage = () => {
   const refetchResults = isRecommended ? recommended.refetch : jobs.refetch;
 
   const renderFilterPanel = (onCollapse?: () => void) =>
-    filterOptions.isLoading || supplementalCounts.isLoading ? <PageLoadingIndicator compact label="Loading job filters" /> : filterOptions.isError ||
-      !filterOptions.data ||
-      supplementalCounts.isError ||
-      !supplementalCounts.data ? (
+    filterOptions.isLoading && !filterOptions.data ? <PageLoadingIndicator compact label="Loading job filters" /> : !filterOptions.data ? (
       <Stack spacing={2}>
-        <Alert severity="error">Job filters are temporarily unavailable.</Alert>
+        <Alert severity="error">Unable to load filters</Alert>
         <Button
           onClick={() => {
             void filterOptions.refetch();
-            void supplementalCounts.refetch();
           }}
           variant="outlined"
         >
-          Retry filters
+          Retry
         </Button>
       </Stack>
     ) : (
+      <Stack spacing={1} aria-busy={filterOptions.isFetching}>
+      {filterOptions.isError ? <Alert severity="warning" action={<Button onClick={() => void filterOptions.refetch()}>Retry</Button>}>Unable to load filters</Alert> : null}
+      {filterOptions.isFetching ? <Typography role="status" variant="caption">Updating filters…</Typography> : null}
       <CandidateJobFilters
         appliedCount={appliedCount}
         onChange={applyChanges}
@@ -346,6 +345,7 @@ export const CandidateBrowseJobsPage = () => {
         state={state}
         supplementalCounts={supplementalCounts.data}
       />
+      </Stack>
     );
 
   return (
@@ -455,6 +455,7 @@ export const CandidateBrowseJobsPage = () => {
             {!isRecommended && (appliedCount > 0 || state.keyword) ? (
               <Stack alignItems="flex-start" spacing={1}>
                 <ActiveFilterChips
+                  options={filterOptions.data}
                   onChange={applyChanges}
                   onKeywordClear={() => {
                     setKeywordInput('');
@@ -602,11 +603,11 @@ export const CandidateBrowseJobsPage = () => {
           </Button>
           <Button
             fullWidth
-            onClick={() => setIsMobileFiltersOpen(false)}
+            onClick={closeMobileFilters}
             type="button"
             variant="contained"
           >
-            Apply filters
+            Show jobs
           </Button>
         </Stack>
       </Drawer> : null}

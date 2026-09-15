@@ -173,6 +173,9 @@ export const ContactUsPage = () => {
               <strong>Operating business:</strong> {PUBLIC_BUSINESS_DETAILS.operatingBusiness}
             </Typography>
             <Typography>
+              <strong>Contact person:</strong> SUREKHA SHIVAJI SHEKAPURE
+            </Typography>
+            <Typography>
               <strong>GSTIN:</strong> {PUBLIC_BUSINESS_DETAILS.gstin}
             </Typography>
             <MuiLink href={`mailto:${PUBLIC_BUSINESS_DETAILS.supportEmail}`}>

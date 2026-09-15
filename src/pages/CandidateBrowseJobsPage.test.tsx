@@ -159,15 +159,17 @@ const options: PublicJobFilterOptions = {
     { count: 6, value: 'Sales' },
     { count: 5, value: 'Operations' },
     { count: 4, value: 'Marketing' },
-  ],
+    { count: 2, value: 'Support' },
+    { count: 1, value: 'Security' },
+  ].map((option) => ({ ...option, label: option.value })),
   educationRequirements: [
     { count: 9, value: 'MBA/PGDM' },
     { count: 8, value: 'Any Postgraduate' },
     { count: 7, value: 'M.Tech' },
     { count: 6, value: 'MCA' },
-    { count: 5, value: 'B.Tech' },
+    { count: 5, value: 'B.Tech', label: 'B.Tech / B.E.' },
     { count: 4, value: 'Any Graduate' },
-  ],
+  ].map((option) => ({ ...option, label: option.label ?? option.value })),
   employmentTypes: [
     { count: 15, value: EmploymentType.FullTime },
     { count: 5, value: EmploymentType.Internship },
@@ -177,15 +179,18 @@ const options: PublicJobFilterOptions = {
   internshipDurations: [{ count: 5, isFlexible: false, label: '3 months', months: 3 }],
   locations: [
     { count: 12, value: 'Pune' },
-    { count: 11, value: ' bengaluru ' },
+    { count: 11, value: 'bengaluru', label: 'Bengaluru' },
     { count: 10, value: 'Hyderabad' },
     { count: 9, value: 'Chennai' },
     { count: 8, value: 'Delhi / NCR' },
     { count: 7, value: 'Mumbai (All Areas)' },
     { count: 3, value: ' pune ' },
-  ],
+  ].map((option) => ({ ...option, label: option.label ?? option.value })),
   postedByTypes: [{ count: 16, value: PostedByType.Company }],
-  roleCategories: [{ count: 11, value: 'Software Development' }],
+  roleCategories: [
+    { count: 11, value: 'software', label: 'Software Development' },
+    { count: 4, value: 'product', label: 'Product Management - Technology' },
+  ],
   salaryRange: { count: 16, maximum: 3_000_000, minimum: 100_000 },
   workModes: [
     { count: 14, value: WorkplaceType.Remote },
@@ -231,7 +236,7 @@ const renderPage = (initialEntry = '/dashboard/jobs') => {
     ],
     { initialEntries: [initialEntry] },
   );
-  return renderWithProviders(<RouterProvider router={router} />, { auth: candidateAuth });
+  return { ...renderWithProviders(<RouterProvider router={router} />, { auth: candidateAuth }), router };
 };
 
 beforeEach(() => {
@@ -298,6 +303,56 @@ beforeEach(() => {
 });
 
 describe('Candidate Browse jobs', () => {
+  it('restores cross-facet selections from shared URLs and synchronizes chips, back and forward', async () => {
+    const { router } = renderPage('/dashboard/jobs?roleCategories=software&locations=Pune&departments=Engineering&educationRequirements=B.Tech&page=3');
+    for (const name of ['Software Development, 11 jobs', 'Pune, 12 jobs', 'Engineering, 12 jobs', 'B.Tech / B.E., 5 jobs']) {
+      expect(screen.getByRole('checkbox', { name })).toBeChecked();
+    }
+    expect(mockFilterOptions.mock.calls.at(-1)?.[0]).toMatchObject({ roleCategories: ['software'], locations: ['Pune'], departments: ['Engineering'], educationRequirements: ['B.Tech'] });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Hyderabad, 10 jobs' }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ locations: ['Pune', 'Hyderabad'], roleCategories: ['software'], pageNumber: 1 });
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.getAll('locations')).toEqual(['Pune', 'Hyderabad']);
+    expect(params.has('page')).toBe(false);
+    await userEvent.click(screen.getByLabelText('Software Development. Remove filter'));
+    expect(screen.getByRole('checkbox', { name: 'Software Development, 11 jobs' })).not.toBeChecked();
+    expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).roleCategories).toBeUndefined();
+    await act(() => router.navigate(-1));
+    expect(screen.getByRole('checkbox', { name: 'Software Development, 11 jobs' })).toBeChecked();
+    await act(() => router.navigate(1));
+    expect(screen.getByRole('checkbox', { name: 'Software Development, 11 jobs' })).not.toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(router.state.location.search).toBe('?mode=all');
+    expect(screen.queryByLabelText('Active filters')).not.toBeInTheDocument();
+  });
+
+  it('preserves existing facets while refetching and does not depend on supplemental counts', () => {
+    mockFilterOptions.mockReturnValue(queryResult(options, { isFetching: true }) as ReturnType<typeof useGetJobFilterOptionsQuery>);
+    mockSupplementalCounts.mockReturnValue(queryResult(undefined, { isError: true }) as ReturnType<typeof useGetSupplementalJobFilterCountsQuery>);
+    renderPage();
+    expect(screen.getByText('Updating filters…')).toBeVisible();
+    expect(screen.getByRole('checkbox', { name: 'Pune, 12 jobs' })).toBeEnabled();
+    expect(screen.getByText('Pune')).toBeVisible();
+    expect(screen.getByRole('radio', { name: 'Last 24 hours' })).toBeEnabled();
+    expect(screen.getByText('Last 24 hours')).toBeVisible();
+    expect(screen.queryByLabelText('Loading job filters')).not.toBeInTheDocument();
+    expect(screen.getByText(job.title)).toBeVisible();
+  });
+
+  it('hides empty string facets without hiding job results', () => {
+    mockFilterOptions.mockReturnValue(queryResult({ ...options, roleCategories: [], locations: [], departments: [], educationRequirements: [] }) as ReturnType<typeof useGetJobFilterOptionsQuery>);
+    renderPage();
+    for (const name of ['Role category', 'Location', 'Department', 'Education']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    expect(screen.queryByText('No options available.')).not.toBeInTheDocument();
+    expect(screen.getByText(job.title)).toBeVisible();
+  });
+
+  it('keeps date filtering contextual and resets pagination', async () => {
+    renderPage('/dashboard/jobs?roleCategories=software&page=4');
+    await userEvent.click(screen.getByRole('radio', { name: 'Last 24 hours (3)' }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ freshnessDays: 1, roleCategories: ['software'], pageNumber: 1 });
+    expect(mockFilterOptions.mock.calls.at(-1)?.[0]).toMatchObject({ freshnessDays: 1, roleCategories: ['software'] });
+  });
   it.each([
     { score: 92, color: 'Success' },
     { score: 74, color: 'Info' },
@@ -317,10 +372,8 @@ describe('Candidate Browse jobs', () => {
     expect(screen.getByRole('radio', { name: 'Last 24 hours (3)' })).toBeInTheDocument();
     expect(screen.getByText('Applied (1)')).toBeVisible();
     expect(screen.queryByText(/applications:.*used/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Location' }));
-    expect(screen.getByRole('checkbox', { name: 'Pune, 15 jobs' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Department' }));
-    expect(screen.queryByRole('checkbox', { name: 'Marketing, 4 jobs' })).toBeNull();
+    expect(screen.getByRole('checkbox', { name: 'Pune, 12 jobs' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Security, 1 jobs' })).toBeNull();
     expect(screen.getByRole('button', { name: 'View more department' })).toBeVisible();
     expect(mockSearchJobs.mock.calls[0]?.[0]).toMatchObject({
       pageNumber: 2,
@@ -367,34 +420,33 @@ describe('Candidate Browse jobs', () => {
     });
   });
 
-  it('uses the supported category-name filter and removes stale company-name state', async () => {
+  it('uses backend role values for multi-select and removes stale company-name state', async () => {
     renderPage('/dashboard/jobs?page=3&companyName=HARMAN');
     expect(screen.queryByRole('checkbox', { name: /Northstar Labs/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Company' })).toBeNull();
     await waitFor(() =>
       expect(screen.getByTestId('location')).not.toHaveTextContent('companyName=HARMAN'),
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Category' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Category name' }), {
-      target: { value: 'Artificial Intelligence' },
-    });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Software Development, 11 jobs' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Product Management - Technology, 4 jobs' }));
     await waitFor(
       () => {
         const location = screen.getByTestId('location').textContent ?? '';
-        expect(location).toContain('categoryName=Artificial+Intelligence');
+        expect(location).toContain('roleCategories=software');
+        expect(location).toContain('roleCategories=product');
         expect(location).not.toContain('page=3');
       },
       { timeout: 4_000 },
     );
-    expect(screen.getAllByText('Category: Artificial Intelligence').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Software Development. Remove filter')).toBeVisible();
     expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
-      categoryName: 'Artificial Intelligence',
+      roleCategories: ['software', 'product'],
       pageNumber: 1,
     });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Filters (1)' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Filters (2)' }));
     const mobileFilters = screen.getByLabelText('Candidate job filters');
-    expect(within(mobileFilters).getByRole('textbox', { name: 'Category name' })).toBeVisible();
+    expect(within(mobileFilters).getByRole('checkbox', { name: 'Software Development, 11 jobs' })).toBeChecked();
     expect(within(mobileFilters).queryByRole('textbox', { name: 'Company name' })).toBeNull();
   });
 
@@ -405,8 +457,8 @@ describe('Candidate Browse jobs', () => {
     const drawer = screen.getByLabelText('Candidate job filters');
     expect(drawer).toBeVisible();
     expect(drawer.querySelectorAll('[data-filter-group]')).toHaveLength(9);
-    expect(screen.getByRole('button', { name: 'Apply filters' })).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+    expect(screen.getByRole('button', { name: 'Show jobs' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Show jobs' }));
     expect(screen.getByRole('button', { hidden: true, name: 'Filters' })).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -428,7 +480,7 @@ describe('Candidate Browse jobs', () => {
       'Work mode',
       'Salary',
       'Company type',
-      'Category',
+      'Role category',
       'Location',
       'Department',
       'Education',
@@ -436,18 +488,18 @@ describe('Candidate Browse jobs', () => {
     ['Date posted', 'Experience', 'Work mode', 'Salary'].forEach((name) =>
       expect(within(panel).getByRole('button', { name })).toHaveAttribute('aria-expanded', 'true'),
     );
-    ['Company', 'Job type', 'Featured', 'Internship duration', 'Role category', 'Posted by', 'Industry']
+    ['Company', 'Job type', 'Featured', 'Internship duration', 'Category', 'Posted by', 'Industry']
       .forEach((name) => expect(within(panel).queryByRole('button', { name })).toBeNull());
 
     await userEvent.click(screen.getByLabelText('Remote. Remove filter'));
     await waitFor(() =>
       expect(screen.getByTestId('location')).not.toHaveTextContent('workMode=remote'),
     );
-    expect(screen.getByTestId('location')).toHaveTextContent('department=Engineering');
+    expect(screen.getByTestId('location')).toHaveTextContent('departments=Engineering');
 
     await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
     await waitFor(() =>
-      expect(screen.getByTestId('location')).not.toHaveTextContent('department=Engineering'),
+      expect(screen.getByTestId('location')).not.toHaveTextContent('departments=Engineering'),
     );
   });
 
@@ -520,7 +572,6 @@ describe('Candidate Browse jobs', () => {
 
   it('uses temporary View more selections and applies them once', async () => {
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: 'Department' }));
     const viewMore = screen.getByRole('button', { name: 'View more department' });
 
     await userEvent.click(viewMore);
@@ -528,7 +579,7 @@ describe('Candidate Browse jobs', () => {
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Search departments' }), 'Marketing');
     await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Marketing, 4 jobs' }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByTestId('location')).not.toHaveTextContent('department=Marketing');
+    expect(screen.getByTestId('location')).not.toHaveTextContent('departments=Marketing');
 
     await userEvent.click(viewMore);
     dialog = screen.getByRole('dialog', { name: 'Select departments' });
@@ -536,27 +587,25 @@ describe('Candidate Browse jobs', () => {
     await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Marketing, 4 jobs' }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
     await waitFor(() =>
-      expect(screen.getByTestId('location')).toHaveTextContent('department=Marketing'),
+      expect(screen.getByTestId('location')).toHaveTextContent('departments=Marketing'),
     );
     expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ departments: ['Marketing'] });
     await waitFor(() => expect(viewMore).toHaveFocus());
   });
 
-  it('normalizes API-backed location and education labels without changing query values', async () => {
+  it('renders backend location and education labels without changing query values or summing counts', async () => {
     renderPage();
     const locationGroup = screen.getByRole('button', { name: 'Location' });
-    await userEvent.click(locationGroup);
     expect(locationGroup).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('checkbox', { name: 'Bengaluru, 11 jobs' })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Pune, 15 jobs' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Pune, 12 jobs' })).toBeInTheDocument();
 
     const educationGroup = screen.getByRole('button', { name: 'Education' });
-    await userEvent.click(educationGroup);
     expect(educationGroup).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('checkbox', { name: 'B.Tech / B.E., 5 jobs' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('checkbox', { name: 'B.Tech / B.E., 5 jobs' }));
     await waitFor(() =>
-      expect(screen.getByTestId('location')).toHaveTextContent('education=B.Tech'),
+      expect(screen.getByTestId('location')).toHaveTextContent('educationRequirements=B.Tech'),
     );
     expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
       educationRequirements: ['B.Tech'],
@@ -623,7 +672,8 @@ describe('Candidate Browse jobs', () => {
       >,
     );
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: 'Retry filters' }));
+    expect(screen.getByText(job.title)).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(refetchFilters).toHaveBeenCalledOnce();
   });
 
