@@ -11,6 +11,7 @@ import type {
 } from '../types/portfolioModels';
 
 const portfolioTags = ['Portfolio', 'PortfolioPreview'] as const;
+const profileRecordTags = ['Portfolio', 'PortfolioPreview', 'Profile', 'ProfileCompletion'] as const;
 const collectionMutation = (method: 'POST' | 'PUT', url: string, data: unknown) => ({ data, method, url });
 
 export const portfolioApi = dashboardApi.injectEndpoints({
@@ -52,12 +53,12 @@ export const portfolioApi = dashboardApi.injectEndpoints({
     getPortfolioEducation: builder.query<PortfolioEducation[], void>({ query: () => ({ url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('education') }), transformResponse: (r: ApiResponse<PortfolioEducation[]>) => r.data, providesTags: portfolioTags }),
     getPortfolioExperiences: builder.query<PortfolioExperience[], void>({ query: () => ({ url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('experiences') }), transformResponse: (r: ApiResponse<PortfolioExperience[]>) => r.data, providesTags: portfolioTags }),
 
-    addPortfolioExperience: builder.mutation<PortfolioExperience, ExperienceRequest>({ query: (data) => collectionMutation('POST', API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('experiences'), data), transformResponse: (r: ApiResponse<PortfolioExperience>) => r.data, invalidatesTags: portfolioTags }),
-    updatePortfolioExperience: builder.mutation<PortfolioExperience, { id: string; data: ExperienceRequest }>({ query: ({ id, data }) => collectionMutation('PUT', API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('experiences', id), data), transformResponse: (r: ApiResponse<PortfolioExperience>) => r.data, invalidatesTags: portfolioTags }),
-    deletePortfolioExperience: builder.mutation<void, string>({ query: (id) => ({ method: 'DELETE', url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('experiences', id) }), invalidatesTags: portfolioTags }),
-    addPortfolioEducation: builder.mutation<PortfolioEducation, EducationRequest>({ query: (data) => collectionMutation('POST', API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('education'), data), transformResponse: (r: ApiResponse<PortfolioEducation>) => r.data, invalidatesTags: portfolioTags }),
-    updatePortfolioEducation: builder.mutation<PortfolioEducation, { id: string; data: EducationRequest }>({ query: ({ id, data }) => collectionMutation('PUT', API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('education', id), data), transformResponse: (r: ApiResponse<PortfolioEducation>) => r.data, invalidatesTags: portfolioTags }),
-    deletePortfolioEducation: builder.mutation<void, string>({ query: (id) => ({ method: 'DELETE', url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('education', id) }), invalidatesTags: portfolioTags }),
+    addPortfolioExperience: builder.mutation<PortfolioExperience, ExperienceRequest>({ query: (data) => collectionMutation('POST', API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('experiences'), data), transformResponse: (r: ApiResponse<PortfolioExperience>) => r.data, invalidatesTags: profileRecordTags }),
+    updatePortfolioExperience: builder.mutation<PortfolioExperience, { id: string; data: ExperienceRequest }>({ query: ({ id, data }) => collectionMutation('PUT', API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('experiences', id), data), transformResponse: (r: ApiResponse<PortfolioExperience>) => r.data, invalidatesTags: profileRecordTags }),
+    deletePortfolioExperience: builder.mutation<void, string>({ query: (id) => ({ method: 'DELETE', url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('experiences', id) }), invalidatesTags: profileRecordTags }),
+    addPortfolioEducation: builder.mutation<PortfolioEducation, EducationRequest>({ query: (data) => collectionMutation('POST', API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('education'), data), transformResponse: (r: ApiResponse<PortfolioEducation>) => r.data, invalidatesTags: profileRecordTags }),
+    updatePortfolioEducation: builder.mutation<PortfolioEducation, { id: string; data: EducationRequest }>({ query: ({ id, data }) => collectionMutation('PUT', API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('education', id), data), transformResponse: (r: ApiResponse<PortfolioEducation>) => r.data, invalidatesTags: profileRecordTags }),
+    deletePortfolioEducation: builder.mutation<void, string>({ query: (id) => ({ method: 'DELETE', url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('education', id) }), invalidatesTags: profileRecordTags }),
     addPortfolioProject: builder.mutation<PortfolioProject, ProjectRequest>({ query: (data) => collectionMutation('POST', API_ENDPOINTS.CANDIDATE.PORTFOLIO_COLLECTION('projects'), data), transformResponse: (r: ApiResponse<PortfolioProject>) => r.data, invalidatesTags: portfolioTags }),
     updatePortfolioProject: builder.mutation<PortfolioProject, { id: string; data: ProjectRequest }>({ query: ({ id, data }) => collectionMutation('PUT', API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('projects', id), data), transformResponse: (r: ApiResponse<PortfolioProject>) => r.data, invalidatesTags: portfolioTags }),
     deletePortfolioProject: builder.mutation<void, string>({ query: (id) => ({ method: 'DELETE', url: API_ENDPOINTS.CANDIDATE.PORTFOLIO_RECORD('projects', id) }), invalidatesTags: portfolioTags }),

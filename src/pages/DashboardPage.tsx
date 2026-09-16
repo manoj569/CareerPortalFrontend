@@ -24,16 +24,8 @@ import { formatDashboardDate } from '@/features/dashboard/utils/dashboardFormatt
 import { isMembershipActive } from '@/features/payments/utils/entitlement';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import type { ProfileCompletionStep } from '@/features/dashboard/types/dashboardModels';
+import { isSectionCompleted, isSectionMissing, matchesSection, profileSteps, recommendedStep } from '@/features/dashboard/utils/profileCompletion';
 
-const profileSteps: { label: string; value: ProfileCompletionStep }[] = [
-  { label: 'Basic details', value: 'BasicDetails' },
-  { label: 'Skills', value: 'Skills' },
-  { label: 'Career preferences', value: 'CareerPreferences' },
-  { label: 'Education', value: 'Education' },
-  { label: 'Employment', value: 'Employment' },
-  { label: 'Resume', value: 'Resume' },
-  { label: 'Profile summary', value: 'ProfileSummary' },
-];
 const profileStepActions: Record<ProfileCompletionStep, { label: string; path: string }> = {
   BasicDetails: { label: 'Add basic details', path: `${ROUTES.PORTFOLIO}?tab=profile&action=basic-details` },
   Skills: { label: 'Add skills', path: `${ROUTES.PORTFOLIO}?tab=profile&action=basic-details` },
@@ -149,7 +141,7 @@ export const DashboardPage = () => {
         </Grid>
       </Grid>
 
-      {profile.data && completion.data ? (
+      {completion.data && !completion.isError ? (
         <Paper component="section" sx={{ p: 3 }}>
           <Stack spacing={2}>
             <Stack alignItems="center" direction="row" justifyContent="space-between">
@@ -160,13 +152,13 @@ export const DashboardPage = () => {
             </Stack>
             <Stack component="ol" direction={{ xs: 'column', sm: 'row' }} gap={{ xs: 1, sm: 1.5 }} sx={{ listStyle: 'none', m: 0, overflowX: { sm: 'auto' }, p: 0 }}>
               {profileSteps.map((step) => {
-                const completed = completion.data?.completedSections.includes(step.value) ?? false;
-                const current = completion.data?.nextRecommendedIncompleteStep === step.value;
+                const completed = isSectionCompleted(completion.data, step.value);
+                const current = Boolean(completion.data.nextRecommendedIncompleteStep && matchesSection(completion.data.nextRecommendedIncompleteStep, step.value));
                 return <Stack alignItems="center" aria-label={`${step.label}: ${completed ? 'completed' : current ? 'recommended next step' : 'incomplete'}`} component="li" direction="row" key={step.value} spacing={0.75} sx={{ color: completed ? 'success.main' : current ? 'primary.main' : 'text.disabled', flex: { sm: 1 }, minWidth: { sm: 120 } }}>{completed ? <CheckCircleIcon fontSize="small" /> : <RadioButtonUncheckedIcon fontSize="small" />}<Typography color={completed ? 'success.dark' : current ? 'primary.main' : 'text.secondary'} fontWeight={current ? 800 : 600} variant="caption">{step.label}</Typography></Stack>;
               })}
             </Stack>
-            {completion.data.nextRecommendedIncompleteStep ? <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}><Typography color="text.secondary" variant="body2">Next recommended step: {profileSteps.find((step) => step.value === completion.data?.nextRecommendedIncompleteStep)?.label}</Typography><Button component={Link} size="small" to={ROUTES.PORTFOLIO} variant="contained">Continue profile</Button></Stack> : <Typography color="success.main" fontWeight={700} variant="body2">Your profile is complete.</Typography>}
-            {completion.data.missingSections.length ? <Stack spacing={1.25}><Typography component="h3" variant="h4">What is left to complete?</Typography>{profileSteps.filter((step) => completion.data?.missingSections.includes(step.value)).map((step) => <Stack alignItems="center" direction="row" justifyContent="space-between" key={step.value} spacing={2}><Typography color="text.secondary" variant="body2">{step.label}</Typography><Button component={Link} size="small" to={profileStepActions[step.value].path}>{profileStepActions[step.value].label}</Button></Stack>)}</Stack> : null}
+            {recommendedStep(completion.data) ? <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}><Typography color="text.secondary" variant="body2">Next recommended step: {recommendedStep(completion.data)?.label}</Typography><Button component={Link} sx={{ minHeight: 44 }} to={profileStepActions[recommendedStep(completion.data)!.value].path} variant="contained">Continue profile</Button></Stack> : <Typography color="success.main" fontWeight={700} variant="body2">Your profile is complete.</Typography>}
+            {completion.data.missingSections.length ? <Stack spacing={1.25}><Typography component="h3" variant="h4">What is left to complete?</Typography>{profileSteps.filter((step) => isSectionMissing(completion.data, step.value)).map((step) => <Box key={step.value} sx={{ alignItems: 'center', display: 'grid', gap: 1, gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', minWidth: 0 }}><Typography color="text.secondary" sx={{ minWidth: 0 }} variant="body2">{step.label}</Typography><Button component={Link} sx={{ justifySelf: 'end', minHeight: 44, minWidth: 0, textAlign: 'right', whiteSpace: 'normal' }} to={profileStepActions[step.value].path}>{profileStepActions[step.value].label}</Button></Box>)}</Stack> : null}
           </Stack>
         </Paper>
       ) : null}

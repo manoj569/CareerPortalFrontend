@@ -335,9 +335,9 @@ describe('Candidate profile workspace', () => {
     expect(within(dialog).getByRole('textbox', { name: 'Resume headline' })).toBeRequired();
     expect(within(dialog).getByRole('combobox', { name: 'Work status' })).toBeVisible();
     expect(within(dialog).getByRole('combobox', { name: 'Are you currently outside India?' })).toBeVisible();
-    expect(within(dialog).getByRole('textbox', { name: 'Country' })).toBeRequired();
+    expect(within(dialog).getByRole('combobox', { name: 'Country' })).toBeRequired();
     expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toBeEnabled();
-    expect(within(dialog).getByRole('textbox', { name: 'City' })).toBeRequired();
+    expect(within(dialog).getByRole('combobox', { name: 'City' })).toBeRequired();
     expect(within(dialog).getByRole('textbox', { name: 'Area' })).toBeVisible();
     expect(within(dialog).queryByRole('textbox', { name: 'State' })).not.toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: 'Notice period' })).toBeVisible();
@@ -356,15 +356,9 @@ describe('Candidate profile workspace', () => {
     let currentSkills: CandidateSkill[] = [skill];
     const updateTrigger = vi.fn((request: Record<string, unknown>) => ({
       unwrap: vi.fn(() => {
-        currentProfile = { ...currentProfile, headline: request.headline as string, location: request.location as string };
+        currentProfile = { ...currentProfile, headline: request.resumeHeadline as string, location: request.currentCity as string, skills: request.skills as string[] };
+        currentSkills = (request.skills as string[]).map((name, index) => ({ ...skill, id: `skill-${index}`, name }));
         return Promise.resolve(currentProfile);
-      }),
-    }));
-    const addTrigger = vi.fn((request: { name: string }) => ({
-      unwrap: vi.fn(() => {
-        const added = { ...skill, id: 'typescript-id', name: request.name };
-        currentSkills = [...currentSkills, added];
-        return Promise.resolve(added);
       }),
     }));
     mocks.getProfile.mockImplementation(() => queryResult({ data: currentProfile, refetch: profileRefetch }));
@@ -375,15 +369,14 @@ describe('Candidate profile workspace', () => {
       currentCountry: 'India', currentCity: 'Pune', currentArea: null, availabilityToJoin: null,
       currentAnnualSalary: null, currentFixedAnnualSalary: null, currentVariableAnnualSalary: null, salaryUnit: 'INR per annum',
     } }));
-    mocks.updateProfile.mockReturnValue([updateTrigger, { isLoading: false }] as never);
-    mocks.add.mockReturnValue([addTrigger, { isLoading: false }] as never);
+    mocks.updateBasicDetails.mockReturnValue([updateTrigger, { isLoading: false }] as never);
     renderPage();
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Edit profile' })[0]!);
     const dialog = screen.getByRole('dialog', { name: 'Edit basic details' });
     expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toHaveValue('8080875878');
-    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toBeEnabled();
-    expect(within(dialog).getByText('Verified mobile number')).toBeVisible();
+    expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toHaveAttribute('readonly');
+    expect(within(dialog).getByText('Verified mobile number.')).toBeVisible();
     await userEvent.clear(within(dialog).getByRole('textbox', { name: 'Resume headline' }));
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Resume headline' }), 'Principal frontend engineer');
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Skills' }), 'TypeScript');
@@ -391,10 +384,10 @@ describe('Candidate profile workspace', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save basic details' }));
 
     await waitFor(() => expect(updateTrigger).toHaveBeenCalledWith(expect.objectContaining({
-      headline: 'Principal frontend engineer',
-      location: 'Pune',
+      resumeHeadline: 'Principal frontend engineer',
+      currentCity: 'Pune',
+      skills: ['React', 'TypeScript'],
     })));
-    expect(addTrigger).toHaveBeenCalledWith({ name: 'TypeScript', proficiency: null, yearsOfExperience: null });
     expect(profileRefetch).toHaveBeenCalled();
     expect(skillsRefetch).toHaveBeenCalled();
     expect(completionRefetch).toHaveBeenCalled();
@@ -435,6 +428,8 @@ describe('Candidate profile workspace', () => {
       isOutsideIndia: false,
       mobileNumber: '9876543210',
       noticePeriod: null,
+      resumeHeadline: profile.headline,
+      skills: ['React'],
       workStatus: 'Experienced',
     }));
     expect(within(dialog).getByRole('textbox', { name: 'Mobile number' })).toHaveAccessibleDescription(mobileError);
@@ -770,11 +765,11 @@ describe('Candidate profile workspace', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit career preferences' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Preferred job roles' }), { target: { value: '  Platform Engineer  ' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Preferred job roles' }), { target: { value: '  Platform Engineer  ' } });
     fireEvent.click(screen.getAllByRole('button', { name: '+ Add' })[0]!);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Preferred cities' }), { target: { value: '  Hyderabad  ' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Preferred cities' }), { target: { value: '  Hyderabad  ' } });
     fireEvent.click(screen.getAllByRole('button', { name: '+ Add' })[1]!);
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Expected annual salary' }), { target: { value: '2000000' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Expected annual salary' }), { target: { value: '2000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add Contractual' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add Full-time' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add Flexible' }));
@@ -804,10 +799,10 @@ describe('Candidate profile workspace', () => {
     mocks.updateCareerPreferences.mockReturnValue(mutation.tuple);
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Edit career preferences' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Expected annual salary' }), { target: { value: '2100000' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Expected annual salary' }), { target: { value: '2100000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save preferences' }));
     expect(await screen.findByText('Career preferences could not be saved.')).toBeVisible();
-    expect(screen.getByRole('spinbutton', { name: 'Expected annual salary' })).toHaveValue(2100000);
+    expect(screen.getByRole('textbox', { name: 'Expected annual salary' })).toHaveValue('2100000');
     expect(screen.getByRole('dialog', { name: 'Edit career preferences' })).toBeVisible();
   });
 
@@ -831,11 +826,11 @@ describe('Candidate profile workspace', () => {
     } }));
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Edit career preferences' }));
-    expect(screen.getByRole('textbox', { name: 'Preferred job roles' })).toBeDisabled();
-    expect(screen.getByRole('textbox', { name: 'Preferred cities' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Preferred job roles' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Preferred cities' })).toBeDisabled();
     fireEvent.click(screen.getByLabelText('Remove Role 1'));
-    expect(screen.getByRole('textbox', { name: 'Preferred job roles' })).toBeEnabled();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Preferred job roles' }), { target: { value: 'Role 2' } });
+    expect(screen.getByRole('combobox', { name: 'Preferred job roles' })).toBeEnabled();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Preferred job roles' }), { target: { value: 'Role 2' } });
     fireEvent.click(screen.getAllByRole('button', { name: '+ Add' })[0]!);
     expect(screen.getByText('That job role is already selected.')).toBeVisible();
   });
@@ -875,15 +870,16 @@ describe('Candidate profile workspace', () => {
     renderEducation();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add education' }));
-    fireEvent.change(screen.getByRole('textbox', { name: /education level/i }), { target: { value: '  Master of Science  ' } });
-    fireEvent.change(screen.getByRole('textbox', { name: /university \/ institute/i }), { target: { value: '  Delhi University  ' } });
-    fireEvent.change(screen.getByRole('textbox', { name: /course \/ specialization/i }), { target: { value: '  Data Science  ' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /education level/i }), { target: { value: '  Master of Science  ' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /university \/ institute/i }), { target: { value: '  Delhi University  ' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /course \/ specialization/i }), { target: { value: '  Data Science  ' } });
     await userEvent.click(screen.getByRole('combobox', { name: 'Course type' }));
     await userEvent.click(screen.getByRole('option', { name: 'Distance learning' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Start year' }), { target: { value: '2022' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'End year' }), { target: { value: '2024' } });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Grading system' }), { target: { value: '  Percentage  ' } });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Grade / score' }), { target: { value: '  87%  ' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Start year' }), { target: { value: '2022' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'End year' }), { target: { value: '2024' } });
+    await userEvent.click(screen.getByRole('combobox', { name: 'Grading system' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Percentage' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Grade / score' }), { target: { value: '87' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save education' }));
 
     await waitFor(() => expect(trigger).toHaveBeenCalledWith({
@@ -892,7 +888,7 @@ describe('Candidate profile workspace', () => {
       displayOrder: 0,
       endYear: 2024,
       fieldOfStudy: 'Data Science',
-      grade: '87%',
+      grade: '87',
       gradingSystem: 'Percentage',
       institution: 'Delhi University',
       isCurrentlyStudying: false,
@@ -933,7 +929,7 @@ describe('Candidate profile workspace', () => {
     renderEducation();
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit education' }));
-    const qualification = screen.getByRole('textbox', { name: /education level/i });
+    const qualification = screen.getByRole('combobox', { name: /education level/i });
     fireEvent.change(qualification, { target: { value: 'Bachelor of Engineering' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save education' }));
 
@@ -962,11 +958,11 @@ describe('Candidate profile workspace', () => {
     renderEducation();
 
     await userEvent.click(screen.getByRole('button', { name: 'Edit education' }));
-    const endYear = screen.getByRole('spinbutton', { name: 'End year' });
-    expect(endYear).toHaveValue(2021);
+    const endYear = screen.getByRole('combobox', { name: 'End year' });
+    expect(endYear).toHaveValue('2021');
     await userEvent.click(screen.getByRole('checkbox', { name: 'Currently studying' }));
     expect(endYear).toBeDisabled();
-    expect(endYear).toHaveValue(null);
+    expect(endYear).toHaveValue('');
     await userEvent.click(screen.getByRole('button', { name: 'Save education' }));
     await waitFor(() => expect(mutation.trigger).toHaveBeenCalledOnce());
     const updateRequest: unknown = mutation.trigger.mock.calls[0]?.[0];
@@ -982,14 +978,14 @@ describe('Candidate profile workspace', () => {
     renderEducation();
     fireEvent.click(screen.getByRole('button', { name: 'Add education' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save education' }));
-    expect(screen.getByRole('textbox', { name: /education level/i })).toHaveAccessibleDescription('Education level is required.');
-    expect(screen.getByRole('textbox', { name: /university \/ institute/i })).toHaveAccessibleDescription('University / institute is required.');
+    expect(screen.getByRole('combobox', { name: /education level/i })).toHaveAccessibleDescription('Education level is required.');
+    expect(screen.getByRole('combobox', { name: /university \/ institute/i })).toHaveAccessibleDescription('University / institute is required.');
     expect(mutation.trigger).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByRole('textbox', { name: /education level/i }), { target: { value: 'BSc' } });
-    fireEvent.change(screen.getByRole('textbox', { name: /university \/ institute/i }), { target: { value: 'Pune University' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Start year' }), { target: { value: '2025' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'End year' }), { target: { value: '2024' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /education level/i }), { target: { value: 'BSc' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /university \/ institute/i }), { target: { value: 'Pune University' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Start year' }), { target: { value: '2025' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'End year' }), { target: { value: '2024' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save education' }));
     expect(screen.getByText('End year cannot be before start year.')).toBeVisible();
     expect(mutation.trigger).not.toHaveBeenCalled();
@@ -1001,8 +997,8 @@ describe('Candidate profile workspace', () => {
     educationMocks.add.mockReturnValue(mutation.tuple);
     renderEducation();
     fireEvent.click(screen.getByRole('button', { name: 'Add education' }));
-    fireEvent.change(screen.getByRole('textbox', { name: /education level/i }), { target: { value: 'BSc' } });
-    fireEvent.change(screen.getByRole('textbox', { name: /university \/ institute/i }), { target: { value: 'Pune University' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /education level/i }), { target: { value: 'BSc' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /university \/ institute/i }), { target: { value: 'Pune University' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save education' }));
     expect(await screen.findByText('Education could not be saved.')).toBeVisible();
     expect(screen.getByRole('combobox', { name: 'Course type' })).toHaveAccessibleDescription(courseTypeError);
@@ -1123,7 +1119,7 @@ describe('Candidate profile workspace', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Company name' }), { target: { value: '  Career Harbor  ' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Job title' }), { target: { value: '  Senior Engineer  ' } });
     fireEvent.change(screen.getByLabelText(/Joining date/i), { target: { value: '2022-01-15' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: /current annual salary/i }), { target: { value: '2400000' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /current annual salary/i }), { target: { value: '2400000' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Skills used' }), { target: { value: ' React, TypeScript, React ' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Job profile / responsibilities' }), { target: { value: '  Leads accessible frontend delivery.  ' } });
     await userEvent.click(screen.getByRole('combobox', { name: /notice period/i }));

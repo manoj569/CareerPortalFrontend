@@ -6,8 +6,9 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
-import { Alert, Avatar, Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, TextField, MenuItem, Chip, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Autocomplete, Avatar, Box, Button, IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, TextField, MenuItem, Chip, Grid, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
@@ -18,11 +19,8 @@ import {
   useGetCandidateBasicDetailsQuery,
   useGetCandidateCareerPreferencesQuery,
   useGetCandidateSkillsQuery,
-  useAddCandidateSkillMutation,
-  useDeleteCandidateSkillMutation,
   useUpdateCandidateBasicDetailsMutation,
   useUpdateCandidateCareerPreferencesMutation,
-  useUpdateProfileMutation,
   useGetProfileCompletionQuery,
   useGetProfileQuery,
 } from '@/features/dashboard/api/dashboardApi';
@@ -51,6 +49,8 @@ import {
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { useAppDispatch } from '@/hooks/reduxHooks';
 import { ProfileEducationRecords, ProfileEmploymentRecords } from '@/features/dashboard/components/ProfileRecords';
+import { isSafeProfessionalText, isWholeInrAmount } from '@/features/dashboard/validation/professionalText';
+import { countries, indianCities } from '@/features/dashboard/reference/profileReferenceData';
 
 interface CandidateProfileContentProps {
   hidePageHeader?: boolean;
@@ -79,8 +79,10 @@ export const CandidateProfileContent = ({
   const aboutRef = useRef<CandidateAboutCardHandle>(null);
   const resumeRef = useRef<CandidateResumeCardHandle>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editorSession, setEditorSession] = useState(0);
+  const [editorActionsNode, setEditorActionsNode] = useState<HTMLElement | null>(null);
 
-  const openEditor = () => setEditorOpen(true);
+  const openEditor = () => { setEditorSession((value) => value + 1); setEditorOpen(true); };
 
   useEffect(() => {
     if (openEditorRequest > 0) openEditor();
@@ -128,12 +130,11 @@ export const CandidateProfileContent = ({
             skills={skills.data?.map((skill) => skill.name) ?? candidate.skills}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <CandidateResumeCard ref={resumeRef} resume={candidate.resume} />
+        <Grid id="candidate-profile-about" size={{ xs: 12, md: 8 }}>
+          <CandidateAboutCard profile={candidate} ref={aboutRef} />
         </Grid>
-
         <Grid size={{ xs: 12, md: 8 }}>
-          <Stack id="candidate-profile-about" spacing={{ xs: 2, md: 3 }}>
+          <Stack spacing={{ xs: 2, md: 3 }}>
             <CareerPreferencesCard preferences={preferences} />
             <Box id="candidate-profile-education"><ProfileEducationRecords /></Box>
             <Box id="candidate-profile-employment"><ProfileEmploymentRecords fresher={basicDetails.data?.workStatus === 'Fresher'} /></Box>
@@ -141,7 +142,7 @@ export const CandidateProfileContent = ({
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <Stack spacing={{ xs: 2, md: 3 }}>
-            <CandidateAboutCard profile={candidate} ref={aboutRef} />
+            <Box id="candidate-profile-resume"><CandidateResumeCard ref={resumeRef} resume={candidate.resume} /></Box>
             {publicPortfolioCard}
           </Stack>
         </Grid>
@@ -154,13 +155,16 @@ export const CandidateProfileContent = ({
         maxWidth="md"
         onClose={() => setEditorOpen(false)}
         open={editorOpen}
+        sx={{ '& .MuiDialog-paper': { maxHeight: 'calc(100dvh - 32px)', m: 2, width: 'calc(100% - 32px)' } }}
       >
         <DialogTitle>Edit basic details</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain' }}>
           <Typography color="text.secondary" id="profile-editor-description" sx={{ mb: 1 }} variant="body2">
             Update the essential details shown in your private candidate profile.
           </Typography>
           <HeroProfileEditor
+            actionsNode={editorActionsNode}
+            key={editorSession}
             basicDetails={basicDetails.data}
             basicDetailsRefetch={basicDetails.refetch}
             candidate={candidate}
@@ -171,6 +175,7 @@ export const CandidateProfileContent = ({
             skills={skills}
           />
         </DialogContent>
+        <DialogActions ref={setEditorActionsNode} sx={{ bgcolor: 'background.paper', pb: 'max(8px, env(safe-area-inset-bottom))', px: 2 }} />
       </Dialog>
     </Stack>
   );
@@ -290,6 +295,7 @@ const getEditableMobile = (mobile: string | null): string => {
 };
 
 const HeroProfileEditor = ({
+  actionsNode,
   basicDetails,
   basicDetailsRefetch,
   candidate,
@@ -299,6 +305,7 @@ const HeroProfileEditor = ({
   profileRefetch,
   skills,
 }: {
+  actionsNode: HTMLElement | null;
   basicDetails?: CandidateBasicDetails;
   basicDetailsRefetch: () => unknown;
   candidate: UserProfile;
@@ -308,8 +315,7 @@ const HeroProfileEditor = ({
   profileRefetch: () => unknown;
   skills: { data?: CandidateSkill[]; isError: boolean; isLoading: boolean; refetch: () => unknown };
 }) => {
-  const dispatch = useAppDispatch();
-  const [headline, setHeadline] = useState(candidate.headline ?? '');
+  const [headline, setHeadline] = useState(basicDetails?.resumeHeadline ?? candidate.headline ?? '');
   const [city, setCity] = useState(basicDetails?.currentCity || getLocationCity(candidate.location));
   const [workStatus, setWorkStatus] = useState<CandidateWorkStatus | ''>(basicDetails?.workStatus ?? '');
   const [isOutsideIndia, setIsOutsideIndia] = useState<boolean | null>(basicDetails?.isOutsideIndia ?? null);
@@ -318,19 +324,16 @@ const HeroProfileEditor = ({
   const existingMobile = basicDetails?.mobileNumber ?? candidate.mobileNumber ?? candidate.phoneNumber ?? null;
   const [mobileNumber, setMobileNumber] = useState(getEditableMobile(existingMobile));
   const [noticePeriod, setNoticePeriod] = useState<CandidateNoticePeriod | ''>(basicDetails?.noticePeriod ?? '');
-  const [skillNames, setSkillNames] = useState<string[]>(skills.data?.map((skill) => skill.name) ?? candidate.skills);
+  const [skillNames, setSkillNames] = useState<string[]>(basicDetails?.skills ?? skills.data?.map((skill) => skill.name) ?? candidate.skills);
   const [skillInput, setSkillInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<'headline' | 'workStatus' | 'isOutsideIndia' | 'country' | 'mobileNumber' | 'city' | 'skills', string | undefined>>({ city: undefined, country: undefined, headline: undefined, isOutsideIndia: undefined, mobileNumber: undefined, skills: undefined, workStatus: undefined });
-  const [updateProfile, updateState] = useUpdateProfileMutation();
   const [updateBasicDetails, basicUpdateState] = useUpdateCandidateBasicDetailsMutation();
-  const [addSkill, addState] = useAddCandidateSkillMutation();
-  const [deleteSkill, deleteState] = useDeleteCandidateSkillMutation();
-  const isSaving = updateState.isLoading || basicUpdateState.isLoading || addState.isLoading || deleteState.isLoading;
+  const isSaving = basicUpdateState.isLoading;
 
   const addSkillName = () => {
     const name = skillInput.trim();
-    if (!name) { setFieldErrors((current) => ({ ...current, skills: 'Enter a skill before adding it.' })); return; }
+    if (!isSafeProfessionalText(name) || name.length > 100) { setFieldErrors((current) => ({ ...current, skills: 'Enter a meaningful skill without markup or control characters (100 characters maximum).' })); return; }
     if (skillNames.some((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase())) {
       setFieldErrors((current) => ({ ...current, skills: 'That skill is already included.' }));
       return;
@@ -346,18 +349,19 @@ const HeroProfileEditor = ({
     const nextCity = city.trim();
     const nextSkills = skillNames.map((name) => name.trim()).filter(Boolean);
     const nextErrors = {
-      city: nextCity ? undefined : 'City is required.',
-      country: country.trim() ? undefined : 'Country is required.',
-      headline: nextHeadline ? undefined : 'Resume headline is required.',
+      city: isSafeProfessionalText(nextCity) ? undefined : 'Enter a meaningful city without markup.',
+      country: countries.some((option) => option.value === country) || basicDetails?.currentCountry === country ? undefined : 'Select a country from the list.',
+      headline: isSafeProfessionalText(nextHeadline) && nextHeadline.length <= 180 ? undefined : 'Enter a meaningful resume headline without markup (180 characters maximum).',
       isOutsideIndia: isOutsideIndia === null ? 'Select whether you are currently outside India.' : undefined,
-      mobileNumber: mobileNumber.trim() && !/^\d{10}$/.test(mobileNumber.trim()) ? 'Enter a valid 10-digit Indian mobile number.' : undefined,
-      skills: nextSkills.length ? undefined : 'Add at least one skill.',
+      mobileNumber: !basicDetails?.mobileVerified && mobileNumber.trim() && !/^\d{10}$/.test(mobileNumber.trim()) ? 'Enter a valid 10-digit Indian mobile number.' : undefined,
+      skills: nextSkills.length && nextSkills.every((name) => isSafeProfessionalText(name) && name.length <= 100) ? undefined : 'Add at least one meaningful skill.',
       workStatus: workStatus ? undefined : 'Work status is required.',
     };
     setFieldErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean)) {
       return;
     }
+    if (area.trim() && !isSafeProfessionalText(area)) { setError('Enter a meaningful area without markup.'); return; }
     if (skills.isLoading) {
       setError('Wait for your skills to finish loading before saving.');
       return;
@@ -368,27 +372,12 @@ const HeroProfileEditor = ({
     }
 
     setError(null);
-    const currentSkills = skills.data ?? [];
     const normalizedNames = nextSkills;
-    const removed = currentSkills.filter((skill) => !normalizedNames.some((name) => name.toLocaleLowerCase() === skill.name.toLocaleLowerCase()));
-    const added = normalizedNames.filter((name) => !currentSkills.some((skill) => skill.name.toLocaleLowerCase() === name.toLocaleLowerCase()));
 
     try {
-      const updatedProfile = await updateProfile({
-        bio: candidate.bio,
-        education: candidate.education,
-        experience: candidate.experience,
-        headline: nextHeadline,
-        linkedInUrl: candidate.linkedInUrl,
-        location: nextCity,
-        portfolioUrl: candidate.portfolioUrl,
-        preferredJobTypes: candidate.preferredJobTypes,
-        skills: candidate.skills,
-      }).unwrap();
-      dispatch(dashboardApi.util.updateQueryData('getProfile', undefined, (draft) => {
-        Object.assign(draft, updatedProfile);
-      }));
       const basicPayload: UpdateCandidateBasicDetailsRequest = {
+        resumeHeadline: nextHeadline,
+        skills: normalizedNames,
         workStatus: workStatus || undefined,
         isOutsideIndia: isOutsideIndia ?? undefined,
         currentCountry: country.trim() || undefined,
@@ -399,13 +388,9 @@ const HeroProfileEditor = ({
         currentAnnualSalary: basicDetails?.currentAnnualSalary ?? null,
         currentFixedAnnualSalary: basicDetails?.currentFixedAnnualSalary ?? null,
         currentVariableAnnualSalary: basicDetails?.currentVariableAnnualSalary ?? null,
-        mobileNumber: mobileNumber.trim() || null,
+        ...(basicDetails?.mobileVerified ? {} : { mobileNumber: mobileNumber.trim() || null }),
       };
       await updateBasicDetails(basicPayload).unwrap();
-      await Promise.all([
-        ...removed.map((skill) => deleteSkill(skill.id).unwrap()),
-        ...added.map((name) => addSkill({ name, proficiency: null, yearsOfExperience: null }).unwrap()),
-      ]);
       await Promise.all([Promise.resolve(profileRefetch()), Promise.resolve(basicDetailsRefetch()), Promise.resolve(skills.refetch()), Promise.resolve(completionRefetch())]);
       onSaved();
     } catch (saveError: unknown) {
@@ -416,7 +401,7 @@ const HeroProfileEditor = ({
           ...current,
           city: get(['currentCity', 'location']) ?? current.city,
           country: get(['currentCountry']) ?? current.country,
-          headline: get(['headline']) ?? current.headline,
+          headline: get(['resumeHeadline', 'headline']) ?? current.headline,
           mobileNumber: get(['mobileNumber']) ?? current.mobileNumber,
           isOutsideIndia: get(['isOutsideIndia']) ?? current.isOutsideIndia,
           skills: get(['skills', 'name']) ?? current.skills,
@@ -436,18 +421,19 @@ const HeroProfileEditor = ({
       <TextField disabled={isSaving} error={Boolean(fieldErrors.isOutsideIndia)} helperText={fieldErrors.isOutsideIndia} label="Are you currently outside India?" onChange={(event) => { setIsOutsideIndia(event.target.value === 'true'); setFieldErrors((current) => ({ ...current, isOutsideIndia: undefined })); }} required select value={isOutsideIndia === null ? '' : String(isOutsideIndia)}>
         <MenuItem value="false">No</MenuItem><MenuItem value="true">Yes</MenuItem>
       </TextField>
-      <TextField disabled={isSaving} error={Boolean(fieldErrors.country)} helperText={fieldErrors.country} label="Country" onChange={(event) => { setCountry(event.target.value); setFieldErrors((current) => ({ ...current, country: undefined })); }} required value={country} />
+      <Autocomplete disabled={isSaving} onChange={(_, value) => { setCountry(value ?? ''); if (value !== country && !(value === 'India' && indianCities.some((option) => option.value.toLocaleLowerCase() === city.toLocaleLowerCase()))) setCity(''); setFieldErrors((current) => ({ ...current, country: undefined })); }} options={[...new Set([...countries.map((option) => option.value), ...(country ? [country] : [])])]} renderInput={(params) => <TextField {...params} error={Boolean(fieldErrors.country)} helperText={fieldErrors.country} label="Country" required />} value={country || null} />
+      {country === 'India' ? <Autocomplete disabled={isSaving} freeSolo onInputChange={(_, value) => { setCity(value); setFieldErrors((current) => ({ ...current, city: undefined })); }} options={[...new Set([...indianCities.map((option) => option.value), ...(city ? [city] : [])])]} renderInput={(params) => <TextField {...params} error={Boolean(fieldErrors.city)} helperText={fieldErrors.city} label="City" required />} value={city} /> : <TextField disabled={isSaving} error={Boolean(fieldErrors.city)} fullWidth helperText={fieldErrors.city ?? 'Enter a city in the selected country.'} label="City" onChange={(event) => { setCity(event.target.value); setFieldErrors((current) => ({ ...current, city: undefined })); }} required value={city} />}
+      <TextField disabled={isSaving} label="Area" onChange={(event) => setArea(event.target.value)} value={area} />
       <TextField
         disabled={isSaving}
         error={Boolean(fieldErrors.mobileNumber)}
-        helperText={fieldErrors.mobileNumber ?? (basicDetails?.mobileVerified ? 'Verified mobile number' : 'Enter a 10-digit Indian mobile number.')}
+        helperText={fieldErrors.mobileNumber ?? (basicDetails?.mobileVerified ? 'Verified mobile number.' : 'Enter a 10-digit Indian mobile number.')}
         inputProps={{ inputMode: 'numeric', maxLength: 10 }}
         label="Mobile number"
+        slotProps={{ input: { readOnly: Boolean(basicDetails?.mobileVerified) } }}
         onChange={(event) => { setMobileNumber(event.target.value.replace(/\D/g, '').slice(0, 10)); setFieldErrors((current) => ({ ...current, mobileNumber: undefined })); }}
         value={mobileNumber}
       />
-      <TextField disabled={isSaving} error={Boolean(fieldErrors.city)} fullWidth helperText={fieldErrors.city} label="City" onChange={(event) => { setCity(event.target.value); setFieldErrors((current) => ({ ...current, city: undefined })); }} required value={city} />
-      <TextField disabled={isSaving} label="Area" onChange={(event) => setArea(event.target.value)} value={area} />
       <TextField disabled={isSaving} label="Notice period" onChange={(event) => setNoticePeriod(event.target.value as CandidateNoticePeriod | '')} select value={noticePeriod}>
         <MenuItem value=""><em>Not specified</em></MenuItem>
         {Object.entries(noticePeriodLabels).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
@@ -465,10 +451,10 @@ const HeroProfileEditor = ({
       {skills.isLoading ? <PageLoadingIndicator compact label="Loading profile skills" /> : null}
       {skills.isError ? <Alert action={<Button color="inherit" onClick={() => void skills.refetch()}>Retry</Button>} severity="error">Your skills could not be loaded.</Alert> : null}
       {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
-      <DialogActions sx={{ px: 0 }}>
+      {actionsNode ? createPortal(<>
         <Button disabled={isSaving} onClick={onCancel}>Cancel</Button>
         <Button disabled={isSaving || skills.isLoading} onClick={() => void save()} variant="contained">{isSaving ? 'Saving…' : 'Save basic details'}</Button>
-      </DialogActions>
+      </>, actionsNode) : null}
     </Stack>
   );
 };
@@ -488,6 +474,14 @@ const emptyCareerPreferences: UpdateCandidateCareerPreferencesRequest = {
   preferredJobRoles: [],
   preferredShifts: [],
 };
+const splitSelections = (items: string[]): string[] => {
+  const selections: string[] = [];
+  for (const item of items.flatMap((value) => value.split(','))) {
+    const selection = item.trim();
+    if (selection && !selections.some((existing) => existing.toLocaleLowerCase() === selection.toLocaleLowerCase())) selections.push(selection);
+  }
+  return selections;
+};
 
 const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferencesQuery }) => {
   const dispatch = useAppDispatch();
@@ -496,6 +490,7 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
   const [values, setValues] = useState<UpdateCandidateCareerPreferencesRequest>(emptyCareerPreferences);
   const [roleInput, setRoleInput] = useState('');
   const [cityInput, setCityInput] = useState('');
+  const [salaryInput, setSalaryInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [savedResponse, setSavedResponse] = useState<CandidateCareerPreferences | null>(null);
@@ -511,24 +506,25 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
       employmentTypes: [...displayed.employmentTypes],
       expectedAnnualSalary: displayed.expectedAnnualSalary,
       jobTypes: [...displayed.jobTypes],
-      preferredCities: [...displayed.preferredCities],
-      preferredJobRoles: [...displayed.preferredJobRoles],
+      preferredCities: splitSelections(displayed.preferredCities),
+      preferredJobRoles: splitSelections(displayed.preferredJobRoles),
       preferredShifts: [...displayed.preferredShifts],
     });
     setRoleInput('');
     setCityInput('');
+    setSalaryInput(displayed.expectedAnnualSalary?.toString() ?? '');
     setError(null);
     setFieldErrors({});
     setOpen(true);
   };
 
   const addTextValue = (key: 'preferredJobRoles' | 'preferredCities', rawValue: string, limit: number) => {
-    const value = rawValue.trim();
+    const additions = splitSelections([rawValue]);
     const label = key === 'preferredJobRoles' ? 'job role' : 'city';
-    if (!value) { setError(`Enter a ${label} before adding it.`); return; }
-    if (values[key].some((item) => item.toLocaleLowerCase() === value.toLocaleLowerCase())) { setError(`That ${label} is already selected.`); return; }
-    if (values[key].length >= limit) { setError(`You can select up to ${limit} ${key === 'preferredJobRoles' ? 'job roles' : 'cities'}.`); return; }
-    setValues((current) => ({ ...current, [key]: [...current[key], value] }));
+    if (!additions.length || additions.some((value) => !isSafeProfessionalText(value))) { setError(`Enter a meaningful ${label} without markup or control characters.`); return; }
+    if (additions.some((value) => values[key].some((item) => item.toLocaleLowerCase() === value.toLocaleLowerCase()))) { setError(`That ${label} is already selected.`); return; }
+    if (values[key].length + additions.length > limit) { setError(`You can select up to ${limit} ${key === 'preferredJobRoles' ? 'job roles' : 'cities'}.`); return; }
+    setValues((current) => ({ ...current, [key]: [...current[key], ...additions] }));
     if (key === 'preferredJobRoles') setRoleInput(''); else setCityInput('');
     setError(null);
     setFieldErrors({});
@@ -553,13 +549,13 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
       setError('Review the maximum number of preferred roles and cities.');
       return;
     }
-    if (values.expectedAnnualSalary !== null && values.expectedAnnualSalary < 0) {
-      setError('Expected annual salary cannot be negative.');
+    if (salaryInput && !isWholeInrAmount(salaryInput)) {
+      setFieldErrors({ expectedAnnualSalary: 'Enter a whole-number INR amount from 0 to 1,000,000,000.' });
       return;
     }
     const payload: UpdateCandidateCareerPreferencesRequest = {
       employmentTypes: values.employmentTypes,
-      expectedAnnualSalary: values.expectedAnnualSalary,
+      expectedAnnualSalary: salaryInput ? Number(salaryInput) : null,
       jobTypes: values.jobTypes,
       preferredCities: values.preferredCities.map((value) => value.trim()),
       preferredJobRoles: values.preferredJobRoles.map((value) => value.trim()),
@@ -599,14 +595,14 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
         {displayed && hasCareerPreferences(displayed) ? <CareerPreferenceSummary data={displayed} /> : null}
         {displayed && !hasCareerPreferences(displayed) ? <Typography color="text.secondary">Add your preferred roles, locations, and working preferences.</Typography> : null}
       </Stack>
-      <Dialog aria-describedby="career-preferences-description" fullWidth maxWidth="md" onClose={saveState.isLoading ? undefined : () => setOpen(false)} open={open}>
+      <Dialog aria-describedby="career-preferences-description" fullWidth maxWidth="md" onClose={saveState.isLoading ? undefined : () => setOpen(false)} open={open} sx={{ '& .MuiDialog-paper': { maxHeight: 'calc(100dvh - 32px)', m: 2, width: 'calc(100% - 32px)' } }}>
         <DialogTitle>Edit career preferences</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain' }}>
           <Typography color="text.secondary" id="career-preferences-description" sx={{ mb: 2 }} variant="body2">Choose the roles and working conditions that fit your next opportunity.</Typography>
           <Stack spacing={3}>
-            <PreferenceTextInput disabled={values.preferredJobRoles.length >= 3 || saveState.isLoading} error={fieldErrors.preferredJobRoles} helperText={`${values.preferredJobRoles.length}/3 selected`} input={roleInput} inputLabel="Preferred job roles" items={values.preferredJobRoles} limit={3} onAdd={() => addTextValue('preferredJobRoles', roleInput, 3)} onInput={setRoleInput} onRemove={(value) => removeTextValue('preferredJobRoles', value)} />
-            <PreferenceTextInput disabled={values.preferredCities.length >= 5 || saveState.isLoading} error={fieldErrors.preferredCities} helperText={`${values.preferredCities.length}/5 selected`} input={cityInput} inputLabel="Preferred cities" items={values.preferredCities} limit={5} onAdd={() => addTextValue('preferredCities', cityInput, 5)} onInput={setCityInput} onRemove={(value) => removeTextValue('preferredCities', value)} />
-            <TextField disabled={saveState.isLoading} error={Boolean(fieldErrors.expectedAnnualSalary)} helperText={fieldErrors.expectedAnnualSalary ?? 'INR per year'} inputProps={{ min: 0 }} label="Expected annual salary" onChange={(event) => setValues((current) => ({ ...current, expectedAnnualSalary: event.target.value ? Number(event.target.value) : null }))} type="number" value={values.expectedAnnualSalary ?? ''} />
+            <PreferenceTextInput disabled={values.preferredJobRoles.length >= 3 || saveState.isLoading} error={fieldErrors.preferredJobRoles} helperText={`${values.preferredJobRoles.length}/3 selected`} input={roleInput} inputLabel="Preferred job roles" items={values.preferredJobRoles} limit={3} onAdd={() => addTextValue('preferredJobRoles', roleInput, 3)} onInput={setRoleInput} onRemove={(value) => removeTextValue('preferredJobRoles', value)} options={['.NET Developer', 'C++ Developer', 'UI/UX Designer', 'AI/ML Product Manager', 'Software Engineer', 'Product Manager']} />
+            <PreferenceTextInput disabled={values.preferredCities.length >= 5 || saveState.isLoading} error={fieldErrors.preferredCities} helperText={`${values.preferredCities.length}/5 selected`} input={cityInput} inputLabel="Preferred cities" items={values.preferredCities} limit={5} onAdd={() => addTextValue('preferredCities', cityInput, 5)} onInput={setCityInput} onRemove={(value) => removeTextValue('preferredCities', value)} options={indianCities.map((option) => option.value)} />
+            <TextField disabled={saveState.isLoading} error={Boolean(fieldErrors.expectedAnnualSalary)} helperText={fieldErrors.expectedAnnualSalary ?? 'INR per year'} inputProps={{ inputMode: 'numeric' }} label="Expected annual salary" onChange={(event) => setSalaryInput(event.target.value)} value={salaryInput} />
             <PreferenceOptions error={fieldErrors.jobTypes} label="Job type" onToggle={(value) => toggle('jobTypes', value as CandidateJobType)} options={jobTypeOptions} selected={values.jobTypes} />
             <PreferenceOptions error={fieldErrors.employmentTypes} label="Employment type" onToggle={(value) => toggle('employmentTypes', value as CandidateEmploymentPreference)} options={employmentPreferenceOptions} selected={values.employmentTypes} />
             <PreferenceOptions error={fieldErrors.preferredShifts} label="Preferred shift" onToggle={(value) => toggle('preferredShifts', value as CandidateShiftPreference)} options={shiftOptions} selected={values.preferredShifts} />
@@ -619,11 +615,11 @@ const CareerPreferencesCard = ({ preferences }: { preferences: CareerPreferences
   );
 };
 
-const PreferenceTextInput = ({ disabled, error, helperText, input, inputLabel, items, onAdd, onInput, onRemove }: { disabled:boolean; error?:string; helperText:string; input:string; inputLabel:string; items:string[]; limit:number; onAdd:()=>void; onInput:(value:string)=>void; onRemove:(value:string)=>void }) => (
+const PreferenceTextInput = ({ disabled, error, helperText, input, inputLabel, items, onAdd, onInput, onRemove, options }: { disabled:boolean; error?:string; helperText:string; input:string; inputLabel:string; items:string[]; limit:number; onAdd:()=>void; onInput:(value:string)=>void; onRemove:(value:string)=>void; options:string[] }) => (
   <Stack spacing={1}>
     <Stack alignItems="flex-start" direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-      <TextField disabled={disabled} error={Boolean(error)} fullWidth helperText={error ?? helperText} label={inputLabel} onChange={(event) => onInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onAdd(); } }} value={input} />
-      <Button disabled={disabled} onClick={onAdd} sx={{ minWidth: 88 }}>+ Add</Button>
+      <Autocomplete disabled={disabled} freeSolo fullWidth onInputChange={(_, value) => onInput(value)} options={options} renderInput={(params) => <TextField {...params} error={Boolean(error)} helperText={error ?? helperText} label={inputLabel} onKeyDown={(event) => { if (event.key === 'Enter' && !event.defaultPrevented) { event.preventDefault(); onAdd(); } }} />} value={input} />
+      <Button disabled={disabled} onClick={onAdd} sx={{ minHeight: 44, minWidth: 88 }}>+ Add</Button>
     </Stack>
     <Stack direction="row" flexWrap="wrap" gap={1}>{items.map((item) => <Chip deleteIcon={<span aria-label={`Remove ${item}`}>×</span>} key={item} label={item} onDelete={() => onRemove(item)} />)}</Stack>
   </Stack>
