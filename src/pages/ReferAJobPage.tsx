@@ -48,6 +48,11 @@ const statusColor: Record<string, 'default' | 'success' | 'error' | 'warning'> =
   Pending: 'warning',
   Rejected: 'error',
 };
+const statusLabel: Record<string, string> = {
+  Approved: 'Approved and published',
+  Pending: 'Waiting for admin review',
+  Rejected: 'Rejected',
+};
 
 export const ReferAJobPage = () => {
   useDocumentMetadata('Refer a job | Career Portal', 'Refer a job to your network — free, one time.');
@@ -320,7 +325,7 @@ export const ReferAJobPage = () => {
                       </Typography>
                       <Chip
                         color={statusColor[referral.approvalStatus] ?? 'default'}
-                        label={referral.approvalStatus}
+                         label={statusLabel[referral.approvalStatus] ?? referral.approvalStatus}
                         size="small"
                       />
                     </Stack>

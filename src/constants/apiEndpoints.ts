@@ -130,6 +130,8 @@ export const API_ENDPOINTS = {
     JOB_UNFEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unfeature`,
     JOB_FEATURED: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/featured`,
     JOB_HIDDEN: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/hidden`,
+    REFERRAL_APPROVE: (referralId: string) => `/admin/referrals/${encodeURIComponent(referralId)}/approve`,
+    REFERRAL_REJECT: (referralId: string) => `/admin/referrals/${encodeURIComponent(referralId)}/reject`,
     COMPANIES: '/admin/companies',
     JOB_RECRUITER_CONTACT: (jobId: string) =>
       `/admin/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,

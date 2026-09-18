@@ -307,6 +307,14 @@ export const adminApi = createApi({
         void refreshPublicJobs(queryFulfilled, dispatch);
       },
     }),
+    approveReferral: builder.mutation<void, string>({
+      query: (referralId) => ({ method: 'post', url: API_ENDPOINTS.ADMIN.REFERRAL_APPROVE(referralId) }),
+      invalidatesTags: ['AdminJobs'],
+    }),
+    rejectReferral: builder.mutation<void, { referralId: string; reason: string }>({
+      query: ({ referralId, reason }) => ({ data: reason, method: 'post', url: API_ENDPOINTS.ADMIN.REFERRAL_REJECT(referralId) }),
+      invalidatesTags: ['AdminJobs'],
+    }),
     unpublishAdminJob: builder.mutation<AdminJob, string>({
       query: (jobId) => ({ method: 'POST', url: API_ENDPOINTS.ADMIN.JOB_UNPUBLISH(jobId) }),
       transformResponse: (response: ApiResponse<AdminJob>) => response.data,
@@ -662,6 +670,8 @@ export const {
   useGetAdminRecentUsersQuery,
   useGetAdminStatisticsQuery,
   usePublishAdminJobMutation,
+  useApproveReferralMutation,
+  useRejectReferralMutation,
   usePreviewAdminCompaniesImportMutation,
   usePreviewAdminJobsImportMutation,
   usePreviewAdminJobDiscoveryMutation,

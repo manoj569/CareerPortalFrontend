@@ -221,6 +221,10 @@ export interface AdminJob {
   updatedAtUtc: string | null;
   isDeleted: boolean;
   deletedAtUtc: string | null;
+  isReferralJob?: boolean;
+  referralId?: string | null;
+  referralApprovalStatus?: 'Pending' | 'Approved' | 'Rejected' | null;
+  referralReviewedAtUtc?: string | null;
 }
 
 export type AdminJobSortField =

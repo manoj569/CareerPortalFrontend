@@ -28,6 +28,7 @@ export interface JobReferralSubmission {
   rejectionReason: string | null;
   createdAtUtc: string;
   reviewedAtUtc: string | null;
+  approvedAtUtc: string | null;
 }
 
 export interface ExtractedJobDetails {
