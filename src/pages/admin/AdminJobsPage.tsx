@@ -10,7 +10,7 @@ import PublishOutlinedIcon from '@mui/icons-material/PublishOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import { Alert, Box, Button, Card, CardActions, CardContent, FormControl, Grid, InputLabel, MenuItem, Pagination, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardActions, CardContent, Chip, FormControl, Grid, InputLabel, MenuItem, Pagination, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -34,6 +34,8 @@ import {
   useSoftDeleteAdminJobMutation,
   useUnfeatureAdminJobMutation,
   useUnpublishAdminJobMutation,
+  useApproveReferralMutation,
+  useRejectReferralMutation,
 } from '@/features/admin/api/adminApi';
 import { AdminJobStatusBadge } from '@/features/admin/components/AdminStatusBadge';
 import { AdminCsvImportDialog } from '@/features/admin/components/AdminCsvImportDialog';
@@ -179,6 +181,8 @@ export const AdminJobsPage = () => {
   const [unfeatureJob, unfeatureState] = useUnfeatureAdminJobMutation();
   const [setHidden, hiddenState] = useSetAdminJobHiddenMutation();
   const [softDelete, deleteState] = useSoftDeleteAdminJobMutation();
+  const [approveReferral, approveReferralState] = useApproveReferralMutation();
+  const [rejectReferral, rejectReferralState] = useRejectReferralMutation();
   const isActing =
     publishState.isLoading ||
     unpublishState.isLoading ||
@@ -187,7 +191,25 @@ export const AdminJobsPage = () => {
     featureState.isLoading ||
     unfeatureState.isLoading ||
     hiddenState.isLoading ||
-    deleteState.isLoading;
+    deleteState.isLoading ||
+    approveReferralState.isLoading ||
+    rejectReferralState.isLoading;
+
+  const reviewReferral = async (job: AdminJob, approve: boolean) => {
+    if (!job.referralId || isActing) return;
+    try {
+      if (approve) await approveReferral(job.referralId).unwrap();
+      else {
+        const reason = window.prompt('Reason for rejection', 'Reason for rejection')?.trim();
+        if (!reason) return;
+        await rejectReferral({ referralId: job.referralId, reason }).unwrap();
+      }
+      await jobs.refetch();
+      enqueueSnackbar(approve ? 'Referral approved and published.' : 'Referral rejected.', { variant: 'success' });
+    } catch (error: unknown) {
+      enqueueSnackbar(isAdminApiError(error) ? error.message : 'Referral review failed. Please try again.', { variant: 'error' });
+    }
+  };
 
   const setFilter = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -232,6 +254,13 @@ export const AdminJobsPage = () => {
 
   const jobActions = (job: AdminJob) => (
     <Stack direction="row" flexWrap="wrap" gap={0.75}>
+      {job.isReferralJob ? <Chip color={job.referralApprovalStatus === 'Approved' ? 'success' : job.referralApprovalStatus === 'Rejected' ? 'error' : 'warning'} label={`Referred${job.referralApprovalStatus ? ` · ${job.referralApprovalStatus}` : ''}`} size="small" /> : null}
+      {job.isReferralJob && job.referralApprovalStatus === 'Pending' ? (
+        <>
+          <Button disabled={isActing} onClick={() => void reviewReferral(job, true)} size="small" variant="contained">Approve referral</Button>
+          <Button color="error" disabled={isActing} onClick={() => void reviewReferral(job, false)} size="small" variant="outlined">Reject referral</Button>
+        </>
+      ) : null}
       <Button component={Link} size="small" to={buildAdminJobDetailsPath(job.id)}>
         Details
       </Button>
