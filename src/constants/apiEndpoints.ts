@@ -1,4 +1,5 @@
 export const API_ENDPOINTS = {
+  CATEGORIES: { OPTIONS: '/categories/options' },
   AUTH: {
     REGISTER: '/auth/register',
     VERIFY_EMAIL: '/auth/verify-email',
@@ -22,6 +23,7 @@ export const API_ENDPOINTS = {
   },
   JOBS: {
     SEARCH: '/jobs',
+    REFERRALS: '/jobs/referrals',
     FILTER_OPTIONS: '/jobs/filter-options',
     FACETS: '/jobs/facets',
     LATEST: '/jobs/latest',
@@ -33,6 +35,13 @@ export const API_ENDPOINTS = {
   },
   MEMBERSHIPS: {
     APPLY_TO_JOB: (slug: string) => `/memberships/jobs/${encodeURIComponent(slug)}/apply`,
+  },
+  REFERRALS: {
+    PUBLIC: '/referrals/public',
+    SUBMIT: '/referrals',
+    MINE: '/referrals/mine',
+    EXTRACT_FROM_URL: '/referrals/extract-from-url',
+    UNLOCK: (jobId: string) => `/referrals/unlock/${encodeURIComponent(jobId)}`,
   },
   PAYMENTS: {
     PLANS: '/payments/plans',

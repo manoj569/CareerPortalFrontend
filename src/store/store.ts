@@ -18,6 +18,7 @@ import { paymentsApi } from '@/features/payments/api/paymentsApi';
 import { interviewInsightsApi } from '@/features/interviewInsights/api/interviewInsightsApi';
 import { aiApplyApi } from '@/features/aiApply/api/aiApplyApi';
 import { adminAIApplyApi } from '@/features/admin/aiApply/api/adminAIApplyApi';
+import { referralsApi } from '@/features/referrals/api/referralsApi';
 import { UserRole } from '@/types';
 
 const rootReducer = combineReducers({
@@ -29,6 +30,7 @@ const rootReducer = combineReducers({
   [interviewInsightsApi.reducerPath]: interviewInsightsApi.reducer,
   [aiApplyApi.reducerPath]: aiApplyApi.reducer,
   [adminAIApplyApi.reducerPath]: adminAIApplyApi.reducer,
+  [referralsApi.reducerPath]: referralsApi.reducer,
 });
 
 const privateCacheListener = createListenerMiddleware();
@@ -86,6 +88,7 @@ export const createAppStore = (preloadedState?: Partial<RootState>) =>
           interviewInsightsApi.middleware,
           aiApplyApi.middleware,
           adminAIApplyApi.middleware,
+          referralsApi.middleware,
         ),
   });
 

@@ -1,4 +1,4 @@
-import { List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Chip, List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import type { NavigationItem } from './navigationTypes';
@@ -21,7 +21,7 @@ export const NavigationList = ({
 
   return (
   <List component="nav" aria-label={ariaLabel} sx={{ px: compact ? 0.75 : 1 }}>
-    {items.map(({ end, icon: Icon, label, path, preserveCurrentLocation }) => (
+    {items.map(({ badge, end, icon: Icon, label, path, preserveCurrentLocation }) => (
       <Tooltip key={path} placement="right" title={compact ? label : ''}>
         <ListItemButton
           aria-label={compact ? label : undefined}
@@ -50,6 +50,9 @@ export const NavigationList = ({
             </ListItemIcon>
           ) : null}
           {compact ? null : <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 600 }} />}
+          {compact || !badge ? null : (
+            <Chip label={badge} size="small" color="primary" sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
+          )}
         </ListItemButton>
       </Tooltip>
     ))}

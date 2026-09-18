@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { useEffect, useState, type ReactNode } from 'react';
 
-import { getCompanyTypeLabel, getWorkplaceTypeLabel } from '../constants/jobOptions';
+import { getWorkplaceTypeLabel } from '../constants/jobOptions';
 import {
   WorkplaceType,
   type PublicJobFilterOptions,
@@ -265,15 +265,36 @@ export const CandidateJobFilters = ({
         </Stack>
       </FilterSection>
 
-      <FilterSection defaultExpanded={state.companyTypes.length > 0} title="Company type">
-        <FacetSelectionFilter
-          dialogTitle="Select company types"
-          facetLabel="Company type"
-          onApply={(values) => onChange({ companyTypes: values.map(Number) })}
-          options={enumOptions(options.companyTypes, getCompanyTypeLabel)}
-          searchLabel="Search company types"
-          selected={state.companyTypes.map(String)}
-        />
+      <FilterSection defaultExpanded title="Education">
+        {(options.educationRequirements ?? []).length > 0 ? (
+          <FacetSelectionFilter
+            dialogTitle="Select education"
+            facetLabel="Education"
+            onApply={(educationRequirements) => onChange({ educationRequirements })}
+            options={(options.educationRequirements ?? []).map((option) => ({
+              count: option.count,
+              key: option.value,
+              label: option.label,
+            }))}
+            searchLabel="Search education"
+            selected={state.educationRequirements}
+          />
+        ) : (
+          <Stack spacing={1}>
+            <Typography color="text.secondary" variant="body2">
+              No education options are available for this search.
+            </Typography>
+            {state.educationRequirements.length > 0 ? (
+              <Button
+                onClick={() => onChange({ educationRequirements: [] })}
+                size="small"
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Clear education filter
+              </Button>
+            ) : null}
+          </Stack>
+        )}
       </FilterSection>
 
       {options.roleCategories.length > 0 ? <FilterSection defaultExpanded title="Role category">
@@ -314,21 +335,6 @@ export const CandidateJobFilters = ({
           }))}
           searchLabel="Search departments"
           selected={state.departments}
-        />
-      </FilterSection> : null}
-
-      {options.educationRequirements.length > 0 ? <FilterSection defaultExpanded title="Education">
-        <FacetSelectionFilter
-          dialogTitle="Select education"
-          facetLabel="Education"
-          onApply={(educationRequirements) => onChange({ educationRequirements })}
-          options={options.educationRequirements.map((option) => ({
-            count: option.count,
-            key: option.value,
-            label: option.label,
-          }))}
-          searchLabel="Search education"
-          selected={state.educationRequirements}
         />
       </FilterSection> : null}
     </Stack>

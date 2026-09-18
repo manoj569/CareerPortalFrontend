@@ -1,7 +1,13 @@
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import { Paper, Tab, Tabs } from '@mui/material';
 
 export type CandidateBrowseMode = 'all' | 'recommended';
-export type CandidateBrowseTab = CandidateBrowseMode | 'internships' | 'fresher' | 'experienced';
+export type CandidateBrowseTab =
+  | CandidateBrowseMode
+  | 'internships'
+  | 'fresher'
+  | 'experienced'
+  | 'referral';
 
 interface JobModeTabsProps {
   mode: CandidateBrowseTab;
@@ -24,6 +30,7 @@ export const JobModeTabs = ({ mode, onChange, resumeMatchesEnabled }: JobModeTab
       <Tab label="Internships" value="internships" />
       <Tab label="Fresher" value="fresher" />
       <Tab label="Experienced" value="experienced" />
+      <Tab icon={<GroupsOutlinedIcon fontSize="small" />} iconPosition="start" label="Referral jobs" value="referral" />
     </Tabs>
   </Paper>
 );
