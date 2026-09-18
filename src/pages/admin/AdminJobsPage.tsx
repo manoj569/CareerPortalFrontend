@@ -102,6 +102,15 @@ const canPublishJob = (job: AdminJob): boolean =>
   job.status !== JobStatus.Archived &&
   (!job.expiresAtUtc || new Date(job.expiresAtUtc) > new Date());
 
+const referralStatusLabel = (status: AdminJob['referralApprovalStatus']): 'Pending' | 'Approved' | 'Rejected' | null => {
+  if (status === 'Pending' || status === 'Approved' || status === 'Rejected') return status;
+  // Backend enum values: Pending=1, Approved=2, Rejected=3.
+  if (status === 1) return 'Pending';
+  if (status === 2) return 'Approved';
+  if (status === 3) return 'Rejected';
+  return null;
+};
+
 export const AdminJobsPage = () => {
   useDocumentMetadata(
     'Manage jobs | Career Portal',
@@ -254,8 +263,8 @@ export const AdminJobsPage = () => {
 
   const jobActions = (job: AdminJob) => (
     <Stack direction="row" flexWrap="wrap" gap={0.75}>
-      {job.isReferralJob ? <Chip color={job.referralApprovalStatus === 'Approved' ? 'success' : job.referralApprovalStatus === 'Rejected' ? 'error' : 'warning'} label={`Referred${job.referralApprovalStatus ? ` · ${job.referralApprovalStatus}` : ''}`} size="small" /> : null}
-      {job.isReferralJob && job.referralApprovalStatus === 'Pending' ? (
+      {job.isReferralJob || job.referralId ? <Chip color={referralStatusLabel(job.referralApprovalStatus) === 'Approved' ? 'success' : referralStatusLabel(job.referralApprovalStatus) === 'Rejected' ? 'error' : 'warning'} label={`Referred${referralStatusLabel(job.referralApprovalStatus) ? ` · ${referralStatusLabel(job.referralApprovalStatus)}` : ''}`} size="small" /> : null}
+      {(job.isReferralJob || job.referralId) && job.referralId && referralStatusLabel(job.referralApprovalStatus) === 'Pending' ? (
         <>
           <Button disabled={isActing} onClick={() => void reviewReferral(job, true)} size="small" variant="contained">Approve referral</Button>
           <Button color="error" disabled={isActing} onClick={() => void reviewReferral(job, false)} size="small" variant="outlined">Reject referral</Button>

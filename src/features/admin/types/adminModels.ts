@@ -223,7 +223,7 @@ export interface AdminJob {
   deletedAtUtc: string | null;
   isReferralJob?: boolean;
   referralId?: string | null;
-  referralApprovalStatus?: 'Pending' | 'Approved' | 'Rejected' | null;
+  referralApprovalStatus?: 'Pending' | 'Approved' | 'Rejected' | 0 | 1 | 2 | 3 | null;
   referralReviewedAtUtc?: string | null;
 }
 
