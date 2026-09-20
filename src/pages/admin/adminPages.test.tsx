@@ -348,6 +348,13 @@ describe('admin overview', () => {
 });
 
 describe('admin jobs', () => {
+  it('opens the draft moderation queue using the existing status query', async () => {
+    renderPage(<AdminJobsPage />);
+    await userEvent.click(screen.getByRole('button', { name: 'Review draft jobs' }));
+    expect(screen.getByRole('heading', { name: 'Draft job moderation' })).toBeVisible();
+    await waitFor(() => expect(mockJobs.mock.calls.at(-1)?.[0]).toMatchObject({ status: JobStatus.Draft, pageNumber: 1, isDeleted: false }));
+    expect(screen.getAllByRole('button', { name: 'Publish' }).length).toBeGreaterThan(0);
+  });
   it('opens the jobs CSV import dialog beside the create action', async () => {
     renderPage(<AdminJobsPage />);
     expect(screen.getByRole('link', { name: 'Create job' })).toBeVisible();

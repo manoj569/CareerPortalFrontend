@@ -327,6 +327,10 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(() => import('@/pages/admin/AdminJobsPage'), 'AdminJobsPage'),
               },
               {
+                path: ROUTES.ADMIN_JOB_SOURCES,
+                element: lazyPage(() => import('@/pages/admin/AdminJobSourcesPage'), 'AdminJobSourcesPage'),
+              },
+              {
                 path: ROUTES.ADMIN_JOB_CREATE,
                 element: lazyPage(
                   () => import('@/pages/admin/AdminCreateJobPage'),

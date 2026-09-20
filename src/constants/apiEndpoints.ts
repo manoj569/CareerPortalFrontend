@@ -96,6 +96,11 @@ export const API_ENDPOINTS = {
       `/ai-apply/external-sessions/${encodeURIComponent(sessionId)}`,
   },
   ADMIN: {
+    JOB_SOURCES: {
+      LIST: '/admin/job-sources',
+      DETAILS: (id: string) => `/admin/job-sources/${encodeURIComponent(id)}`,
+      RUN: (id: string) => `/admin/job-sources/${encodeURIComponent(id)}/run`,
+    },
     AI_APPLY: {
       OVERVIEW: '/admin/ai-apply/overview',
       APPLICATIONS: '/admin/ai-apply/applications',
