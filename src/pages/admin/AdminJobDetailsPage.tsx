@@ -17,6 +17,9 @@ import {
 import { isGuid } from '@/features/payments/utils/paymentReturnUrl';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { AdminRecruiterContactCard } from '@/features/admin/components/AdminRecruiterContactCard';
+import { getSafeExternalUrl } from '@/utils/safeExternalUrl';
+import { ROUTES } from '@/constants/routes';
+import { JobStatus } from '@/features/admin/types/adminModels';
 
 export const AdminJobDetailsPage = () => {
   const { jobId = '' } = useParams<{ jobId: string }>();
@@ -91,8 +94,10 @@ export const AdminJobDetailsPage = () => {
             </Grid>
           </Grid>
           <Typography sx={{ overflowWrap: 'anywhere' }}>
-            <strong>Private application URL:</strong> {job.data.applicationUrl}
+            <strong>Private application URL:</strong>{' '}
+            {getSafeExternalUrl(job.data.applicationUrl) ? <a href={getSafeExternalUrl(job.data.applicationUrl)!} target="_blank" rel="noopener noreferrer">{job.data.applicationUrl}</a> : job.data.applicationUrl || 'Not available'}
           </Typography>
+          {job.data.status === JobStatus.Draft && <Button component={Link} to={`${ROUTES.ADMIN_JOBS}?status=${JobStatus.Draft}`}>Back to draft moderation</Button>}
         </Stack>
       </Paper>
       <AdminRecruiterContactCard jobId={jobId} />

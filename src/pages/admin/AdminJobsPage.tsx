@@ -64,6 +64,7 @@ const parseEnum = <T extends number>(
   value: string | null,
   enumObject: Record<string, string | number>,
 ): T | undefined => {
+  if (value === null || value === '') return undefined;
   const parsed = Number(value);
   return Object.values(enumObject).includes(parsed) ? (parsed as T) : undefined;
 };
@@ -356,6 +357,9 @@ export const AdminJobsPage = () => {
       <DashboardPageHeader
         actions={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button onClick={() => { setSearchInput(''); setSearchParams({ status: String(JobStatus.Draft) }); }} variant="outlined">
+              Review draft jobs
+            </Button>
             <Button
               component={Link}
               startIcon={<TravelExploreOutlinedIcon />}
@@ -383,8 +387,10 @@ export const AdminJobsPage = () => {
         }
         description="Search, filter, publish, archive, feature, hide, and soft-delete backend jobs."
         eyebrow="Administration"
-        title="Manage jobs"
+        title={status === JobStatus.Draft ? 'Draft job moderation' : 'Manage jobs'}
       />
+
+      {status === JobStatus.Draft && <Alert severity="info">Review each draft’s details, company, category, and application URL before publishing. Aggregated jobs arrive as drafts. Use Delete to remove an unsuitable draft.</Alert>}
 
       <Paper component="section" sx={{ p: 2.5 }}>
         <Grid container spacing={2}>
@@ -628,9 +634,7 @@ export const AdminJobsPage = () => {
       )}
 
       <Alert severity="info">
-        The backend does not expose unpublish, restore, application-count, or dedicated
-        activate/deactivate operations. Permanent deletion is intentionally not exposed here; soft
-        deletion is the safer supported workflow.
+        Publishing and deletion are performed per job. Deletion uses the existing soft-delete workflow.
       </Alert>
 
       <ConfirmActionDialog

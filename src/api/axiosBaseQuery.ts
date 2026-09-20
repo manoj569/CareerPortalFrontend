@@ -20,6 +20,7 @@ interface AxiosBaseQueryArgs {
   headers?: RawAxiosRequestHeaders;
   params?: object;
   responseType?: ResponseType;
+  timeout?: number;
   validateStatus?: AxiosRequestConfig['validateStatus'];
 }
 
@@ -32,6 +33,7 @@ export const axiosBaseQuery =
       method = 'GET',
       params,
       responseType,
+      timeout,
       url,
       validateStatus,
     }: AxiosBaseQueryArgs,
@@ -47,6 +49,7 @@ export const axiosBaseQuery =
         signal,
         url,
         validateStatus,
+        ...(timeout === undefined ? {} : { timeout }),
       });
       return { data: response.data as unknown };
     } catch (error: unknown) {

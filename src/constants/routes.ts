@@ -1,4 +1,5 @@
 export const ROUTES = {
+  ADMIN_JOB_SOURCES: '/admin/job-sources',
   HOME: '/',
   JOBS: '/jobs',
   JOB_DETAILS: '/jobs/:slug',
