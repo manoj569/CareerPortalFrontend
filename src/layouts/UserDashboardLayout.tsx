@@ -1,9 +1,11 @@
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
 import { ROUTES } from '@/constants/routes';
-import { useGetMembershipsQuery, useGetNotificationsQuery } from '@/features/dashboard/api/dashboardApi';
+import {
+  useGetMembershipsQuery,
+  useGetNotificationsQuery,
+} from '@/features/dashboard/api/dashboardApi';
 import { isMembershipActive } from '@/features/payments/utils/entitlement';
 import { candidateNavigationItems } from './candidateNavigation';
-
 export const UserDashboardLayout = () => {
   const memberships = useGetMembershipsQuery();
   const notifications = useGetNotificationsQuery({ pageNumber: 1, pageSize: 1 });
