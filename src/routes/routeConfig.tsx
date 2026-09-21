@@ -10,6 +10,7 @@ import { PublicLayout } from '@/layouts/PublicLayout';
 import { UserDashboardLayout } from '@/layouts/UserDashboardLayout';
 import { AdminRoute } from './AdminRoute';
 import { CandidateRoute } from './CandidateRoute';
+import { ProtectedRoute } from './ProtectedRoute';
 import { GuestRoute } from './GuestRoute';
 
 type PageImport = Promise<Record<string, ComponentType>>;
@@ -100,6 +101,8 @@ export const appRoutes: RouteObject[] = [
             path: ROUTES.PUBLIC_PORTFOLIO,
             element: lazyPage(() => import('@/pages/PublicPortfolioPage'), 'PublicPortfolioPage'),
           },
+          { path: '/career-guidance', element: lazyPage(() => import('@/features/careerGuidance/pages/MarketplacePage'), 'MarketplacePage') },
+          { path: '/career-guidance/consultants/:consultantId', element: lazyPage(() => import('@/features/careerGuidance/pages/ConsultantPublicPage'), 'ConsultantPublicPage') },
         ],
       },
       {
@@ -276,6 +279,10 @@ export const appRoutes: RouteObject[] = [
                 path: ROUTES.PAYMENTS,
                 element: lazyPage(() => import('@/pages/PaymentsPage'), 'PaymentsPage'),
               },
+              { path: '/career-guidance/my-bookings', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingsPage'), 'BookingsPage') },
+              { path: '/career-guidance/bookings/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingDetailPage'), 'default') },
+              { path: '/career-guidance/sessions/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/SessionPage'), 'default') },
+              { path: '/career-guidance/consultants/:consultantId/book/:serviceId', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingCreatePage'), 'BookingCreatePage') },
             ],
           },
           {
@@ -308,6 +315,15 @@ export const appRoutes: RouteObject[] = [
             ],
           },
         ],
+      },
+      {
+        element: <ProtectedRoute />,
+        children: [{ element: <PublicLayout />, children: [
+          { path: '/career-guidance/consultant/bookings', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingsPage'), 'BookingsPage') },
+          { path: '/career-guidance/consultant/bookings/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingDetailPage'), 'default') },
+          { path: '/career-guidance/consultant/sessions/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/SessionPage'), 'default') },
+          { path: '/career-guidance/consultant/*', element: lazyPage(() => import('@/features/careerGuidance/pages/GuidanceOwnerPage'), 'default') }
+        ] }],
       },
       {
         element: <AdminRoute />,
@@ -425,6 +441,9 @@ export const appRoutes: RouteObject[] = [
                   'AdminAIApplyOperationsPage',
                 ),
               },
+              { path: '/admin/career-guidance/disputes/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/AdminDisputePage'), 'default') },
+              { path: '/admin/career-guidance/sessions/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/AdminSessionPage'), 'default') },
+              { path: '/admin/career-guidance/*', element: lazyPage(() => import('@/features/careerGuidance/pages/AdminGuidancePage'), 'default') },
             ],
           },
         ],
