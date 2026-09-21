@@ -4,11 +4,41 @@ import { describe, expect, it, vi } from 'vitest';
 import { GuidanceForm, type FormValues } from './components/GuidanceForm';
 import { BookingReview } from './components/BookingReview';
 import { CareerBookingStatus, CareerPaymentStatus, CareerSessionStatus } from './types';
+
 vi.mock('./api/financeApi', () => ({ useGetCareerPaymentQuery: () => ({ data: { status: CareerPaymentStatus.Captured, paidAtUtc: '2026-01-01T00:00:00Z', requiresRefundReview: false } }) }));
 vi.mock('./api/sessionsApi', () => ({ useGetCareerSessionQuery: () => ({ data: { status: CareerSessionStatus.Completed } }) }));
 vi.mock('./api/trustApi', () => ({ useGetBookingReviewQuery: () => ({ data: undefined, error: { status: 404 }, isLoading: false, isError: true, refetch: vi.fn() }), useSaveBookingReviewMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({}) }))], useWithdrawBookingReviewMutation: () => [vi.fn()] }));
+
 describe('Career Guidance workflow controls', () => {
- it('submits typed values once', async () => { const user=userEvent.setup(); const submit=vi.fn<(values: FormValues) => Promise<void>>(() => Promise.resolve()); render(<GuidanceForm fields={[{name:'goal',label:'Session goal',required:true},{name:'years',label:'Years',kind:'number'}]} onSubmit={submit}/>); await user.type(screen.getByRole('textbox',{name:/session goal/i}),'Prepare'); await user.type(screen.getByRole('spinbutton',{name:/years/i}),'5'); await user.click(screen.getByRole('button',{name:'Save changes'})); expect(submit).toHaveBeenCalledTimes(1); expect(submit.mock.calls[0][0]).toMatchObject({goal:'Prepare',years:'5'}); });
- it('locks the mutation button while pending', async () => { const user=userEvent.setup(); let finish!:()=>void; const submit=vi.fn<(values: FormValues) => Promise<void>>(() => new Promise<void>(resolve=>{finish=resolve;})); render(<GuidanceForm fields={[{name:'goal',label:'Session goal',required:true}]} onSubmit={submit}/>); await user.type(screen.getByRole('textbox',{name:/session goal/i}),'Goal'); const button=screen.getByRole('button',{name:'Save changes'}); await user.click(button); expect(button).toBeDisabled(); expect(submit).toHaveBeenCalledTimes(1); finish(); });
- it('shows review only for completed paid sessions', () => { render(<BookingReview booking={{id:'b',consultantId:'c',serviceId:'s',startUtc:'2026-01-01T00:00:00Z',endUtc:'2026-01-01T01:00:00Z',consultantTimeZone:'UTC',serviceTitle:'Interview prep',serviceType:'Mock',durationMinutes:60,price:100,currency:'INR',status:CareerBookingStatus.Completed,questionnaire:{targetCompany:null,targetRole:null,yearsOfExperience:null,currentRoleOrStatus:null,sessionGoal:'Goal',questions:null,notes:null},cancellationReason:null,cancelledByUserId:null,cancelledAtUtc:null,completedAtUtc:'2026-01-01T01:00:00Z',revision:'r1',requiresPayment:false}}/>); expect(screen.getByRole('button',{name:/Submit review/i})).toBeInTheDocument(); });
+  it('submits typed values once', async () => {
+    const user = userEvent.setup();
+    const submit = vi.fn<(values: FormValues) => Promise<void>>(() => Promise.resolve());
+    render(<GuidanceForm fields={[{ name: 'goal', label: 'Session goal', required: true }, { name: 'years', label: 'Years', kind: 'number' }]} onSubmit={submit} />);
+    await user.type(screen.getByRole('textbox', { name: /session goal/i }), 'Prepare');
+    await user.type(screen.getByRole('spinbutton', { name: /years/i }), '5');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(submit).toHaveBeenCalledTimes(1);
+    const firstCall = submit.mock.calls.at(0);
+    expect(firstCall).toBeDefined();
+    if (!firstCall) throw new Error('Expected submit to be called.');
+    expect(firstCall[0]).toMatchObject({ goal: 'Prepare', years: '5' });
+  });
+
+  it('locks the mutation button while pending', async () => {
+    const user = userEvent.setup();
+    let finish!: () => void;
+    const submit = vi.fn<(values: FormValues) => Promise<void>>(() => new Promise<void>(resolve => { finish = resolve; }));
+    render(<GuidanceForm fields={[{ name: 'goal', label: 'Session goal', required: true }]} onSubmit={submit} />);
+    await user.type(screen.getByRole('textbox', { name: /session goal/i }), 'Goal');
+    const button = screen.getByRole('button', { name: 'Save changes' });
+    await user.click(button);
+    expect(button).toBeDisabled();
+    expect(submit).toHaveBeenCalledTimes(1);
+    finish();
+  });
+
+  it('shows review only for completed paid sessions', () => {
+    render(<BookingReview booking={{ id: 'b', consultantId: 'c', serviceId: 's', startUtc: '2026-01-01T00:00:00Z', endUtc: '2026-01-01T01:00:00Z', consultantTimeZone: 'UTC', serviceTitle: 'Interview prep', serviceType: 'Mock', durationMinutes: 60, price: 100, currency: 'INR', status: CareerBookingStatus.Completed, questionnaire: { targetCompany: null, targetRole: null, yearsOfExperience: null, currentRoleOrStatus: null, sessionGoal: 'Goal', questions: null, notes: null }, cancellationReason: null, cancelledByUserId: null, cancelledAtUtc: null, completedAtUtc: '2026-01-01T01:00:00Z', revision: 'r1', requiresPayment: false }} />);
+    expect(screen.getByRole('button', { name: /Submit review/i })).toBeInTheDocument();
+  });
 });
