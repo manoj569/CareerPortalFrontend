@@ -3,13 +3,32 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { WeeklyAvailabilityEditor } from './WeeklyAvailabilityEditor';
 import { DayOfWeek, type AvailabilityResponse } from '../types';
-const availability: AvailabilityResponse = { timeZoneId: 'America/New_York', isAcceptingBookings: false, revision: 'r1', windows: [{ dayOfWeek: DayOfWeek.Monday, startTime: '09:00:00', endTime: '17:00:00', isActive: true }, { dayOfWeek: DayOfWeek.Tuesday, startTime: '10:00:00', endTime: '11:00:00', isActive: false }] };
-const input = (name: string) => { const element = document.querySelector<HTMLInputElement>(`input[name="${name}"]`); if (!element) throw new Error(`Missing ${name}`); return element; };
-describe('WeeklyAvailabilityEditor', () => {
- it('populates existing API windows and sends only active windows', async () => { const user=userEvent.setup(); const onSave=vi.fn(()=>Promise.resolve()); render(<WeeklyAvailabilityEditor availability={availability} busy={false} onSave={onSave}/>); expect(screen.getByDisplayValue('09:00')).toBeInTheDocument(); expect(screen.getByDisplayValue('17:00')).toBeInTheDocument(); fireEvent.click(screen.getAllByRole('checkbox')[3]); fireEvent.change(input('Tuesday-start'),{target:{value:'12:00'}}); fireEvent.change(input('Tuesday-end'),{target:{value:'13:00'}}); await user.click(screen.getByRole('button',{name:'Save availability'})); expect(onSave).toHaveBeenCalledWith(expect.objectContaining({timeZoneId:'America/New_York',revision:'r1',windows:[{dayOfWeek:DayOfWeek.Monday,startTime:'09:00',endTime:'17:00',isActive:true},{dayOfWeek:DayOfWeek.Tuesday,startTime:'12:00',endTime:'13:00',isActive:true}]})); });
- it('rejects zero windows when accepting bookings and rejects reversed times', async () => { const user=userEvent.setup(); const onSave=vi.fn(()=>Promise.resolve()); render(<WeeklyAvailabilityEditor availability={{...availability,windows:[],isAcceptingBookings:true}} busy={false} onSave={onSave}/>); await user.click(screen.getByRole('button',{name:'Save availability'})); expect(screen.getByText(/at least one weekly window/i)).toBeInTheDocument(); expect(onSave).not.toHaveBeenCalled(); });
- it('does not submit disabled days as active windows', async () => { const user=userEvent.setup(); const onSave=vi.fn(()=>Promise.resolve()); render(<WeeklyAvailabilityEditor availability={availability} busy={false} onSave={onSave}/>); await user.click(screen.getByRole('button',{name:'Save availability'})); expect(onSave).toHaveBeenCalledWith(expect.objectContaining({windows:[{dayOfWeek:DayOfWeek.Monday,startTime:'09:00',endTime:'17:00',isActive:true}]})); });
- it('rejects reversed start and end times', async () => { const user=userEvent.setup(); const onSave=vi.fn(()=>Promise.resolve()); render(<WeeklyAvailabilityEditor availability={availability} busy={false} onSave={onSave}/>); fireEvent.change(input('Monday-start'),{target:{value:'18:00'}}); await user.click(screen.getByRole('button',{name:'Save availability'})); expect(screen.getByText(/start time before its end time/i)).toBeInTheDocument(); expect(onSave).not.toHaveBeenCalled(); });
-});
 
+const availability: AvailabilityResponse = { timeZoneId: 'America/New_York', isAcceptingBookings: false, revision: 'r1', windows: [{ dayOfWeek: DayOfWeek.Monday, startTime: '09:00:00', endTime: '17:00:00', isActive: true }, { dayOfWeek: DayOfWeek.Tuesday, startTime: '10:00:00', endTime: '11:00:00', isActive: false }] };
+const input = (name: string): HTMLInputElement => { const element = document.querySelector<HTMLInputElement>(`input[name="${name}"]`); if (!element) throw new Error(`Missing ${name}`); return element; };
+
+describe('WeeklyAvailabilityEditor', () => {
+  it('populates existing API windows and sends only active windows', async () => {
+    const user = userEvent.setup(); const onSave = vi.fn(() => Promise.resolve());
+    render(<WeeklyAvailabilityEditor availability={availability} busy={false} onSave={onSave} />);
+    expect(screen.getByDisplayValue('09:00')).toBeInTheDocument(); expect(screen.getByDisplayValue('17:00')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Tuesday available'));
+    fireEvent.change(input('Tuesday-start'), { target: { value: '12:00' } }); fireEvent.change(input('Tuesday-end'), { target: { value: '13:00' } });
+    await user.click(screen.getByRole('button', { name: 'Save availability' }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ timeZoneId: 'America/New_York', revision: 'r1', windows: [{ dayOfWeek: DayOfWeek.Monday, startTime: '09:00', endTime: '17:00', isActive: true }, { dayOfWeek: DayOfWeek.Tuesday, startTime: '12:00', endTime: '13:00', isActive: true }] }));
+  });
+  it('rejects zero windows while accepting bookings', async () => {
+    const user = userEvent.setup(); const onSave = vi.fn(() => Promise.resolve());
+    render(<WeeklyAvailabilityEditor availability={{ ...availability, windows: [], isAcceptingBookings: true }} busy={false} onSave={onSave} />);
+    await user.click(screen.getByRole('button', { name: 'Save availability' })); expect(screen.getByText(/at least one weekly window/i)).toBeInTheDocument(); expect(onSave).not.toHaveBeenCalled();
+  });
+  it('does not submit disabled days as active windows', async () => {
+    const user = userEvent.setup(); const onSave = vi.fn(() => Promise.resolve()); render(<WeeklyAvailabilityEditor availability={availability} busy={false} onSave={onSave} />);
+    await user.click(screen.getByRole('button', { name: 'Save availability' })); expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ windows: [{ dayOfWeek: DayOfWeek.Monday, startTime: '09:00', endTime: '17:00', isActive: true }] }));
+  });
+  it('rejects reversed start and end times', async () => {
+    const user = userEvent.setup(); const onSave = vi.fn(() => Promise.resolve()); render(<WeeklyAvailabilityEditor availability={availability} busy={false} onSave={onSave} />);
+    fireEvent.change(input('Monday-start'), { target: { value: '18:00' } }); await user.click(screen.getByRole('button', { name: 'Save availability' })); expect(screen.getByText(/start time before its end time/i)).toBeInTheDocument(); expect(onSave).not.toHaveBeenCalled();
+  });
+});
 
