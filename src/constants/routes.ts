@@ -30,6 +30,7 @@ export const ROUTES = {
   APPLICATIONS: '/dashboard/applications',
   APPLICATION_DETAILS: '/dashboard/applications/:applicationId',
   INTERVIEW_INSIGHTS: '/dashboard/interview-insights',
+  CAREER_GUIDANCE: '/career-guidance',
   AI_APPLY: '/ai-apply',
   AI_APPLY_SETUP: '/ai-apply/setup',
   AI_APPLY_APPLICATIONS: '/ai-apply/applications',
@@ -74,6 +75,7 @@ export const ROUTES = {
   ADMIN_AUDIT_LOGS: '/admin/audit-logs',
   ADMIN_INTERVIEW_INSIGHTS: '/admin/interview-insights',
   ADMIN_AI_APPLY: '/admin/ai-apply',
+  ADMIN_CAREER_GUIDANCE: '/admin/career-guidance/consultants',
 } as const;
 
 export const buildJobDetailsPath = (slug: string): string =>
