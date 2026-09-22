@@ -18,6 +18,8 @@ export interface JobReferralSubmission {
   id: string;
   jobId: string;
   jobTitle: string;
+  companyName: string;
+  location: string | null;
   referrerUserId: string;
   referrerName: string;
   sourceUrl: string | null;

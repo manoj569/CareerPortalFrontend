@@ -33,7 +33,11 @@ export interface PhonePeCheckoutResponse {
   planCode: string;
 }
 
-export type PhonePePlanCode = 'CareerHarborMembership' | 'AIApply' | 'AIApplyPro';
+export type PhonePePlanCode =
+  | 'CareerHarborMembership'
+  | 'ReferralContactAccess'
+  | 'AIApply'
+  | 'AIApplyPro';
 
 export interface CreatePhonePeCheckoutRequest {
   planCode: PhonePePlanCode;

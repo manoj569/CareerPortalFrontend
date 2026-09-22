@@ -20,7 +20,7 @@ import { buildInterviewInsightsPath, buildJobDetailsPath, ROUTES } from '@/const
 import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
 import { ApplicationQuotaIndicator } from '@/features/dashboard/components/ApplicationQuotaIndicator';
 import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
-import { AIApplyToJobButton } from '@/features/aiApply/components/AIApplyToJobButton';
+// import { AIApplyToJobButton } from '@/features/aiApply/components/AIApplyToJobButton';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import { useGetCompanyInterviewInsightSummaryQuery } from '@/features/interviewInsights/api/interviewInsightsApi';
 import {
@@ -412,13 +412,13 @@ export const JobDetailsPage = () => {
                 label="Apply manually"
               />
 
-              <AIApplyToJobButton
+              {/* <AIApplyToJobButton
                 jobSlug={job.slug}
                 companyName={job.companyName}
                 jobId={job.id}
                 jobTitle={job.title}
                 size="large"
-              />
+              /> */}
 
               <SaveJobButton jobId={job.id} jobTitle={job.title} />
 
@@ -678,12 +678,12 @@ export const JobDetailsPage = () => {
               label="Apply manually"
               size="medium"
             />
-            <AIApplyToJobButton
+            {/* <AIApplyToJobButton
               jobSlug={job.slug}
               companyName={job.companyName}
               jobId={job.id}
               jobTitle={job.title}
-            />
+            /> */}
           </Stack>
         </Paper>
       ) : null}
