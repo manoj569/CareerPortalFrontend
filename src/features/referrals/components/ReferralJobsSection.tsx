@@ -1,10 +1,8 @@
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
-import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -25,10 +23,16 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { ROUTES } from '@/constants/routes';
-import { useAppSelector } from '@/hooks/reduxHooks';
 import { selectCurrentUser } from '@/features/auth/store/authSlice';
-import { useGetPublicReferralJobsQuery, useLazyUnlockReferralContactQuery } from '../api/referralsApi';
-import type { PublicReferralJob, ReferrerContactDetails } from '../types/referralModels';
+import { useAppSelector } from '@/hooks/reduxHooks';
+import {
+  useGetPublicReferralJobsQuery,
+  useLazyUnlockReferralContactQuery,
+} from '../api/referralsApi';
+import type {
+  PublicReferralJob,
+  ReferrerContactDetails,
+} from '../types/referralModels';
 
 const PAGE_SIZE = 12;
 
@@ -42,24 +46,46 @@ const ReferralJobCard = ({
   <Paper sx={{ p: 2.5 }} variant="outlined">
     <Stack spacing={1.5}>
       <Box>
-        <Typography component="h3" fontWeight={700} variant="subtitle1">
+        <Typography
+          component="h3"
+          fontWeight={700}
+          variant="subtitle1"
+        >
           {job.jobTitle}
         </Typography>
-        <Typography color="text.secondary" variant="body2">
+
+        <Typography
+          color="text.secondary"
+          variant="body2"
+        >
           {job.companyName}
           {job.location ? ` · ${job.location}` : ''}
         </Typography>
       </Box>
-      <Chip label={`Referred by ${job.referrerName}`} size="small" sx={{ alignSelf: 'flex-start' }} variant="outlined" />
+
+      <Chip
+        label={`Referred by ${job.referrerName}`}
+        size="small"
+        sx={{ alignSelf: 'flex-start' }}
+        variant="outlined"
+      />
+
       {typeof job.matchScore === 'number' ? (
         <Chip
-          color={job.matchScore >= 85 ? 'success' : job.matchScore >= 65 ? 'info' : 'warning'}
+          color={
+            job.matchScore >= 85
+              ? 'success'
+              : job.matchScore >= 65
+                ? 'info'
+                : 'warning'
+          }
           label={`${job.matchScore}% resume match`}
           size="small"
           sx={{ alignSelf: 'flex-start' }}
           variant="outlined"
         />
       ) : null}
+
       <Button
         fullWidth
         onClick={() => onSeeDetails(job)}
@@ -72,8 +98,18 @@ const ReferralJobCard = ({
   </Paper>
 );
 
-const ContactRow = ({ icon, value }: { icon: React.ReactNode; value: string }) => (
-  <Stack alignItems="center" direction="row" spacing={1}>
+const ContactRow = ({
+  icon,
+  value,
+}: {
+  icon: React.ReactNode;
+  value: string;
+}) => (
+  <Stack
+    alignItems="center"
+    direction="row"
+    spacing={1}
+  >
     {icon}
     <Typography variant="body2">{value}</Typography>
   </Stack>
@@ -82,46 +118,97 @@ const ContactRow = ({ icon, value }: { icon: React.ReactNode; value: string }) =
 export const ReferralJobsSection = () => {
   const navigate = useNavigate();
   const currentUser = useAppSelector(selectCurrentUser);
+
   const [page, setPage] = useState(1);
-  const { data, isError, isLoading, refetch } = useGetPublicReferralJobsQuery({
+
+  const {
+    data,
+    isError,
+    isLoading,
+    refetch,
+  } = useGetPublicReferralJobsQuery({
     pageNumber: page,
     pageSize: PAGE_SIZE,
   });
 
-  const [triggerUnlock, unlockState] = useLazyUnlockReferralContactQuery();
-  const [selectedJob, setSelectedJob] = useState<PublicReferralJob | null>(null);
-  const [contact, setContact] = useState<ReferrerContactDetails | null>(null);
-  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [triggerUnlock, unlockState] =
+    useLazyUnlockReferralContactQuery();
 
-  const handleSeeDetails = async (job: PublicReferralJob) => {
+  const [selectedJob, setSelectedJob] =
+    useState<PublicReferralJob | null>(null);
+
+  const [contact, setContact] =
+    useState<ReferrerContactDetails | null>(null);
+
+  const handleSeeDetails = async (
+    job: PublicReferralJob,
+  ) => {
     setSelectedJob(job);
     setContact(null);
-    setUnlockError(null);
 
     if (!currentUser) {
-      void navigate(ROUTES.LOGIN, { state: { from: ROUTES.DASHBOARD_JOBS } });
+      void navigate(ROUTES.LOGIN, {
+        state: {
+          from: ROUTES.DASHBOARD_JOBS,
+        },
+      });
+
       return;
     }
 
-    const result = await triggerUnlock(job.jobId).unwrap().catch(() => null);
+    const result = await triggerUnlock(job.jobId)
+      .unwrap()
+      .catch(() => null);
+
     if (!result) {
-      setUnlockError('Something went wrong. Please try again.');
+      setSelectedJob(null);
       return;
     }
 
     if (result.status === 'LoginRequired') {
-      void navigate(ROUTES.LOGIN, { state: { from: ROUTES.DASHBOARD_JOBS } });
+      setSelectedJob(null);
+
+      void navigate(ROUTES.LOGIN, {
+        state: {
+          from: ROUTES.DASHBOARD_JOBS,
+        },
+      });
+
       return;
     }
+
     if (result.status === 'MembershipRequired') {
-      setUnlockError(result.message);
+      setSelectedJob(null);
+
+      const returnTo = ROUTES.DASHBOARD_JOBS;
+
+      void navigate(
+        `${ROUTES.MEMBERSHIP}?plan=ReferralContactAccess&returnTo=${encodeURIComponent(
+          returnTo,
+        )}`,
+      );
+
       return;
     }
+
     setContact(result.contact);
   };
 
-  if (isLoading) return <PageLoadingIndicator label="Loading referral jobs" />;
-  if (isError) return <ErrorState onRetry={() => void refetch()} title="Referral jobs unavailable" />;
+  if (isLoading) {
+    return (
+      <PageLoadingIndicator label="Loading referral jobs" />
+    );
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        onRetry={() => void refetch()}
+        title="Referral jobs unavailable"
+      />
+    );
+  }
+
   if (!data?.items.length) {
     return (
       <EmptyState
@@ -135,8 +222,16 @@ export const ReferralJobsSection = () => {
     <Stack spacing={2}>
       <Grid container spacing={2}>
         {data.items.map((job) => (
-          <Grid key={job.jobId} size={{ xs: 12, sm: 6, md: 4 }}>
-            <ReferralJobCard job={job} onSeeDetails={(selected) => void handleSeeDetails(selected)} />
+          <Grid
+            key={job.jobId}
+            size={{ xs: 12, sm: 6, md: 4 }}
+          >
+            <ReferralJobCard
+              job={job}
+              onSeeDetails={(selected) =>
+                void handleSeeDetails(selected)
+              }
+            />
           </Grid>
         ))}
       </Grid>
@@ -150,41 +245,79 @@ export const ReferralJobsSection = () => {
         />
       ) : null}
 
-      <Dialog onClose={() => setSelectedJob(null)} open={selectedJob !== null}>
-        <DialogTitle>{selectedJob?.jobTitle}</DialogTitle>
+      <Dialog
+        onClose={() => {
+          if (!unlockState.isFetching) {
+            setSelectedJob(null);
+          }
+        }}
+        open={selectedJob !== null}
+      >
+        <DialogTitle>
+          {selectedJob?.jobTitle}
+        </DialogTitle>
+
         <DialogContent>
           {unlockState.isFetching ? (
-            <Typography color="text.secondary" variant="body2">
-              Checking access…
+            <Typography
+              color="text.secondary"
+              variant="body2"
+            >
+              Checking referral access…
             </Typography>
-          ) : unlockError ? (
-            <Stack spacing={2}>
-              <Alert severity="info">{unlockError}</Alert>
-              <Button
-                onClick={() => void navigate(ROUTES.MEMBERSHIP)}
-                startIcon={<WorkspacePremiumOutlinedIcon />}
-                variant="contained"
-              >
-                Subscribe — ₹299/month
-              </Button>
-            </Stack>
           ) : contact ? (
             <Stack spacing={1.5} sx={{ pt: 1 }}>
-              <Typography fontWeight={700}>{contact.referrerName}</Typography>
+              <Typography fontWeight={700}>
+                {contact.referrerName}
+              </Typography>
+
               {contact.linkedInUrl ? (
-                <ContactRow icon={<LinkedInIcon color="primary" fontSize="small" />} value={contact.linkedInUrl} />
+                <ContactRow
+                  icon={
+                    <LinkedInIcon
+                      color="primary"
+                      fontSize="small"
+                    />
+                  }
+                  value={contact.linkedInUrl}
+                />
               ) : null}
+
               {contact.email ? (
-                <ContactRow icon={<EmailOutlinedIcon fontSize="small" />} value={contact.email} />
+                <ContactRow
+                  icon={
+                    <EmailOutlinedIcon fontSize="small" />
+                  }
+                  value={contact.email}
+                />
               ) : null}
+
               {contact.phoneNumber ? (
-                <ContactRow icon={<PhoneOutlinedIcon fontSize="small" />} value={contact.phoneNumber} />
+                <ContactRow
+                  icon={
+                    <PhoneOutlinedIcon fontSize="small" />
+                  }
+                  value={contact.phoneNumber}
+                />
               ) : null}
             </Stack>
-          ) : null}
+          ) : (
+            <Typography
+              color="text.secondary"
+              variant="body2"
+            >
+              Referrer contact details are unavailable.
+            </Typography>
+          )}
         </DialogContent>
+
         <DialogActions>
-          <Button onClick={() => setSelectedJob(null)}>Close</Button>
+          <Button
+            disabled={unlockState.isFetching}
+            onClick={() => setSelectedJob(null)}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
     </Stack>

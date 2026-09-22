@@ -12,7 +12,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { ROUTES } from '@/constants/routes';
 import { ApplicationQuotaIndicator } from '@/features/dashboard/components/ApplicationQuotaIndicator';
 import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
-import { AIApplyToJobButton } from '@/features/aiApply/components/AIApplyToJobButton';
+// import { AIApplyToJobButton } from '@/features/aiApply/components/AIApplyToJobButton';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import {
   isDashboardApiError,
@@ -486,14 +486,14 @@ export const CandidateBrowseJobsPage = () => {
                     <Grid key={job.id} size={{ xs: 12 }}>
                       <JobCard
                         match={recommendation}
-                        additionalAction={
-                          <AIApplyToJobButton
-                            jobSlug={job.slug}
-                            companyName={job.companyName}
-                            jobId={job.id}
-                            jobTitle={job.title}
-                          />
-                        }
+                        // additionalAction={
+                        //   <AIApplyToJobButton
+                        //     jobSlug={job.slug}
+                        //     companyName={job.companyName}
+                        //     jobId={job.id}
+                        //     jobTitle={job.title}
+                        //   />
+                        // }
                         secondaryAction={
                           <>
                             <SaveJobButton jobId={job.id} jobTitle={job.title} />
