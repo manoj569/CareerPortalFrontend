@@ -357,7 +357,7 @@ export const CandidateBrowseJobsPage = () => {
       <Typography component="h1" sx={visuallyHidden}>
         Browse jobs
       </Typography>
-      <Stack spacing={3}>
+      <Stack spacing={isReferralTab ? 1.5 : 3}>
         {!isRecommended ? (
           <JobSearchBar
             experience={experienceInput}
@@ -376,7 +376,7 @@ export const CandidateBrowseJobsPage = () => {
           resumeMatchesEnabled={isResumeReady}
         />
 
-        <ResumeRecommendationCard
+        {!isReferralTab ? <ResumeRecommendationCard
           error={resumeError}
           fileInputRef={fileInput}
           fileName={profile.data?.resume?.fileName}
@@ -390,9 +390,9 @@ export const CandidateBrowseJobsPage = () => {
           onRefresh={refreshMatches}
           onUpload={() => fileInput.current?.click()}
           status={resumeStatus.data?.extractionStatus}
-        />
+        /> : null}
 
-        {!isRecommended ? (
+        {!isRecommended && !isReferralTab ? (
           <Button
             aria-controls="candidate-mobile-job-filters"
             aria-expanded={isMobileFiltersOpen}
@@ -409,9 +409,9 @@ export const CandidateBrowseJobsPage = () => {
           </Button>
         ) : null}
 
-        <ApplicationQuotaIndicator />
+        {!isReferralTab ? <ApplicationQuotaIndicator /> : null}
 
-        {(isRecommended ? recommended.isFetching && !recommended.isLoading : jobs.isFetching && !jobs.isLoading) ? (
+        {!isReferralTab && (isRecommended ? recommended.isFetching && !recommended.isLoading : jobs.isFetching && !jobs.isLoading) ? (
           <LinearProgress aria-label="Updating job results" />
         ) : null}
 

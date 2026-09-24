@@ -22,6 +22,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   DASHBOARD_JOBS: '/dashboard/jobs',
   REFER_A_JOB: '/dashboard/refer-a-job',
+  REFERRALS: '/dashboard/referrals',
   PORTFOLIO: '/dashboard/portfolio',
   PROFILE: '/dashboard/profile',
   PUBLIC_PORTFOLIO: '/p/:slug',

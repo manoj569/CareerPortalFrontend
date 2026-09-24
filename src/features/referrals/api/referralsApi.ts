@@ -23,7 +23,7 @@ export const referralsApi = createApi({
     >({
       query: ({ pageNumber, pageSize }) => ({
         params: { pageNumber, pageSize },
-        url: API_ENDPOINTS.JOBS.REFERRALS,
+        url: API_ENDPOINTS.REFERRALS.PUBLIC,
       }),
       transformResponse: (response: BackendApiResponse<PagedResponse<PublicReferralJob & { id?: string; title?: string }>>) => ({
         ...response.data,
@@ -51,11 +51,34 @@ export const referralsApi = createApi({
       query: (body) => ({ data: body, method: 'post', url: API_ENDPOINTS.REFERRALS.SUBMIT }),
       transformResponse: (response: BackendApiResponse<JobReferralSubmission>) => response.data,
     }),
-    getMyReferrals: builder.query<JobReferralSubmission[], void>({
-      providesTags: ['MyReferrals'],
-      query: () => ({ url: API_ENDPOINTS.REFERRALS.MINE }),
-      transformResponse: (response: BackendApiResponse<JobReferralSubmission[]>) => response.data,
-    }),
+ getMyReferrals: builder.query<
+  PagedResponse<JobReferralSubmission>,
+  {
+    search?: string;
+    status?: string;
+    pageNumber?: number;
+    pageSize?: number;
+  }
+>({
+  providesTags: ['MyReferrals'],
+  query: ({
+    search,
+    status,
+    pageNumber = 1,
+    pageSize = 10,
+  }) => ({
+    params: {
+      ...(search?.trim() ? { search: search.trim() } : {}),
+      ...(status ? { status } : {}),
+      pageNumber,
+      pageSize,
+    },
+    url: API_ENDPOINTS.REFERRALS.MINE,
+  }),
+  transformResponse: (
+    response: BackendApiResponse<PagedResponse<JobReferralSubmission>>,
+  ) => response.data,
+}),
     unlockReferralContact: builder.query<ReferralUnlockResult, string>({
       query: (jobId) => ({ url: API_ENDPOINTS.REFERRALS.UNLOCK(jobId) }),
       transformResponse: (response: BackendApiResponse<ReferralUnlockResult>) => response.data,

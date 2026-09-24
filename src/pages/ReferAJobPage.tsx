@@ -18,7 +18,8 @@ import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import WorkOutlineRoundedIcon from '@mui/icons-material/WorkOutlineRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
-
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import {
   Alert,
   Box,
@@ -39,15 +40,13 @@ import {
   Typography,
 } from '@mui/material';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+import { ROUTES } from '@/constants/routes';
 import { selectCurrentUser } from '@/features/auth/store/authSlice';
 import { useGetProfileQuery } from '@/features/dashboard/api/dashboardApi';
-import {
-  EmploymentType,
-  ExperienceLevel,
-  WorkplaceType,
-} from '@/features/jobs/types/jobModels';
+import { EmploymentType } from '@/features/jobs/types/jobModels';
 
 import {
   useExtractJobFromUrlMutation,
@@ -63,33 +62,17 @@ const emptyForm = {
   companyName: '',
   description: '',
   location: '',
-  maximumSalary: '',
-  minimumSalary: '',
   title: '',
   employmentType: '',
-  workplaceType: '',
-  experienceLevel: '',
+  minimumExperienceYears: '',
+  maximumExperienceYears: '',
+  skills: [] as string[],
   categoryId: '',
   newCategoryName: '',
-  expiresAt: '',
-  currencyCode: 'INR',
   applicationUrl: '',
 };
 
-const statusColor: Record<
-  string,
-  'default' | 'success' | 'error' | 'warning'
-> = {
-  Approved: 'success',
-  Pending: 'warning',
-  Rejected: 'error',
-};
 
-const statusLabel: Record<string, string> = {
-  Approved: 'Published',
-  Pending: 'Pending review',
-  Rejected: 'Rejected',
-};
 const normalizeReferralStatus = (value: string | number) => {
   const normalized = String(value);
 
@@ -100,19 +83,7 @@ const normalizeReferralStatus = (value: string | number) => {
   return normalized;
 };
 
-const formatSubmittedDate = (value: string) => {
-  const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return 'Recently';
-  }
-
-  return new Intl.DateTimeFormat('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-};
 
 const fieldSx = {
   '& .MuiOutlinedInput-root': {
@@ -126,12 +97,13 @@ export const ReferAJobPage = () => {
     'Refer a job | Career Harbor',
     'Share a job opportunity with the Career Harbor community.',
   );
+    const navigate = useNavigate();
 
   const currentUser = useAppSelector(selectCurrentUser);
 
   const [url, setUrl] = useState('');
   const [form, setForm] = useState(emptyForm);
-
+const [skillInput, setSkillInput] = useState('');
   const [showLinkedIn, setShowLinkedIn] = useState(true);
   const [showEmail, setShowEmail] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
@@ -146,11 +118,19 @@ export const ReferAJobPage = () => {
   const [referrerRole, setReferrerRole] = useState('');
   const [personalNote, setPersonalNote] = useState('');
   const [toast, setToast] = useState<string | null>(null);
-  const [showAllReferrals, setShowAllReferrals] = useState(false);
   const [extractFromUrl, extractState] = useExtractJobFromUrlMutation();
   const [submitReferral, submitState] = useSubmitJobReferralMutation();
+const {
+  data: myReferralsPage,
+  isLoading: isMyReferralsLoading,
+  isError: isMyReferralsError,
+  refetch: refetchMyReferrals,
+} = useGetMyReferralsQuery({
+  pageNumber: 1,
+  pageSize: 3,
+});
 
-  const myReferrals = useGetMyReferralsQuery();
+const myReferrals = myReferralsPage?.items ?? [];
   const profile = useGetProfileQuery();
   const categories = useGetReferralCategoryOptionsQuery();
 
@@ -166,36 +146,29 @@ export const ReferAJobPage = () => {
     }
   }, [profile.data?.linkedInUrl]);
 
-const allReferrals = useMemo(
-  () => myReferrals.data ?? [],
-  [myReferrals.data],
-);
-
-const visibleReferrals = useMemo(
-  () => (showAllReferrals ? allReferrals : allReferrals.slice(0, 3)),
-  [allReferrals, showAllReferrals],
-);
-  const categoryComplete =
+ const categoryComplete =
   Boolean(form.categoryId.trim()) &&
-  (form.categoryId !== '__new' || Boolean(form.newCategoryName.trim()));
-
-const expirationComplete =
-  Boolean(form.expiresAt) &&
-  new Date(`${form.expiresAt}T00:00:00`).getTime() > Date.now();
+  (form.categoryId !== '__new' ||
+    Boolean(form.newCategoryName.trim()));
 
 const descriptionComplete =
   Boolean(form.applicationUrl.trim()) ||
   Boolean(form.description.trim()) ||
   Boolean(url.trim());
 
+const experienceComplete =
+  Boolean(form.minimumExperienceYears) &&
+  Boolean(form.maximumExperienceYears) &&
+  Number(form.maximumExperienceYears) >=
+    Number(form.minimumExperienceYears);
+
 const jobDetailsComplete =
   Boolean(form.title.trim()) &&
   Boolean(form.companyName.trim()) &&
   Boolean(form.employmentType) &&
-  Boolean(form.workplaceType) &&
-  Boolean(form.experienceLevel) &&
+  experienceComplete &&
+  form.skills.length > 0 &&
   categoryComplete &&
-  expirationComplete &&
   descriptionComplete;
 
 const linkedInComplete =
@@ -225,6 +198,37 @@ const stepStates = submitted
       [key]: value,
     }));
   };
+
+  const addSkill = () => {
+  const skill = skillInput.trim();
+
+  if (!skill) return;
+
+  const alreadyAdded = form.skills.some(
+  (existingSkill) =>
+    existingSkill.toLowerCase() === skill.toLowerCase(),
+);
+
+if (alreadyAdded) {
+  setSkillInput('');
+  return;
+}
+  setForm((current) => ({
+    ...current,
+    skills: [...current.skills, skill],
+  }));
+
+  setSkillInput('');
+};
+
+const removeSkill = (skillToRemove: string) => {
+  setForm((current) => ({
+    ...current,
+    skills: current.skills.filter(
+      (skill) => skill !== skillToRemove,
+    ),
+  }));
+};
 
   const handleExtract = async () => {
     if (!url.trim()) return;
@@ -262,23 +266,24 @@ const stepStates = submitted
     }
 
     setForm({
-      companyName: result.companyName ?? '',
-      description: result.description ?? '',
-      location: result.location ?? '',
-      maximumSalary:
-        result.maximumSalary != null ? String(result.maximumSalary) : '',
-      minimumSalary:
-        result.minimumSalary != null ? String(result.minimumSalary) : '',
-      title: result.title ?? '',
-      employmentType: '',
-      workplaceType: '',
-      experienceLevel: '',
-      categoryId: '',
-      newCategoryName: '',
-      expiresAt: '',
-      currencyCode: 'INR',
-      applicationUrl: url.trim(),
-    });
+  companyName: result.companyName ?? '',
+  description: result.description ?? '',
+  location: result.location ?? '',
+  title: result.title ?? '',
+  employmentType: '',
+  minimumExperienceYears:
+    result.minimumExperienceYears != null
+      ? String(result.minimumExperienceYears)
+      : '',
+  maximumExperienceYears:
+    result.maximumExperienceYears != null
+      ? String(result.maximumExperienceYears)
+      : '',
+  skills: [],
+  categoryId: '',
+  newCategoryName: '',
+  applicationUrl: url.trim(),
+});
 
     setToast('Job details imported!');
   };
@@ -288,18 +293,34 @@ const stepStates = submitted
 
     setSubmitError(null);
 
-    const requiredFields: Array<[keyof typeof form, string]> = [
-      ['title', 'title'],
-      ['companyName', 'company'],
-      ['employmentType', 'employment type'],
-      ['workplaceType', 'workplace type'],
-      ['experienceLevel', 'experience level'],
-      ['expiresAt', 'expiration date'],
-    ];
-
+ const requiredFields: Array<[keyof typeof form, string]> = [
+  ['title', 'title'],
+  ['companyName', 'company'],
+  ['employmentType', 'employment type'],
+  ['minimumExperienceYears', 'minimum experience'],
+  ['maximumExperienceYears', 'maximum experience'],
+];
     const missing = requiredFields
       .filter(([key]) => String(form[key] ?? '').trim() === '')
       .map(([, label]) => label);
+
+      if (form.skills.length === 0) {
+  missing.push('skills');
+}
+
+if (
+  form.minimumExperienceYears &&
+  form.maximumExperienceYears &&
+  Number(form.maximumExperienceYears) <
+    Number(form.minimumExperienceYears)
+) {
+  const message =
+    'Maximum experience cannot be less than minimum experience.';
+
+  setSubmitError(message);
+  setToast(message);
+  return;
+}
 
     const categoryId = String(form.categoryId ?? '').trim();
     const newCategoryName = String(form.newCategoryName ?? '').trim();
@@ -328,19 +349,14 @@ const stepStates = submitted
       missing.push('contact email');
     }
 
-    if (
-      missing.length ||
-      (form.expiresAt &&
-        new Date(`${form.expiresAt}T00:00:00`).getTime() <= Date.now())
-    ) {
-      const message = missing.length
-        ? `Please complete required fields: ${missing.join(', ')}.`
-        : 'Expiration date must be in the future.';
+    if (missing.length) {
+  const message =
+    `Please complete required fields: ${missing.join(', ')}.`;
 
-      setSubmitError(message);
-      setToast(message);
-      return;
-    }
+  setSubmitError(message);
+  setToast(message);
+  return;
+}
 
     if (!showLinkedIn && !showEmail && !showPhone) {
       const message =
@@ -379,31 +395,18 @@ const stepStates = submitted
         },
 
         job: {
-          description: form.description.trim() || undefined,
-          location: form.location.trim() || undefined,
+  title: form.title.trim(),
+  description: form.description.trim() || undefined,
+  location: form.location.trim() || undefined,
+  employmentType: form.employmentType || null,
 
-          maximumSalary: form.maximumSalary
-            ? Number(form.maximumSalary)
-            : undefined,
+  minimumExperienceYears: Number(form.minimumExperienceYears),
+  maximumExperienceYears: Number(form.maximumExperienceYears),
 
-          minimumSalary: form.minimumSalary
-            ? Number(form.minimumSalary)
-            : undefined,
+  skills: form.skills,
 
-          title: form.title.trim(),
-
-          employmentType: form.employmentType || null,
-          workplaceType: form.workplaceType || null,
-          experienceLevel: form.experienceLevel || null,
-
-          currencyCode: form.currencyCode,
-
-          applicationUrl: form.applicationUrl.trim() || null,
-
-          expiresAtUtc: form.expiresAt
-            ? new Date(`${form.expiresAt}T23:59:59Z`).toISOString()
-            : null,
-        },
+  applicationUrl: form.applicationUrl.trim() || null,
+},
 
         recruiterContact: {
           showLinkedIn,
@@ -674,7 +677,7 @@ const stepStates = submitted
             >
               <Button
                 endIcon={<ArrowForwardRoundedIcon />}
-onClick={() => setShowAllReferrals((current) => !current)}
+                onClick={scrollToReferrals}
                 size="small"
                 sx={{
                   bgcolor: '#fff',
@@ -1002,64 +1005,111 @@ onClick={() => setShowAllReferrals((current) => !current)}
                   </Grid>
 
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
-                      Workplace type *
-                    </Typography>
+  <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
+    Skills *
+  </Typography>
 
-                    <FormControl fullWidth>
-                      <TextField
-                        onChange={(event) =>
-                          update('workplaceType', event.target.value)
-                        }
-                        select
-                        size="small"
-                        sx={fieldSx}
-                        value={form.workplaceType}
-                      >
-                        <MenuItem value="">Select workplace type</MenuItem>
+  <Stack direction="row" spacing={1}>
+    <TextField
+      fullWidth
+      onChange={(event) => setSkillInput(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addSkill();
+        }
+      }}
+      placeholder="e.g. C#, .NET Core, Angular"
+      size="small"
+      sx={fieldSx}
+      value={skillInput}
+    />
 
-                        {[
-                          [WorkplaceType.Remote, 'Remote'],
-                          [WorkplaceType.Hybrid, 'Hybrid'],
-                          [WorkplaceType.OnSite, 'On-site'],
-                        ].map(([value, label]) => (
-                          <MenuItem key={value} value={value}>
-                            {label}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </FormControl>
-                  </Grid>
+    <Button
+      disabled={!skillInput.trim()}
+      onClick={addSkill}
+      sx={{ minWidth: 90 }}
+      variant="outlined"
+    >
+      Add Skill
+    </Button>
+  </Stack>
+
+  {form.skills.length > 0 ? (
+    <Stack
+      direction="row"
+      flexWrap="wrap"
+      gap={0.7}
+      sx={{ mt: 1 }}
+    >
+      {form.skills.map((skill) => (
+        <Chip
+          key={skill.toLowerCase()}
+          label={skill}
+          onDelete={() => removeSkill(skill)}
+          size="small"
+        />
+      ))}
+    </Stack>
+  ) : null}
+</Grid>
 
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
-                      Experience level *
-                    </Typography>
+  <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
+    Experience required *
+  </Typography>
 
-                    <FormControl fullWidth>
-                      <TextField
-                        onChange={(event) =>
-                          update('experienceLevel', event.target.value)
-                        }
-                        select
-                        size="small"
-                        sx={fieldSx}
-                        value={form.experienceLevel}
-                      >
-                        <MenuItem value="">Select experience level</MenuItem>
+  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+    <TextField
+      fullWidth
+      label="Minimum experience"
+      onChange={(event) =>
+        update('minimumExperienceYears', event.target.value)
+      }
+      select
+      size="small"
+      sx={fieldSx}
+      value={form.minimumExperienceYears}
+    >
+      <MenuItem value="0">Fresher</MenuItem>
+      {Array.from({ length: 21 }, (_, index) => index + 1).map(
+        (year) => (
+          <MenuItem key={year} value={String(year)}>
+            {year} {year === 1 ? 'year' : 'years'}
+          </MenuItem>
+        ),
+      )}
+    </TextField>
 
-                        {[
-                          [ExperienceLevel.Entry, 'Entry'],
-                          [ExperienceLevel.Mid, 'Mid'],
-                          [ExperienceLevel.Senior, 'Senior'],
-                        ].map(([value, label]) => (
-                          <MenuItem key={value} value={value}>
-                            {label}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </FormControl>
-                  </Grid>
+    <TextField
+      fullWidth
+      label="Maximum experience"
+      onChange={(event) =>
+        update('maximumExperienceYears', event.target.value)
+      }
+      select
+      size="small"
+      sx={fieldSx}
+      value={form.maximumExperienceYears}
+    >
+      <MenuItem value="0">Fresher</MenuItem>
+      {Array.from({ length: 21 }, (_, index) => index + 1).map(
+        (year) => (
+          <MenuItem
+            disabled={
+              form.minimumExperienceYears !== '' &&
+              year < Number(form.minimumExperienceYears)
+            }
+            key={year}
+            value={String(year)}
+          >
+            {year} {year === 1 ? 'year' : 'years'}
+          </MenuItem>
+        ),
+      )}
+    </TextField>
+  </Stack>
+</Grid>
 
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
@@ -1145,83 +1195,13 @@ onClick={() => setShowAllReferrals((current) => !current)}
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12, sm: 3 }}>
-                    <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
-                      Minimum salary
-                    </Typography>
+                 
 
-                    <TextField
-                      fullWidth
-                      onChange={(event) =>
-                        update('minimumSalary', event.target.value)
-                      }
-                      placeholder="e.g. 5,00,000"
-                      size="small"
-                      sx={fieldSx}
-                      type="number"
-                      value={form.minimumSalary}
-                    />
-                  </Grid>
+                  
 
-                  <Grid size={{ xs: 12, sm: 3 }}>
-                    <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
-                      Maximum salary
-                    </Typography>
+                
 
-                    <TextField
-                      fullWidth
-                      onChange={(event) =>
-                        update('maximumSalary', event.target.value)
-                      }
-                      placeholder="e.g. 15,00,000"
-                      size="small"
-                      sx={fieldSx}
-                      type="number"
-                      value={form.maximumSalary}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
-                      Expiration date *
-                    </Typography>
-
-                    <TextField
-                      fullWidth
-                      onChange={(event) =>
-                        update('expiresAt', event.target.value)
-                      }
-                      size="small"
-                      sx={fieldSx}
-                      type="date"
-                      value={form.expiresAt}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
-                      Currency
-                    </Typography>
-
-                    <TextField
-                      fullWidth
-                      onChange={(event) =>
-                        update('currencyCode', event.target.value)
-                      }
-                      select
-                      size="small"
-                      sx={fieldSx}
-                      value={form.currencyCode}
-                    >
-                      {['INR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'SGD'].map(
-                        (code) => (
-                          <MenuItem key={code} value={code}>
-                            {code}
-                          </MenuItem>
-                        ),
-                      )}
-                    </TextField>
-                  </Grid>
+                
 
                   <Grid size={{ xs: 12 }}>
                     <Typography fontSize={11.5} fontWeight={600} mb={0.4}>
@@ -1605,32 +1585,35 @@ onClick={() => setShowAllReferrals((current) => !current)}
                 </Box>
 
                 <Button
-                  endIcon={<ArrowForwardRoundedIcon />}
-                  onClick={scrollToReferrals}
-                  size="small"
-                  sx={{
-                    fontSize: 11,
-                    minWidth: 0,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-{showAllReferrals ? 'Show recent' : 'View all referrals'}                </Button>
+  endIcon={<ArrowForwardRoundedIcon />}
+  onClick={() => {
+    void navigate(ROUTES.REFERRALS);
+  }}
+  size="small"
+  sx={{
+    fontSize: 11,
+    minWidth: 0,
+    whiteSpace: 'nowrap',
+  }}
+>
+  View all referrals
+</Button>
               </Stack>
 
               <Divider sx={{ my: 1.2 }} />
 
-              {myReferrals.isLoading ? (
+              {isMyReferralsLoading ? (
                 <Stack spacing={1}>
                   <Skeleton height={65} variant="rounded" />
                   <Skeleton height={65} variant="rounded" />
                   <Skeleton height={65} variant="rounded" />
                 </Stack>
-              ) : myReferrals.isError ? (
+              ) : isMyReferralsError ? (
                 <Alert
                   action={
                     <Button
                       color="inherit"
-                      onClick={() => void myReferrals.refetch()}
+                      onClick={() => void refetchMyReferrals()}
                       size="small"
                     >
                       Retry
@@ -1640,7 +1623,7 @@ onClick={() => setShowAllReferrals((current) => !current)}
                 >
                   Referrals could not be loaded.
                 </Alert>
-              ) : !visibleReferrals.length ? (
+              ) : !myReferrals.length ? (
                 <Box
                   sx={{
                     py: 3,
@@ -1664,114 +1647,154 @@ onClick={() => setShowAllReferrals((current) => !current)}
                 </Box>
               ) : (
                 <Stack divider={<Divider />}>
-                  {visibleReferrals.map((referral) => (
+                  {myReferrals.map((referral) => (
                     <Box
-                      key={referral.id}
-                      onClick={() => {
-                        if (referral.sourceUrl) {
-                          window.open(
-                            referral.sourceUrl,
-                            '_blank',
-                            'noopener,noreferrer',
-                          );
-                        }
-                      }}
-                      sx={{
-                        borderRadius: 1,
-                        cursor: referral.sourceUrl ? 'pointer' : 'default',
-                        px: 0.3,
-                        py: 1.2,
-                        transition: 'background-color 0.15s ease',
-                        '&:hover': {
-                          bgcolor: '#f7faff',
-                        },
-                      }}
-                    >
-                      <Stack alignItems="center" direction="row" spacing={1}>
-                        <Box
-                          sx={{
-                            alignItems: 'center',
-                            bgcolor: '#f0f6ff',
-                            borderRadius: 1.5,
-                            color: '#0877ee',
-                            display: 'flex',
-                            flexShrink: 0,
-                            height: 36,
-                            justifyContent: 'center',
-                            width: 36,
-                          }}
-                        >
-                          <BusinessOutlinedIcon fontSize="small" />
-                        </Box>
-
-                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                          <Typography
-  noWrap
+  key={referral.id}
+  onClick={() => {
+    if (referral.sourceUrl) {
+      window.open(referral.sourceUrl, '_blank', 'noopener,noreferrer');
+    }
+  }}
   sx={{
-    color: '#405376',
-    fontSize: 10.5,
-    fontWeight: 600,
-    mt: 0.25,
+    py: 1.4,
+    px: 1.25,
+    borderBottom: '1px solid #E5EAF2',
+    cursor: referral.sourceUrl ? 'pointer' : 'default',
+    '&:last-of-type': {
+      borderBottom: 'none',
+    },
+    '&:hover': {
+      bgcolor: '#F8FAFD',
+    },
   }}
 >
-  {referral.companyName}
-  {referral.location ? ` • ${referral.location}` : ''}
-</Typography>
+  <Stack direction="row" alignItems="center" spacing={1.25}>
+    {/* Job icon */}
+    <Box
+      sx={{
+        width: 34,
+        height: 34,
+        borderRadius: 2,
+        bgcolor: '#EFF6FF',
+        color: '#0B74DE',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      <BusinessRoundedIcon sx={{ fontSize: 18 }} />
+    </Box>
 
-                          <Typography
-                            sx={{
-                              color: '#697895',
-                              fontSize: 10.5,
-                              mt: 0.3,
-                            }}
-                          >
-                            Submitted on{' '}
-                            {formatSubmittedDate(referral.createdAtUtc)}
-                          </Typography>
+    {/* Referral details */}
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      {/* Job title */}
+      <Typography
+        noWrap
+        sx={{
+          color: '#14213D',
+          fontSize: 12.5,
+          fontWeight: 800,
+          lineHeight: 1.3,
+        }}
+      >
+        {referral.jobTitle}
+      </Typography>
 
-                          {referral.rejectionReason ? (
-                            <Typography
-                              color="error.main"
-                              sx={{
-                                fontSize: 10,
-                                mt: 0.3,
-                              }}
-                            >
-                              {referral.rejectionReason}
-                            </Typography>
-                          ) : null}
-                        </Box>
+      {/* Location */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={0.4}
+        sx={{ mt: 0.45 }}
+      >
+        <LocationOnOutlinedIcon
+          sx={{
+            fontSize: 13,
+            color: '#64748B',
+          }}
+        />
 
-                        <Stack alignItems="flex-end" spacing={0.7}>
-                          <Chip
-                           color={
-  statusColor[
-    normalizeReferralStatus(referral.approvalStatus)
-  ] ?? 'default'
-}
-label={
-  statusLabel[
-    normalizeReferralStatus(referral.approvalStatus)
-  ] ?? normalizeReferralStatus(referral.approvalStatus)
-}
-                            size="small"
-                            sx={{
-                              fontSize: 10,
-                              height: 23,
-                            }}
-                          />
+        <Typography
+          noWrap
+          sx={{
+            color: '#64748B',
+            fontSize: 10.5,
+            fontWeight: 500,
+          }}
+        >
+          {referral.location || 'Location not specified'}
+        </Typography>
+      </Stack>
 
-                          {referral.sourceUrl ? (
-                            <ChevronRightRoundedIcon
-                              sx={{
-                                color: '#536685',
-                                fontSize: 18,
-                              }}
-                            />
-                          ) : null}
-                        </Stack>
-                      </Stack>
-                    </Box>
+      {/* Submitted date + status */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={0.75}
+        sx={{
+          mt: 0.45,
+          flexWrap: 'wrap',
+          rowGap: 0.4,
+        }}
+      >
+        <Typography
+          sx={{
+            color: '#64748B',
+            fontSize: 10.5,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Submitted{' '}
+          {new Date(referral.createdAtUtc).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          })}
+        </Typography>
+
+        <Typography
+          component="span"
+          sx={{
+            color: '#CBD5E1',
+            fontSize: 10,
+          }}
+        >
+          •
+        </Typography>
+
+        <Typography
+          sx={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            color:
+              normalizeReferralStatus(referral.approvalStatus) === 'Approved'
+                ? '#15803D'
+                : normalizeReferralStatus(referral.approvalStatus) === 'Rejected'
+                  ? '#DC2626'
+                  : '#D97706',
+          }}
+        >
+          {normalizeReferralStatus(referral.approvalStatus) === 'Approved'
+            ? 'Approved'
+            : normalizeReferralStatus(referral.approvalStatus) === 'Rejected'
+              ? 'Rejected'
+              : 'Pending'}
+        </Typography>
+      </Stack>
+    </Box>
+
+    {/* Arrow */}
+    <ChevronRightRoundedIcon
+      sx={{
+        color: '#64748B',
+        fontSize: 20,
+        flexShrink: 0,
+      }}
+    />
+  </Stack>
+</Box>
                   ))}
                 </Stack>
               )}
