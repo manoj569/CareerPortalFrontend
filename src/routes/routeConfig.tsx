@@ -169,6 +169,10 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(() => import('@/pages/ReferAJobPage'), 'ReferAJobPage'),
               },
               {
+  path: ROUTES.REFERRALS,
+  element: lazyPage(() => import('@/pages/AllReferralsPage'), 'AllReferralsPage'),
+},
+              {
                 path: ROUTES.PROFILE,
                 element: <Navigate replace to={ROUTES.PORTFOLIO} />,
               },
