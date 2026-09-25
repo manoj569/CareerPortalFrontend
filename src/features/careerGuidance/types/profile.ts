@@ -1,5 +1,14 @@
 // Generated from inspected CareerGuidanceContracts.cs positional DTOs; dates are ISO strings.
-import type { CareerProfessionalType, ConsultantReviewAction, ConsultantVerificationStatus } from './enums';
+
+import type {
+  ConsultantEducationItem,
+  ConsultantExperienceItem,
+} from '../api/onboardingApi';
+import type {
+  CareerProfessionalType,
+  ConsultantReviewAction,
+  ConsultantVerificationStatus,
+} from './enums';
 
 export interface ConsultantProfileRequest {
   displayName: string;
@@ -73,18 +82,34 @@ export interface ConsultantPublicResponse {
   displayName: string;
   professionalHeadline: string;
   bio: string;
+
   companyId: string | null;
   companyName: string;
   currentRole: string;
-  yearsOfExperience: number;
-  professionalType: CareerProfessionalType;
+
+  yearsOfExperience: number | null;
+  professionalType: CareerProfessionalType | null;
+
   languages: string[];
   expertise: string[];
+
   isAcceptingBookings: boolean;
   guidanceDisclaimer: string;
+
   services: ConsultantServiceResponse[];
+
   averageRating: number | null;
   reviewCount: number;
+
+  profileImageUrl: string | null;
+  location: string | null;
+  industry: string | null;
+  functionalArea: string | null;
+
+  education: ConsultantEducationItem[];
+  workExperience: ConsultantExperienceItem[];
+
+  approvalLabel: string | null;
 }
 
 export interface ConsultantPrivateResponse {

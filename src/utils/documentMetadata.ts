@@ -37,6 +37,7 @@ const getDefaultTitle = (pathname: string): string => {
   if (pathname === '/membership') return 'Career Harbor Membership and Pricing';
   if (pathname.includes('password')) return 'Account Recovery | Career Harbor';
   if (pathname.startsWith('/dashboard')) return 'Candidate Dashboard | Career Harbor';
+  if (pathname.startsWith('/career-guidance')) return 'Career Guidance | Career Harbor';
   if (pathname.startsWith('/admin')) return 'Administration | Career Harbor';
   if (pathname.startsWith('/payment')) return 'Payment | Career Harbor';
   if (pathname === '/unauthorized') return 'Unauthorized | Career Harbor';

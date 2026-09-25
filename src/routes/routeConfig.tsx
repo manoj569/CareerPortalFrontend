@@ -101,8 +101,6 @@ export const appRoutes: RouteObject[] = [
             path: ROUTES.PUBLIC_PORTFOLIO,
             element: lazyPage(() => import('@/pages/PublicPortfolioPage'), 'PublicPortfolioPage'),
           },
-          { path: '/career-guidance', element: lazyPage(() => import('@/features/careerGuidance/pages/MarketplacePage'), 'MarketplacePage') },
-          { path: '/career-guidance/consultants/:consultantId', element: lazyPage(() => import('@/features/careerGuidance/pages/ConsultantPublicPage'), 'ConsultantPublicPage') },
         ],
       },
       {
@@ -283,10 +281,49 @@ export const appRoutes: RouteObject[] = [
                 path: ROUTES.PAYMENTS,
                 element: lazyPage(() => import('@/pages/PaymentsPage'), 'PaymentsPage'),
               },
-              { path: '/career-guidance/my-bookings', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingsPage'), 'BookingsPage') },
-              { path: '/career-guidance/bookings/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingDetailPage'), 'default') },
-              { path: '/career-guidance/sessions/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/SessionPage'), 'default') },
-              { path: '/career-guidance/consultants/:consultantId/book/:serviceId', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingCreatePage'), 'BookingCreatePage') },
+              {
+  path: '/career-guidance',
+  element: lazyPage(
+    () => import('@/features/careerGuidance/pages/MarketplacePage'),
+    'MarketplacePage',
+  ),
+},
+{
+  path: '/career-guidance/consultants/:consultantId',
+  element: lazyPage(
+    () => import('@/features/careerGuidance/pages/ConsultantPublicPage'),
+    'ConsultantPublicPage',
+  ),
+},
+{
+  path: '/career-guidance/my-bookings',
+  element: lazyPage(
+    () => import('@/features/careerGuidance/pages/BookingsPage'),
+    'BookingsPage',
+  ),
+},
+{
+  path: '/career-guidance/bookings/:id',
+  element: lazyPage(
+    () => import('@/features/careerGuidance/pages/BookingDetailPage'),
+    'default',
+  ),
+},
+{
+  path: '/career-guidance/sessions/:id',
+  element: lazyPage(
+    () => import('@/features/careerGuidance/pages/SessionPage'),
+    'default',
+  ),
+},
+{
+  path: '/career-guidance/consultants/:consultantId/book/:serviceId',
+  element: lazyPage(
+    () => import('@/features/careerGuidance/pages/BookingCreatePage'),
+    'BookingCreatePage',
+  ),
+},
+             
             ],
           },
           {
@@ -322,7 +359,41 @@ export const appRoutes: RouteObject[] = [
       },
       {
         element: <ProtectedRoute />,
-        children: [{ element: <PublicLayout />, children: [
+        children: [{ element: <UserDashboardLayout />, children: [
+          { path: '/career-guidance/become-consultant', element: lazyPage(() => import('@/features/careerGuidance/pages/BecomeConsultantPage'), 'default') },
+          { path: '/career-guidance/become-consultant/review', element: lazyPage(() => import('@/features/careerGuidance/pages/ConsultantReviewSubmitPage'), 'default') },
+          { path: '/career-guidance/become-consultant/basic', element: lazyPage(() => import('@/features/careerGuidance/pages/ConsultantBasicInformationPage'), 'default') },
+          {
+  path: '/career-guidance/become-consultant/professional',
+  element: lazyPage(
+    () =>
+      import(
+        '@/features/careerGuidance/pages/ConsultantProfessionalDetailsPage'
+      ),
+    'default',
+  ),
+},
+{
+  path: '/career-guidance/become-consultant/expertise',
+  element: lazyPage(
+    () =>
+      import(
+        '@/features/careerGuidance/pages/ConsultantExpertiseServicesPage'
+      ),
+    'default',
+  ),
+},
+{
+  path: '/career-guidance/become-consultant/availability',
+  element: lazyPage(
+    () =>
+      import(
+        '@/features/careerGuidance/pages/ConsultantAvailabilityPage'
+      ),
+    'default',
+  ),
+},
+        ] }, { element: <PublicLayout />, children: [
           { path: '/career-guidance/consultant/bookings', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingsPage'), 'BookingsPage') },
           { path: '/career-guidance/consultant/bookings/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/BookingDetailPage'), 'default') },
           { path: '/career-guidance/consultant/sessions/:id', element: lazyPage(() => import('@/features/careerGuidance/pages/SessionPage'), 'default') },
