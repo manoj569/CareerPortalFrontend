@@ -149,7 +149,7 @@ export const GuidanceNavigation = ({
         : [
             ['Find a consultant', guidanceRoutes.marketplace],
             ['My bookings', guidanceRoutes.bookings],
-            ['Become a consultant', guidanceRoutes.owner()],
+            ['Become a consultant', guidanceRoutes.becomeConsultant],
           ]
     ).map(([label, path]) => (
       <Button key={path} component={Link} to={path!}>

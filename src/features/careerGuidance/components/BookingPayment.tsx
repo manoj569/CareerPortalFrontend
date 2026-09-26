@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Paper, Stack, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useCreateCareerOrderMutation, useGetCareerPaymentQuery, useReconcileCareerPaymentMutation, useVerifyCareerPaymentMutation } from '../api/financeApi';
 import { useProvisionCareerSessionMutation } from '../api/sessionsApi';
 import { useLazyGetCareerBookingQuery } from '../api/schedulingApi';
 import { CareerBookingStatus, CareerPaymentStatus, type CareerBookingResponse } from '../types';
 import { guidanceError } from '../utils/errors';
 import { money } from '../utils/presentation';
+import { guidanceRoutes } from '../utils/routes';
 import { useGuidanceAction } from '../hooks/useGuidanceAction';
 import { openCareerCheckout } from '../services/razorpayCheckout';
 import { GuidanceError, GuidanceLoading, StatusChip } from './GuidanceUI';
 
 export const BookingPayment = ({ booking }: { booking: CareerBookingResponse }) => {
+  const navigate = useNavigate();
   const payment = useGetCareerPaymentQuery(booking.id, { refetchOnMountOrArgChange: true });
   const [order, orderState] = useCreateCareerOrderMutation();
   const [verify, verifyState] = useVerifyCareerPaymentMutation();
@@ -19,16 +22,22 @@ export const BookingPayment = ({ booking }: { booking: CareerBookingResponse }) 
   const [getBooking] = useLazyGetCareerBookingQuery();
   const action = useGuidanceAction();
   const [notice, setNotice] = useState<string | null>(null);
+  const [expiredBookingId, setExpiredBookingId] = useState<string | null>(null);
   const cancellation = useRef<AbortController | null>(null);
-  useEffect(() => () => cancellation.current?.abort(), []);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; cancellation.current?.abort(); };
+  }, []);
   const synchronize = async (captured: boolean) => {
     const current = await getBooking({ audience: 'candidate', id: booking.id }, false).unwrap();
     if (captured && current.status === CareerBookingStatus.Confirmed) {
       try { await provision({ audience: 'candidate', bookingId: booking.id }).unwrap(); }
       catch { setNotice('Payment is confirmed. Session preparation needs attention; open the session page to refresh its status.'); }
+      if (mounted.current) void navigate(guidanceRoutes.bookingConfirmed(booking.id), { replace: true });
     }
   };
-  const canPay = booking.requiresPayment && booking.status === CareerBookingStatus.Pending &&
+  const canPay = expiredBookingId !== booking.id && booking.requiresPayment && booking.status === CareerBookingStatus.Pending &&
     (!payment.data || [CareerPaymentStatus.Created, CareerPaymentStatus.OrderCreated].includes(payment.data.status));
   const missing = guidanceError(payment.error).status === 404;
   return <Paper sx={{ p: 3 }}><Stack spacing={2}><Typography component="h2" variant="h3">Payment</Typography>
@@ -55,6 +64,9 @@ export const BookingPayment = ({ booking }: { booking: CareerBookingResponse }) 
             const verified = await verify({ bookingId: booking.id, request: outcome.request }).unwrap();
             if (verified.status !== CareerPaymentStatus.Captured) setNotice('Payment verification is pending. Use Refresh payment status to reconcile safely.');
             await synchronize(verified.status === CareerPaymentStatus.Captured && !verified.requiresRefundReview);
+          } catch (error: unknown) {
+            if (guidanceError(error).code === 'reservation_expired') setExpiredBookingId(booking.id);
+            throw error;
           } finally { verifyState.reset(); orderState.reset(); if (!cancellation.current.signal.aborted) void payment.refetch(); }
         });
       }}>{action.busy ? 'Processing…' : 'Continue to secure checkout'}</Button>}

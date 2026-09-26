@@ -10,15 +10,28 @@ import { GuidanceError, GuidanceLoading, StatusChip } from './GuidanceUI';
 import { GuidanceForm, numberValue, optionalText } from './GuidanceForm';
 
 export function BookingReview({ booking }: { booking: CareerBookingResponse }) {
-  const query = useGetBookingReviewQuery(booking.id);
-  const payment = useGetCareerPaymentQuery(booking.id);
-  const session = useGetCareerSessionQuery({ audience: 'candidate', id: booking.id });
+const shouldCheckReview =
+  booking.status === CareerBookingStatus.Completed;
+
+const query = useGetBookingReviewQuery(booking.id, {
+  skip: !shouldCheckReview,
+});
+
+const payment = useGetCareerPaymentQuery(booking.id, {
+  skip: !shouldCheckReview,
+});
+
+const session = useGetCareerSessionQuery(
+  { audience: 'candidate', id: booking.id },
+  { skip: !shouldCheckReview },
+);
   const [save] = useSaveBookingReviewMutation(); const [withdraw] = useWithdrawBookingReviewMutation();
   const action = useGuidanceAction(); const [editing, setEditing] = useState(false);
   const review = query.data;
   const eligible = booking.status === CareerBookingStatus.Completed && session.data?.status === CareerSessionStatus.Completed && payment.data?.status === CareerPaymentStatus.Captured && Boolean(payment.data.paidAtUtc) && !payment.data.requiresRefundReview;
   const editable = review && !review.isDeleted && ![CareerReviewStatus.Hidden, CareerReviewStatus.Rejected].includes(review.moderationStatus);
   const missing = guidanceError(query.error).status === 404;
+  if (!shouldCheckReview) return null;
   return <Paper sx={{ p: 3 }}><Stack spacing={2}><Typography component="h2" variant="h3">Your review</Typography>
     <Typography variant="body2">Reviews may require moderation before publication. Editing returns a review to moderation. The server checks the configured editing deadline.</Typography>
     {action.error && <Alert severity="error">{action.error}</Alert>}

@@ -10,10 +10,12 @@ import { GuidanceError, GuidanceLoading } from './GuidanceUI';
 import { DisputeDetail } from './DisputeDetail';
 
 export function BookingDispute({ bookingId }: { bookingId: string }) {
-  const query = useGetBookingDisputeQuery(bookingId); const payment = useGetCareerPaymentQuery(bookingId);
+  const payment = useGetCareerPaymentQuery(bookingId);
+  const paid = Boolean(payment.data?.paidAtUtc) && Boolean(payment.data && [CareerPaymentStatus.Captured, CareerPaymentStatus.RefundPending, CareerPaymentStatus.Refunded].includes(payment.data.status));
+  const query = useGetBookingDisputeQuery(bookingId, { skip: !paid });
   const [open] = useOpenBookingDisputeMutation(); const action = useGuidanceAction();
   const missing = guidanceError(query.error).status === 404;
-  const paid = payment.data?.paidAtUtc && [CareerPaymentStatus.Captured, CareerPaymentStatus.RefundPending, CareerPaymentStatus.Refunded].includes(payment.data.status);
+  if (!paid) return null;
   return <Paper sx={{ p: 3 }}><Stack spacing={2}><Typography component="h2" variant="h3">Dispute or complaint</Typography>
     {action.error && <Alert severity="error">{action.error}</Alert>}
     {query.isLoading ? <GuidanceLoading /> : query.isError && !missing ? <GuidanceError error={query.error} retry={query.refetch} /> : query.data ? <DisputeDetail dispute={query.data} audience="candidate" refreshing={query.isFetching} /> : <>

@@ -48,7 +48,7 @@ export const axiosBaseQuery =
         responseType,
         signal,
         url,
-        validateStatus,
+        ...(validateStatus === undefined ? {} : { validateStatus }),
         ...(timeout === undefined ? {} : { timeout }),
       });
       return { data: response.data as unknown };
