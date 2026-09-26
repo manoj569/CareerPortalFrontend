@@ -10,6 +10,7 @@ import {
   MenuItem,
   Paper,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
@@ -33,6 +34,7 @@ import {
 } from '../api/onboardingApi';
 import { guidanceError, guidanceErrorMessage } from '../utils/errors';
 import { guidanceRoutes } from '../utils/routes';
+import { ConsultantVerificationStatus } from '../types';
 
 interface DayDefinition {
   dayOfWeek: number;
@@ -203,6 +205,8 @@ export default function ConsultantAvailabilityPage() {
     useSaveConsultantAvailabilityMutation();
 
   const [timeZoneId, setTimeZoneId] = useState('Asia/Kolkata');
+  const [isAcceptingBookings, setIsAcceptingBookings] = useState(false);
+  const isVerified = onboarding?.status === ConsultantVerificationStatus.Verified;
 
   const [schedule, setSchedule] = useState<
     Record<number, DayAvailability>
@@ -228,6 +232,7 @@ export default function ConsultantAvailabilityPage() {
 
     setTimeZoneId(availability.timeZoneId || 'Asia/Kolkata');
     setSchedule(normalizeWindows(availability.windows ?? []));
+    setIsAcceptingBookings(availability.isAcceptingBookings);
     setHydratedRevision(availability.revision);
   }, [availability, hydratedRevision]);
 
@@ -456,7 +461,7 @@ export default function ConsultantAvailabilityPage() {
     try {
       const result = await saveAvailability({
         timeZoneId,
-        isAcceptingBookings: false,
+        isAcceptingBookings: isVerified && isAcceptingBookings,
         windows: buildWindows(),
         revision: availability.revision,
       }).unwrap();
@@ -1077,12 +1082,34 @@ export default function ConsultantAvailabilityPage() {
             </Typography>
           </Paper>
 
-          <Alert severity="info">
-            Saving your schedule during onboarding does not
-            make your profile bookable yet. Booking
-            availability is enabled only when the profile
-            reaches the appropriate approved state.
-          </Alert>
+          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+              <Typography id="accept-bookings-title" fontWeight={850}>
+                Accept new bookings
+              </Typography>
+              <Switch
+                checked={isVerified && isAcceptingBookings}
+                disabled={!isVerified || isSaving}
+                onChange={(_, checked) => setIsAcceptingBookings(checked)}
+                slotProps={{ input: {
+                  'aria-labelledby': 'accept-bookings-title',
+                  'aria-describedby': 'accept-bookings-description',
+                } }}
+              />
+            </Stack>
+            <Typography id="accept-bookings-description" variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {isVerified
+                ? 'Turn this on to make your available time slots bookable by candidates.'
+                : 'You can enable bookings after your consultant profile is approved by CareerHarbor.'}
+            </Typography>
+            {isVerified && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                {isAcceptingBookings
+                  ? 'New bookings will be enabled for your available time slots after you save.'
+                  : 'Your profile is approved, but you are currently not accepting new bookings.'}
+              </Alert>
+            )}
+          </Paper>
         </Stack>
       </Box>
 

@@ -19,11 +19,22 @@ export const guidanceRoutes = {
   book: (consultantId: string, serviceId: string) =>
     `${root}/consultants/${id(consultantId)}/book/${id(serviceId)}`,
 
-  bookings: `${root}/my-bookings`,
-  booking: (bookingId: string) => `${root}/bookings/${id(bookingId)}`,
+  bookConfirm: (consultantId: string, serviceId: string) =>
+    `${root}/consultants/${id(consultantId)}/book/${id(serviceId)}/confirm`,
 
+  bookings: `${root}/my-bookings`,
+
+  booking: (bookingId: string) =>
+    `${root}/bookings/${id(bookingId)}`,
+
+  bookingConfirmed: (bookingId: string) =>
+    `${root}/bookings/${id(bookingId)}/confirmed`,
+
+  feedback: (bookingId: string) =>
+  `${root}/bookings/${id(bookingId)}/feedback`,
   // Candidate session access is keyed by booking ID in the backend.
-  session: (bookingId: string) => `${root}/sessions/${id(bookingId)}`,
+  session: (bookingId: string) =>
+    `${root}/sessions/${id(bookingId)}`,
 
   owner: (section = '') =>
     `${root}/consultant${section ? `/${section}` : ''}`,

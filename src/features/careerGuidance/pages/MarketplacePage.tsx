@@ -249,7 +249,45 @@ export const MarketplacePage = () => {
             interview preparation, resume feedback,
             role insights and more.
           </Typography>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            sx={{ mt: 3 }}
+          >
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<Search />}
+              href="#find-consultants"
+              sx={{
+                px: 3,
+                minHeight: 46,
+                fontWeight: 700,
+                textTransform: 'none',
+                borderRadius: 2,
+              }}
+            >
+              Find a Consultant
+            </Button>
 
+            <Button
+              component={Link}
+              to={guidanceRoutes.becomeConsultant}
+              variant="outlined"
+              size="large"
+              endIcon={<ArrowForward />}
+              sx={{
+                px: 3,
+                minHeight: 46,
+                fontWeight: 700,
+                textTransform: 'none',
+                borderRadius: 2,
+                bgcolor: 'background.paper',
+              }}
+            >
+              Become a Consultant
+            </Button>
+          </Stack>
           <Box
             sx={{
               mt: 3.5,
@@ -463,13 +501,16 @@ export const MarketplacePage = () => {
           spacing={1}
           sx={{ mb: 2 }}
         >
-          <Box>
-            <Typography
-              variant="h5"
-              fontWeight={900}
-            >
-              Find consultants
-            </Typography>
+       <Box
+  id="find-consultants"
+  sx={{ scrollMarginTop: 100 }}
+>
+  <Typography
+    variant="h5"
+    fontWeight={900}
+  >
+    Find consultants
+  </Typography>
 
             <Typography
               variant="body2"

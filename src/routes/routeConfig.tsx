@@ -310,6 +310,13 @@ export const appRoutes: RouteObject[] = [
   ),
 },
 {
+  path: '/career-guidance/bookings/:id/confirmed',
+  element: lazyPage(
+    () => import('@/features/careerGuidance/pages/BookingConfirmedPage'),
+    'default',
+  ),
+},
+{
   path: '/career-guidance/sessions/:id',
   element: lazyPage(
     () => import('@/features/careerGuidance/pages/SessionPage'),
@@ -321,6 +328,26 @@ export const appRoutes: RouteObject[] = [
   element: lazyPage(
     () => import('@/features/careerGuidance/pages/BookingCreatePage'),
     'BookingCreatePage',
+  ),
+},
+{
+  path: '/career-guidance/consultants/:consultantId/book/:serviceId/confirm',
+  element: lazyPage(
+    () =>
+      import(
+        '@/features/careerGuidance/pages/ConsultantBookingConfirmPage'
+      ),
+    'ConsultantBookingConfirmPage',
+  ),
+},
+{
+  path: '/career-guidance/bookings/:id/feedback',
+  element: lazyPage(
+    () =>
+      import(
+        '@/features/careerGuidance/pages/BookingFeedbackPage'
+      ),
+    'default',
   ),
 },
              

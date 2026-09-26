@@ -1,5 +1,5 @@
 import { careerGuidanceApi, unwrap, CG, segment } from './careerGuidanceApi';
-import type { PaginatedResponse } from '@/types';
+import type { ApiResponse, PaginatedResponse } from '@/types';
 import type { CareerCheckout, CareerEarningResponse, CareerEarningSummary, CareerPaymentResponse, CareerRefundResponse, CareerVerifyRequest, FinanceQuery } from '../types';
 
 const api = careerGuidanceApi.injectEndpoints({ endpoints: (builder) => ({
@@ -13,9 +13,16 @@ const api = careerGuidanceApi.injectEndpoints({ endpoints: (builder) => ({
     transformResponse: unwrap<CareerPaymentResponse>,
     invalidatesTags: ['Career'],
   }),
-  getCareerPayment: builder.query<CareerPaymentResponse, string>({
-    query: (arg) => ({ url: `${CG}/bookings/${segment(arg)}/payment` }),
-    transformResponse: unwrap<CareerPaymentResponse>,
+  getCareerPayment: builder.query<CareerPaymentResponse | null, string>({
+    async queryFn(arg, _api, _options, baseQuery) {
+      const result = await baseQuery({ url: `${CG}/bookings/${segment(arg)}/payment` });
+      if (result.error) {
+        // No payment exists until checkout starts. Cache this as an empty result,
+        // so another subscriber does not restart a legitimately missing read.
+        return result.error.status === 404 ? { data: null } : { error: result.error };
+      }
+      return { data: unwrap(result.data as ApiResponse<CareerPaymentResponse>) };
+    },
     providesTags: ['Career'],
   }),
   reconcileCareerPayment: builder.mutation<CareerPaymentResponse, string>({

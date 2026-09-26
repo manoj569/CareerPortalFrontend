@@ -29,30 +29,27 @@ import {
   dateInZone,
   localTimeZone,
   money,
+  utcInstant,
 } from '../utils/presentation';
 import { guidanceRoutes } from '../utils/routes';
 import { isGuid } from '@/features/payments/utils/paymentReturnUrl';
 
-const formatDay = (date: string) =>
+// These are calendar-date keys, not instants. UTC keeps their labels stable in every browser zone.
+const formatDay = (date: string, part: 'weekday' | 'day') =>
   new Intl.DateTimeFormat(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-  }).format(new Date(`${date}T12:00:00`));
+    timeZone: 'UTC',
+    ...(part === 'weekday' ? { weekday: 'short' } : { day: 'numeric' }),
+  }).format(new Date(`${date}T12:00:00Z`));
 
 const formatFullDate = (date: string) =>
   new Intl.DateTimeFormat(undefined, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(`${date}T12:00:00`));
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  }).format(new Date(`${date}T12:00:00Z`));
 
-const formatSlotTime = (value: string) =>
+const formatSlotTime = (value: string, timeZone: string) =>
   new Intl.DateTimeFormat(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: localTimeZone(),
-  }).format(new Date(value));
+    hour: 'numeric', minute: '2-digit', timeZone,
+  }).format(new Date(utcInstant(value)));
 
 const getInitials = (name: string) =>
   name
@@ -104,8 +101,9 @@ export const BookingCreatePage = () => {
 
   const valid = isGuid(consultantId) && isGuid(serviceId);
 
-  const [weekStart, setWeekStart] = useState(
-    addDays(new Date().toISOString().slice(0, 10), 1),
+  const [candidateTimeZone] = useState(localTimeZone);
+  const [weekStart, setWeekStart] = useState(() =>
+    addDays(dateInZone(new Date().toISOString(), candidateTimeZone), 1),
   );
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
@@ -138,7 +136,10 @@ export const BookingCreatePage = () => {
     [slots.currentData?.slots],
   );
 
-  const consultantTimeZone = slots.currentData?.timeZoneId || 'UTC';
+  const slotDates = useMemo(
+    () => new Set(availableSlots.map(slot => dateInZone(slot.startUtc, candidateTimeZone))),
+    [availableSlots, candidateTimeZone],
+  );
 
   const dates = useMemo(
     () =>
@@ -148,16 +149,18 @@ export const BookingCreatePage = () => {
     [weekStart],
   );
 
+  const activeDate = selectedDate || dates.find(date => slotDates.has(date)) || '';
+
   const slotsForSelectedDate = useMemo(() => {
-    if (!selectedDate) return [];
+    if (!activeDate) return [];
 
     return availableSlots.filter(
       (slot) =>
-        dateInZone(slot.startUtc, consultantTimeZone) === selectedDate,
+        dateInZone(slot.startUtc, candidateTimeZone) === activeDate,
     );
-  }, [availableSlots, consultantTimeZone, selectedDate]);
+  }, [availableSlots, candidateTimeZone, activeDate]);
 
-  const selectedSlotData = availableSlots.find(
+  const selectedSlotData = slotsForSelectedDate.find(
     (slot) => slot.startUtc === selectedSlot,
   );
 
@@ -182,7 +185,7 @@ export const BookingCreatePage = () => {
   };
 
   const handlePreviousWeek = () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = dateInZone(new Date().toISOString(), candidateTimeZone);
     const previous = addDays(weekStart, -7);
 
     if (previous < today) {
@@ -209,7 +212,7 @@ export const BookingCreatePage = () => {
       .unwrap()
       .then((fresh) => {
         const stillAvailable = fresh.slots.some(
-          (slot) => slot.startUtc === selectedSlotData.startUtc,
+          (slot) => slot.startUtc === selectedSlotData.startUtc && slot.endUtc === selectedSlotData.endUtc,
         );
 
         if (!stillAvailable) {
@@ -226,6 +229,19 @@ export const BookingCreatePage = () => {
             },
           },
         );
+
+        void navigate(
+  `${guidanceRoutes.book(
+    consultantId,
+    serviceId,
+  )}/confirm?startUtc=${encodeURIComponent(selectedSlotData.startUtc)}`,
+  {
+    state: {
+      selectedStartUtc: selectedSlotData.startUtc,
+      selectedEndUtc: selectedSlotData.endUtc,
+    },
+  },
+);
       })
       .catch(() => {
         // The query error state provides retry controls.
@@ -458,7 +474,7 @@ export const BookingCreatePage = () => {
                   variant="body2"
                   color="text.secondary"
                 >
-                  Times are shown in your timezone: {localTimeZone()}
+                  Times are shown in your timezone: {candidateTimeZone}
                 </Typography>
               </Stack>
             </Box>
@@ -521,19 +537,14 @@ export const BookingCreatePage = () => {
                   aria-label="Available dates"
                 >
                   {dates.map((date) => {
-                    const hasSlots = availableSlots.some(
-                      (slot) =>
-                        dateInZone(
-                          slot.startUtc,
-                          consultantTimeZone,
-                        ) === date,
-                    );
-
-                    const active = selectedDate === date;
+                    const hasSlots = slotDates.has(date);
+                    const active = activeDate === date;
 
                     return (
                       <Button
                         key={date}
+                        aria-label={formatFullDate(date)}
+                        aria-pressed={active}
                         variant={active ? 'contained' : 'outlined'}
                         disabled={
                           !hasSlots ||
@@ -551,14 +562,14 @@ export const BookingCreatePage = () => {
                           component="span"
                           variant="caption"
                         >
-                          {formatDay(date).split(' ')[0]}
+                          {formatDay(date, 'weekday')}
                         </Typography>
 
                         <Typography
                           component="span"
                           fontWeight={800}
                         >
-                          {formatDay(date).split(' ')[1]}
+                          {formatDay(date, 'day')}
                         </Typography>
                       </Button>
                     );
@@ -572,10 +583,10 @@ export const BookingCreatePage = () => {
                   </Alert>
                 )}
 
-                {selectedDate && (
+                {activeDate && (
                   <Box>
                     <Typography fontWeight={700} sx={{ mb: 1.5 }}>
-                      Available times for {formatFullDate(selectedDate)}
+                      Available times for {formatFullDate(activeDate)}
                     </Typography>
 
                     {slotsForSelectedDate.length ? (
@@ -613,7 +624,7 @@ export const BookingCreatePage = () => {
                               fontWeight: 700,
                             }}
                           >
-                            {formatSlotTime(slot.startUtc)}
+                            {formatSlotTime(slot.startUtc, candidateTimeZone)}
                           </Button>
                         ))}
                       </Box>
@@ -630,6 +641,8 @@ export const BookingCreatePage = () => {
         </Paper>
 
         <Paper
+          component="section"
+          aria-label="Session details"
           variant="outlined"
           sx={{
             p: 3,
@@ -671,8 +684,8 @@ export const BookingCreatePage = () => {
                 </Typography>
 
                 <Typography fontWeight={600}>
-                  {selectedDate
-                    ? formatFullDate(selectedDate)
+                  {activeDate
+                    ? formatFullDate(activeDate)
                     : 'Select a date'}
                 </Typography>
               </Box>
@@ -691,7 +704,7 @@ export const BookingCreatePage = () => {
 
                 <Typography fontWeight={600}>
                   {selectedSlotData
-                    ? formatSlotTime(selectedSlotData.startUtc)
+                    ? formatSlotTime(selectedSlotData.startUtc, candidateTimeZone)
                     : 'Select a time'}
                 </Typography>
 
@@ -700,7 +713,7 @@ export const BookingCreatePage = () => {
                     variant="caption"
                     color="text.secondary"
                   >
-                    {localTimeZone()}
+                    {candidateTimeZone}
                   </Typography>
                 )}
               </Box>
