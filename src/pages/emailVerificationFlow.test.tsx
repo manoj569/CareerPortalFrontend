@@ -43,9 +43,9 @@ const fillRegistration = async () => {
 };
 
 const storageValues = (storage: Storage): string[] =>
-  Array.from({ length: storage.length }, (_, index) => storage.getItem(storage.key(index) ?? '')).filter(
-    (value): value is string => value !== null,
-  );
+  Array.from({ length: storage.length }, (_, index) =>
+    storage.getItem(storage.key(index) ?? ''),
+  ).filter((value): value is string => value !== null);
 
 describe('email verification flow', () => {
   beforeEach(() => {
@@ -61,10 +61,17 @@ describe('email verification flow', () => {
 
     await user.click(screen.getByRole('button', { name: 'Create account' }));
 
+    expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeVisible();
+
     expect(
-      await screen.findByRole('heading', { name: 'Check your email to verify your account' }),
+      screen.getByText(/If this email is eligible for a new CareerHarbor account/i),
     ).toBeVisible();
-    expect(screen.getByText(/candidate@example\.com/)).toBeVisible();
+
+    expect(
+      screen.getByText(/If you already have a CareerHarbor account, sign in instead/i),
+    ).toBeVisible();
+
+    expect(screen.queryByText(/candidate@example\.com/)).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe(ROUTES.REGISTER);
     expect(store.getState().auth.user).toBeNull();
     expect(store.getState().auth.status).not.toBe('authenticated');

@@ -174,7 +174,6 @@ export const RegisterPage = () => {
   const [serverError, setServerError] = useState<string | null>(null);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState('');
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const {
@@ -215,7 +214,6 @@ export const RegisterPage = () => {
         phoneNumber: values.phoneNumber,
       });
 
-      setRegisteredEmail(values.email.trim());
       setIsSuccess(true);
     } catch (error: unknown) {
       const hasFieldErrors = applyApiValidationErrors(
@@ -283,15 +281,17 @@ export const RegisterPage = () => {
                   textAlign="center"
                 >
                   <Typography component="h1" variant="h2">
-                    Check your email to verify your account
+                    Check your email
                   </Typography>
+
                   <Alert severity="success" sx={{ width: '100%' }}>
-                    We sent a verification link to <strong>{registeredEmail}</strong>. Open that
-                    link to verify your email before signing in.
+                    If this email is eligible for a new CareerHarbor account, we've sent a
+                    verification link to continue.
                   </Alert>
+
                   <Typography color="text.secondary">
-                    The email may take a few minutes to arrive. Check your spam or junk folder if
-                    you do not see it.
+                    If you already have a CareerHarbor account, sign in instead. Otherwise, check
+                    your inbox and spam or junk folder for the verification email.
                   </Typography>
                   <Button
                     component={Link}
