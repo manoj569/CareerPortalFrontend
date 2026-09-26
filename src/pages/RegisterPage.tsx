@@ -174,6 +174,7 @@ export const RegisterPage = () => {
   const [serverError, setServerError] = useState<string | null>(null);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const {
@@ -206,15 +207,16 @@ export const RegisterPage = () => {
     setIsSuccess(false);
 
     try {
-      await authService.register({
-        email: values.email.trim(),
-        fullName: values.fullName.trim(),
-        hasAcceptedTermsAndPrivacy: values.termsAccepted,
-        password: values.password,
-        phoneNumber: values.phoneNumber,
-      });
+     await authService.register({
+  email: values.email.trim(),
+  fullName: values.fullName.trim(),
+  hasAcceptedTermsAndPrivacy: values.termsAccepted,
+  password: values.password,
+  phoneNumber: values.phoneNumber,
+});
 
-      setIsSuccess(true);
+setRegisteredEmail(values.email.trim());
+setIsSuccess(true);
     } catch (error: unknown) {
       const hasFieldErrors = applyApiValidationErrors(
         error,
@@ -227,14 +229,42 @@ export const RegisterPage = () => {
       }
 
       // ✅ NEW: Check for a JSON error response from the backend
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'conflict') {
-        const apiError = error as { code: string; message: string };
-        setServerError(
-          apiError.message || 'An account with this email or phone number already exists.',
-        );
-      } else {
-        setServerError(getAuthenticationErrorMessage(error));
-      }
+      if (error && typeof error === 'object' && 'code' in error) {
+  const apiError = error as { code?: string; message?: string };
+
+  if (apiError.code === 'registration_email_exists') {
+    setError('email', {
+      type: 'server',
+      message: 'An account already exists with this email. Please log in.',
+    });
+    setHasValidationErrors(true);
+    return;
+  }
+
+  if (apiError.code === 'registration_phone_exists') {
+    setError('phoneNumber', {
+      type: 'server',
+      message: 'An account already exists with this mobile number. Please log in.',
+    });
+    setHasValidationErrors(true);
+    return;
+  }
+
+  if (apiError.code === 'registration_identity_exists') {
+    setError('email', {
+      type: 'server',
+      message: 'An account already exists with this email. Please log in.',
+    });
+    setError('phoneNumber', {
+      type: 'server',
+      message: 'An account already exists with this mobile number. Please log in.',
+    });
+    setHasValidationErrors(true);
+    return;
+  }
+}
+
+setServerError(getAuthenticationErrorMessage(error));
     }
   };
 
@@ -281,18 +311,21 @@ export const RegisterPage = () => {
                   textAlign="center"
                 >
                   <Typography component="h1" variant="h2">
-                    Check your email
-                  </Typography>
+  Check your email to verify your account
+</Typography>
 
-                  <Alert severity="success" sx={{ width: '100%' }}>
-                    If this email is eligible for a new CareerHarbor account, we've sent a
-                    verification link to continue.
-                  </Alert>
+<Alert severity="success" sx={{ width: '100%' }}>
+  Your CareerHarbor account has been created successfully.
+</Alert>
 
-                  <Typography color="text.secondary">
-                    If you already have a CareerHarbor account, sign in instead. Otherwise, check
-                    your inbox and spam or junk folder for the verification email.
-                  </Typography>
+<Typography color="text.secondary">
+  We sent a verification link to <strong>{registeredEmail}</strong>. Open the
+  link to verify your email address, then log in to your account.
+</Typography>
+
+<Typography color="text.secondary" variant="body2">
+  Can't find the email? Check your spam or junk folder.
+</Typography>
                   <Button
                     component={Link}
                     state={safeReturnLocation ? { from: safeReturnLocation } : undefined}
