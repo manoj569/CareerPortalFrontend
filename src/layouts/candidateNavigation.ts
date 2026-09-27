@@ -1,14 +1,14 @@
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
+import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
+import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
-import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
-import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
-import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
 
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
 import { ROUTES } from '@/constants/routes';
@@ -26,17 +26,6 @@ export const candidateNavigationItems: NavigationItem[] = [
     icon: WorkOutlineIcon,
   },
   {
-    label: 'Refer a job',
-    path: ROUTES.REFER_A_JOB,
-    icon: GroupAddOutlinedIcon,
-    badge: 'New',
-  },
-  {
-    label: 'Portfolio',
-    path: ROUTES.PORTFOLIO,
-    icon: WebOutlinedIcon,
-  },
-  {
     label: 'Saved jobs',
     path: ROUTES.SAVED_JOBS,
     icon: BookmarkBorderIcon,
@@ -45,6 +34,12 @@ export const candidateNavigationItems: NavigationItem[] = [
     label: 'Applied jobs',
     path: ROUTES.APPLICATIONS,
     icon: DescriptionOutlinedIcon,
+  },
+  {
+    label: 'Refer a job',
+    path: ROUTES.REFER_A_JOB,
+    icon: GroupAddOutlinedIcon,
+    badge: 'New',
   },
   {
     label: 'Interview insights',
@@ -56,6 +51,11 @@ export const candidateNavigationItems: NavigationItem[] = [
     label: 'Career Guidance',
     path: ROUTES.CAREER_GUIDANCE,
     icon: PsychologyOutlinedIcon,
+  },
+  {
+    label: 'Portfolio',
+    path: ROUTES.PORTFOLIO,
+    icon: WebOutlinedIcon,
   },
   {
     label: 'Membership',
