@@ -2,22 +2,32 @@ import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import DesktopWindowsOutlinedIcon from '@mui/icons-material/DesktopWindowsOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
-import { Alert, Box, Button, Chip, Paper, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Paper,
+  Stack,
+  Tab,
+  Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { buildPublicPortfolioPath } from '@/constants/routes';
+import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
 import {
   isDashboardApiError,
 } from '@/features/dashboard/api/dashboardApi';
-import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
-import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import {
   useCreatePortfolioMutation,
   useGetPortfolioPreviewQuery,
@@ -25,9 +35,9 @@ import {
   usePublishPortfolioMutation,
   useUnpublishPortfolioMutation,
 } from '@/features/portfolio/api/portfolioApi';
-import { PortfolioCollectionEditors } from '@/features/portfolio/components/PortfolioCollectionEditors';
+import PortfolioBuilderWorkspace from '@/features/portfolio/components/PortfolioBuilderWorkspace';
+import PortfolioShareDialog from '@/features/portfolio/components/PortfolioShareDialog';
 import { PortfolioRenderer } from '@/features/portfolio/components/PortfolioRenderer';
-import { PortfolioSettingsCard } from '@/features/portfolio/components/PortfolioSettingsCard';
 import type {
   PortfolioEditorResponse,
   PortfolioPublishResponse,
@@ -35,83 +45,164 @@ import type {
 import { publicPortfolioUrl } from '@/features/portfolio/utils/portfolioUrl';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { CandidateProfileContent } from './ProfilePage';
-
 type TabValue = 'profile' | 'builder' | 'preview';
 type PreviewWidth = 'desktop' | 'mobile';
-
-const validTabs: TabValue[] = ['profile', 'builder', 'preview'];
-
+const validTabs: TabValue[] = [
+  'profile',
+  'builder',
+  'preview',
+];
 export const PortfolioPage = () => {
   useDocumentMetadata(
     'Portfolio | Career Harbor',
     'Build your private Career Harbor profile and explicitly publish a professional portfolio when ready.',
   );
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] =
+    useSearchParams();
   const portfolio = useGetPortfolioQuery();
-  const [createPortfolio, createState] = useCreatePortfolioMutation();
-  const [publishPortfolio, publishState] = usePublishPortfolioMutation();
-  const [unpublishPortfolio, unpublishState] = useUnpublishPortfolioMutation();
-  const [publicationError, setPublicationError] = useState<string | null>(null);
-  const [unpublishOpen, setUnpublishOpen] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
-  const [profileEditorRequest, setProfileEditorRequest] = useState(0);
-
+  const [createPortfolio, createState] =
+    useCreatePortfolioMutation();
+  const [publishPortfolio, publishState] =
+    usePublishPortfolioMutation();
+  const [unpublishPortfolio, unpublishState] =
+    useUnpublishPortfolioMutation();
+  const [publicationError, setPublicationError] =
+    useState<string | null>(null);
+  const [unpublishOpen, setUnpublishOpen] =
+    useState(false);
+  const [shareOpen, setShareOpen] =
+    useState(false);
+  const [copyStatus, setCopyStatus] = useState<
+    'idle' | 'copied'
+  >('idle');
+  const [
+    profileEditorRequest,
+    setProfileEditorRequest,
+  ] = useState(0);
   const requestedTab = searchParams.get('tab');
-  const tab: TabValue = validTabs.includes(requestedTab as TabValue)
+  const tab: TabValue = validTabs.includes(
+    requestedTab as TabValue,
+  )
     ? (requestedTab as TabValue)
     : 'profile';
   const editor = portfolio.data;
   const isCreated = Boolean(editor?.isCreated);
-  const isPublished = editor?.status === 'Published';
-  const publicUrl = isPublished && editor?.slug ? publicPortfolioUrl(editor.slug) : null;
-  const frontendMissing = useMemo(() => getFrontendMissingRequirements(editor), [editor]);
-  const canPublish = isCreated && !isPublished && frontendMissing.length === 0;
-
+  const isPublished =
+    editor?.status === 'Published';
+  const publicUrl =
+    isPublished && editor?.slug
+      ? publicPortfolioUrl(editor.slug)
+      : null;
+  const frontendMissing = useMemo(
+    () => getFrontendMissingRequirements(editor),
+    [editor],
+  );
+  const canPublish =
+    isCreated &&
+    !isPublished &&
+    frontendMissing.length === 0;
   const setTab = (nextTab: TabValue) => {
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams(
+      searchParams,
+    );
     next.set('tab', nextTab);
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, {
+      replace: true,
+    });
   };
-
   const editProfile = () => {
     setTab('profile');
-    setProfileEditorRequest((current) => current + 1);
+    setProfileEditorRequest(
+      (current) => current + 1,
+    );
   };
-
   useEffect(() => {
-    if (tab !== 'preview' || !editor || editor.isCreated) return;
-    const next = new URLSearchParams(searchParams);
+    if (
+      tab !== 'preview' ||
+      !editor ||
+      editor.isCreated
+    ) {
+      return;
+    }
+    const next = new URLSearchParams(
+      searchParams,
+    );
     next.set('tab', 'builder');
-    setSearchParams(next, { replace: true });
-  }, [editor, searchParams, setSearchParams, tab]);
-
+    setSearchParams(next, {
+      replace: true,
+    });
+  }, [
+    editor,
+    searchParams,
+    setSearchParams,
+    tab,
+  ]);
   useEffect(() => {
-    if (tab !== 'profile' || searchParams.get('action') !== 'basic-details') return;
-    setProfileEditorRequest((current) => current + 1);
-    const next = new URLSearchParams(searchParams);
+    if (
+      tab !== 'profile' ||
+      searchParams.get('action') !==
+        'basic-details'
+    ) {
+      return;
+    }
+    setProfileEditorRequest(
+      (current) => current + 1,
+    );
+    const next = new URLSearchParams(
+      searchParams,
+    );
     next.delete('action');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams, tab]);
-
-
+    setSearchParams(next, {
+      replace: true,
+    });
+  }, [
+    searchParams,
+    setSearchParams,
+    tab,
+  ]);
   const copyLink = async () => {
-    if (!publicUrl) return;
+    if (!publicUrl) {
+      return;
+    }
     setCopyStatus('idle');
     try {
-      await navigator.clipboard.writeText(publicUrl);
+      await navigator.clipboard.writeText(
+        publicUrl,
+      );
       setCopyStatus('copied');
-      enqueueSnackbar('Portfolio link copied.', { variant: 'success' });
+      enqueueSnackbar(
+        'Portfolio link copied.',
+        {
+          variant: 'success',
+        },
+      );
     } catch {
-      enqueueSnackbar('Unable to copy the portfolio link.', { variant: 'error' });
+      enqueueSnackbar(
+        'Unable to copy the portfolio link.',
+        {
+          variant: 'error',
+        },
+      );
     }
   };
-
   const runPublish = async () => {
-    if (publishState.isLoading || !isCreated) return;
+    if (
+      publishState.isLoading ||
+      !isCreated
+    ) {
+      return;
+    }
     setPublicationError(null);
     try {
-      const result = await publishPortfolio().unwrap();
-      handlePublishResult(result, () => undefined);
+      const result =
+        await publishPortfolio().unwrap();
+      handlePublishResult(
+        result,
+        () => undefined,
+      );
+      if (result.published) {
+        setCopyStatus('idle');
+      }
     } catch (error: unknown) {
       setPublicationError(
         isDashboardApiError(error)
@@ -120,14 +211,23 @@ export const PortfolioPage = () => {
       );
     }
   };
-
   const runUnpublish = async () => {
-    if (unpublishState.isLoading || !isPublished) return;
+    if (
+      unpublishState.isLoading ||
+      !isPublished
+    ) {
+      return;
+    }
     setPublicationError(null);
     try {
       await unpublishPortfolio().unwrap();
       setUnpublishOpen(false);
-      enqueueSnackbar('Portfolio unpublished. It is now private.', { variant: 'success' });
+      enqueueSnackbar(
+        'Portfolio unpublished. It is now private.',
+        {
+          variant: 'success',
+        },
+      );
     } catch (error: unknown) {
       setPublicationError(
         isDashboardApiError(error)
@@ -136,113 +236,240 @@ export const PortfolioPage = () => {
       );
     }
   };
-
   if (portfolio.isLoading) {
-    return <PageLoadingIndicator label="Loading portfolio workspace" />;
+    return (
+      <PageLoadingIndicator label="Loading portfolio workspace" />
+    );
   }
-
   if (portfolio.isError || !editor) {
     return (
       <ErrorState
         description="Your portfolio workspace could not be loaded."
         headingLevel="h1"
-        onRetry={() => void portfolio.refetch()}
+        onRetry={() => {
+          void portfolio.refetch();
+        }}
         title="Portfolio is temporarily unavailable"
       />
     );
   }
-
   const publicPortfolioCard = (
     <PublicPortfolioCard
       canPublish={canPublish}
       copyStatus={copyStatus}
       editor={editor}
       isPublishing={publishState.isLoading}
-      onBuilder={() => setTab('builder')}
-      onCopy={() => void copyLink()}
-      onPreview={() => setTab('preview')}
-      onPublish={() => void runPublish()}
-      onUnpublish={() => setUnpublishOpen(true)}
+      onBuilder={() => {
+        setTab('builder');
+      }}
+      onCopy={() => {
+        void copyLink();
+      }}
+      onPreview={() => {
+        setTab('preview');
+      }}
+      onPublish={() => {
+        void runPublish();
+      }}
+      onUnpublish={() => {
+        setUnpublishOpen(true);
+      }}
       publicUrl={publicUrl}
     />
   );
-
   return (
-    <Stack spacing={{ xs: 2.5, md: 3 }}>
-      <DashboardPageHeader
-        actions={(
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-            <Button disabled={!isCreated} onClick={() => setTab('preview')} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="outlined">
-              Preview portfolio
-            </Button>
-            <Button onClick={editProfile} startIcon={<EditOutlinedIcon />} sx={{ width: { xs: '100%', sm: 'auto' } }} variant="contained">
-              Edit profile
-            </Button>
-          </Stack>
-        )}
-        description="Build a complete profile that helps employers understand your experience."
-        eyebrow="CANDIDATE WORKSPACE"
-        title="Portfolio"
-      />
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', maxWidth: '100%', overflow: 'hidden' }}>
-        <Tabs
-          allowScrollButtonsMobile
-          aria-label="Portfolio workspace views"
-          onChange={(_, value: TabValue) => setTab(value)}
-          scrollButtons="auto"
-          sx={{
-            '& .MuiTab-root': { minHeight: 52, minWidth: { xs: 138, sm: 160 }, textTransform: 'none' },
-            minHeight: 52,
-          }}
-          value={tab}
-          variant="scrollable"
+<Stack spacing={{ xs: 2, md: 2.25 }}>
+    <Box
+  sx={{
+    alignItems: 'center',
+    borderBottom: 1,
+    borderColor: 'divider',
+    display: 'flex',
+    gap: 2,
+    justifyContent: 'space-between',
+    minHeight: 52,
+    width: '100%',
+  }}
+>
+  <Tabs
+    allowScrollButtonsMobile
+    aria-label="Portfolio workspace views"
+    onChange={(_, value: TabValue) => {
+      setTab(value);
+    }}
+    scrollButtons="auto"
+    sx={{
+      flex: 1,
+      minHeight: 52,
+      minWidth: 0,
+      '& .MuiTab-root': {
+        minHeight: 52,
+        minWidth: {
+          xs: 120,
+          sm: 150,
+        },
+        px: {
+          xs: 1.5,
+          sm: 2,
+        },
+        textTransform: 'none',
+      },
+    }}
+    value={tab}
+    variant="scrollable"
+  >
+    <Tab
+      label="Profile"
+      value="profile"
+    />
+    <Tab
+      label="Portfolio builder"
+      value="builder"
+    />
+    <Tab
+      disabled={!isCreated}
+      label="Preview"
+      value="preview"
+    />
+  </Tabs>
+  <Stack
+    direction="row"
+    spacing={1}
+    sx={{
+      display: {
+        xs: 'none',
+        md: 'flex',
+      },
+      flexShrink: 0,
+      pb: 0.75,
+    }}
+  >
+    <Button
+      disabled={!isCreated}
+      onClick={() => {
+        setTab('preview');
+      }}
+      size="small"
+      variant="outlined"
+    >
+      Preview portfolio
+    </Button>
+    {isPublished ? (
+      <Button
+        disabled={!publicUrl}
+        onClick={() => {
+          setCopyStatus('idle');
+          setShareOpen(true);
+        }}
+        size="small"
+        startIcon={<ShareOutlinedIcon />}
+        variant="contained"
+      >
+        Share portfolio
+      </Button>
+    ) : (
+      <Button
+        disabled={!canPublish || publishState.isLoading}
+        onClick={() => {
+          void runPublish();
+        }}
+        size="small"
+        variant="contained"
+      >
+        {publishState.isLoading
+          ? 'Publishing…'
+          : 'Publish portfolio'}
+      </Button>
+    )}
+  </Stack>
+</Box>
+      {publicationError ? (
+        <Alert
+          aria-live="assertive"
+          severity="error"
         >
-          <Tab label="Profile" value="profile" />
-          <Tab label="Portfolio builder" value="builder" />
-          <Tab disabled={!isCreated} label="Preview" value="preview" />
-        </Tabs>
-      </Box>
-
-      {publicationError ? <Alert aria-live="assertive" severity="error">{publicationError}</Alert> : null}
-
+          {publicationError}
+        </Alert>
+      ) : null}
       {tab === 'profile' ? (
         <CandidateProfileContent
           hidePageHeader
-          openEditorRequest={profileEditorRequest}
-          publicPortfolioCard={publicPortfolioCard}
+          openEditorRequest={
+            profileEditorRequest
+          }
+          publicPortfolioCard={
+            publicPortfolioCard
+          }
         />
       ) : null}
-
       {tab === 'builder' ? (
-        !isCreated ? (
-          <NotCreated createPortfolio={createPortfolio} isLoading={createState.isLoading} />
-        ) : (
-          <Stack spacing={2.5}>
-            <BuilderWorkspace editor={editor} onPreview={() => setTab('preview')} />
-            {publicPortfolioCard}
-          </Stack>
-        )
+  !isCreated ? (
+    <NotCreated
+      createPortfolio={
+        createPortfolio
+      }
+      isLoading={
+        createState.isLoading
+      }
+    />
+  ) : (
+    <PortfolioBuilderWorkspace
+      onEditProfile={editProfile}
+      onOpenPreview={() => {
+        setTab('preview');
+      }}
+      portfolio={editor}
+    />
+  )
+) : null}
+      {tab === 'preview' &&
+      isCreated ? (
+        <PortfolioPreviewWorkspace
+          editor={editor}
+          onBack={() => {
+            setTab('builder');
+          }}
+        />
       ) : null}
-
-      {tab === 'preview' && isCreated ? (
-        <PortfolioPreviewWorkspace editor={editor} onBack={() => setTab('builder')} />
-      ) : null}
-
+      <PortfolioShareDialog
+        copyStatus={copyStatus}
+        displayName={editor.displayName}
+        onClose={() => {
+          setShareOpen(false);
+        }}
+        onCopy={() => {
+          void copyLink();
+        }}
+        onUnpublish={() => {
+          setShareOpen(false);
+          setUnpublishOpen(true);
+        }}
+        open={shareOpen}
+        publicUrl={publicUrl}
+      />
       <ConfirmActionDialog
         actionLabel="Unpublish portfolio"
         description="Your public portfolio will no longer be available at its current link. Your private profile and portfolio content will be kept."
         error={publicationError}
-        isProcessing={unpublishState.isLoading}
-        onClose={() => !unpublishState.isLoading && setUnpublishOpen(false)}
-        onConfirm={() => void runUnpublish()}
+        isProcessing={
+          unpublishState.isLoading
+        }
+        onClose={() => {
+          if (
+            !unpublishState.isLoading
+          ) {
+            setUnpublishOpen(false);
+          }
+        }}
+        onConfirm={() => {
+          void runUnpublish();
+        }}
         open={unpublishOpen}
         title="Unpublish your portfolio?"
       />
     </Stack>
   );
 };
-
 const PublicPortfolioCard = ({
   canPublish,
   copyStatus,
@@ -266,55 +493,195 @@ const PublicPortfolioCard = ({
   onUnpublish: () => void;
   publicUrl: string | null;
 }) => {
-  const published = editor.status === 'Published';
+  const published =
+    editor.status === 'Published';
   return (
     <Paper
       component="section"
       id="candidate-public-portfolio"
-      sx={{ bgcolor: 'primary.dark', color: 'primary.contrastText', height: '100%', p: { xs: 2.5, sm: 3 } }}
+      sx={{
+        bgcolor: 'primary.dark',
+        color: 'primary.contrastText',
+        height: '100%',
+        p: { xs: 2.5, sm: 3 },
+      }}
     >
-      <Stack alignItems="flex-start" spacing={1.75}>
-        <Stack alignItems="center" direction="row" justifyContent="space-between" spacing={1} width="100%">
-          <Stack alignItems="center" direction="row" spacing={1}>
+      <Stack
+        alignItems="flex-start"
+        spacing={1.75}
+      >
+        <Stack
+          alignItems="center"
+          direction="row"
+          justifyContent="space-between"
+          spacing={1}
+          width="100%"
+        >
+          <Stack
+            alignItems="center"
+            direction="row"
+            spacing={1}
+          >
             <WebOutlinedIcon />
-            <Typography component="h2" variant="h3">Portfolio privacy</Typography>
+            <Typography
+              component="h2"
+              variant="h3"
+            >
+              Portfolio privacy
+            </Typography>
           </Stack>
-          <Chip color={published ? 'success' : 'warning'} label={published ? 'Published' : 'Draft'} size="small" />
+          <Chip
+            color={
+              published
+                ? 'success'
+                : 'warning'
+            }
+            label={
+              published
+                ? 'Published'
+                : 'Draft'
+            }
+            size="small"
+          />
         </Stack>
-        <Typography sx={{ color: 'rgba(255,255,255,.78)' }} variant="body2">
-          {published ? 'Your selected portfolio content is live.' : 'Your profile stays private until you publish your portfolio.'}
+        <Typography
+          sx={{
+            color:
+              'rgba(255,255,255,.78)',
+          }}
+          variant="body2"
+        >
+          {published
+            ? 'Your selected portfolio content is live.'
+            : 'Your profile stays private until you publish your portfolio.'}
         </Typography>
-        {publicUrl ? <Typography sx={{ color: 'inherit', overflowWrap: 'anywhere' }} variant="body2">{publicUrl}</Typography> : null}
-        <Stack alignItems="stretch" spacing={1} width="100%">
-          {!editor.isCreated ? <Button color="inherit" onClick={onBuilder} variant="contained">Open portfolio builder</Button> : null}
-          {editor.isCreated ? <Button color="inherit" onClick={onPreview} variant="outlined">Preview draft</Button> : null}
-          {canPublish ? <Button color="inherit" disabled={isPublishing} onClick={onPublish} variant="contained">{isPublishing ? 'Publishing…' : 'Publish'}</Button> : null}
-          {published && editor.slug ? (
-            <Button color="inherit" component={Link} endIcon={<OpenInNewOutlinedIcon />} rel="noopener noreferrer" target="_blank" to={buildPublicPortfolioPath(editor.slug)} variant="outlined">View live portfolio</Button>
+        {publicUrl ? (
+          <Typography
+            sx={{
+              color: 'inherit',
+              overflowWrap: 'anywhere',
+            }}
+            variant="body2"
+          >
+            {publicUrl}
+          </Typography>
+        ) : null}
+        <Stack
+          alignItems="stretch"
+          spacing={1}
+          width="100%"
+        >
+          {!editor.isCreated ? (
+            <Button
+              color="inherit"
+              onClick={onBuilder}
+              variant="contained"
+            >
+              Open portfolio builder
+            </Button>
           ) : null}
-          {published ? <Button color="inherit" onClick={onCopy} startIcon={<ContentCopyOutlinedIcon />}>{copyStatus === 'copied' ? 'Link copied' : 'Copy link'}</Button> : null}
-          <Button color="inherit" onClick={onBuilder}>{published ? 'Manage portfolio' : 'Open portfolio builder'}</Button>
-          {published ? <Button color="inherit" onClick={onUnpublish} sx={{ opacity: 0.82 }}>Unpublish</Button> : null}
+          {editor.isCreated ? (
+            <Button
+              color="inherit"
+              onClick={onPreview}
+              variant="outlined"
+            >
+              Preview draft
+            </Button>
+          ) : null}
+          {canPublish ? (
+            <Button
+              color="inherit"
+              disabled={isPublishing}
+              onClick={onPublish}
+              variant="contained"
+            >
+              {isPublishing
+                ? 'Publishing…'
+                : 'Publish'}
+            </Button>
+          ) : null}
+          {published &&
+          editor.slug ? (
+            <Button
+              color="inherit"
+              component={Link}
+              endIcon={
+                <OpenInNewOutlinedIcon />
+              }
+              rel="noopener noreferrer"
+              target="_blank"
+              to={buildPublicPortfolioPath(
+                editor.slug,
+              )}
+              variant="outlined"
+            >
+              View live portfolio
+            </Button>
+          ) : null}
+          {published ? (
+            <Button
+              color="inherit"
+              onClick={onCopy}
+              startIcon={
+                <ContentCopyOutlinedIcon />
+              }
+            >
+              {copyStatus === 'copied'
+                ? 'Link copied'
+                : 'Copy link'}
+            </Button>
+          ) : null}
+          <Button
+            color="inherit"
+            onClick={onBuilder}
+          >
+            {published
+              ? 'Manage portfolio'
+              : 'Open portfolio builder'}
+          </Button>
+          {published ? (
+            <Button
+              color="inherit"
+              onClick={onUnpublish}
+              sx={{ opacity: 0.82 }}
+            >
+              Unpublish
+            </Button>
+          ) : null}
         </Stack>
       </Stack>
     </Paper>
   );
 };
-
 const NotCreated = ({
   createPortfolio,
   isLoading,
 }: {
-  createPortfolio: ReturnType<typeof useCreatePortfolioMutation>[0];
+  createPortfolio: ReturnType<
+    typeof useCreatePortfolioMutation
+  >[0];
   isLoading: boolean;
 }) => {
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<
+    string | null
+  >(null);
   const create = async () => {
-    if (isLoading) return;
+    if (isLoading) {
+      return;
+    }
     setError(null);
     try {
-      await createPortfolio({ requestedSlug: null, template: 'Professional' }).unwrap();
-      enqueueSnackbar('Portfolio draft created.', { variant: 'success' });
+      await createPortfolio({
+        requestedSlug: null,
+        template: 'Professional',
+      }).unwrap();
+      enqueueSnackbar(
+        'Portfolio draft created.',
+        {
+          variant: 'success',
+        },
+      );
     } catch (createError: unknown) {
       setError(
         isDashboardApiError(createError)
@@ -323,126 +690,322 @@ const NotCreated = ({
       );
     }
   };
-
   return (
-    <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 3, md: 5 } }}>
-      <Stack alignItems="flex-start" spacing={2}>
-        <Chip color="warning" label="Draft" variant="outlined" />
-        <Typography component="h2" variant="h3">Create your public portfolio draft</Typography>
-        <Typography color="text.secondary" sx={{ maxWidth: 760 }}>
-          Choose what to show publicly, add portfolio-only career records, and preview everything first. Creating a draft does not publish it.
+    <Paper
+      component="section"
+      sx={{
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 3,
+        p: { xs: 3, md: 5 },
+      }}
+    >
+      <Stack
+        alignItems="flex-start"
+        spacing={2}
+      >
+        <Chip
+          color="warning"
+          label="Draft"
+          variant="outlined"
+        />
+        <Typography
+          component="h2"
+          variant="h3"
+        >
+          Create your public portfolio draft
         </Typography>
-        {error ? <Alert aria-live="assertive" severity="error">{error}</Alert> : null}
-        <Button disabled={isLoading} onClick={() => void create()} variant="contained">{isLoading ? 'Creating…' : 'Create portfolio'}</Button>
+        <Typography
+          color="text.secondary"
+          sx={{ maxWidth: 760 }}
+        >
+          Choose what to show publicly,
+          add portfolio-only career records,
+          and preview everything first.
+          Creating a draft does not publish
+          it.
+        </Typography>
+        {error ? (
+          <Alert
+            aria-live="assertive"
+            severity="error"
+          >
+            {error}
+          </Alert>
+        ) : null}
+        <Button
+          disabled={isLoading}
+          onClick={() => {
+            void create();
+          }}
+          variant="contained"
+        >
+          {isLoading
+            ? 'Creating…'
+            : 'Create portfolio'}
+        </Button>
       </Stack>
     </Paper>
   );
 };
-
-const BuilderWorkspace = ({ editor, onPreview }: { editor: PortfolioEditorResponse; onPreview: () => void }) => (
-  <Stack spacing={2.5}>
-    <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2.5, md: 3 } }}>
-      <Stack alignItems={{ xs: 'flex-start', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2}>
-        <Stack spacing={0.5}>
-          <Stack alignItems="center" direction="row" spacing={1}>
-            <Typography component="h2" variant="h3">Portfolio builder</Typography>
-            <Chip color={editor.status === 'Published' ? 'success' : 'warning'} label={editor.status ?? 'Draft'} size="small" variant="outlined" />
-          </Stack>
-          <Typography color="text.secondary">Choose public sections and manage content that belongs only to your portfolio.</Typography>
-        </Stack>
-        <Button onClick={onPreview} variant="outlined">Preview portfolio</Button>
-      </Stack>
-    </Paper>
-    <Alert severity="info">
-      Private profile data is saved separately. Only visible portfolio sections and portfolio-only records appear in the public preview; changes are never published automatically.
-    </Alert>
-    <PortfolioSettingsCard portfolio={editor} />
-    <PortfolioCollectionEditors portfolio={editor} />
-  </Stack>
-);
-
-const PortfolioPreviewWorkspace = ({ editor, onBack }: { editor: PortfolioEditorResponse; onBack: () => void }) => {
-  const preview = useGetPortfolioPreviewQuery();
-  const [width, setWidth] = useState<PreviewWidth>('desktop');
-
+const PortfolioPreviewWorkspace = ({
+  editor,
+  onBack,
+}: {
+  editor: PortfolioEditorResponse;
+  onBack: () => void;
+}) => {
+  const preview =
+    useGetPortfolioPreviewQuery();
+  const [width, setWidth] =
+    useState<PreviewWidth>('desktop');
   return (
     <Stack spacing={2}>
-      <Paper component="section" sx={{ border: 1, borderColor: 'divider', p: { xs: 2, sm: 2.5 } }}>
-        <Stack alignItems={{ xs: 'flex-start', md: 'center' }} direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+      <Paper
+        component="section"
+        sx={{
+          border: 1,
+          borderColor: 'divider',
+          p: { xs: 2, sm: 2.5 },
+        }}
+      >
+        <Stack
+          alignItems={{
+            xs: 'flex-start',
+            md: 'center',
+          }}
+          direction={{
+            xs: 'column',
+            md: 'row',
+          }}
+          justifyContent="space-between"
+          spacing={2}
+        >
           <Stack spacing={0.5}>
-            <Stack alignItems="center" direction="row" spacing={1}>
-              <Typography component="h2" variant="h3">Portfolio preview</Typography>
-              <Chip color={editor.status === 'Published' ? 'success' : 'warning'} label={editor.status ?? 'Draft'} size="small" variant="outlined" />
+            <Stack
+              alignItems="center"
+              direction="row"
+              spacing={1}
+            >
+              <Typography
+                component="h2"
+                variant="h3"
+              >
+                Portfolio preview
+              </Typography>
+              <Chip
+                color={
+                  editor.status ===
+                  'Published'
+                    ? 'success'
+                    : 'warning'
+                }
+                label={
+                  editor.status ?? 'Draft'
+                }
+                size="small"
+                variant="outlined"
+              />
             </Stack>
-            <Typography color="text.secondary" variant="body2">This is the backend-generated preview of your currently visible public sections.</Typography>
+            <Typography
+              color="text.secondary"
+              variant="body2"
+            >
+              This is the backend-generated
+              preview of your currently
+              visible public sections.
+            </Typography>
           </Stack>
-          <Stack alignItems={{ xs: 'stretch', sm: 'center' }} direction={{ xs: 'column', sm: 'row' }} spacing={1} width={{ xs: '100%', md: 'auto' }}>
-            <Button onClick={onBack} startIcon={<ArrowBackOutlinedIcon />} variant="outlined">Back to builder</Button>
+          <Stack
+            alignItems={{
+              xs: 'stretch',
+              sm: 'center',
+            }}
+            direction={{
+              xs: 'column',
+              sm: 'row',
+            }}
+            spacing={1}
+            width={{
+              xs: '100%',
+              md: 'auto',
+            }}
+          >
+            <Button
+              onClick={onBack}
+              startIcon={
+                <ArrowBackOutlinedIcon />
+              }
+              variant="outlined"
+            >
+              Back to builder
+            </Button>
             <ToggleButtonGroup
               aria-label="Preview width"
               exclusive
-              onChange={(_, value: PreviewWidth | null) => value && setWidth(value)}
+              onChange={(
+                _,
+                value:
+                  | PreviewWidth
+                  | null,
+              ) => {
+                if (value) {
+                  setWidth(value);
+                }
+              }}
               size="small"
-              sx={{ '& .MuiToggleButton-root': { minHeight: 44, minWidth: 44 } }}
+              sx={{
+                '& .MuiToggleButton-root':
+                  {
+                    minHeight: 44,
+                    minWidth: 44,
+                  },
+              }}
               value={width}
             >
-              <ToggleButton aria-label="Desktop preview width" value="desktop"><DesktopWindowsOutlinedIcon fontSize="small" /></ToggleButton>
-              <ToggleButton aria-label="Mobile preview width" value="mobile"><PhoneIphoneOutlinedIcon fontSize="small" /></ToggleButton>
+              <ToggleButton
+                aria-label="Desktop preview width"
+                value="desktop"
+              >
+                <DesktopWindowsOutlinedIcon fontSize="small" />
+              </ToggleButton>
+              <ToggleButton
+                aria-label="Mobile preview width"
+                value="mobile"
+              >
+                <PhoneIphoneOutlinedIcon fontSize="small" />
+              </ToggleButton>
             </ToggleButtonGroup>
           </Stack>
         </Stack>
       </Paper>
-
-      {preview.isLoading ? <PageLoadingIndicator label="Loading portfolio preview" /> : null}
+      {preview.isLoading ? (
+        <PageLoadingIndicator label="Loading portfolio preview" />
+      ) : null}
       {preview.isError ? (
         <Paper sx={{ p: 3 }}>
-          <Alert action={<Button color="inherit" onClick={() => void preview.refetch()}>Retry</Button>} severity="error">Portfolio preview is unavailable.</Alert>
+          <Alert
+            action={
+              <Button
+                color="inherit"
+                onClick={() => {
+                  void preview.refetch();
+                }}
+              >
+                Retry
+              </Button>
+            }
+            severity="error"
+          >
+            Portfolio preview is
+            unavailable.
+          </Alert>
         </Paper>
       ) : null}
-      {!preview.isLoading && !preview.isError && !preview.data ? (
-        <Paper sx={{ p: 3 }}><Typography color="text.secondary">No portfolio preview is available yet. Return to the builder and add visible content.</Typography></Paper>
+      {!preview.isLoading &&
+      !preview.isError &&
+      !preview.data ? (
+        <Paper sx={{ p: 3 }}>
+          <Typography color="text.secondary">
+            No portfolio preview is
+            available yet. Return to the
+            builder and add visible content.
+          </Typography>
+        </Paper>
       ) : null}
       {preview.data ? (
-        <Stack alignItems="center" spacing={1.5}>
-          {preview.data.sectionOrder.length === 0 ? <Alert severity="info" sx={{ width: '100%' }}>No public sections are visible yet. Use the builder to choose what appears here.</Alert> : null}
+        <Stack
+          alignItems="center"
+          spacing={1.5}
+        >
+          {preview.data.sectionOrder
+            .length === 0 ? (
+            <Alert
+              severity="info"
+              sx={{ width: '100%' }}
+            >
+              No public sections are visible
+              yet. Use the builder to choose
+              what appears here.
+            </Alert>
+          ) : null}
           <Paper
             sx={{
               border: 1,
               borderColor: 'divider',
               maxWidth: '100%',
               overflow: 'hidden',
-              '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
-              transition: (theme) => theme.transitions.create('width'),
-              width: width === 'mobile' ? 390 : '100%',
+              '@media (prefers-reduced-motion: reduce)':
+                {
+                  transition: 'none',
+                },
+              transition: (theme) =>
+                theme.transitions.create(
+                  'width',
+                ),
+              width:
+                width === 'mobile'
+                  ? 390
+                  : '100%',
             }}
           >
-            <PortfolioRenderer portfolio={preview.data} preview />
+            <PortfolioRenderer
+              portfolio={preview.data}
+              preview
+            />
           </Paper>
         </Stack>
       ) : null}
     </Stack>
   );
 };
-
-const getFrontendMissingRequirements = (portfolio: PortfolioEditorResponse | undefined): string[] => {
-  if (!portfolio?.isCreated) return [];
+const getFrontendMissingRequirements = (
+  portfolio:
+    | PortfolioEditorResponse
+    | undefined,
+): string[] => {
+  if (!portfolio?.isCreated) {
+    return [];
+  }
   const missing: string[] = [];
-  if (!portfolio.displayName.trim()) missing.push('name');
-  if (!portfolio.resumeHeadline?.trim()) missing.push('resumeHeadline');
-  if (!portfolio.profileSummary?.trim()) missing.push('profileSummary');
-  if (!portfolio.skills.length) missing.push('skills');
-  if (!portfolio.slug?.trim()) missing.push('slug');
+  if (!portfolio.displayName.trim()) {
+    missing.push('name');
+  }
+  if (
+    !portfolio.resumeHeadline?.trim()
+  ) {
+    missing.push('resumeHeadline');
+  }
+  if (
+    !portfolio.profileSummary?.trim()
+  ) {
+    missing.push('profileSummary');
+  }
+  if (!portfolio.skills.length) {
+    missing.push('skills');
+  }
+  if (!portfolio.slug?.trim()) {
+    missing.push('slug');
+  }
   return missing;
 };
-
 const handlePublishResult = (
   result: PortfolioPublishResponse,
-  setMissing: (requirements: string[]) => void,
+  setMissing: (
+    requirements: string[],
+  ) => void,
 ) => {
   if (!result.published) {
-    setMissing(result.missingRequirements);
+    setMissing(
+      result.missingRequirements,
+    );
     return;
   }
   setMissing([]);
-  enqueueSnackbar('Portfolio published.', { variant: 'success' });
+  enqueueSnackbar(
+    'Portfolio published.',
+    {
+      variant: 'success',
+    },
+  );
 };
