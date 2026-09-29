@@ -1,3 +1,4 @@
+import { getSafeMembershipReturnTo } from '@/features/interviewInsights/utils/membershipAccess';
 import type { PhonePeCheckoutResponse } from '../types/paymentModels';
 
 export const PHONEPE_ORDER_STORAGE_KEY = 'careerHarbor.phonePeMerchantOrderId';
@@ -30,7 +31,8 @@ export const clearPhonePeMerchantOrderId = (): void =>
   sessionStorage.removeItem(PHONEPE_ORDER_STORAGE_KEY);
 
 export const storePhonePeReturnTo = (returnTo: string | undefined): void => {
-  if (returnTo) sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, returnTo);
+  const safeReturnTo = getSafeMembershipReturnTo(returnTo ?? null);
+  if (safeReturnTo) sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, safeReturnTo);
   else sessionStorage.removeItem(PHONEPE_RETURN_TO_STORAGE_KEY);
 };
 

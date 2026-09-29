@@ -99,6 +99,13 @@ export interface AIApplyRule {
   isEnabled: boolean;
 }
 export type UpsertAIApplyRuleRequest = Omit<AIApplyRule, 'id'>;
+
+export interface MembershipPricing {
+  baseAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  totalAmount: number;
+}
 export interface MembershipPlan {
   planCode: string;
   displayName: string;
@@ -108,6 +115,7 @@ export interface MembershipPlan {
   canUseStandardMembership: boolean;
   canUseAIApply: boolean;
   canUseAIApplyPro: boolean;
+  pricing?: MembershipPricing | null;
 }
 export interface AIApplyCheckoutOrder {
   paymentId: string;

@@ -298,6 +298,7 @@ export interface Membership {
   startsAtUtc: string;
   endsAtUtc: string | null;
   autoRenew: boolean;
+  planCode?: string | null;
 }
 
 export interface ChangePasswordRequest {

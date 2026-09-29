@@ -1,23 +1,28 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, Routes, Route } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MembershipStatus } from '@/features/dashboard/types/dashboardModels';
 import type { PublicReferralJob, ReferralUnlockResult } from '../types/referralModels';
 import { ReferralJobsSection } from './ReferralJobsSection';
 import { ReferralJobCard } from './ReferralJobCard';
+import { ReferralContactDetailsPage } from '@/pages/ReferralContactDetailsPage';
 
-const mocks = vi.hoisted(() => ({
-  list: vi.fn(),
-  memberships: vi.fn(),
-  plans: vi.fn(),
-  user: vi.fn(),
-  unlock: vi.fn(),
-  refetch: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const unlockState: { data?: ReferralUnlockResult; isFetching?: boolean } = {};
+  return {
+    list: vi.fn(),
+    memberships: vi.fn(),
+    plans: vi.fn(),
+    user: vi.fn(),
+    unlock: vi.fn(),
+    unlockState,
+    refetch: vi.fn(),
+  };
+});
 vi.mock('../api/referralsApi', () => ({
   useGetPublicReferralJobsQuery: mocks.list,
-  useLazyUnlockReferralContactQuery: () => [mocks.unlock, { isFetching: false }],
+  useLazyUnlockReferralContactQuery: () => [mocks.unlock, mocks.unlockState],
 }));
 vi.mock('@/features/dashboard/api/dashboardApi', () => ({
   useGetMembershipsQuery: mocks.memberships,
@@ -40,8 +45,10 @@ const job: PublicReferralJob = {
   referrerCompletedYearsAtCompany: 3,
   isContactLocked: true,
 };
-const result = (value: ReferralUnlockResult) =>
+const result = (value: ReferralUnlockResult) => {
+  mocks.unlockState = { data: value, isFetching: false };
   mocks.unlock.mockReturnValue({ unwrap: () => Promise.resolve(value) });
+};
 const Location = () => {
   const location = useLocation();
   return (
@@ -55,7 +62,15 @@ const Location = () => {
 const section = () =>
   render(
     <MemoryRouter initialEntries={['/dashboard/jobs?mode=referral']}>
-      <ReferralJobsSection />
+      <Routes>
+        <Route path="/dashboard/jobs" element={<ReferralJobsSection />} />
+        <Route
+          path="/dashboard/jobs/referral/:jobId/contact"
+          element={<ReferralContactDetailsPage />}
+        />
+        <Route path="/dashboard/membership" element={<div>Membership</div>} />
+        <Route path="/login" element={<div>Login</div>} />
+      </Routes>
       <Location />
     </MemoryRouter>,
   );
@@ -102,7 +117,7 @@ describe('Referral marketplace', () => {
     expect(screen.queryByText(/authorized@example.test/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /View referrer details/ }));
     expect(mocks.unlock).toHaveBeenCalledWith('job-1', false);
-    expect(await screen.findByText('Email: authorized@example.test')).toBeVisible();
+    expect(await screen.findByText('authorized@example.test')).toBeVisible();
     expect(screen.queryByText(/^Phone:/)).not.toBeInTheDocument();
   });
   it('rejects contacts in a membership-required response and preserves referral return URL', async () => {
@@ -121,7 +136,7 @@ describe('Referral marketplace', () => {
     await waitFor(
       () =>
         expect(screen.getByLabelText('Location')).toHaveTextContent(
-          'plan=ReferralContactAccess&returnTo=%2Fdashboard%2Fjobs%3Fmode%3Dreferral',
+          'plan=ReferralContactAccess&returnTo=%2Fdashboard%2Fjobs%2Freferral%2Fjob-1%2Fcontact',
         ),
       { timeout: 5000 },
     );
@@ -133,7 +148,9 @@ describe('Referral marketplace', () => {
     await userEvent.click(screen.getByRole('button', { name: /View referrer details/ }));
     expect(mocks.unlock).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Location')).toHaveTextContent('/login');
-    expect(screen.getByLabelText('Location')).toHaveTextContent('/dashboard/jobs?mode=referral');
+    expect(screen.getByLabelText('Location')).toHaveTextContent(
+      '/dashboard/jobs/referral/job-1/contact',
+    );
   });
   it('shows active referral access instead of a purchase CTA but still checks the protected endpoint', async () => {
     mocks.memberships.mockReturnValue({

@@ -31,7 +31,11 @@ import { PhonePePaymentStatus } from '@/features/payments/types/paymentModels';
 import { useAppDispatch } from '@/hooks/reduxHooks';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { getSafeMembershipReturnTo } from '@/features/interviewInsights/utils/membershipAccess';
-import { findActiveMembership } from '@/features/payments/utils/entitlement';
+import {
+  findActivePlanMembership,
+  membershipPlanCode,
+  membershipPlanName,
+} from '@/features/payments/utils/entitlement';
 
 const POLL_INTERVAL_MS = 3_000;
 const POLL_LIMIT_MS = 60_000;
@@ -60,7 +64,8 @@ export const PhonePeReturnPage = () => {
   const dispatch = useAppDispatch();
   const isLegacyReturn = location.pathname === ROUTES.PHONEPE_RETURN_LEGACY;
   const merchantOrderId = searchParams.get(isLegacyReturn ? 'order' : 'merchantOrderId');
-  const storedOrderId = getStoredPhonePeMerchantOrderId();
+  // Retain the validated order in memory after successful session-storage cleanup.
+  const [storedOrderId] = useState(getStoredPhonePeMerchantOrderId);
   const sessionMatches =
     isValidPhonePeMerchantOrderId(merchantOrderId) && merchantOrderId === storedOrderId;
   const [checkStatus, query] = useLazyGetPhonePeReturnQuery();
@@ -78,7 +83,13 @@ export const PhonePeReturnPage = () => {
 
   const requestStatus = useCallback(async () => {
     if (isLegacyReturn || !sessionMatches || !merchantOrderId || document.hidden) return;
-    await checkStatus(merchantOrderId, false);
+    await checkStatus(
+      {
+        merchantOrderId,
+        returnTo: getSafeMembershipReturnTo(getStoredPhonePeReturnTo()),
+      },
+      false,
+    );
   }, [checkStatus, isLegacyReturn, merchantOrderId, sessionMatches]);
 
   useEffect(() => {
@@ -135,6 +146,7 @@ export const PhonePeReturnPage = () => {
     if (
       query.data?.merchantOrderId !== merchantOrderId ||
       query.data.status !== PhonePePaymentStatus.Completed ||
+      !sessionMatches ||
       completedHandled.current
     )
       return;
@@ -142,8 +154,13 @@ export const PhonePeReturnPage = () => {
     const confirmMembership = async () => {
       try {
         dispatch(dashboardApi.util.invalidateTags(['Memberships']));
-        const memberships = await dispatch(dashboardApi.endpoints.getMemberships.initiate(undefined, { forceRefetch: true })).unwrap();
-        if (!findActiveMembership(memberships)) {
+        const memberships = await dispatch(
+          dashboardApi.endpoints.getMemberships.initiate(undefined, {
+            forceRefetch: true,
+            subscribe: false,
+          }),
+        ).unwrap();
+        if (!findActivePlanMembership(memberships, membershipPlanCode(query.data?.payment ?? {}))) {
           setActivationError(true);
           return;
         }
@@ -151,13 +168,18 @@ export const PhonePeReturnPage = () => {
         clearPhonePeMerchantOrderId();
         const returnTo = getSafeMembershipReturnTo(getStoredPhonePeReturnTo());
         clearPhonePeReturnTo();
-        if (returnTo) void navigate(returnTo, { replace: true });
+        if (
+          returnTo &&
+          (!returnTo.startsWith('/dashboard/jobs/referral/') ||
+            membershipPlanCode(query.data?.payment ?? {}) === 'ReferralContactAccess')
+        )
+          void navigate(returnTo, { replace: true });
       } catch {
         setActivationError(true);
       }
     };
     void confirmMembership();
-  }, [dispatch, merchantOrderId, navigate, query.data]);
+  }, [dispatch, merchantOrderId, navigate, query.data, sessionMatches]);
 
   if (isLegacyReturn && sessionMatches && merchantOrderId) {
     return (
@@ -248,20 +270,58 @@ export const PhonePeReturnPage = () => {
   const status = query.data?.status;
   if (status === PhonePePaymentStatus.Completed) {
     if (!activationConfirmed) {
-      return <ResultCard><Stack alignItems="center" aria-live="polite" role="status" spacing={2} textAlign="center"><CircularProgress /><Typography component="h1" variant="h2">Confirming membership activation</Typography>{activationError ? <Alert severity="warning">Payment completed, but active membership could not yet be confirmed. Return to Membership to check again.</Alert> : <Typography color="text.secondary">We are refreshing your authoritative membership status.</Typography>}<Button component={Link} to={ROUTES.MEMBERSHIP}>Return to Membership</Button></Stack></ResultCard>;
+      return (
+        <ResultCard>
+          <Stack
+            alignItems="center"
+            aria-live="polite"
+            role="status"
+            spacing={2}
+            textAlign="center"
+          >
+            <CircularProgress />
+            <Typography component="h1" variant="h2">
+              Confirming membership activation
+            </Typography>
+            {activationError ? (
+              <Alert severity="warning">
+                Payment completed, but active membership could not yet be confirmed. Return to
+                Membership to check again.
+              </Alert>
+            ) : (
+              <Typography color="text.secondary">
+                We are refreshing your authoritative membership status.
+              </Typography>
+            )}
+            <Button component={Link} to={ROUTES.MEMBERSHIP}>
+              Return to Membership
+            </Button>
+          </Stack>
+        </ResultCard>
+      );
     }
     return (
       <ResultCard>
         <Stack alignItems="center" spacing={2} textAlign="center">
           <CheckCircleOutlineIcon color="success" sx={{ fontSize: 72 }} />
           <Typography component="h1" variant="h2">
-            Membership activated
+            {membershipPlanName(query.data?.payment ?? {})} activated
           </Typography>
           <Typography color="text.secondary">
-            Your 30-day Career Harbor membership is active.
+            Your {membershipPlanName(query.data?.payment ?? {})} is active.
           </Typography>
-          <Button component={Link} to={ROUTES.INTERVIEW_INSIGHTS} variant="contained">
-            Explore Interview Insights
+          <Button
+            component={Link}
+            to={
+              membershipPlanCode(query.data?.payment ?? {}) === 'ReferralContactAccess'
+                ? `${ROUTES.DASHBOARD_JOBS}?mode=referral`
+                : ROUTES.DASHBOARD_JOBS
+            }
+            variant="contained"
+          >
+            {membershipPlanCode(query.data?.payment ?? {}) === 'ReferralContactAccess'
+              ? 'Browse Referral Jobs'
+              : 'Browse Jobs'}
           </Button>
           <Button component={Link} to={ROUTES.DASHBOARD}>
             Go to dashboard
