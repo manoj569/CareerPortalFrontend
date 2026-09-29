@@ -350,6 +350,13 @@ export const appRoutes: RouteObject[] = [
     'default',
   ),
 },
+{
+  path: ROUTES.REFERRAL_CONTACT_DETAILS,
+  element: lazyPage(
+    () => import('@/pages/ReferralContactDetailsPage'),
+    'ReferralContactDetailsPage',
+  ),
+},
              
             ],
           },

@@ -147,6 +147,14 @@ describe('Razorpay payment API integration', () => {
 });
 
 describe('PhonePe payment API integration', () => {
+  it('sends referral plan in the body and its return path only in the query', async () => {
+    mockRequest.mockResolvedValue({ data: { data: {} } });
+    const store = createAppStore();
+    const returnTo = '/dashboard/jobs/referral/job-123/contact';
+    await store.dispatch(paymentsApi.endpoints.createPhonePeCheckout.initiate({ planCode: 'ReferralContactAccess', returnTo })).unwrap();
+    expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'POST', data: { planCode: 'ReferralContactAccess' }, params: { returnTo } }));
+    store.dispatch(paymentsApi.util.resetApiState());
+  });
   beforeEach(() => {
     mockRequest.mockReset();
   });
@@ -191,8 +199,13 @@ describe('PhonePe payment API integration', () => {
       data: { data: { merchantOrderId: 'ch_order123', status: 'Pending' } },
     });
 
-    await store.dispatch(paymentsApi.endpoints.getPhonePeReturn.initiate('ch_order123')).unwrap();
-
+await store
+  .dispatch(
+    paymentsApi.endpoints.getPhonePeReturn.initiate({
+      merchantOrderId: 'ch_order123',
+    }),
+  )
+  .unwrap();
     expect(mockRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         method: 'GET',

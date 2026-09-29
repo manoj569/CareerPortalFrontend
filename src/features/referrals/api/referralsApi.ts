@@ -79,10 +79,37 @@ export const referralsApi = createApi({
     response: BackendApiResponse<PagedResponse<JobReferralSubmission>>,
   ) => response.data,
 }),
-    unlockReferralContact: builder.query<ReferralUnlockResult, string>({
-      query: (jobId) => ({ url: API_ENDPOINTS.REFERRALS.UNLOCK(jobId) }),
-      transformResponse: (response: BackendApiResponse<ReferralUnlockResult>) => response.data,
-    }),
+ unlockReferralContact: builder.query<ReferralUnlockResult, string>({
+  keepUnusedDataFor: 0,
+  query: (jobId) => ({
+    url: API_ENDPOINTS.REFERRALS.UNLOCK(jobId),
+  }),
+
+  transformResponse: (
+    response: BackendApiResponse<
+      Omit<ReferralUnlockResult, 'status'> & {
+        status: ReferralUnlockResult['status'] | number;
+      }
+    >,
+  ): ReferralUnlockResult => {
+    const raw = response.data;
+
+    const status =
+      raw.status === 1 || raw.status === 'Granted'
+        ? 'Granted'
+        : raw.status === 2 || raw.status === 'LoginRequired'
+          ? 'LoginRequired'
+          : raw.status === 3 || raw.status === 'MembershipRequired'
+            ? 'MembershipRequired'
+            : 'MembershipRequired';
+
+    return {
+      ...raw,
+      status,
+      contact: status === 'Granted' ? raw.contact : null,
+    };
+  },
+}),
   }),
 });
 

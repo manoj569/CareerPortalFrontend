@@ -44,6 +44,7 @@ privateCacheListener.startListening({
     const previousAuth = (listenerApi.getOriginalState() as { auth: { user: { id: string; role: UserRole } | null } }).auth;
     if (!sessionRefreshed.match(action) || previousAuth.user?.id !== action.payload?.user?.id || previousAuth.user?.role !== action.payload?.user?.role) {
       listenerApi.dispatch(careerGuidanceApi.util.resetApiState());
+      listenerApi.dispatch(referralsApi.util.resetApiState());
     }
     if (sessionRefreshed.match(action)) {
       if (!action.payload?.user?.id) {

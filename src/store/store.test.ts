@@ -5,6 +5,7 @@ import { adminApi } from '@/features/admin/api/adminApi';
 import { sessionExpired, sessionRefreshed } from '@/features/auth/store/authSlice';
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import { paymentsApi } from '@/features/payments/api/paymentsApi';
+import { referralsApi } from '@/features/referrals/api/referralsApi';
 import { UserRole } from '@/types';
 import { createAppStore } from './store';
 
@@ -41,6 +42,9 @@ const statistics = {
 describe('private server-state lifecycle', () => {
   it('clears candidate, payment, and administrator caches after session expiration', async () => {
     const store = createAppStore();
+    await store.dispatch(referralsApi.util.upsertQueryData('unlockReferralContact', 'job-1', {
+      status: 'Granted', message: '', contact: { referrerName: 'Referrer', email: 'private@example.test', phoneNumber: null, linkedInUrl: null },
+    }));
     await store.dispatch(dashboardApi.util.upsertQueryData('getProfile', undefined, profile));
     await store.dispatch(
       paymentsApi.util.upsertQueryData(
@@ -64,6 +68,7 @@ describe('private server-state lifecycle', () => {
     await waitFor(() => {
       expect(Object.keys(store.getState().dashboardApi.queries)).toHaveLength(0);
       expect(Object.keys(store.getState().paymentsApi.queries)).toHaveLength(0);
+      expect(Object.keys(store.getState().referralsApi.queries)).toHaveLength(0);
       expect(Object.keys(store.getState().adminApi.queries)).toHaveLength(0);
     });
   });

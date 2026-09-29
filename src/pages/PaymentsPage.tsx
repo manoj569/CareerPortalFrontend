@@ -99,7 +99,7 @@ export const PaymentsPage = () => {
         </Typography>
         {payments.data?.items.length ? (
           <Paper component="section" sx={{ overflow: 'hidden' }}>
-            <PaymentHistoryTable payments={payments.data.items} planName={membership?.planName} />
+            <PaymentHistoryTable payments={payments.data.items} />
             {payments.data.totalPages > 1 ? (
               <Box
                 display="flex"

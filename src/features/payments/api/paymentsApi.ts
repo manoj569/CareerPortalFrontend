@@ -1,9 +1,13 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 
-import { axiosBaseQuery, type AxiosBaseQueryError } from '@/api/axiosBaseQuery';
+import {
+  axiosBaseQuery,
+  type AxiosBaseQueryError,
+} from '@/api/axiosBaseQuery';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import type { ApiResponse } from '@/types';
+
 import type {
   ConfirmPaymentArgs,
   CreatePhonePeCheckoutRequest,
@@ -11,6 +15,7 @@ import type {
   PaymentHistoryPage,
   PaymentOrder,
   PhonePeCheckoutResponse,
+  PhonePePlanCode,
   PhonePeReturnStatusResponse,
   PendingMembershipCheckoutResponse,
   PaymentStatusResponse,
@@ -20,103 +25,374 @@ import type {
 
 export const paymentsApi = createApi({
   reducerPath: 'paymentsApi',
+
   baseQuery: axiosBaseQuery(),
+
   keepUnusedDataFor: 60,
-  tagTypes: ['Payments', 'PaymentHistory', 'PaymentStatus', 'PendingCheckout'],
+
+  tagTypes: [
+    'Payments',
+    'PaymentHistory',
+    'PaymentStatus',
+    'PendingCheckout',
+  ],
+
   endpoints: (builder) => ({
-    createPhonePeCheckout: builder.mutation<PhonePeCheckoutResponse, CreatePhonePeCheckoutRequest>({
-      query: (request) => ({
-        data: request,
+    /*
+     * ---------------------------------------------------------
+     * PHONEPE CHECKOUT
+     * ---------------------------------------------------------
+     *
+     * Backend expects:
+     *
+     * POST /payments/phonepe/checkout?returnTo=...
+     *
+     * Body:
+     * {
+     *   planCode: "CareerHarborMembership"
+     * }
+     *
+     * returnTo is deliberately sent as a query parameter rather
+     * than as part of the request body.
+     */
+    createPhonePeCheckout: builder.mutation<
+      PhonePeCheckoutResponse,
+      CreatePhonePeCheckoutRequest
+    >({
+      query: ({ planCode, returnTo }) => ({
+        data: {
+          planCode,
+        },
+
+        params: returnTo
+          ? {
+              returnTo,
+            }
+          : undefined,
+
         method: 'POST',
+
         url: API_ENDPOINTS.PAYMENTS.CREATE_PHONEPE_CHECKOUT,
       }),
-      transformResponse: (response: ApiResponse<PhonePeCheckoutResponse>) => response.data,
-      invalidatesTags: ['Payments', 'PaymentHistory', 'PaymentStatus'],
+
+      transformResponse: (
+        response: ApiResponse<PhonePeCheckoutResponse>,
+      ) => response.data,
+
+      invalidatesTags: [
+        'Payments',
+        'PaymentHistory',
+        'PaymentStatus',
+        'PendingCheckout',
+      ],
     }),
-    getPhonePeReturn: builder.query<PhonePeReturnStatusResponse, string>({
-      query: (merchantOrderId) => ({
-        url: API_ENDPOINTS.PAYMENTS.PHONEPE_RETURN(merchantOrderId),
+
+    /*
+     * ---------------------------------------------------------
+     * PHONEPE RETURN / SERVER VERIFICATION
+     * ---------------------------------------------------------
+     *
+     * The frontend never assumes that returning from PhonePe
+     * means payment succeeded.
+     *
+     * The backend remains authoritative.
+     */
+    getPhonePeReturn: builder.query<
+      PhonePeReturnStatusResponse,
+      {
+        merchantOrderId: string;
+        returnTo?: string | null;
+      }
+    >({
+      query: ({ merchantOrderId, returnTo }) => ({
+        params: returnTo
+          ? {
+              returnTo,
+            }
+          : undefined,
+
+        url: API_ENDPOINTS.PAYMENTS.PHONEPE_RETURN(
+          merchantOrderId,
+        ),
       }),
-      transformResponse: (response: ApiResponse<PhonePeReturnStatusResponse>) => response.data,
+
+      transformResponse: (
+        response: ApiResponse<PhonePeReturnStatusResponse>,
+      ) => response.data,
+
+      providesTags: ['PaymentStatus'],
     }),
-    getPendingMembershipCheckout: builder.query<PendingMembershipCheckoutResponse | null, void>({
-      query: () => ({ url: API_ENDPOINTS.PAYMENTS.PENDING_MEMBERSHIP_CHECKOUT }),
-      transformResponse: (response: ApiResponse<PendingMembershipCheckoutResponse | null>) =>
-        response.data,
-      providesTags: ['PendingCheckout'],
+
+    /*
+     * ---------------------------------------------------------
+     * PENDING MEMBERSHIP CHECKOUT
+     * ---------------------------------------------------------
+     *
+     * planCode is optional for backwards compatibility.
+     *
+     * New Membership page will call this independently:
+     *
+     * CareerHarborMembership
+     * ReferralContactAccess
+     *
+     * This prevents a pending ₹99 checkout from incorrectly
+     * blocking the ₹299 referral plan, and vice versa.
+     */
+    getPendingMembershipCheckout: builder.query<
+      PendingMembershipCheckoutResponse | null,
+      PhonePePlanCode | void
+    >({
+      query: (planCode) => ({
+        params: planCode
+          ? {
+              planCode,
+            }
+          : undefined,
+
+        url:
+          API_ENDPOINTS.PAYMENTS
+            .PENDING_MEMBERSHIP_CHECKOUT,
+      }),
+
+      transformResponse: (
+        response: ApiResponse<
+          PendingMembershipCheckoutResponse | null
+        >,
+      ) => response.data,
+
+      providesTags: (_result, _error, planCode) => [
+        {
+          type: 'PendingCheckout',
+          id: planCode ?? 'ALL',
+        },
+      ],
     }),
-    cancelPendingMembershipCheckout: builder.mutation<PendingMembershipCheckoutResponse, string>({
+
+    /*
+     * ---------------------------------------------------------
+     * CANCEL PENDING MEMBERSHIP CHECKOUT
+     * ---------------------------------------------------------
+     */
+    cancelPendingMembershipCheckout: builder.mutation<
+      PendingMembershipCheckoutResponse,
+      string
+    >({
       query: (publicReference) => ({
         method: 'POST',
-        url: API_ENDPOINTS.PAYMENTS.CANCEL_PENDING_MEMBERSHIP_CHECKOUT(publicReference),
+
+        url:
+          API_ENDPOINTS.PAYMENTS
+            .CANCEL_PENDING_MEMBERSHIP_CHECKOUT(
+              publicReference,
+            ),
       }),
-      transformResponse: (response: ApiResponse<PendingMembershipCheckoutResponse>) =>
-        response.data,
-      invalidatesTags: ['PendingCheckout', 'Payments', 'PaymentHistory', 'PaymentStatus'],
-      onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
+
+      transformResponse: (
+        response: ApiResponse<PendingMembershipCheckoutResponse>,
+      ) => response.data,
+
+      invalidatesTags: [
+        'PendingCheckout',
+        'Payments',
+        'PaymentHistory',
+        'PaymentStatus',
+      ],
+
+      onQueryStarted: async (
+        _,
+        { dispatch, queryFulfilled },
+      ) => {
         try {
           await queryFulfilled;
-          dispatch(dashboardApi.util.invalidateTags(['Memberships']));
+
+          dispatch(
+            dashboardApi.util.invalidateTags([
+              'Memberships',
+            ]),
+          );
         } catch {
-          // Authoritative membership state is unchanged when cancellation fails.
+          // Membership state remains authoritative on backend.
         }
       },
     }),
-    createRazorpayOrder: builder.mutation<PaymentOrder, void>({
+
+    /*
+     * ---------------------------------------------------------
+     * RAZORPAY
+     * ---------------------------------------------------------
+     *
+     * Retained because other existing application functionality
+     * may still depend on these endpoints.
+     */
+    createRazorpayOrder: builder.mutation<
+      PaymentOrder,
+      void
+    >({
       query: () => ({
         data: {},
         method: 'POST',
-        url: API_ENDPOINTS.PAYMENTS.CREATE_RAZORPAY_ORDER,
+        url:
+          API_ENDPOINTS.PAYMENTS.CREATE_RAZORPAY_ORDER,
       }),
-      transformResponse: (response: ApiResponse<PaymentOrder>) => response.data,
-      invalidatesTags: ['Payments', 'PaymentHistory', 'PaymentStatus'],
+
+      transformResponse: (
+        response: ApiResponse<PaymentOrder>,
+      ) => response.data,
+
+      invalidatesTags: [
+        'Payments',
+        'PaymentHistory',
+        'PaymentStatus',
+      ],
     }),
-    confirmRazorpayPayment: builder.mutation<Payment, ConfirmPaymentArgs>({
+
+    confirmRazorpayPayment: builder.mutation<
+      Payment,
+      ConfirmPaymentArgs
+    >({
       query: ({ paymentId, request }) => ({
         data: request,
+
         method: 'POST',
-        url: API_ENDPOINTS.PAYMENTS.CONFIRM_RAZORPAY(paymentId),
+
+        url:
+          API_ENDPOINTS.PAYMENTS.CONFIRM_RAZORPAY(
+            paymentId,
+          ),
       }),
-      transformResponse: (response: ApiResponse<Payment>) => response.data,
-      invalidatesTags: ['Payments', 'PaymentHistory', 'PaymentStatus'],
-      onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
+
+      transformResponse: (
+        response: ApiResponse<Payment>,
+      ) => response.data,
+
+      invalidatesTags: [
+        'Payments',
+        'PaymentHistory',
+        'PaymentStatus',
+      ],
+
+      onQueryStarted: async (
+        _,
+        { dispatch, queryFulfilled },
+      ) => {
         try {
           await queryFulfilled;
-          dispatch(dashboardApi.util.invalidateTags(['Memberships']));
+
+          dispatch(
+            dashboardApi.util.invalidateTags([
+              'Memberships',
+            ]),
+          );
         } catch {
-          // Membership state remains unchanged when backend verification fails.
+          // Membership state remains unchanged when backend
+          // verification fails.
         }
       },
     }),
-    reconcileRazorpayPayment: builder.mutation<Payment, string>({
+
+    reconcileRazorpayPayment: builder.mutation<
+      Payment,
+      string
+    >({
       query: (paymentId) => ({
         method: 'POST',
-        url: API_ENDPOINTS.PAYMENTS.RECONCILE_RAZORPAY(paymentId),
+
+        url:
+          API_ENDPOINTS.PAYMENTS.RECONCILE_RAZORPAY(
+            paymentId,
+          ),
       }),
-      transformResponse: (response: ApiResponse<Payment>) => response.data,
-      invalidatesTags: ['Payments', 'PaymentHistory', 'PaymentStatus'],
-      onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
+
+      transformResponse: (
+        response: ApiResponse<Payment>,
+      ) => response.data,
+
+      invalidatesTags: [
+        'Payments',
+        'PaymentHistory',
+        'PaymentStatus',
+      ],
+
+      onQueryStarted: async (
+        _,
+        { dispatch, queryFulfilled },
+      ) => {
         try {
           await queryFulfilled;
-          dispatch(dashboardApi.util.invalidateTags(['Memberships']));
+
+          dispatch(
+            dashboardApi.util.invalidateTags([
+              'Memberships',
+            ]),
+          );
         } catch {
-          // Failed reconciliation never changes frontend entitlement state.
+          // Failed reconciliation never changes frontend
+          // entitlement state.
         }
       },
     }),
-    getPaymentStatus: builder.query<PaymentStatusResponse, void>({
-      query: () => ({ url: API_ENDPOINTS.PAYMENTS.STATUS }),
-      transformResponse: (response: ApiResponse<PaymentStatusResponse>) => response.data,
+
+    /*
+     * ---------------------------------------------------------
+     * PAYMENT STATUS
+     * ---------------------------------------------------------
+     */
+    getPaymentStatus: builder.query<
+      PaymentStatusResponse,
+      void
+    >({
+      query: () => ({
+        url: API_ENDPOINTS.PAYMENTS.STATUS,
+      }),
+
+      transformResponse: (
+        response: ApiResponse<PaymentStatusResponse>,
+      ) => response.data,
+
       providesTags: ['PaymentStatus'],
     }),
-    getPayments: builder.query<PaymentsPage, PaymentsQuery>({
-      query: (params) => ({ params, url: API_ENDPOINTS.PAYMENTS.LIST }),
-      transformResponse: (response: ApiResponse<PaymentsPage>) => response.data,
+
+    /*
+     * ---------------------------------------------------------
+     * PAYMENTS
+     * ---------------------------------------------------------
+     */
+    getPayments: builder.query<
+      PaymentsPage,
+      PaymentsQuery
+    >({
+      query: (params) => ({
+        params,
+
+        url: API_ENDPOINTS.PAYMENTS.LIST,
+      }),
+
+      transformResponse: (
+        response: ApiResponse<PaymentsPage>,
+      ) => response.data,
+
       providesTags: ['Payments'],
     }),
-    getPaymentHistory: builder.query<PaymentHistoryPage, PaymentsQuery>({
-      query: (params) => ({ params, url: API_ENDPOINTS.PAYMENTS.HISTORY }),
-      transformResponse: (response: ApiResponse<PaymentHistoryPage>) => response.data,
+
+    /*
+     * ---------------------------------------------------------
+     * PAYMENT HISTORY
+     * ---------------------------------------------------------
+     */
+    getPaymentHistory: builder.query<
+      PaymentHistoryPage,
+      PaymentsQuery
+    >({
+      query: (params) => ({
+        params,
+
+        url: API_ENDPOINTS.PAYMENTS.HISTORY,
+      }),
+
+      transformResponse: (
+        response: ApiResponse<PaymentHistoryPage>,
+      ) => response.data,
+
       providesTags: ['PaymentHistory'],
     }),
   }),
@@ -135,5 +411,11 @@ export const {
   useReconcileRazorpayPaymentMutation,
 } = paymentsApi;
 
-export const isPaymentsApiError = (error: unknown): error is AxiosBaseQueryError =>
-  Boolean(error && typeof error === 'object' && 'message' in error);
+export const isPaymentsApiError = (
+  error: unknown,
+): error is AxiosBaseQueryError =>
+  Boolean(
+    error &&
+      typeof error === 'object' &&
+      'message' in error,
+  );

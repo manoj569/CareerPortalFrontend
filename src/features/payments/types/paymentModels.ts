@@ -1,5 +1,5 @@
-import type { PaginatedResponse } from '@/types';
 import type { Membership } from '@/features/dashboard/types/dashboardModels';
+import type { PaginatedResponse } from '@/types';
 
 export enum PaymentStatus {
   Pending = 1,
@@ -21,6 +21,13 @@ export enum PaymentProvider {
   PhonePe,
 }
 
+export interface MembershipPricing {
+  baseAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
 export interface PhonePeCheckoutResponse {
   merchantOrderId: string;
   redirectUrl: string;
@@ -31,6 +38,7 @@ export interface PhonePeCheckoutResponse {
   durationDays: number;
   returnTo: string | null;
   planCode: string;
+  pricing?: MembershipPricing | null;
 }
 
 export type PhonePePlanCode =
@@ -41,18 +49,24 @@ export type PhonePePlanCode =
 
 export interface CreatePhonePeCheckoutRequest {
   planCode: PhonePePlanCode;
+  returnTo?: string | null;
 }
 
 export enum PhonePePaymentStatus {
-  Pending = 'Pending',
-  Completed = 'Completed',
-  Failed = 'Failed',
-  Cancelled = 'Cancelled',
+  Pending = 1,
+  Completed,
+  Failed,
+  Cancelled,
 }
 
 export interface PhonePeReturnStatusResponse {
   merchantOrderId: string;
   status: PhonePePaymentStatus;
+  returnTo: string | null;
+  payment: Payment | null;
+  membershipStatus: number | null;
+  membershipStartUtc: string | null;
+  membershipEndUtc: string | null;
 }
 
 export enum MembershipCheckoutStatus {
@@ -64,7 +78,12 @@ export enum MembershipCheckoutStatus {
 }
 
 export type MembershipCheckoutProvider =
-  'Unknown' | 'Stripe' | 'Razorpay' | 'PayPal' | 'BankTransfer' | 'PhonePe';
+  | 'Unknown'
+  | 'Stripe'
+  | 'Razorpay'
+  | 'PayPal'
+  | 'BankTransfer'
+  | 'PhonePe';
 
 export interface PendingMembershipCheckoutResponse {
   publicReference: string;
@@ -76,6 +95,16 @@ export interface PendingMembershipCheckoutResponse {
   canResume: boolean;
   canCancel: boolean;
   redirectUrl: string | null;
+  planCode?: string | null;
+}
+
+export interface PendingMembershipCheckoutRecovery {
+  provider: MembershipCheckoutProvider;
+  publicReference: string;
+  status: MembershipCheckoutStatus;
+  createdAtUtc: string;
+  canResume: boolean;
+  canCancel: boolean;
 }
 
 export interface PaymentOrder {
@@ -88,6 +117,8 @@ export interface PaymentOrder {
   receipt: string;
   planName: string;
   durationDays: number;
+  planCode?: string;
+  pricing?: MembershipPricing | null;
 }
 
 export interface ConfirmRazorpayPaymentRequest {
@@ -115,6 +146,9 @@ export interface Payment {
   providerOrderCreatedAtUtc: string | null;
   lastReconciledAtUtc: string | null;
   planCode?: string | null;
+  planName?: string | null;
+  durationDays?: number | null;
+  pricing?: MembershipPricing | null;
 }
 
 export interface PaymentHistoryEvent {
@@ -135,6 +169,7 @@ export interface PaymentsQuery {
 export interface PaymentStatusResponse {
   membership: Membership | null;
   latestPayment: Payment | null;
+  memberships?: Membership[] | null;
 }
 
 export type PaymentsPage = PaginatedResponse<Payment>;

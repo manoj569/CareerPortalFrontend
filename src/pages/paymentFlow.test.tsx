@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -11,6 +11,7 @@ import {
   useCreatePhonePeCheckoutMutation,
   useGetPendingMembershipCheckoutQuery,
   useLazyGetPhonePeReturnQuery,
+  useGetPaymentsQuery,
 } from '@/features/payments/api/paymentsApi';
 import type * as PaymentsApiModule from '@/features/payments/api/paymentsApi';
 import {
@@ -22,6 +23,9 @@ import {
 import type * as PhonePeCheckoutModule from '@/features/payments/services/phonePeCheckout';
 import {
   PhonePePaymentStatus,
+  PaymentStatus,
+  PaymentProvider,
+  type Payment,
   MembershipCheckoutStatus,
   type PendingMembershipCheckoutResponse,
   type PhonePeCheckoutResponse,
@@ -33,6 +37,7 @@ import { PaymentPage } from './PaymentPage';
 import { PhonePeReturnPage } from './PhonePeReturnPage';
 import { useGetAIApplyPlansQuery } from '@/features/aiApply/api/aiApplyApi';
 import type * as AIApplyApiModule from '@/features/aiApply/api/aiApplyApi';
+import type { MembershipPlan } from '@/features/aiApply/types/aiApplyModels';
 
 vi.mock('@/features/aiApply/api/aiApplyApi', async (importOriginal) => ({
   ...(await importOriginal<typeof AIApplyApiModule>()),
@@ -50,6 +55,7 @@ vi.mock('@/features/payments/api/paymentsApi', async (importOriginal) => ({
   useCancelPendingMembershipCheckoutMutation: vi.fn(),
   useGetPendingMembershipCheckoutQuery: vi.fn(),
   useLazyGetPhonePeReturnQuery: vi.fn(),
+  useGetPaymentsQuery: vi.fn(),
 }));
 
 vi.mock('@/features/payments/services/phonePeCheckout', async (importOriginal) => ({
@@ -101,6 +107,7 @@ const renderRoute = (path: string, element: React.ReactNode) => {
       { path: ROUTES.MEMBERSHIP, element: <div>Membership destination</div> },
       { path: ROUTES.INTERVIEW_INSIGHTS, element: <div>Interview Insights destination</div> },
       { path: ROUTES.DASHBOARD, element: <div>Dashboard destination</div> },
+      { path: ROUTES.REFERRAL_CONTACT_DETAILS, element: <div>Referral contact destination</div> },
       { path: ROUTES.PHONEPE_RETURN, element },
       { path: ROUTES.PHONEPE_RETURN_LEGACY, element },
     ],
@@ -110,17 +117,61 @@ const renderRoute = (path: string, element: React.ReactNode) => {
 };
 
 describe('PhonePe membership checkout', () => {
+  const renderMembership = (query = '') =>
+    renderWithProviders(
+      <RouterProvider
+        router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+          initialEntries: [`${ROUTES.MEMBERSHIP}${query}`],
+        })}
+      />,
+    );
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
+    vi.mocked(useGetPaymentsQuery).mockReturnValue({
+      data: { items: [] },
+      refetch: vi.fn(),
+    });
+    vi.mocked(useLazyGetPhonePeReturnQuery).mockReturnValue([
+      statusTrigger,
+      { isFetching: false },
+    ] as unknown as ReturnType<typeof useLazyGetPhonePeReturnQuery>);
     vi.mocked(useGetMembershipsQuery).mockReturnValue({
       data: [],
       refetch: vi.fn(),
     } as ReturnType<typeof useGetMembershipsQuery>);
     vi.mocked(useGetAIApplyPlansQuery).mockReturnValue({
       data: [
-        { planCode: 'CareerHarborMembership', displayName: 'Basic', price: 99, currency: 'INR', durationDays: 30, canUseStandardMembership: true, canUseAIApply: false, canUseAIApplyPro: false },
-        { planCode: 'AIApply', displayName: 'AI Apply', price: 999, currency: 'INR', durationDays: 30, canUseStandardMembership: true, canUseAIApply: true, canUseAIApplyPro: false },
-        { planCode: 'AIApplyPro', displayName: 'AI Apply Pro', price: 1499, currency: 'INR', durationDays: 30, canUseStandardMembership: true, canUseAIApply: true, canUseAIApplyPro: true },
+        {
+          planCode: 'CareerHarborMembership',
+          displayName: 'Job Application Access',
+          price: 99,
+          currency: 'INR',
+          durationDays: 30,
+          canUseStandardMembership: true,
+          canUseAIApply: false,
+          canUseAIApplyPro: false,
+        },
+        {
+          planCode: 'ReferralContactAccess',
+          displayName: 'Referral Contact Access',
+          price: 299,
+          currency: 'INR',
+          durationDays: 30,
+          canUseStandardMembership: true,
+          canUseAIApply: true,
+          canUseAIApplyPro: false,
+        },
+        {
+          planCode: 'AIApplyPro',
+          displayName: 'AI Apply Pro',
+          price: 1499,
+          currency: 'INR',
+          durationDays: 30,
+          canUseStandardMembership: true,
+          canUseAIApply: true,
+          canUseAIApplyPro: true,
+        },
       ],
       isError: false,
       isLoading: false,
@@ -128,7 +179,12 @@ describe('PhonePe membership checkout', () => {
     });
     pendingState = { data: null, isError: false, isLoading: false, refetch: vi.fn() };
     vi.mocked(useGetPendingMembershipCheckoutQuery).mockImplementation(
-      () => pendingState as unknown as ReturnType<typeof useGetPendingMembershipCheckoutQuery>,
+      (plan) =>
+        (plan === 'CareerHarborMembership'
+          ? pendingState
+          : { ...pendingState, data: null }) as unknown as ReturnType<
+          typeof useGetPendingMembershipCheckoutQuery
+        >,
     );
     createState = { isLoading: false };
     vi.mocked(useCreatePhonePeCheckoutMutation).mockImplementation(
@@ -154,6 +210,203 @@ describe('PhonePe membership checkout', () => {
     vi.mocked(resumePhonePeRedirect).mockReturnValue(true);
   });
 
+  it.each(['CareerHarborMembership', 'ReferralContactAccess'])(
+    'isolates a pending %s checkout from the other plan',
+    (pendingPlan) => {
+      vi.mocked(useGetPendingMembershipCheckoutQuery).mockImplementation(
+        (plan) =>
+          ({
+            ...pendingState,
+            data:
+              plan === pendingPlan
+                ? { ...pendingCheckout, amount: 299, planCode: pendingPlan }
+                : null,
+          }) as unknown as ReturnType<typeof useGetPendingMembershipCheckoutQuery>,
+      );
+      renderMembership();
+      expect(screen.getByRole('heading', { name: 'Payment in progress' })).toBeVisible();
+      expect(
+        screen.getByRole('button', {
+          name:
+            pendingPlan === 'ReferralContactAccess' ? 'Get Access' : 'Get Referral Contact Access',
+        }),
+      ).toBeEnabled();
+      expect(screen.getAllByText('₹299.00')).toHaveLength(2);
+      expect(screen.queryByText(/GST/)).not.toBeInTheDocument();
+    },
+  );
+
+  const failedPayment = (planCode: string | null): Payment => ({
+    id: 'failed-payment',
+    planCode,
+    planName: null,
+    amount: 299,
+    pricing: null,
+    currencyCode: 'INR',
+    status: PaymentStatus.Failed,
+    provider: PaymentProvider.PhonePe,
+    providerOrderId: 'ch_old_order',
+    providerPaymentId: null,
+    paidAtUtc: null,
+    membershipId: null,
+    createdAtUtc: '2026-09-15T10:00:00Z',
+    providerOrderCreatedAtUtc: null,
+    lastReconciledAtUtc: null,
+  });
+
+  it.each(['CareerHarborMembership', 'ReferralContactAccess'])(
+    'retries failed %s with that same plan and current backend pricing',
+    async (planCode) => {
+      const payment = failedPayment(planCode);
+      vi.mocked(useGetPaymentsQuery).mockReturnValue({
+        data: { items: [payment] },
+        refetch: vi.fn(),
+      });
+      const plan: MembershipPlan = {
+        planCode,
+        displayName: planCode,
+        price: 123,
+        currency: 'INR',
+        durationDays: 30,
+        canUseStandardMembership: true,
+        canUseAIApply: false,
+        canUseAIApplyPro: false,
+        pricing: { baseAmount: 123, taxRate: 7, taxAmount: 8.61, totalAmount: 131.61 },
+      };
+      vi.mocked(useGetAIApplyPlansQuery).mockReturnValue({
+        data: [plan],
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      createTrigger.mockReturnValue({ unwrap: () => Promise.resolve({ ...checkout, planCode }) });
+      renderMembership();
+      expect(screen.getAllByText(/299\.00/).length).toBeGreaterThan(0);
+      await userEvent.click(
+        within(screen.getByRole('table', { name: 'Payment history' })).getByRole('button', {
+          name: 'Retry payment',
+        }),
+      );
+      expect(createTrigger).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Pay ₹131.61' })).toBeEnabled();
+      await userEvent.click(screen.getByRole('button', { name: 'Pay ₹131.61' }));
+      expect(createTrigger).toHaveBeenCalledTimes(1);
+      expect(createTrigger).toHaveBeenCalledWith({ planCode, returnTo: undefined });
+      expect(payment.status).toBe(PaymentStatus.Failed);
+      expect(payment.amount).toBe(299);
+    },
+  );
+
+  it.each(['unknown', 'active', 'pending'])(
+    'does not offer an unsafe retry when the plan is %s',
+    (reason) => {
+      vi.mocked(useGetPaymentsQuery).mockReturnValue({
+        data: { items: [failedPayment(reason === 'unknown' ? null : 'CareerHarborMembership')] },
+        refetch: vi.fn(),
+      });
+      if (reason === 'active')
+        vi.mocked(useGetMembershipsQuery).mockReturnValue({
+          data: [
+            {
+              id: 'active',
+              planCode: 'CareerHarborMembership',
+              planName: 'Job Application Access',
+              status: 2,
+              startsAtUtc: '2026-01-01T00:00:00Z',
+              endsAtUtc: '2099-01-01T00:00:00Z',
+              autoRenew: false,
+            },
+          ],
+          refetch: vi.fn(),
+        } as ReturnType<typeof useGetMembershipsQuery>);
+      if (reason === 'pending') pendingState = { ...pendingState, data: pendingCheckout };
+      renderMembership();
+      const table = within(screen.getByRole('table', { name: 'Payment history' }));
+      if (reason === 'unknown')
+        expect(table.queryByRole('button', { name: 'Retry payment' })).not.toBeInTheDocument();
+      else expect(table.getByRole('button', { name: 'Retry payment' })).toBeDisabled();
+      expect(createTrigger).not.toHaveBeenCalled();
+    },
+  );
+
+  it('uses backend pricing in the card and confirmation without recalculating tax', async () => {
+    const plan: MembershipPlan = {
+      planCode: 'CareerHarborMembership',
+      displayName: 'Job Application Access',
+      price: 123,
+      currency: 'INR',
+      durationDays: 30,
+      canUseStandardMembership: true,
+      canUseAIApply: false,
+      canUseAIApplyPro: false,
+      pricing: { baseAmount: 123, taxRate: 7, taxAmount: 8.61, totalAmount: 131.61 },
+    };
+    vi.mocked(useGetAIApplyPlansQuery).mockReturnValue({
+      data: [plan],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderMembership();
+    const card = within(screen.getByRole('article', { name: 'Job Application Access' }));
+    expect(card.getByText('₹123.00')).toBeVisible();
+    expect(card.getByText('+ ₹8.61 GST (7%)')).toBeVisible();
+    await userEvent.click(card.getByRole('button', { name: 'Get Access' }));
+    expect(screen.getByRole('button', { name: 'Pay ₹131.61' })).toBeEnabled();
+    expect(createTrigger).not.toHaveBeenCalled();
+  });
+
+  it('preserves the safe referral return before redirect and prevents duplicate checkout', async () => {
+    const returnTo = '/dashboard/jobs/referral/job-123/contact';
+    let resolveCheckout: (value: PhonePeCheckoutResponse) => void = () => {
+      throw new Error('Checkout not started');
+    };
+    createTrigger.mockReturnValue({
+      unwrap: () =>
+        new Promise<PhonePeCheckoutResponse>((resolve) => {
+          resolveCheckout = resolve;
+        }),
+    });
+    renderMembership(`?plan=ReferralContactAccess&returnTo=${encodeURIComponent(returnTo)}`);
+    await userEvent.click(screen.getByRole('button', { name: 'Get Referral Contact Access' }));
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+    expect(createTrigger).toHaveBeenCalledTimes(1);
+    expect(createTrigger).toHaveBeenCalledWith({ planCode: 'ReferralContactAccess', returnTo });
+    vi.mocked(beginPhonePeRedirect).mockImplementation(() => {
+      expect(sessionStorage.getItem(PHONEPE_RETURN_TO_STORAGE_KEY)).toBe(returnTo);
+      return true;
+    });
+    await act(async () => {
+      resolveCheckout({ ...checkout, planCode: 'ReferralContactAccess', returnTo });
+      await Promise.resolve();
+    });
+  });
+
+  it('ignores an external return URL and hides unsupported pending actions', async () => {
+    vi.mocked(useGetPendingMembershipCheckoutQuery).mockImplementation(
+      (plan) =>
+        ({
+          ...pendingState,
+          data:
+            plan === 'ReferralContactAccess'
+              ? { ...pendingCheckout, canResume: false, canCancel: false }
+              : null,
+        }) as unknown as ReturnType<typeof useGetPendingMembershipCheckoutQuery>,
+    );
+    renderMembership('?returnTo=https%3A%2F%2Fevil.example');
+    expect(screen.queryByRole('button', { name: 'Resume payment' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Cancel pending payment' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check status' })).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Get Access' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+    expect(createTrigger).toHaveBeenCalledWith({
+      planCode: 'CareerHarborMembership',
+      returnTo: undefined,
+    });
+  });
+
   it('uses PhonePe without invoking or rendering Razorpay checkout', () => {
     renderWithProviders(
       <RouterProvider
@@ -163,24 +416,52 @@ describe('PhonePe membership checkout', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Continue to Pay ₹99' })).toBeEnabled();
-    expect(screen.getAllByText('Secure payment powered by PhonePe')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Get Access' })).toBeEnabled();
+    expect(screen.getAllByText('Secure payment powered by PhonePe')).toHaveLength(2);
     expect(screen.queryByText(/razorpay/i)).not.toBeInTheDocument();
     expect(document.querySelector('script[src*="razorpay"]')).toBeNull();
   });
 
-  it.each(['Basic', 'AI Apply'])('orders plans Basic, AI Apply, Pro and retains checkout with active %s', (planName) => {
-    vi.mocked(useGetMembershipsQuery).mockReturnValue({
-      data: [{ id: 'active', planName, status: 2, startsAtUtc: '2026-01-01T00:00:00Z', endsAtUtc: '2099-01-01T00:00:00Z', autoRenew: false }],
-      refetch: vi.fn(),
-    } as ReturnType<typeof useGetMembershipsQuery>);
-    renderWithProviders(<RouterProvider router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], { initialEntries: [ROUTES.MEMBERSHIP] })} />);
-    expect(screen.getByText('Your active plans')).toBeVisible();
-    expect(screen.getByText('You can purchase another plan while your current plan is active.')).toBeVisible();
-    const buttons = screen.getAllByRole('button', { name: /Continue to Pay/ });
-    expect(buttons.map((button) => button.textContent)).toEqual(['Continue to Pay ₹99', 'Continue to Pay ₹999', 'Continue to Pay ₹1,499']);
-    buttons.forEach((button) => expect(button).toBeEnabled());
-  });
+  it.each(['CareerHarborMembership', 'ReferralContactAccess'])(
+    'keeps the other plan purchasable with active %s',
+    (planCode) => {
+      vi.mocked(useGetMembershipsQuery).mockReturnValue({
+        data: [
+          {
+            id: 'active',
+            planName: planCode,
+            planCode,
+            status: 2,
+            startsAtUtc: '2026-01-01T00:00:00Z',
+            endsAtUtc: '2099-01-01T00:00:00Z',
+            autoRenew: false,
+          },
+        ],
+        refetch: vi.fn(),
+      } as ReturnType<typeof useGetMembershipsQuery>);
+      renderWithProviders(
+        <RouterProvider
+          router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+            initialEntries: [ROUTES.MEMBERSHIP],
+          })}
+        />,
+      );
+      expect(screen.getByText('Your Active Access')).toBeVisible();
+      expect(screen.getByText('Already active')).toBeVisible();
+      expect(
+        screen.getByRole('button', {
+          name:
+            planCode === 'CareerHarborMembership' ? 'Get Referral Contact Access' : 'Get Access',
+        }),
+      ).toBeEnabled();
+      expect(
+        screen.queryByRole('button', {
+          name:
+            planCode === 'CareerHarborMembership' ? 'Get Access' : 'Get Referral Contact Access',
+        }),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it('creates checkout with only the selected plan code and sends the response to redirect handling', async () => {
     renderWithProviders(
@@ -190,31 +471,37 @@ describe('PhonePe membership checkout', () => {
         })}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Continue to Pay ₹99' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Get Access' }));
+    expect(createTrigger).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
 
-    expect(createTrigger).toHaveBeenCalledWith({ planCode: 'CareerHarborMembership' });
+    expect(createTrigger).toHaveBeenCalledWith({
+      planCode: 'CareerHarborMembership',
+      returnTo: undefined,
+    });
     expect(beginPhonePeRedirect).toHaveBeenCalledWith(checkout);
   });
 
-  it.each([
-    ['AI Apply', 'Continue to Pay ₹999', 'AIApply'],
-    ['AI Apply Pro', 'Continue to Pay ₹1,499', 'AIApplyPro'],
-  ])('checks out the %s card with its exact plan code', async (_, buttonName, planCode) => {
-    createTrigger.mockReturnValue({
-      unwrap: () => Promise.resolve({ ...checkout, planCode }),
-    });
-    renderWithProviders(
-      <RouterProvider
-        router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
-          initialEntries: [ROUTES.MEMBERSHIP],
-        })}
-      />,
-    );
-    await userEvent.click(screen.getByRole('button', { name: buttonName }));
-    expect(createTrigger).toHaveBeenCalledWith({ planCode });
-    expect(createTrigger.mock.calls[0]?.[0]).not.toHaveProperty('amount');
-    expect(createTrigger.mock.calls[0]?.[0]).not.toHaveProperty('durationDays');
-  });
+  it.each([['Referral Contact Access', 'Get Referral Contact Access', 'ReferralContactAccess']])(
+    'checks out the %s card with its exact plan code',
+    async (_, buttonName, planCode) => {
+      createTrigger.mockReturnValue({
+        unwrap: () => Promise.resolve({ ...checkout, planCode }),
+      });
+      renderWithProviders(
+        <RouterProvider
+          router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], {
+            initialEntries: [ROUTES.MEMBERSHIP],
+          })}
+        />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: buttonName }));
+      await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+      expect(createTrigger).toHaveBeenCalledWith({ planCode, returnTo: undefined });
+      expect(createTrigger.mock.calls[0]?.[0]).not.toHaveProperty('amount');
+      expect(createTrigger.mock.calls[0]?.[0]).not.toHaveProperty('durationDays');
+    },
+  );
 
   it('disables checkout and shows its loading label', () => {
     createState = { isLoading: true };
@@ -226,10 +513,10 @@ describe('PhonePe membership checkout', () => {
       />,
     );
 
-    expect(screen.getAllByRole('button', { name: /Continue to Pay/ })).toHaveLength(3);
-    screen.getAllByRole('button', { name: /Continue to Pay/ }).forEach((button) =>
-      expect(button).toBeDisabled(),
-    );
+    expect(screen.getAllByRole('button', { name: /^Get / })).toHaveLength(2);
+    screen
+      .getAllByRole('button', { name: /^Get / })
+      .forEach((button) => expect(button).toBeDisabled());
   });
 
   it('blocks an invalid provider redirect and offers a safe retry', async () => {
@@ -241,10 +528,12 @@ describe('PhonePe membership checkout', () => {
         })}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Continue to Pay ₹99' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Get Access' }));
+    expect(createTrigger).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
 
     expect(await screen.findByText(/destination could not be verified/i)).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Get Access' })).toBeEnabled();
   });
 
   it('refreshes the pending card for a pending_membership_checkout conflict', async () => {
@@ -263,13 +552,15 @@ describe('PhonePe membership checkout', () => {
       initialEntries: [ROUTES.MEMBERSHIP],
     });
     const view = renderWithProviders(<RouterProvider router={router} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Continue to Pay ₹99' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Get Access' }));
+    expect(createTrigger).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
 
     expect(refetch).toHaveBeenCalled();
     expect(screen.queryByText(/Internal conflict details/i)).not.toBeInTheDocument();
     pendingState = { ...pendingState, data: pendingCheckout };
     view.rerender(<RouterProvider router={router} />);
-    expect(screen.getByRole('heading', { name: 'You have a pending payment' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Payment in progress' })).toBeVisible();
   });
 
   it('shows the authoritative pending checkout card and hides new checkout', () => {
@@ -282,11 +573,11 @@ describe('PhonePe membership checkout', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'You have a pending payment' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Payment in progress' })).toBeVisible();
     expect(screen.getAllByText(/PhonePe/)[0]).toBeVisible();
     expect(screen.getAllByText(/₹99\.00/)[0]).toBeVisible();
-    expect(screen.getByText(/Pending/)).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Continue to Pay ₹99' })).not.toBeInTheDocument();
+    expect(screen.getByText(/^Pending$/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Get Access' })).not.toBeInTheDocument();
   });
 
   it('resumes only through the validated PhonePe redirect helper', async () => {
@@ -353,6 +644,15 @@ describe('PhonePe membership checkout', () => {
 describe('PhonePe return status', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
+    vi.mocked(useGetPaymentsQuery).mockReturnValue({
+      data: { items: [] },
+      refetch: vi.fn(),
+    });
+    vi.mocked(useLazyGetPhonePeReturnQuery).mockReturnValue([
+      statusTrigger,
+      { isFetching: false },
+    ] as unknown as ReturnType<typeof useLazyGetPhonePeReturnQuery>);
     sessionStorage.setItem(PHONEPE_ORDER_STORAGE_KEY, 'ch_order123');
     statusState = { isFetching: false };
     statusTrigger.mockReturnValue(Promise.resolve({ data: undefined }));
@@ -369,6 +669,113 @@ describe('PhonePe return status', () => {
     vi.useRealTimers();
   });
 
+  it('requires the purchased plan, not an unrelated active membership', async () => {
+    statusState = {
+      data: {
+        merchantOrderId: 'ch_order123',
+        status: PhonePePaymentStatus.Completed,
+        payment: { planCode: 'ReferralContactAccess' },
+      },
+      isFetching: false,
+    };
+    dispatch.mockImplementation(() => ({
+      unsubscribe: vi.fn(),
+      unwrap: () =>
+        Promise.resolve([
+          {
+            id: 'job',
+            planCode: 'CareerHarborMembership',
+            status: 2,
+            endsAtUtc: '2099-01-01T00:00:00Z',
+          },
+        ]),
+    }));
+    renderRoute(
+      '/payment/phonepe/return?merchantOrderId=ch_order123&success=true',
+      <PhonePeReturnPage />,
+    );
+    expect(await screen.findByText(/active membership could not yet be confirmed/)).toBeVisible();
+    expect(screen.queryByText('Referral Contact Access activated')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem(PHONEPE_ORDER_STORAGE_KEY)).toBe('ch_order123');
+  });
+
+  it('keeps referral-specific success visible after clearing the completed order', async () => {
+    statusState = {
+      data: {
+        merchantOrderId: 'ch_order123',
+        status: PhonePePaymentStatus.Completed,
+        payment: { planCode: 'ReferralContactAccess' },
+      },
+      isFetching: false,
+    };
+    dispatch.mockImplementation(() => ({
+      unsubscribe: vi.fn(),
+      unwrap: () =>
+        Promise.resolve([
+          {
+            id: 'referral',
+            planCode: 'ReferralContactAccess',
+            status: 2,
+            endsAtUtc: '2099-01-01T00:00:00Z',
+          },
+        ]),
+    }));
+    renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123', <PhonePeReturnPage />);
+    expect(
+      await screen.findByRole('heading', { name: 'Referral Contact Access activated' }),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Browse Referral Jobs' })).toHaveAttribute(
+      'href',
+      '/dashboard/jobs?mode=referral',
+    );
+    expect(screen.queryByText('Payment session not found')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem(PHONEPE_ORDER_STORAGE_KEY)).toBeNull();
+  });
+
+  it('returns to the exact referral contact path only after matching activation', async () => {
+    const returnTo = '/dashboard/jobs/referral/job-123/contact';
+    sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, returnTo);
+    statusState = {
+      data: {
+        merchantOrderId: 'ch_order123',
+        status: PhonePePaymentStatus.Completed,
+        payment: { planCode: 'ReferralContactAccess' },
+      },
+      isFetching: false,
+    };
+    dispatch.mockImplementation(() => ({
+      unsubscribe: vi.fn(),
+      unwrap: () =>
+        Promise.resolve([
+          {
+            id: 'referral',
+            planCode: 'ReferralContactAccess',
+            status: 2,
+            endsAtUtc: '2099-01-01T00:00:00Z',
+          },
+        ]),
+    }));
+    const { router } = renderRoute(
+      '/payment/phonepe/return?merchantOrderId=ch_order123',
+      <PhonePeReturnPage />,
+    );
+    await waitFor(() => expect(router.state.location.pathname).toBe(returnTo));
+    expect(sessionStorage.getItem(PHONEPE_RETURN_TO_STORAGE_KEY)).toBeNull();
+  });
+
+  it('does not infer successful payment from the return URL', () => {
+    statusState = {
+      data: { merchantOrderId: 'ch_order123', status: PhonePePaymentStatus.Pending },
+      isFetching: false,
+    };
+    renderRoute(
+      '/payment/phonepe/return?merchantOrderId=ch_order123&success=true&status=Completed',
+      <PhonePeReturnPage />,
+    );
+    expect(screen.getByText('We are confirming your payment')).toBeVisible();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it('renders the canonical return route and checks its merchantOrderId', async () => {
     statusState = {
       data: { merchantOrderId: 'ch_order123', status: PhonePePaymentStatus.Pending },
@@ -377,7 +784,12 @@ describe('PhonePe return status', () => {
     renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123', <PhonePeReturnPage />);
 
     expect(screen.getByRole('heading', { name: 'We are confirming your payment' })).toBeVisible();
-    await waitFor(() => expect(statusTrigger).toHaveBeenCalledWith('ch_order123', false));
+    await waitFor(() =>
+      expect(statusTrigger).toHaveBeenCalledWith(
+        { merchantOrderId: 'ch_order123', returnTo: undefined },
+        false,
+      ),
+    );
   });
 
   it('normalizes a matching legacy order to the canonical route with replace', async () => {
@@ -396,7 +808,12 @@ describe('PhonePe return status', () => {
       ),
     );
     expect(router.state.historyAction).toBe('REPLACE');
-    await waitFor(() => expect(statusTrigger).toHaveBeenCalledWith('ch_order123', false));
+    await waitFor(() =>
+      expect(statusTrigger).toHaveBeenCalledWith(
+        { merchantOrderId: 'ch_order123', returnTo: undefined },
+        false,
+      ),
+    );
   });
 
   it.each(['/payments/phonepe/return', '/payments/phonepe/return?order=ch_other'])(
@@ -441,12 +858,35 @@ describe('PhonePe return status', () => {
 
   it('redirects a backend-confirmed active membership to the safe Interview Insights return path', async () => {
     statusState = {
-      data: { merchantOrderId: 'ch_order123', status: PhonePePaymentStatus.Completed },
+      data: {
+        merchantOrderId: 'ch_order123',
+        status: PhonePePaymentStatus.Completed,
+        payment: { planCode: 'CareerHarborMembership' },
+      },
       isFetching: false,
     };
     sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, ROUTES.INTERVIEW_INSIGHTS);
-    dispatch.mockImplementation(() => ({ unsubscribe: vi.fn(), unwrap: () => Promise.resolve([{ id: 'membership', planName: 'Career Harbor Membership', status: 2, startsAtUtc: '2026-08-25T00:00:00Z', endsAtUtc: '2026-09-24T00:00:00Z', autoRenew: false }]) }) as never);
-    const { router } = renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123', <PhonePeReturnPage />);
+    dispatch.mockImplementation(
+      () =>
+        ({
+          unsubscribe: vi.fn(),
+          unwrap: () =>
+            Promise.resolve([
+              {
+                id: 'membership',
+                planName: 'Career Harbor Membership',
+                status: 2,
+                startsAtUtc: '2026-08-25T00:00:00Z',
+                endsAtUtc: '2099-09-24T00:00:00Z',
+                autoRenew: false,
+              },
+            ]),
+        }) as never,
+    );
+    const { router } = renderRoute(
+      '/payment/phonepe/return?merchantOrderId=ch_order123',
+      <PhonePeReturnPage />,
+    );
 
     await waitFor(() => expect(router.state.location.pathname).toBe(ROUTES.INTERVIEW_INSIGHTS));
     expect(sessionStorage.getItem(PHONEPE_ORDER_STORAGE_KEY)).toBeNull();

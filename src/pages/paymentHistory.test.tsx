@@ -1,4 +1,5 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +9,7 @@ import {
   useGetPaymentHistoryQuery,
   useGetPaymentsQuery,
   useGetPaymentStatusQuery,
+  useLazyGetPhonePeReturnQuery,
 } from '@/features/payments/api/paymentsApi';
 import {
   PaymentProvider,
@@ -16,6 +18,7 @@ import {
 } from '@/features/payments/types/paymentModels';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { PaymentsPage } from './PaymentsPage';
+import { RecentPaymentActivity } from '@/features/payments/components/RecentPaymentActivity';
 
 vi.mock('@/features/payments/api/paymentsApi', async (importOriginal) => {
   const actual = await importOriginal<typeof PaymentsApiModule>();
@@ -24,6 +27,7 @@ vi.mock('@/features/payments/api/paymentsApi', async (importOriginal) => {
     useGetPaymentHistoryQuery: vi.fn(),
     useGetPaymentsQuery: vi.fn(),
     useGetPaymentStatusQuery: vi.fn(),
+    useLazyGetPhonePeReturnQuery: vi.fn(),
   };
 });
 
@@ -109,6 +113,46 @@ beforeEach(() => {
 });
 
 describe('payment history page', () => {
+  it('labels each transaction with its own plan and preserves legacy amounts in recent activity', async () => {
+    const check = vi.fn().mockResolvedValue({ data: {} });
+    vi.mocked(useLazyGetPhonePeReturnQuery).mockReturnValue([
+      check,
+      { isFetching: false },
+    ] as unknown as ReturnType<typeof useLazyGetPhonePeReturnQuery>);
+    mockPayments.mockReturnValue(
+      queryResult({
+        items: [
+          { ...payment, id: 'job-payment', planCode: 'CareerHarborMembership', amount: 116.82 },
+          {
+            ...payment,
+            id: 'referral-payment',
+            planCode: 'ReferralContactAccess',
+            amount: 299,
+            pricing: null,
+            status: PaymentStatus.Pending,
+            provider: PaymentProvider.PhonePe,
+            providerOrderId: 'ch_referral',
+          },
+        ],
+      }) as ReturnType<typeof useGetPaymentsQuery>,
+    );
+    renderWithProviders(
+      <MemoryRouter>
+        <RecentPaymentActivity />
+      </MemoryRouter>,
+    );
+    const table = within(screen.getByRole('table', { name: 'Payment history', hidden: true }));
+    expect(table.getByText('Job Application Access')).toBeInTheDocument();
+    expect(table.getByText('Referral Contact Access')).toBeInTheDocument();
+    expect(table.getByText(/299\.00/)).toBeInTheDocument();
+    expect(screen.queryByText(/GST|352\.82/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View all transactions' })).toHaveAttribute(
+      'href',
+      '/dashboard/payments',
+    );
+    await userEvent.click(table.getByRole('button', { name: 'Check status' }));
+    expect(check).toHaveBeenCalledWith({ merchantOrderId: 'ch_referral' }, false);
+  });
   it('renders its loading skeleton', () => {
     mockPayments.mockReturnValue(
       queryResult(undefined, { isLoading: true }) as ReturnType<typeof useGetPaymentsQuery>,
