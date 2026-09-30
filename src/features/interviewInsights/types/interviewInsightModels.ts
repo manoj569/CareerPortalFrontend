@@ -192,6 +192,8 @@ export interface CreateInterviewScheduleRequest {
   expectedRoundTypes: InterviewRoundType[];
   preparationStatus: InterviewPreparationStatus | null;
   reminderRequested: boolean;
+  reminderOffsetMinutes: 15 | 30 | 60 | 1440;
+  timeZoneId: string;
 }
 export interface UpdateInterviewScheduleRequest extends Omit<
   CreateInterviewScheduleRequest,
