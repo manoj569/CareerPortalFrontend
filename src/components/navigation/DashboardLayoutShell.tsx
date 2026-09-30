@@ -64,9 +64,67 @@ export const DashboardLayoutShell = ({
     path: ROUTES.DASHBOARD_JOBS,
     end: true,
   });
+  const savedJobsMatch = useMatch({
+  path: ROUTES.SAVED_JOBS,
+  end: true,
+});
+const applicationsMatch = useMatch({
+  path: ROUTES.APPLICATIONS,
+  end: true,
+});
+const referAJobMatch = useMatch({
+  path: ROUTES.REFER_A_JOB,
+  end: true,
+});
+const interviewInsightsMatch = useMatch({
+  path: ROUTES.INTERVIEW_INSIGHTS,
+  end: true,
+});
+const careerGuidanceMatch = useMatch({
+  path: ROUTES.CAREER_GUIDANCE,
+  end: true,
+});
+const portfolioMatch = useMatch({
+  path: ROUTES.PORTFOLIO,
+  end: true,
+});
+const membershipMatch = useMatch({
+  path: ROUTES.MEMBERSHIP,
+  end: true,
+});
+const settingsMatch = useMatch({
+  path: ROUTES.SETTINGS,
+  end: true,
+});
   const isBrowseJobsPage = browseJobsMatch !== null;
+const dashboardMatch = useMatch({
+  path: ROUTES.DASHBOARD,
+  end: true,
+});
 
-  const tabletSidebar = useMediaQuery(
+const isDashboardPage = dashboardMatch !== null;
+const isSavedJobsPage = savedJobsMatch !== null;
+const isApplicationsPage = applicationsMatch !== null;
+const isReferAJobPage = referAJobMatch !== null;
+const isInterviewInsightsPage = interviewInsightsMatch !== null;
+const isCareerGuidancePage = careerGuidanceMatch !== null;
+const isPortfolioPage = portfolioMatch !== null;
+const isMembershipPage = membershipMatch !== null;
+const isSettingsPage = settingsMatch !== null;
+
+const isFullWidthPage =
+  isBrowseJobsPage ||
+  isDashboardPage ||
+  isSavedJobsPage ||
+  isApplicationsPage ||
+  isReferAJobPage ||
+  isInterviewInsightsPage ||
+  isCareerGuidancePage ||
+  isPortfolioPage ||
+  isMembershipPage ||
+  isSettingsPage;
+
+   const tabletSidebar = useMediaQuery(
     theme.breakpoints.between('md', 'lg'),
   );
   const [desktopCollapseOverride, setDesktopCollapseOverride] =
@@ -359,18 +417,18 @@ export const DashboardLayoutShell = ({
         tabIndex={-1}
       >
         <Container
-          maxWidth={isBrowseJobsPage ? false : 'xl'}
-          sx={
-            isBrowseJobsPage
-              ? {
-                  px: { xs: 1.5, sm: 2, lg: 3 },
-                  py: { xs: 1.5, md: 2 },
-                }
-              : {
-                  py: { xs: 3, md: 4 },
-                }
-          }
-        >
+  maxWidth={isFullWidthPage ? false : 'xl'}
+  sx={
+    isFullWidthPage
+      ? {
+          px: { xs: 1.5, sm: 2, lg: 3 },
+          py: { xs: 1.5, md: 2 },
+        }
+      : {
+          py: { xs: 3, md: 4 },
+        }
+  }
+>
           <Outlet />
         </Container>
       </Box>

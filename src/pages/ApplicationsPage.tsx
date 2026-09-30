@@ -9,7 +9,6 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { buildJobDetailsPath } from '@/constants/routes';
 import { useGetApplicationsQuery } from '@/features/dashboard/api/dashboardApi';
 import { ApplicationStatusChip } from '@/features/dashboard/components/ApplicationStatusChip';
-import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { JobApplicationStatus } from '@/features/dashboard/types/dashboardModels';
 import {
   formatDashboardDate,
@@ -49,13 +48,8 @@ export const ApplicationsPage = () => {
   );
 
   return (
-    <Stack spacing={4}>
-      <DashboardPageHeader
-        description="Follow every application from submission through the employer’s decision."
-        eyebrow="Career activity"
-        title="Applied jobs"
-      />
-
+    <Stack spacing={3}>
+     
       <FormControl size="small" sx={{ maxWidth: 280 }}>
         <InputLabel id="application-status-filter-label">Application status</InputLabel>
         <Select

@@ -454,15 +454,13 @@ export const PaymentPage = () => {
   const selectedPricing = selectedPlan?.pricing;
 
   return (
-    <Stack
-      spacing={3}
-      sx={{
-        maxWidth: 1440,
-        minWidth: 0,
-        mx: 'auto',
-        width: '100%',
-      }}
-    >
+   <Stack
+  spacing={3}
+  sx={{
+    minWidth: 0,
+    width: '100%',
+  }}
+>
       <Box
         component="section"
         sx={{

@@ -2,7 +2,6 @@ import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
-import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
@@ -62,11 +61,7 @@ export const candidateNavigationItems: NavigationItem[] = [
     path: ROUTES.MEMBERSHIP,
     icon: WorkspacePremiumOutlinedIcon,
   },
-  {
-    label: 'Payments',
-    path: ROUTES.PAYMENTS,
-    icon: PaymentsOutlinedIcon,
-  },
+ 
   {
     label: 'Settings',
     path: ROUTES.SETTINGS,
