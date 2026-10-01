@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { toApiRequestError } from '@/api/apiError';
 import { applyApiValidationErrors } from '@/api/formErrors';
 import { AppBrand } from '@/components/navigation/AppBrand';
 import { ROUTES } from '@/constants/routes';
@@ -171,6 +172,7 @@ export const RegisterPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const location = useLocation();
+  const [googleAccountConflict, setGoogleAccountConflict] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -205,19 +207,28 @@ export const RegisterPage = () => {
     setServerError(null);
     setHasValidationErrors(false);
     setIsSuccess(false);
+    setGoogleAccountConflict(false);
 
     try {
-     await authService.register({
-  email: values.email.trim(),
-  fullName: values.fullName.trim(),
-  hasAcceptedTermsAndPrivacy: values.termsAccepted,
-  password: values.password,
-  phoneNumber: values.phoneNumber,
-});
+      await authService.register({
+        email: values.email.trim(),
+        fullName: values.fullName.trim(),
+        hasAcceptedTermsAndPrivacy: values.termsAccepted,
+        password: values.password,
+        phoneNumber: values.phoneNumber,
+      });
 
-setRegisteredEmail(values.email.trim());
-setIsSuccess(true);
+      setRegisteredEmail(values.email.trim());
+      setIsSuccess(true);
     } catch (error: unknown) {
+      const registrationError = toApiRequestError(error);
+      if (registrationError.status === 409 && registrationError.code === 'ACCOUNT_EXISTS_GOOGLE') {
+        setGoogleAccountConflict(true);
+        setServerError(
+          'This email is already registered with Google. Continue with Google to sign in.',
+        );
+        return;
+      }
       const hasFieldErrors = applyApiValidationErrors(
         error,
         ['fullName', 'email', 'password', 'phoneNumber'] as const,
@@ -230,41 +241,41 @@ setIsSuccess(true);
 
       // ✅ NEW: Check for a JSON error response from the backend
       if (error && typeof error === 'object' && 'code' in error) {
-  const apiError = error as { code?: string; message?: string };
+        const apiError = error as { code?: string; message?: string };
 
-  if (apiError.code === 'registration_email_exists') {
-    setError('email', {
-      type: 'server',
-      message: 'An account already exists with this email. Please log in.',
-    });
-    setHasValidationErrors(true);
-    return;
-  }
+        if (apiError.code === 'registration_email_exists') {
+          setError('email', {
+            type: 'server',
+            message: 'An account already exists with this email. Please log in.',
+          });
+          setHasValidationErrors(true);
+          return;
+        }
 
-  if (apiError.code === 'registration_phone_exists') {
-    setError('phoneNumber', {
-      type: 'server',
-      message: 'An account already exists with this mobile number. Please log in.',
-    });
-    setHasValidationErrors(true);
-    return;
-  }
+        if (apiError.code === 'registration_phone_exists') {
+          setError('phoneNumber', {
+            type: 'server',
+            message: 'An account already exists with this mobile number. Please log in.',
+          });
+          setHasValidationErrors(true);
+          return;
+        }
 
-  if (apiError.code === 'registration_identity_exists') {
-    setError('email', {
-      type: 'server',
-      message: 'An account already exists with this email. Please log in.',
-    });
-    setError('phoneNumber', {
-      type: 'server',
-      message: 'An account already exists with this mobile number. Please log in.',
-    });
-    setHasValidationErrors(true);
-    return;
-  }
-}
+        if (apiError.code === 'registration_identity_exists') {
+          setError('email', {
+            type: 'server',
+            message: 'An account already exists with this email. Please log in.',
+          });
+          setError('phoneNumber', {
+            type: 'server',
+            message: 'An account already exists with this mobile number. Please log in.',
+          });
+          setHasValidationErrors(true);
+          return;
+        }
+      }
 
-setServerError(getAuthenticationErrorMessage(error));
+      setServerError(getAuthenticationErrorMessage(error));
     }
   };
 
@@ -275,22 +286,37 @@ setServerError(getAuthenticationErrorMessage(error));
     try {
       const response = await authService.googleAuthenticateWithCode({
         code,
-        intent: 'Register',
-        acceptTerms: true,
+        intent: googleAccountConflict ? 'Login' : 'Register',
+        acceptTerms: !googleAccountConflict,
       });
       dispatch(sessionRefreshed(response));
-      enqueueSnackbar('Account created successfully.', { variant: 'success' });
+      enqueueSnackbar(
+        googleAccountConflict ? 'Signed in successfully.' : 'Account created successfully.',
+        { variant: 'success' },
+      );
       const destination =
         response.user.role === UserRole.Candidate
           ? `${safeReturnLocation?.pathname ?? ROUTES.DASHBOARD}${safeReturnLocation?.search ?? ''}${safeReturnLocation?.hash ?? ''}`
           : ROUTES.ADMIN;
       await navigate(destination, { replace: true });
     } catch (error: unknown) {
-      setServerError(getGoogleAuthenticationErrorMessage(error, 'Register'));
+      setServerError(
+        getGoogleAuthenticationErrorMessage(error, googleAccountConflict ? 'Login' : 'Register'),
+      );
     } finally {
       setIsGoogleSubmitting(false);
     }
   };
+
+  const googleButton = (
+    <GoogleAuthorizationCodeButton
+      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+      onCode={(code) => {
+        void submitGoogleRegistration(code);
+      }}
+      onPopupError={setServerError}
+    />
+  );
 
   return (
     <Stack spacing={{ xs: 3, md: 4 }}>
@@ -311,21 +337,21 @@ setServerError(getAuthenticationErrorMessage(error));
                   textAlign="center"
                 >
                   <Typography component="h1" variant="h2">
-  Check your email to verify your account
-</Typography>
+                    Check your email to verify your account
+                  </Typography>
 
-<Alert severity="success" sx={{ width: '100%' }}>
-  Your CareerHarbor account has been created successfully.
-</Alert>
+                  <Alert severity="success" sx={{ width: '100%' }}>
+                    Your CareerHarbor account has been created successfully.
+                  </Alert>
 
-<Typography color="text.secondary">
-  We sent a verification link to <strong>{registeredEmail}</strong>. Open the
-  link to verify your email address, then log in to your account.
-</Typography>
+                  <Typography color="text.secondary">
+                    We sent a verification link to <strong>{registeredEmail}</strong>. Open the link
+                    to verify your email address, then log in to your account.
+                  </Typography>
 
-<Typography color="text.secondary" variant="body2">
-  Can't find the email? Check your spam or junk folder.
-</Typography>
+                  <Typography color="text.secondary" variant="body2">
+                    Can't find the email? Check your spam or junk folder.
+                  </Typography>
                   <Button
                     component={Link}
                     state={safeReturnLocation ? { from: safeReturnLocation } : undefined}
@@ -349,6 +375,7 @@ setServerError(getAuthenticationErrorMessage(error));
                     </Alert>
                   ) : null}
 
+                  {googleAccountConflict && <Box sx={controlSx}>{googleButton}</Box>}
                   <Stack
                     component="form"
                     noValidate
@@ -467,13 +494,7 @@ setServerError(getAuthenticationErrorMessage(error));
                       </MuiLink>
                       .
                     </Typography>
-                    <GoogleAuthorizationCodeButton
-                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
-                      onCode={(code) => {
-                        void submitGoogleRegistration(code);
-                      }}
-                      onPopupError={setServerError}
-                    />
+                    {!googleAccountConflict && googleButton}
                   </Stack>
                 </>
               )}

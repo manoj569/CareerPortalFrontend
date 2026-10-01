@@ -66,6 +66,12 @@ export const PublicLayout = () => {
     : [
         { label: 'Home', path: ROUTES.HOME },
         { label: 'Jobs', path: ROUTES.JOBS },
+        ...(isHomePage
+          ? [
+              { label: 'Career Guidance', path: ROUTES.CAREER_GUIDANCE },
+              { label: 'Interview Insights', path: ROUTES.INTERVIEW_INSIGHTS },
+            ]
+          : []),
         { label: 'Log in', path: ROUTES.LOGIN },
         { label: 'Register', path: ROUTES.REGISTER },
       ];
@@ -90,16 +96,24 @@ export const PublicLayout = () => {
         <Container
           maxWidth={false}
           sx={{
-            maxWidth: PUBLIC_PAGE_CONTAINER_MAX_WIDTH,
-            paddingInline: `${PUBLIC_PAGE_GUTTER} !important`,
+            maxWidth: isHomePage ? 'none' : PUBLIC_PAGE_CONTAINER_MAX_WIDTH,
+            paddingInline: isHomePage
+              ? 'clamp(20px, 5vw, 96px) !important'
+              : `${PUBLIC_PAGE_GUTTER} !important`,
           }}
         >
-          <Toolbar disableGutters sx={{ minHeight: { xs: 74, md: 88 } }}>
+          <Toolbar
+            disableGutters
+            sx={{ minHeight: isHomePage ? { xs: 68, md: 76 } : { xs: 74, md: 88 } }}
+          >
             <AppBrand />
             <Stack
               direction="row"
               spacing={1.25}
-              sx={{ display: { xs: 'none', md: 'flex' }, ml: 'auto' }}
+              sx={{
+                display: isHomePage ? { xs: 'none', lg: 'flex' } : { xs: 'none', md: 'flex' },
+                ml: 'auto',
+              }}
             >
               {isAuthenticated ? (
                 <Button component={NavLink} to={authenticatedHome} variant="contained">
@@ -113,6 +127,16 @@ export const PublicLayout = () => {
                   <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.JOBS}>
                     Jobs
                   </Button>
+                  {isHomePage && (
+                    <>
+                      <Button component={NavLink} to={ROUTES.CAREER_GUIDANCE}>
+                        Career Guidance
+                      </Button>
+                      <Button component={NavLink} to={ROUTES.INTERVIEW_INSIGHTS}>
+                        Interview Insights
+                      </Button>
+                    </>
+                  )}
                   <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.LOGIN}>
                     Log in
                   </Button>
@@ -135,7 +159,7 @@ export const PublicLayout = () => {
               edge="end"
               onClick={() => setIsMobileNavigationOpen(true)}
               ref={menuButtonRef}
-              sx={{ display: { md: 'none' }, ml: 'auto' }}
+              sx={{ display: isHomePage ? { lg: 'none' } : { md: 'none' }, ml: 'auto' }}
             >
               <MenuIcon />
             </IconButton>
@@ -170,8 +194,13 @@ export const PublicLayout = () => {
       <Container
         component="main"
         id="main-content"
-        maxWidth="lg"
-        sx={{ flex: 1, minWidth: 0, py: isHomePage ? 0 : { xs: 4, md: 6 } }}
+        maxWidth={isHomePage ? false : 'lg'}
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          ...(isHomePage ? { px: '0 !important' } : {}),
+          py: isHomePage ? 0 : { xs: 4, md: 6 },
+        }}
         tabIndex={-1}
       >
         <Outlet />
@@ -182,19 +211,27 @@ export const PublicLayout = () => {
         sx={{
           bgcolor: '#111827',
           color: 'common.white',
-          mt: { xs: 6, md: 8 },
+          mt: isHomePage ? 0 : { xs: 6, md: 8 },
           py: { xs: 6, md: 8 },
         }}
       >
-        <Container maxWidth="lg">
+        <Container
+          maxWidth={isHomePage ? false : 'lg'}
+          sx={
+            isHomePage
+              ? { maxWidth: 'none', paddingInline: 'clamp(20px, 5vw, 96px) !important' }
+              : undefined
+          }
+        >
           <Grid container spacing={{ xs: 4, md: 7 }}>
             <Grid size={{ xs: 12, md: 4 }}>
               <AppBrand inverse />
               <Typography
                 sx={{ color: 'rgba(255,255,255,.68)', lineHeight: 1.7, maxWidth: 420, mt: 2 }}
               >
-                A focused place to discover active jobs, prepare your candidate profile, and manage
-                your job search.
+                {isHomePage
+                  ? 'A complete career growth platform with jobs, referrals, interview insights, guidance and a professional portfolio.'
+                  : 'A focused place to discover active jobs, prepare your candidate profile, and manage your job search.'}
               </Typography>
             </Grid>
             <Grid size={{ xs: 6, sm: 4, md: 2 }}>
@@ -202,6 +239,14 @@ export const PublicLayout = () => {
                 links={[
                   ['Browse jobs', ROUTES.JOBS],
                   ['Pricing / Membership', ROUTES.PRICING],
+                  ...(isHomePage
+                    ? ([
+                        ['Referral jobs', `${ROUTES.DASHBOARD_JOBS}?mode=referral`],
+                        ['Internships', `${ROUTES.DASHBOARD_JOBS}?mode=internships`],
+                        ['Fresher jobs', `${ROUTES.DASHBOARD_JOBS}?mode=fresher`],
+                        ['Experienced jobs', `${ROUTES.DASHBOARD_JOBS}?mode=experienced`],
+                      ] as Array<[string, string]>)
+                    : []),
                 ]}
                 title="Jobs"
               />
@@ -219,6 +264,13 @@ export const PublicLayout = () => {
                     : [
                         ['Create account', ROUTES.REGISTER],
                         ['Log in', ROUTES.LOGIN],
+                        ...(isHomePage
+                          ? ([
+                              ['Career portfolio', ROUTES.PORTFOLIO],
+                              ['Interview insights', ROUTES.INTERVIEW_INSIGHTS],
+                              ['Career guidance', ROUTES.CAREER_GUIDANCE],
+                            ] as Array<[string, string]>)
+                          : []),
                       ]
                 }
                 title="Candidates"

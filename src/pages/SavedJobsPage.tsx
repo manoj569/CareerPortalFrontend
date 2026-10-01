@@ -8,7 +8,6 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
 import { useGetSavedJobsQuery } from '@/features/dashboard/api/dashboardApi';
-import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import { formatDashboardDate } from '@/features/dashboard/utils/dashboardFormatting';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
@@ -28,12 +27,7 @@ export const SavedJobsPage = () => {
   });
 
   return (
-    <Stack spacing={4}>
-      <DashboardPageHeader
-        description="Keep promising opportunities together while you decide where to apply."
-        eyebrow="Career activity"
-        title="Saved jobs"
-      />
+<Stack spacing={3}>    
 
       {isFetching && data ? (
         <Typography aria-live="polite" color="text.secondary">

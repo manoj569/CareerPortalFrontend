@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -28,6 +28,7 @@ import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import {
   useGetConsultantOnboardingQuery,
   useSaveConsultantOnboardingBasicMutation,
+  useStartConsultantOnboardingMutation,
 } from '../api/onboardingApi';
 import { guidanceError, guidanceErrorMessage } from '../utils/errors';
 import { guidanceRoutes } from '../utils/routes';
@@ -137,10 +138,45 @@ export default function ConsultantBasicInformationPage() {
   const [saveBasic, { isLoading: isSaving }] =
     useSaveConsultantOnboardingBasicMutation();
 
+  const [startOnboarding, { isLoading: isStarting }] =
+    useStartConsultantOnboardingMutation();
+
   const [form, setForm] = useState<BasicForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hydratedRevision, setHydratedRevision] = useState<string | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  const startAttempt = useRef<Promise<unknown> | null>(null);
+  const loadStatus = guidanceError(loadError).status;
+
+  useEffect(() => {
+    if (loadStatus !== 404 || onboarding || startError) return;
+
+    // Reuse this attempt across re-renders and StrictMode effect replay.
+    // A failed POST or follow-up GET must not automatically create another draft.
+    if (!startAttempt.current) {
+      startAttempt.current = startOnboarding().unwrap().then(() => refetch().unwrap());
+    }
+
+    let cancelled = false;
+    void startAttempt.current.catch((cause: unknown) => {
+      if (!cancelled) setStartError(guidanceErrorMessage(cause));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadStatus, onboarding, startError, startOnboarding, refetch]);
+
+  const retryLoad = async () => {
+    // Recheck first: a timed-out creation may already have reached the backend.
+    const result = await refetch();
+    if (startError) {
+      if (guidanceError(result.error).status === 404) startAttempt.current = null;
+      setStartError(null);
+    }
+  };
 
   useEffect(() => {
     if (!onboarding || hydratedRevision === onboarding.revision) return;
@@ -218,7 +254,7 @@ export default function ConsultantBasicInformationPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || (loadStatus === 404 && !startError && !onboarding)) {
     return (
       <Box
         sx={{
@@ -230,14 +266,14 @@ export default function ConsultantBasicInformationPage() {
         <Stack spacing={2} alignItems="center">
           <CircularProgress size={34} />
           <Typography color="text.secondary">
-            Loading your consultant profile…
+            {isStarting ? 'Setting up your consultant profile…' : 'Loading your consultant profile…'}
           </Typography>
         </Stack>
       </Box>
     );
   }
 
-  if (loadError || !onboarding) {
+  if (loadError || startError || !onboarding) {
     return (
       <Paper sx={{ p: 3 }}>
         <Alert
@@ -246,15 +282,16 @@ export default function ConsultantBasicInformationPage() {
             <Button
               color="inherit"
               size="small"
+              disabled={isFetching || isStarting}
               onClick={() => {
-                void refetch();
+                void retryLoad();
               }}
             >
               Retry
             </Button>
           }
         >
-          {guidanceErrorMessage(loadError)}
+          {startError ?? guidanceErrorMessage(loadError)}
         </Alert>
       </Paper>
     );
@@ -449,7 +486,7 @@ export default function ConsultantBasicInformationPage() {
                 color="#172b58"
               >
                 Your information is secure
-              </Typography>n
+              </Typography>
 
               <Typography
                 variant="body2"

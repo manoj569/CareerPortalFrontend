@@ -124,8 +124,10 @@ describe('interviewInsightsApi', () => {
       interviewFormat: InterviewFormat.Video,
       jobId: 'job-id',
       preparationStatus: InterviewPreparationStatus.Preparing,
-      reminderRequested: true,
-      roleTitle: 'Engineer',
+reminderOffsetMinutes: 30 as const,
+reminderRequested: true,
+roleTitle: 'Engineer',
+timeZoneId: 'Asia/Kolkata',
     };
     respond({ id: 'schedule-id' });
     await store

@@ -76,6 +76,13 @@ export const JobModeTabs = ({
       <Tab label="All jobs" value="all" />
 
       <Tab
+        icon={<GroupsOutlinedIcon sx={{ fontSize: 19 }} />}
+        iconPosition="start"
+        label="Referral jobs"
+        value="referral"
+      />
+
+      <Tab
         disabled={!resumeMatchesEnabled}
         label="Resume matches"
         value="recommended"
@@ -86,13 +93,6 @@ export const JobModeTabs = ({
       <Tab label="Fresher" value="fresher" />
 
       <Tab label="Experienced" value="experienced" />
-
-      <Tab
-        icon={<GroupsOutlinedIcon sx={{ fontSize: 19 }} />}
-        iconPosition="start"
-        label="Referral jobs"
-        value="referral"
-      />
     </Tabs>
   </Paper>
 );

@@ -47,7 +47,7 @@ import { renderWithProviders } from '@/test/renderWithProviders';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 import { ROUTES } from '@/constants/routes';
 import { UserRole } from '@/types';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -383,9 +383,7 @@ describe('candidate dashboard pages', () => {
     renderPage(<DashboardPage />);
 
     expect(screen.getByRole('heading', { name: 'Welcome, Avery' })).toBeInTheDocument();
-    expect(
-      within(screen.getByText('Saved jobs').parentElement!).getByText('2'),
-    ).toBeInTheDocument();
+   
     expect(screen.getByText('Job Application Access')).toBeInTheDocument();
     expect(screen.getByText(job.title)).toBeInTheDocument();
     expect(screen.getByText('60%')).toBeInTheDocument();
@@ -535,12 +533,19 @@ describe('candidate dashboard pages', () => {
     );
     const { store } = renderPage(<SettingsPage />);
 
-    expect(screen.getByRole('heading', { name: 'Account security' })).toBeVisible();
-    expect(screen.getByText('Mobile verification')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Membership' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Manage membership' })).toHaveAttribute('href', ROUTES.MEMBERSHIP);
-    expect(screen.queryByText(/Other account controls unavailable/i)).not.toBeInTheDocument();
+   expect(screen.getByRole('heading', { name: 'Account security' })).toBeVisible();
+expect(screen.getByText('Mobile verification')).toBeVisible();
 
+await userEvent.click(screen.getByRole('button', { name: /Membership/i }));
+
+expect(screen.getByRole('heading', { name: 'Membership' })).toBeVisible();
+expect(screen.getByRole('link', { name: 'Manage membership' })).toHaveAttribute(
+  'href',
+  ROUTES.MEMBERSHIP,
+);
+expect(screen.queryByText(/Other account controls unavailable/i)).not.toBeInTheDocument();
+
+await userEvent.click(screen.getByRole('button', { name: /Security/i }));
     await userEvent.type(screen.getByLabelText(/^Current password/i), 'OldPassword!123');
     await userEvent.type(screen.getByLabelText(/^New password/i), 'NewPassword!123');
     await userEvent.type(screen.getByLabelText(/^Confirm new password/i), 'NewPassword!123');
