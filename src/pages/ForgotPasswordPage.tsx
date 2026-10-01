@@ -16,7 +16,7 @@ import {
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 const PRIVACY_SAFE_SUCCESS_MESSAGE =
-  'If an account exists for this email address, we have sent a password reset link.';
+  'If an account exists for this email, we have sent password instructions.';
 
 export const ForgotPasswordPage = () => {
   useDocumentMetadata(

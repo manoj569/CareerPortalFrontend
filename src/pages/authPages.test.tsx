@@ -187,7 +187,9 @@ describe('mobile authentication pages', () => {
       await Promise.resolve();
     });
     expect(store.getState().auth.status).toBe('unauthenticated');
-    await waitFor(() => expect(router.state.location.pathname).toBe(ROUTES.LOGIN), { timeout: 4_000 });
+    await waitFor(() => expect(router.state.location.pathname).toBe(ROUTES.LOGIN), {
+      timeout: 4_000,
+    });
     expect(router.state.location.state).toEqual({ from: { pathname: ROUTES.PORTFOLIO } });
   });
 
@@ -315,7 +317,10 @@ describe('mobile authentication pages', () => {
       state: { from: { pathname: ROUTES.PORTFOLIO } },
     });
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/email address or mobile number/i), 'candidate@example.com');
+    await user.type(
+      screen.getByLabelText(/email address or mobile number/i),
+      'candidate@example.com',
+    );
     await user.type(screen.getByLabelText(/^password/i), 'abc123');
     await user.click(screen.getByRole('button', { name: /^log in$/i }));
 
@@ -329,7 +334,10 @@ describe('mobile authentication pages', () => {
       state: { from: { pathname: '//evil.example' } },
     });
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/email address or mobile number/i), 'candidate@example.com');
+    await user.type(
+      screen.getByLabelText(/email address or mobile number/i),
+      'candidate@example.com',
+    );
     await user.type(screen.getByLabelText(/^password/i), 'abc123');
     await user.click(screen.getByRole('button', { name: /^log in$/i }));
     expect(await screen.findByText('Candidate dashboard')).toBeVisible();
@@ -383,7 +391,7 @@ describe('mobile authentication pages', () => {
     });
     expect(
       await screen.findByText(
-        'If an account exists for this email address, we have sent a password reset link.',
+        'If an account exists for this email, we have sent password instructions.',
       ),
     ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Back to login' })).toBeVisible();
@@ -432,7 +440,7 @@ describe('mobile authentication pages', () => {
       });
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /change password/i }));
+      fireEvent.click(screen.getByRole('button', { name: /set password/i }));
       await Promise.resolve();
     });
 
@@ -462,7 +470,7 @@ describe('mobile authentication pages', () => {
       screen.getByLabelText(/^confirm password/i, { selector: 'input' }),
       'different',
     );
-    await user.click(screen.getByRole('button', { name: /change password/i }));
+    await user.click(screen.getByRole('button', { name: /set password/i }));
     expect(await screen.findByText('Passwords must match.')).toBeVisible();
     expect(mockedAuthService.completePasswordReset.mock.calls).toHaveLength(0);
   });

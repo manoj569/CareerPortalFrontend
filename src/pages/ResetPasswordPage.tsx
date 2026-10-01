@@ -19,8 +19,8 @@ import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 export const ResetPasswordPage = () => {
   useDocumentMetadata(
-    'Choose a new password | Career Portal',
-    'Choose a new password for your Career Portal account.',
+    'Set your password | Career Harbor',
+    'Choose a secure password for your CareerHarbor account.',
   );
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -108,8 +108,8 @@ export const ResetPasswordPage = () => {
   return (
     <Stack spacing={3}>
       <AuthPageHeader
-        description="Enter and confirm the new password for your account."
-        title="Choose a new password"
+        description="Choose a secure password for your CareerHarbor account."
+        title="Set your password"
       />
 
       {serverError ? (
@@ -146,7 +146,7 @@ export const ResetPasswordPage = () => {
           registration={register('confirmPassword')}
         />
         <Button disabled={isSubmitting} type="submit" variant="contained">
-          {isSubmitting ? 'Changing password…' : 'Change password'}
+          {isSubmitting ? 'Setting password…' : 'Set password'}
         </Button>
       </Stack>
 
