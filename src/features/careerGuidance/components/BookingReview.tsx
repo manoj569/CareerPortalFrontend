@@ -7,8 +7,11 @@ import { CareerBookingStatus, CareerPaymentStatus, CareerReviewStatus, CareerSes
 import { guidanceError } from '../utils/errors';
 import { useGuidanceAction } from '../hooks/useGuidanceAction';
 import { GuidanceError, GuidanceLoading, StatusChip } from './GuidanceUI';
-import { GuidanceForm, numberValue, optionalText } from './GuidanceForm';
-
+import { GuidanceForm } from './GuidanceForm';
+import {
+  numberValue,
+  optionalText,
+} from '../utils/formValues';
 export function BookingReview({ booking }: { booking: CareerBookingResponse }) {
 const shouldCheckReview =
   booking.status === CareerBookingStatus.Completed;

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiRequestError } from '@/api/apiError';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import type { ConsultantOnboardingResponse } from '../api/onboardingApi';
+import { careerGuidanceApi } from '../api/careerGuidanceApi';
 import ConsultantReviewSubmitPage from './ConsultantReviewSubmitPage';
 
 const { request } = vi.hoisted(() => ({
@@ -185,9 +186,10 @@ describe('Consultant review and submit', () => {
         : response(current),
     );
     renderPage();
-    expect(await screen.findByRole('button', { name: 'Submit application' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Submit for review' })).toBeDisabled();
+    expect(screen.getByRole('heading', { name: 'Your profile is ready for review' })).toBeVisible();
     await consent();
-    const button = screen.getByRole('button', { name: 'Submit application' });
+    const button = screen.getByRole('button', { name: 'Submit for review' });
     fireEvent.click(button);
     fireEvent.click(button);
     await waitFor(() =>
@@ -221,26 +223,47 @@ describe('Consultant review and submit', () => {
       resolve(response(current));
       return Promise.resolve();
     });
-    expect(await screen.findByText('Application submitted — pending review')).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Submit application' })).not.toBeInTheDocument();
+    expect(await screen.findByText('Your consultant application is under review')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Submit for review' })).not.toBeInTheDocument();
+  });
+  it('uses newer server approval after submission rather than retaining the local Pending response', async () => {
+    request.mockImplementation((config) => {
+      if (config.method === 'POST') {
+        current = { ...current, status: 1, revision: 'revision-2', submittedAtUtc: '2026-09-25T00:00:00Z', termsAcceptedAtUtc: '2026-09-25T00:00:00Z', publicProfileConsentAtUtc: '2026-09-25T00:00:00Z', policyVersion: 'career-guidance-v1', missingRequirements: [] };
+      }
+      return Promise.resolve(response(current));
+    });
+    const view = renderPage();
+    await consent();
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
+    expect(await screen.findByRole('heading', { name: 'Your consultant application is under review' })).toBeVisible();
+    current = { ...current, status: 2, revision: 'revision-3' };
+    act(() => { view.store.dispatch(careerGuidanceApi.util.invalidateTags(['Career'])); });
+    expect(await screen.findByRole('heading', { name: 'Your consultant profile is approved' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Open Consultant Workspace' })).toBeVisible();
+    expect(screen.queryByText("You're almost there!")).not.toBeInTheDocument();
   });
   it('blocks backend missing profile requirements even after both consent choices', async () => {
     current.missingRequirements.push('UsableAvailability');
     renderPage();
     await consent();
     expect(screen.getByText('Usable Availability')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Submit application' })).toBeDisabled();
+    expect(screen.getByRole('heading', { name: 'Complete your consultant profile' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeDisabled();
   });
   it.each([
-    { status: 1, title: 'Application submitted — pending review' },
-    { status: 2, title: 'Profile approved' },
-    { status: 4, title: 'Profile suspended' },
+    { status: 1, title: 'Your consultant application is under review' },
+    { status: 2, title: 'Your consultant profile is approved' },
+    { status: 4, title: 'Consultant access is restricted' },
   ] as const)('handles $title without editable submission', async ({ status, title }) => {
     current.status = status;
     renderPage();
     expect(await screen.findByText(title)).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Submit application' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Submit for review' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Edit basic information' })).not.toBeInTheDocument();
+    expect(screen.queryByText("You're almost there!")).not.toBeInTheDocument();
+    expect(screen.queryByText('Before submitting')).not.toBeInTheDocument();
+    if (status === 2) expect(screen.getByRole('link', { name: 'Open Consultant Workspace' })).toHaveAttribute('href', '/career-guidance/consultant/profile');
   });
   it('shows rejection feedback with edit actions, requiring a material edit before resubmission', async () => {
     current.status = 3;
@@ -248,7 +271,7 @@ describe('Consultant review and submit', () => {
     renderPage();
     expect(await screen.findByText(/Review feedback: Please clarify/)).toBeVisible();
     expect(screen.getByRole('link', { name: 'Edit basic information' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Submit application' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Submit for review' })).not.toBeInTheDocument();
   });
   it('refetches on 409, resets consent and requires explicit review without retrying POST', async () => {
     request.mockImplementation((config) => {
@@ -260,11 +283,11 @@ describe('Consultant review and submit', () => {
     });
     renderPage();
     await consent();
-    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
     expect(await screen.findByText('Updated Consultant')).toBeVisible();
     expect(screen.getByText(/Your profile changed/)).toBeVisible();
     expect(screen.getByRole('checkbox', { name: /I agree/ })).not.toBeChecked();
-    expect(screen.getByRole('button', { name: 'Submit application' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeDisabled();
     expect(request.mock.calls.filter(([config]) => config.method === 'POST')).toHaveLength(1);
   });
   it.each([
@@ -283,9 +306,9 @@ describe('Consultant review and submit', () => {
     });
     renderPage();
     await consent();
-    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
     expect(await screen.findByText(expected)).toBeVisible();
-    expect(screen.queryByText('Application submitted — pending review')).not.toBeInTheDocument();
+    expect(screen.queryByText('Your consultant application is under review')).not.toBeInTheDocument();
     expect(screen.queryByText('private server details')).not.toBeInTheDocument();
   });
   it('does not treat malformed submission as success or allow blind retry', async () => {
@@ -294,9 +317,9 @@ describe('Consultant review and submit', () => {
     );
     renderPage();
     await consent();
-    fireEvent.click(screen.getByRole('button', { name: 'Submit application' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }));
     expect(await screen.findByText(/submission response was unexpected/)).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Submit application' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Reload profile' })).toBeVisible();
   });
   it('handles malformed loaded data safely', async () => {

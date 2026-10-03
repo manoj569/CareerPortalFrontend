@@ -38,6 +38,7 @@ import {
 } from '../api/onboardingApi';
 import { guidanceError, guidanceErrorMessage } from '../utils/errors';
 import { guidanceRoutes } from '../utils/routes';
+import { useAuthenticatedProfilePhoto } from '../hooks/useAuthenticatedProfilePhoto';
 
 interface ServiceDraft {
   key: string;
@@ -140,6 +141,7 @@ export default function ConsultantExpertiseServicesPage() {
   );
 
   const navigate = useNavigate();
+  const { photoUrl } = useAuthenticatedProfilePhoto();
 
   const {
     data: onboarding,
@@ -1044,7 +1046,7 @@ export default function ConsultantExpertiseServicesPage() {
 
             <Stack direction="row" spacing={1.5}>
               <Avatar
-                src={onboarding.profileImageUrl ?? undefined}
+                src={photoUrl ?? undefined}
                 sx={{ width: 64, height: 64 }}
               >
                 {initials}

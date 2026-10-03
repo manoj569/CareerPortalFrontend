@@ -4,9 +4,6 @@ import { plainText } from '../utils/presentation';
 
 export type FormValues = Record<string, string | number | boolean>;
 export interface GuidanceField { name: string; label: string; kind?: 'text' | 'number' | 'textarea' | 'checkbox' | 'select' | 'date' | 'time' | 'rating'; required?: boolean; maxLength?: number; min?: number; max?: number; step?: number; helper?: string; options?: { label: string; value: string | number }[]; }
-export const textValue = (values: FormValues, name: string) => String(values[name] ?? '').trim();
-export const numberValue = (values: FormValues, name: string) => Number(values[name]);
-export const optionalText = (values: FormValues, name: string) => textValue(values, name) || null;
 
 export const GuidanceForm = ({ fields, initial = {}, onSubmit, submitLabel = 'Save changes', busy = false, error, validate, disabled = false, onCancel }: {
   fields: GuidanceField[]; initial?: FormValues; onSubmit: (values: FormValues) => Promise<unknown>;

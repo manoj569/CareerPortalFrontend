@@ -184,9 +184,9 @@ describe('Screen 12 server-backed booking confirmation', () => {
     ).toBeInTheDocument();
     expect(await screen.findByText('Test Consultant')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Test Consultant' })).toHaveAttribute(
-      'src',
-      profile.profileImageUrl,
-    );
+  'src',
+  'http://localhost:5259/api/career-guidance/consultants/c1/photo',
+);
     expect(screen.getByText('Coach · Test company')).toBeInTheDocument();
     expect(screen.getByText('Approved by CareerHarbor')).toBeInTheDocument();
     expect(screen.getByText('4.5 / 5 · 2 reviews')).toBeInTheDocument();
@@ -331,8 +331,12 @@ describe('Screen 12 server-backed booking confirmation', () => {
     mount();
     fireEvent.click(await screen.findByRole('button', { name: 'Check meeting access' }));
     expect(await screen.findByText(/Meeting access is not available/)).toBeInTheDocument();
-    expect(screen.getByText('TC')).toBeInTheDocument();
-    expect(
+expect(
+  screen.getByRole('img', { name: 'Test Consultant' }),
+).toHaveAttribute(
+  'src',
+  'http://localhost:5259/api/career-guidance/consultants/c1/photo',);
+  expect(
       screen.queryByText(/Payment reference:|Paid:|reviews|Approved by/),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Join meeting' })).not.toBeInTheDocument();

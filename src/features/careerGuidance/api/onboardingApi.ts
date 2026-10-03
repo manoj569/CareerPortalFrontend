@@ -37,7 +37,7 @@ export type ConsultantAvailability = ConsultantAvailabilityResponse;
 export interface ConsultantOnboardingResponse {
   id: string;
   revision: string;
-  status: ConsultantVerificationStatus | 5;
+  status: ConsultantVerificationStatus;
 
   displayName: string;
   professionalHeadline: string;
@@ -115,7 +115,7 @@ export interface ConsultantPrivateResponse {
   userId: string;
   linkedInUrl: string;
 
-  verificationStatus: ConsultantVerificationStatus | 5;
+  verificationStatus: ConsultantVerificationStatus;
   verificationMethod: string | null;
   verificationReason: string | null;
 

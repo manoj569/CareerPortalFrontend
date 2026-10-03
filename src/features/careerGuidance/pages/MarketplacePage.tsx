@@ -27,8 +27,13 @@ import {
   VideocamOutlined,
 } from '@mui/icons-material';
 
+import { useAppSelector } from '@/hooks/reduxHooks';
+import { selectIsAuthenticated } from '@/features/auth/store/authSlice';
+import { useGetConsultantOnboardingQuery } from '../api/onboardingApi';
+import { consultantLifecycle } from '../utils/lifecycle';
 import { useGetConsultantsQuery } from '../api/profilesApi';
 import { guidanceErrorMessage } from '../utils/errors';
+import { publicConsultantPhotoUrl } from '../utils/publicConsultantPhoto';
 import { guidanceRoutes } from '../utils/routes';
 import { money } from '../utils/presentation';
 
@@ -74,6 +79,9 @@ const formatExperience = (years: number) => {
 };
 
 export const MarketplacePage = () => {
+  const authenticated = useAppSelector(selectIsAuthenticated);
+  const owner = useGetConsultantOnboardingQuery(undefined, { skip: !authenticated });
+  const lifecycle = consultantLifecycle(owner.data?.status);
   const [params, setParams] = useSearchParams();
 
   const page = Math.max(
@@ -272,7 +280,7 @@ export const MarketplacePage = () => {
 
             <Button
               component={Link}
-              to={guidanceRoutes.becomeConsultant}
+              to={lifecycle.destination}
               variant="outlined"
               size="large"
               endIcon={<ArrowForward />}
@@ -285,7 +293,7 @@ export const MarketplacePage = () => {
                 bgcolor: 'background.paper',
               }}
             >
-              Become a Consultant
+              {lifecycle.entryLabel}
             </Button>
           </Stack>
           <Box
@@ -681,6 +689,8 @@ export const MarketplacePage = () => {
                         alignItems="flex-start"
                       >
                         <Avatar
+                          alt={consultant.displayName}
+                          src={publicConsultantPhotoUrl(consultant.id)}
                           sx={{
                             width: 64,
                             height: 64,

@@ -38,6 +38,7 @@ import {
 } from '../api/onboardingApi';
 import { guidanceError, guidanceErrorMessage } from '../utils/errors';
 import { guidanceRoutes } from '../utils/routes';
+import { useAuthenticatedProfilePhoto } from '../hooks/useAuthenticatedProfilePhoto';
 
 interface ProfessionalForm {
   currentRole: string;
@@ -127,6 +128,7 @@ export default function ConsultantProfessionalDetailsPage() {
   );
 
   const navigate = useNavigate();
+  const { photoUrl } = useAuthenticatedProfilePhoto();
 
   const {
     data: onboarding,
@@ -1013,7 +1015,7 @@ export default function ConsultantProfessionalDetailsPage() {
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
             <Stack direction="row" spacing={1.5}>
               <Avatar
-                src={onboarding.profileImageUrl ?? undefined}
+                src={photoUrl ?? undefined}
                 sx={{ width: 64, height: 64 }}
               >
                 {initials}

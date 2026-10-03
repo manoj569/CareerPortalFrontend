@@ -5,8 +5,11 @@ import { CareerDisputeCategory, CareerPaymentStatus } from '../types';
 import { enumOptions } from '../utils/presentation';
 import { guidanceError } from '../utils/errors';
 import { useGuidanceAction } from '../hooks/useGuidanceAction';
-import { GuidanceForm, numberValue, textValue } from './GuidanceForm';
-import { GuidanceError, GuidanceLoading } from './GuidanceUI';
+import { GuidanceForm } from './GuidanceForm';
+import {
+  numberValue,
+  textValue,
+} from '../utils/formValues';import { GuidanceError, GuidanceLoading } from './GuidanceUI';
 import { DisputeDetail } from './DisputeDetail';
 
 export function BookingDispute({ bookingId }: { bookingId: string }) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -6,6 +6,7 @@ import {
   Button,
   CircularProgress,
   Divider,
+  IconButton,
   Paper,
   Stack,
   TextField,
@@ -25,6 +26,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { apiClient } from '@/api/apiClient';
+import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import {
   useGetConsultantOnboardingQuery,
   useSaveConsultantOnboardingBasicMutation,
@@ -146,6 +149,66 @@ export default function ConsultantBasicInformationPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [hydratedRevision, setHydratedRevision] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const photoUrlRef = useRef<string | null>(null);
+  const photoMounted = useRef(false);
+  const photoRequest = useRef(0);
+  const photoUploadPending = useRef(false);
+
+  const loadPhoto = useCallback(async () => {
+    const requestId = ++photoRequest.current;
+    const response = await apiClient.request<Blob>({
+      method: 'GET', responseType: 'blob', url: API_ENDPOINTS.CANDIDATE.PROFILE_PHOTO,
+    });
+    if (!photoMounted.current || requestId !== photoRequest.current) return;
+    const nextUrl = URL.createObjectURL(response.data);
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    photoUrlRef.current = nextUrl;
+    setPhotoUrl(nextUrl);
+  }, []);
+
+  useEffect(() => {
+    photoMounted.current = true;
+    void loadPhoto().catch(() => {
+      // A candidate without a photo keeps the existing initials placeholder.
+    });
+    return () => {
+      photoMounted.current = false;
+      photoRequest.current += 1;
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+      photoUrlRef.current = null;
+    };
+  }, [loadPhoto]);
+
+  const uploadPhoto = async (file: File | undefined) => {
+    if (!file || photoUploadPending.current) return;
+    setPhotoError(null);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setPhotoError('Choose a JPEG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setPhotoError('Profile photo must be no larger than 1 MB.');
+      return;
+    }
+    photoUploadPending.current = true;
+    setIsUploadingPhoto(true);
+    try {
+      const data = new FormData();
+      data.append('file', file);
+      await apiClient.request({ method: 'PUT', data, url: API_ENDPOINTS.CANDIDATE.PROFILE_PHOTO });
+      await loadPhoto();
+      window.dispatchEvent(new Event('careerharbor:profile-photo-changed'));
+    } catch {
+      if (photoMounted.current) setPhotoError('Unable to update your profile photo. Please try again.');
+    } finally {
+      photoUploadPending.current = false;
+      if (photoMounted.current) setIsUploadingPhoto(false);
+    }
+  };
 
   const startAttempt = useRef<Promise<unknown> | null>(null);
   const loadStatus = guidanceError(loadError).status;
@@ -601,10 +664,10 @@ export default function ConsultantBasicInformationPage() {
                   border: '1px solid #e1e6ef',
                 }}
               >
-                {onboarding.profileImageUrl ? (
+                {photoUrl ? (
                   <Box
                     component="img"
-                    src={onboarding.profileImageUrl}
+                    src={photoUrl}
                     alt="Consultant profile"
                     sx={{
                       width: '100%',
@@ -634,7 +697,10 @@ export default function ConsultantBasicInformationPage() {
                   </Box>
                 )}
 
-                <Box
+                <IconButton
+                  aria-label="Upload profile photo"
+                  disabled={isUploadingPhoto}
+                  onClick={() => photoInput.current?.click()}
                   sx={{
                     position: 'absolute',
                     right: 12,
@@ -651,14 +717,28 @@ export default function ConsultantBasicInformationPage() {
                   }}
                 >
                   <CameraAltOutlined />
-                </Box>
+                </IconButton>
               </Box>
+
+              <input
+                ref={photoInput}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                aria-label="Profile photo file"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.item(0) ?? undefined;
+                  event.currentTarget.value = '';
+                  void uploadPhoto(file);
+                }}
+              />
 
               <Button
                 fullWidth
                 variant="outlined"
                 startIcon={<CameraAltOutlined />}
-                disabled
+                disabled={isUploadingPhoto}
+                onClick={() => photoInput.current?.click()}
                 sx={{
                   maxWidth: 245,
                   mt: 2,
@@ -668,7 +748,7 @@ export default function ConsultantBasicInformationPage() {
                   fontWeight: 750,
                 }}
               >
-                Upload photo
+                {isUploadingPhoto ? 'Uploading…' : photoUrl ? 'Replace photo' : 'Upload photo'}
               </Button>
 
               <Typography
@@ -681,8 +761,9 @@ export default function ConsultantBasicInformationPage() {
                   color: '#7180a0',
                 }}
               >
-                JPG, PNG
+                JPEG, PNG, or WebP. Maximum file size 1 MB.
               </Typography>
+              {photoError && <Alert severity="error" sx={{ mt: 1, maxWidth: 245 }}>{photoError}</Alert>}
             </Box>
 
             {/* Fields */}
@@ -985,7 +1066,7 @@ export default function ConsultantBasicInformationPage() {
 
             <Stack direction="row" spacing={1.5}>
               <Avatar
-                src={onboarding.profileImageUrl ?? undefined}
+                src={photoUrl ?? undefined}
                 sx={{
                   width: 62,
                   height: 62,

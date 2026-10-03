@@ -4,11 +4,18 @@ import { sessionExpired } from '@/features/auth/store/authSlice';
 import type { ApiResponse } from '@/types';
 
 const baseQuery = axiosBaseQuery();
+
+type CareerGuidanceBaseQueryArgs = Parameters<typeof baseQuery>[0];
+
 export const careerGuidanceApi = createApi({
   reducerPath: 'careerGuidanceApi',
-  baseQuery: async (args, api) => {
+  baseQuery: async (args: CareerGuidanceBaseQueryArgs, api) => {
     const result = await baseQuery(args, api);
-    if (result.error?.status === 401) api.dispatch(sessionExpired());
+
+    if (result.error?.status === 401) {
+      api.dispatch(sessionExpired());
+    }
+
     return result;
   },
   keepUnusedDataFor: 0,
@@ -17,13 +24,33 @@ export const careerGuidanceApi = createApi({
   tagTypes: ['Career'],
   endpoints: () => ({}),
 });
+
 export const unwrap = <T>(response: ApiResponse<T>): T => response.data;
+
 export const CG = '/career-guidance';
 export const ADMIN_CG = '/admin/career-guidance';
+
 export const segment = (id: string) => encodeURIComponent(id);
+
 export type Audience = 'candidate' | 'consultant' | 'admin';
-export const bookingPath = (audience: Audience, id = '') => `${audience === 'admin' ? ADMIN_CG : CG}/${audience === 'consultant' ? 'me/' : ''}bookings${id ? `/${segment(id)}` : ''}`;
-export const sessionPath = (audience: Audience, id: string) => audience === 'candidate'
-  ? `${CG}/bookings/${segment(id)}/session`
-  : `${audience === 'admin' ? ADMIN_CG : `${CG}/me`}/sessions/${segment(id)}`;
-export const disputePath = (audience: Audience, id: string) => `${audience === 'admin' ? ADMIN_CG : audience === 'consultant' ? `${CG}/me` : CG}/disputes/${segment(id)}`;
+
+export const bookingPath = (audience: Audience, id = '') =>
+  `${audience === 'admin' ? ADMIN_CG : CG}/${
+    audience === 'consultant' ? 'me/' : ''
+  }bookings${id ? `/${segment(id)}` : ''}`;
+
+export const sessionPath = (audience: Audience, id: string) =>
+  audience === 'candidate'
+    ? `${CG}/bookings/${segment(id)}/session`
+    : `${
+        audience === 'admin' ? ADMIN_CG : `${CG}/me`
+      }/sessions/${segment(id)}`;
+
+export const disputePath = (audience: Audience, id: string) =>
+  `${
+    audience === 'admin'
+      ? ADMIN_CG
+      : audience === 'consultant'
+        ? `${CG}/me`
+        : CG
+  }/disputes/${segment(id)}`;

@@ -32,6 +32,7 @@ import {
 } from '../components/GuidanceUI';
 import { CareerProfessionalType } from '../types';
 import { enumLabel, money } from '../utils/presentation';
+import { publicConsultantPhotoUrl } from '../utils/publicConsultantPhoto';
 import { guidanceRoutes } from '../utils/routes';
 import { isGuid } from '@/features/payments/utils/paymentReturnUrl';
 
@@ -216,7 +217,7 @@ export const ConsultantPublicPage = () => {
             >
               <Avatar
                 alt={consultant.displayName}
-                src={consultant.profileImageUrl || undefined}
+                src={publicConsultantPhotoUrl(consultant.id)}
                 sx={{
                   bgcolor: 'primary.main',
                   fontSize: 30,

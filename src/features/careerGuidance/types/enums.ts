@@ -1,6 +1,6 @@
 // Numeric enum contracts verified against backend domain entities.
 export enum CareerProfessionalType { CurrentEmployee = 1, FormerEmployee, Recruiter, HiringManager, CareerCoach }
-export enum ConsultantVerificationStatus { Pending = 1, Verified, Rejected, Suspended }
+export enum ConsultantVerificationStatus { Pending = 1, Verified, Rejected, Suspended, Draft = 5 }
 export enum ConsultantTagKind { Language = 1, Expertise }
 export enum CareerPaymentStatus { Created = 1, OrderCreated, Authorized, Captured, RefundPending, Refunded }
 export enum CareerEarningStatus { Pending = 1, Payable, Settled, Reversed }
