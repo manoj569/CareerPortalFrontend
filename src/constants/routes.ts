@@ -21,6 +21,7 @@ export const ROUTES = {
   ONBOARDING: '/onboarding',
   DASHBOARD: '/dashboard',
   DASHBOARD_JOBS: '/dashboard/jobs',
+  DASHBOARD_JOB_DETAILS: '/dashboard/jobs/:slug',
   REFER_A_JOB: '/dashboard/refer-a-job',
   REFERRALS: '/dashboard/referrals',
   REFERRAL_CONTACT_DETAILS: '/dashboard/jobs/referral/:jobId/contact',
@@ -82,6 +83,9 @@ export const ROUTES = {
 
 export const buildJobDetailsPath = (slug: string): string =>
   ROUTES.JOB_DETAILS.replace(':slug', encodeURIComponent(slug));
+
+export const buildDashboardJobDetailsPath = (slug: string): string =>
+  ROUTES.DASHBOARD_JOB_DETAILS.replace(':slug', encodeURIComponent(slug));
 
 export const buildReferralContactDetailsPath = (jobId: string): string =>
   ROUTES.REFERRAL_CONTACT_DETAILS.replace(':jobId', encodeURIComponent(jobId));

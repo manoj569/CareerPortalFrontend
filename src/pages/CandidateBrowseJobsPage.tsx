@@ -269,25 +269,37 @@ export const CandidateBrowseJobsPage = () => {
 
   });
 
-  const isResumeReady = resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Ready;
+  const isResumeReady =
+  resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Ready;
 
-  const isRecommended = requestedTab === 'recommended' && isResumeReady;
+// Resume Matches page should be accessible even when the user
+// has not uploaded a resume yet.
+const isRecommended = requestedTab === 'recommended';
 
-  const activeTab: CandidateBrowseTab =
+// Never force Resume Matches back to All Jobs.
+// This allows the existing ResumeRecommendationCard to show
+// upload / processing / failed / ready states.
+const activeTab: CandidateBrowseTab = requestedTab;
 
-    requestedTab === 'recommended' && !isResumeReady ? 'all' : requestedTab;
+const isReferralTab = activeTab === 'referral';
 
-  const isReferralTab = activeTab === 'referral';
+// Normal job search should not run while viewing Resume Matches
+// or Referral Jobs.
+const jobs = useSearchJobsQuery(query, {
+  skip: isRecommended || isReferralTab,
+});
 
-  const jobs = useSearchJobsQuery(query, { skip: isRecommended || isReferralTab });
-
-  const recommended = useGetRecommendedJobsQuery(
-
-    { pageNumber: state.page, pageSize: 20 },
-
-    { skip: !isRecommended },
-
-  );
+// Only fetch AI resume-matched jobs after resume extraction
+// has successfully completed.
+const recommended = useGetRecommendedJobsQuery(
+  {
+    pageNumber: state.page,
+    pageSize: 20,
+  },
+  {
+    skip: !isRecommended || !isResumeReady,
+  },
+);
 
   const filterOptions = useGetJobFilterOptionsQuery(
 
@@ -606,26 +618,50 @@ export const CandidateBrowseJobsPage = () => {
 
 
   const sourceJobs = isRecommended
-
+  ? isResumeReady
     ? recommended.data?.items.map(toJobSummary)
+    : undefined
+  : jobs.data?.items;
 
-    : jobs.data?.items;
+const displayedJobs = sourceJobs?.filter(
+  (job) => !appliedJobIds.has(job.id),
+);
 
-  const displayedJobs = sourceJobs?.filter((job) => !appliedJobIds.has(job.id));
+const removedFromPage =
+  sourceJobs?.filter((job) => appliedJobIds.has(job.id)).length ?? 0;
 
-  const removedFromPage = sourceJobs?.filter((job) => appliedJobIds.has(job.id)).length ?? 0;
+const sourceTotal = isRecommended
+  ? isResumeReady
+    ? recommended.data?.totalCount
+    : undefined
+  : jobs.data?.totalCount;
 
-  const sourceTotal = isRecommended ? recommended.data?.totalCount : jobs.data?.totalCount;
+const displayedTotal =
+  sourceTotal === undefined
+    ? undefined
+    : Math.max(0, sourceTotal - removedFromPage);
 
-  const displayedTotal = sourceTotal === undefined ? undefined : Math.max(0, sourceTotal - removedFromPage);
+const displayedPages =
+  isRecommended && isResumeReady
+    ? recommended.data?.totalPages
+    : isRecommended
+      ? undefined
+      : jobs.data?.totalPages;
 
-  const displayedPages = isRecommended ? recommended.data?.totalPages : jobs.data?.totalPages;
+const resultsLoading =
+  isRecommended
+    ? isResumeReady && recommended.isLoading
+    : jobs.isLoading;
 
-  const resultsLoading = isRecommended ? recommended.isLoading : jobs.isLoading;
+const resultsError =
+  isRecommended
+    ? isResumeReady && recommended.isError
+    : jobs.isError;
 
-  const resultsError = isRecommended ? recommended.isError : jobs.isError;
-
-  const refetchResults = isRecommended ? recommended.refetch : jobs.refetch;
+const refetchResults =
+  isRecommended
+    ? recommended.refetch
+    : jobs.refetch;
 
 
 
@@ -755,11 +791,10 @@ export const CandidateBrowseJobsPage = () => {
           />
         ) : null}
 
-        <JobModeTabs
-          mode={activeTab}
-          onChange={setTab}
-          resumeMatchesEnabled={isResumeReady}
-        />
+     <JobModeTabs
+  mode={activeTab}
+  onChange={setTab}
+/>
 
         {isRecommended ? (
           <ResumeRecommendationCard
@@ -879,8 +914,8 @@ export const CandidateBrowseJobsPage = () => {
                 ) : null}
               </Stack>
 
-              {resultsLoading ? (
-                <PageLoadingIndicator label="Loading Candidate jobs" />
+{isRecommended && !isResumeReady ? null : resultsLoading ? (
+                  <PageLoadingIndicator label="Loading Candidate jobs" />
               ) : resultsError ? (
                 <ErrorState onRetry={() => void refetchResults()} title="Jobs unavailable" />
               ) : displayedJobs?.length ? (

@@ -17,6 +17,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import { apiClient } from '@/api/apiClient';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
+import { SupportDialog } from '@/features/support/SupportDialog';
+import { supportRoutes, type SupportCategory } from '@/features/support/supportApi';
 
 interface CandidateAccountMenuProps {
   email?: string;
@@ -41,6 +43,8 @@ export const CandidateAccountMenu = ({
 }: CandidateAccountMenuProps) => {
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
   const location = useLocation();
+  const [supportOpen, setSupportOpen] = useState(false);
+  const supportCategory: SupportCategory | undefined = location.pathname.includes('payment') ? 'Payment' : location.pathname.includes('membership') ? 'Membership' : location.pathname.includes('referral') || location.search.includes('referral') ? 'Referral' : location.pathname.includes('interview-insights') ? 'InterviewInsights' : location.pathname.includes('jobs') || location.pathname.includes('applications') ? 'JobApplication' : undefined;
   const fullName = [firstName?.trim(), lastName?.trim()].filter(Boolean).join(' ');
   const open = Boolean(anchorElement);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -126,11 +130,14 @@ export const CandidateAccountMenu = ({
           <ListItemIcon><SettingsOutlinedIcon fontSize="small" /></ListItemIcon>
           Settings
         </MenuItem>
+        <MenuItem onClick={() => { closeMenu(); setSupportOpen(true); }}>Help & Support</MenuItem>
+        <MenuItem component={Link} onClick={closeMenu} to={supportRoutes.tickets}>My Support Requests</MenuItem>
         <MenuItem onClick={handleLogout}>
           <ListItemIcon><LogoutOutlinedIcon fontSize="small" /></ListItemIcon>
           Log out
         </MenuItem>
       </Menu>
+      {supportOpen && <SupportDialog open onClose={() => setSupportOpen(false)} initialCategory={supportCategory} />}
     </>
   );
 };

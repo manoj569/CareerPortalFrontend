@@ -9,6 +9,8 @@ export const DEFAULT_APPLICATION_ERROR_MESSAGE =
   'We could not process your application. Please try again.';
 
 export type ApplicationFailure =
+  | { kind: 'monthly' }
+  | { kind: 'daily' }
   | { kind: 'duplicate'; message: string }
   | { kind: 'membership' }
   | { kind: 'message'; message: string };
@@ -17,18 +19,22 @@ const includesAny = (value: string, fragments: readonly string[]): boolean =>
   fragments.some((fragment) => value.includes(fragment));
 
 export const getApplicationFailure = (error: unknown): ApplicationFailure => {
-  if (!error || typeof error !== 'object' || !('message' in error)) {
+  if (!error || typeof error !== 'object') {
     return { kind: 'message', message: DEFAULT_APPLICATION_ERROR_MESSAGE };
   }
 
   const apiError = error as AxiosBaseQueryError;
   const code = apiError.code?.trim().toLowerCase() ?? '';
   const message = typeof apiError.message === 'string' ? apiError.message.trim() : '';
+  if (code === 'monthly_job_limit_reached') return { kind: 'monthly' };
+  if (code === 'daily_job_limit_reached') return { kind: 'daily' };
   const normalizedMessage = message.toLowerCase();
 
+  if (['daily_application_limit', 'premium_daily_limit'].includes(code)) return { kind: 'daily' };
+  if (apiError.status === 429) return { kind: 'message', message: PREMIUM_DAILY_LIMIT_MESSAGE };
+
   const isDailyLimit =
-    apiError.status === 429 ||
-    includesAny(code, ['daily_application_limit', 'premium_daily_limit']) ||
+    !code && (apiError.status === 403 || apiError.status === 409) &&
     includesAny(normalizedMessage, [
       "today's limit of 35",
       'today’s limit of 35',
@@ -38,7 +44,7 @@ export const getApplicationFailure = (error: unknown): ApplicationFailure => {
     ]);
 
   if (isDailyLimit) {
-    return { kind: 'message', message: PREMIUM_DAILY_LIMIT_MESSAGE };
+    return { kind: 'daily' };
   }
 
   const isDuplicate =

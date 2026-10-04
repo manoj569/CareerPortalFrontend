@@ -25,6 +25,8 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { ConsultantWorkspaceGate } from '@/features/careerGuidance/components/ConsultantWorkspaceGate';
 
 import { GuestRoute } from './GuestRoute';
+import { supportRoutes } from '@/features/support/supportApi';
+import { adminSupportRoutes } from '@/features/support/admin/adminSupportApi';
 
 type PageImport = Promise<Record<string, ComponentType>>;
 
@@ -315,6 +317,13 @@ export const appRoutes: RouteObject[] = [
                 ),
 
               },
+              {
+  path: ROUTES.DASHBOARD_JOB_DETAILS,
+  element: lazyPage(
+    () => import('@/pages/JobDetailsPage'),
+    'JobDetailsPage',
+  ),
+},
 
               {
 
@@ -783,6 +792,8 @@ export const appRoutes: RouteObject[] = [
         element: <ProtectedRoute />,
 
         children: [{ element: <UserDashboardLayout />, children: [
+          { path: supportRoutes.tickets, element: lazyPage(() => import('@/features/support/MySupportTicketsPage'), 'MySupportTicketsPage') },
+          { path: supportRoutes.detail, element: lazyPage(() => import('@/features/support/MySupportTicketsPage'), 'MySupportTicketsPage') },
 
           { path: '/career-guidance/become-consultant', element: lazyPage(() => import('@/features/careerGuidance/pages/BecomeConsultantPage'), 'default') },
 
@@ -1186,6 +1197,14 @@ export const appRoutes: RouteObject[] = [
 
               {
 
+                path: adminSupportRoutes.list,
+                element: lazyPage(() => import('@/features/support/admin/AdminSupportTicketsPage'), 'AdminSupportTicketsPage'),
+              },
+              {
+                path: adminSupportRoutes.detail,
+                element: lazyPage(() => import('@/features/support/admin/AdminSupportTicketDetailsPage'), 'AdminSupportTicketDetailsPage'),
+              },
+              {
                 path: ROUTES.ADMIN_AUDIT_LOGS,
 
                 element: lazyPage(

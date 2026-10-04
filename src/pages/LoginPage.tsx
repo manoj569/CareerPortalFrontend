@@ -1,3 +1,4 @@
+import { SupportButton } from '@/features/support/SupportButton';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
   Alert,
@@ -143,6 +144,7 @@ export const LoginPage = () => {
         </Button>
       </Stack>
 
+      <Stack alignItems="center" spacing={0.5}><Typography variant="body2" color="text.secondary">Having trouble signing in?</Typography><SupportButton initialCategory="Login" /></Stack>
       <Divider aria-label="OR" sx={controlSx}>OR</Divider>
       <Stack sx={controlSx}><GoogleAuthorizationCodeButton disabled={isSubmitting || isGoogleSubmitting} onCode={(code) => { void submitGoogleLogin(code); }} onPopupError={setServerError} /></Stack>
 

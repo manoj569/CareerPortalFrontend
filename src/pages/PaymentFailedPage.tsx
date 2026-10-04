@@ -1,4 +1,6 @@
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { SupportButton } from '@/features/support/SupportButton';
+import { Stack } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 import { Navigate, useSearchParams } from 'react-router-dom';
@@ -59,6 +61,7 @@ export const PaymentFailedPage = () => {
       : null;
 
   return (
+    <Stack spacing={2}>
     <PaymentResult
       actions={[
         pendingPath
@@ -74,5 +77,7 @@ export const PaymentFailedPage = () => {
       reference={isGuid(paymentId) ? paymentId : undefined}
       title="Payment not completed"
     />
+    <SupportButton initialCategory="Payment" sx={{ alignSelf: 'center' }} />
+    </Stack>
   );
 };

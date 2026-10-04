@@ -572,7 +572,7 @@ describe('job details page', () => {
     },
   );
 
-  it('redirects a free Candidate to membership when the monthly quota is exhausted', async () => {
+  it('opens the upgrade dialog for a free Candidate to membership when the monthly quota is exhausted', async () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
     submitApplicationUnwrap.mockRejectedValue({
       code: 'MONTHLY_JOB_LIMIT_REACHED',
@@ -586,6 +586,9 @@ describe('job details page', () => {
     const { router } = renderDetailsPage(authenticated);
     await clickManualApply();
 
+    expect(await screen.findByRole('dialog', { name: 'Unlock more job applications' })).toBeVisible();
+    expect(screen.queryByText('Membership destination')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Upgrade to Premium' }));
     expect(await screen.findByText('Membership destination')).toBeVisible();
     expect(router.state.location.pathname).toBe(ROUTES.MEMBERSHIP);
     expect(router.state.location.search).toContain('returnTo=');
@@ -593,7 +596,7 @@ describe('job details page', () => {
     open.mockRestore();
   });
 
-  it('redirects before submitting or opening a tab when the quota endpoint reports 10 free applications used', async () => {
+  it('opens the upgrade dialog before submitting or opening a tab when the quota endpoint reports 10 free applications used', async () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
     mockApplicationQuota.mockReturnValue({
       data: {
@@ -611,6 +614,9 @@ describe('job details page', () => {
     const { router } = renderDetailsPage(authenticated);
     await clickManualApply();
 
+    expect(await screen.findByRole('dialog', { name: 'Unlock more job applications' })).toBeVisible();
+    expect(screen.queryByText('Membership destination')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Upgrade to Premium' }));
     expect(await screen.findByText('Membership destination')).toBeVisible();
     expect(submitApplication).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
@@ -621,7 +627,7 @@ describe('job details page', () => {
   it('shows the premium daily-limit message and stays on the job page', async () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
     submitApplicationUnwrap.mockRejectedValue({
-      code: 'premium_daily_limit',
+      code: 'DAILY_JOB_LIMIT_REACHED',
       message: 'Too many requests.',
       status: 429,
     });
@@ -632,7 +638,7 @@ describe('job details page', () => {
 
     expect(
       await screen.findByText(
-        'Applications are temporarily limited. You can still save jobs and try applying again later.',
+        "You've reached your 35-job application limit for today.",
       ),
     ).toBeVisible();
     expect(router.state.location.pathname).toBe(`/jobs/${job.slug}`);

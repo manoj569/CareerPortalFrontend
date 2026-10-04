@@ -16,7 +16,12 @@ import { readResumeMatch } from '@/features/jobs/utils/resumeMatch';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { buildInterviewInsightsPath, buildJobDetailsPath, ROUTES } from '@/constants/routes';
+import {
+  buildDashboardJobDetailsPath,
+  buildInterviewInsightsPath,
+  buildJobDetailsPath,
+  ROUTES,
+} from '@/constants/routes';
 import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
 import { ApplicationQuotaIndicator } from '@/features/dashboard/components/ApplicationQuotaIndicator';
 import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
@@ -171,8 +176,11 @@ const RelatedJobCard = ({ job, returnPath }: RelatedJobCardProps) => {
             component={Link}
             size="small"
             state={{ jobsPath: returnPath }}
-            to={buildJobDetailsPath(job.slug)}
-          >
+to={
+  returnPath.startsWith(ROUTES.DASHBOARD)
+    ? buildDashboardJobDetailsPath(job.slug)
+    : buildJobDetailsPath(job.slug)
+}          >
             View job
           </Button>
           <SaveJobButton jobId={job.id} jobTitle={job.title} />

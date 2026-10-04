@@ -15,7 +15,11 @@ import {
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-import { buildJobDetailsPath } from '@/constants/routes';
+import {
+  buildDashboardJobDetailsPath,
+  buildJobDetailsPath,
+  ROUTES,
+} from '@/constants/routes';
 import {
   getCompanyTypeLabel,
   getEmploymentTypeLabel,
@@ -55,6 +59,11 @@ export const JobCard = ({
     job.minimumExperienceYears,
     job.maximumExperienceYears,
   );
+
+  const jobDetailsPath =
+  returnPath?.startsWith(ROUTES.DASHBOARD)
+    ? buildDashboardJobDetailsPath(job.slug)
+    : buildJobDetailsPath(job.slug);
 
   return (
     <Card component="article" sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, height: compact ? 'auto' : '100%' }}>
@@ -148,7 +157,7 @@ export const JobCard = ({
           aria-label={`${viewActionLabel} for ${job.title} at ${job.companyName}`}
           component={Link}
           state={{ jobsPath: returnPath, jobsSearch: returnSearch, ...(match ? { recommendedJobId: job.id, resumeMatch: match } : {}) }}
-          to={buildJobDetailsPath(job.slug)}
+to={jobDetailsPath}
           variant="outlined"
         >
           {viewActionLabel}

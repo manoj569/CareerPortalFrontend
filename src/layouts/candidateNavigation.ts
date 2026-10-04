@@ -2,7 +2,6 @@ import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
-import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
@@ -47,11 +46,6 @@ export const candidateNavigationItems: NavigationItem[] = [
     preserveCurrentLocation: true,
   },
   {
-    label: 'Career Guidance',
-    path: ROUTES.CAREER_GUIDANCE,
-    icon: PsychologyOutlinedIcon,
-  },
-  {
     label: 'Portfolio',
     path: ROUTES.PORTFOLIO,
     icon: WebOutlinedIcon,
@@ -61,7 +55,6 @@ export const candidateNavigationItems: NavigationItem[] = [
     path: ROUTES.MEMBERSHIP,
     icon: WorkspacePremiumOutlinedIcon,
   },
- 
   {
     label: 'Settings',
     path: ROUTES.SETTINGS,

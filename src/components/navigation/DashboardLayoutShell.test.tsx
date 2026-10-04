@@ -186,6 +186,8 @@ describe('Candidate workspace shell', () => {
     ).toEqual([
       expect.stringContaining('Profile'),
       expect.stringContaining('Settings'),
+      expect.stringContaining('Help & Support'),
+      expect.stringContaining('My Support Requests'),
       expect.stringContaining('Log out'),
     ]);
   });

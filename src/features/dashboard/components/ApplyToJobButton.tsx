@@ -1,3 +1,4 @@
+import { ApplicationQuotaDialog } from './ApplicationQuotaDialog';
 import CheckOutlinedIcon from '@mui/icons-material/CheckOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import {
@@ -24,7 +25,6 @@ import { getSafeExternalUrl } from '@/utils/safeExternalUrl';
 import { useGetApplicationQuotaQuery, useSubmitApplicationMutation } from '../api/dashboardApi';
 import {
   getApplicationFailure,
-  PREMIUM_DAILY_LIMIT_MESSAGE,
 } from '../utils/applicationError';
 
 const APPLICATION_OPENED_MESSAGE = 'Opening the employer’s official application page in a new tab.';
@@ -73,6 +73,7 @@ export const ApplyToJobButton = ({
   const quota = useGetApplicationQuotaQuery(undefined, {
     skip: !isAuthenticated || user?.role !== UserRole.Candidate,
   });
+  const [quotaDialog, setQuotaDialog] = useState<'monthly' | 'daily' | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [isResolvingUrl, setIsResolvingUrl] = useState(false);
   const [isApplied, setIsApplied] = useState(false);
@@ -98,11 +99,8 @@ export const ApplyToJobButton = ({
 
     setFeedback(null);
     if (quota.data && quota.data.remainingApplications <= 0) {
-      if (quota.data.isPremium) {
-        setFeedback({ message: PREMIUM_DAILY_LIMIT_MESSAGE, severity: 'error' });
-      } else {
-        await navigate(buildMembershipPath(jobSlug));
-      }
+      setConfirmOpen(false);
+      setQuotaDialog(quota.data.isPremium ? 'daily' : 'monthly');
       return;
     }
 
@@ -143,6 +141,11 @@ export const ApplyToJobButton = ({
     } catch (error: unknown) {
       setIsResolvingUrl(false);
       const failure = getApplicationFailure(error);
+      if (failure.kind === 'monthly' || failure.kind === 'daily') {
+        setConfirmOpen(false);
+        setQuotaDialog(failure.kind);
+        return;
+      }
       if (failure.kind === 'membership') {
         await navigate(buildMembershipPath(jobSlug));
         return;
@@ -162,6 +165,7 @@ export const ApplyToJobButton = ({
 
   return (
     <>
+      <ApplicationQuotaDialog kind={quotaDialog} resetsAtUtc={quota.data?.resetsAtUtc} onClose={() => setQuotaDialog(null)} onUpgrade={() => { void navigate(buildMembershipPath(jobSlug)); }} />
       <Button
         sx={hideTrigger ? { display: 'none' } : undefined}
         aria-busy={isPending}

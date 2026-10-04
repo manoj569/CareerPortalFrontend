@@ -1,3 +1,4 @@
+import { SupportButton } from '@/features/support/SupportButton';
 import BusinessCenterOutlinedIcon from '@mui/icons-material/BusinessCenterOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
@@ -495,6 +496,8 @@ export const RegisterPage = () => {
                       .
                     </Typography>
                     {!googleAccountConflict && googleButton}
+                    <Typography color="text.secondary" variant="body2">Having trouble creating your account?</Typography>
+                    <SupportButton initialCategory="Registration" />
                   </Stack>
                 </>
               )}

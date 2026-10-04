@@ -13,13 +13,11 @@ export type CandidateBrowseTab =
 interface JobModeTabsProps {
   mode: CandidateBrowseTab;
   onChange: (mode: CandidateBrowseTab) => void;
-  resumeMatchesEnabled: boolean;
 }
 
 export const JobModeTabs = ({
   mode,
   onChange,
-  resumeMatchesEnabled,
 }: JobModeTabsProps) => (
   <Paper
     component="section"
@@ -83,10 +81,9 @@ export const JobModeTabs = ({
       />
 
       <Tab
-        disabled={!resumeMatchesEnabled}
-        label="Resume matches"
-        value="recommended"
-      />
+  label="Resume matches"
+  value="recommended"
+/>
 
       <Tab label="Internships" value="internships" />
 

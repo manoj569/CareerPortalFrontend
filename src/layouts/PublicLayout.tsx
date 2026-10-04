@@ -1,3 +1,4 @@
+import { SupportButton } from '@/features/support/SupportButton';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
@@ -296,6 +297,7 @@ export const PublicLayout = () => {
                 ]}
                 title="Legal"
               />
+              <SupportButton color="inherit" sx={{ color: 'rgba(255,255,255,.68)', justifyContent: 'flex-start', mt: 1, p: 0 }}>Help & Support</SupportButton>
               <CookieSettingsButton
                 color="inherit"
                 sx={{ color: 'rgba(255,255,255,.68)', justifyContent: 'flex-start', mt: 1, p: 0 }}
