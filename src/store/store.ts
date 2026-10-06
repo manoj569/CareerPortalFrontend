@@ -21,9 +21,11 @@ import { adminAIApplyApi } from '@/features/admin/aiApply/api/adminAIApplyApi';
 import { referralsApi } from '@/features/referrals/api/referralsApi';
 import { UserRole } from '@/types';
 import { careerGuidanceApi } from '@/features/careerGuidance/api/careerGuidanceApi';
+import { aiResumeApi } from '@/features/aiResume/api/aiResumeApi';
 
 const rootReducer = combineReducers({
   auth: authReducer,
+  [aiResumeApi.reducerPath]: aiResumeApi.reducer,
   [careerGuidanceApi.reducerPath]: careerGuidanceApi.reducer,
   [jobsApi.reducerPath]: jobsApi.reducer,
   [dashboardApi.reducerPath]: dashboardApi.reducer,
@@ -43,6 +45,7 @@ privateCacheListener.startListening({
     // Clear them on logout, expiry, or a changed account/role, including demotion.
     const previousAuth = (listenerApi.getOriginalState() as { auth: { user: { id: string; role: UserRole } | null } }).auth;
     if (!sessionRefreshed.match(action) || previousAuth.user?.id !== action.payload?.user?.id || previousAuth.user?.role !== action.payload?.user?.role) {
+      listenerApi.dispatch(aiResumeApi.util.resetApiState());
       listenerApi.dispatch(careerGuidanceApi.util.resetApiState());
       listenerApi.dispatch(referralsApi.util.resetApiState());
     }
@@ -99,6 +102,7 @@ export const createAppStore = (preloadedState?: Partial<RootState>) =>
           adminAIApplyApi.middleware,
           referralsApi.middleware,
           careerGuidanceApi.middleware,
+          aiResumeApi.middleware,
         ),
   });
 

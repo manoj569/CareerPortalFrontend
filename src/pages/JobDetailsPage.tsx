@@ -1,4 +1,5 @@
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { ResumeWorkflow } from '@/features/aiResume/components/ResumeWorkflow';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
@@ -191,6 +192,7 @@ to={
 };
 
 export const JobDetailsPage = () => {
+  const [resumeTailorOpen, setResumeTailorOpen] = useState(false);
   const { slug = '' } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -437,6 +439,14 @@ export const JobDetailsPage = () => {
               />
             </Stack>
 
+      {currentUser?.role === UserRole.Candidate && (
+        <Stack alignItems="flex-end">
+          <Button variant="outlined" sx={{ color: '#0655fa', borderColor: '#bcb5ff', bgcolor: '#f6f3ff' }} onClick={() => setResumeTailorOpen(true)}>✨ Tailor Resume for This Job</Button>
+          <Dialog open={resumeTailorOpen} onClose={() => setResumeTailorOpen(false)} fullWidth maxWidth="xl" slotProps={{ paper: { 'aria-label': 'AI Resume Tailor' } }}>
+            {resumeTailorOpen && <ResumeWorkflow job={{ id: job.id, title: job.title, companyName: job.companyName, location: job.location, slug: job.slug }} onClose={() => setResumeTailorOpen(false)} />}
+          </Dialog>
+        </Stack>
+      )}
             {currentUser?.role === UserRole.Administrator ? (
               <Alert id="application-action-help" severity="info">
                 Administrator accounts cannot apply for jobs.
@@ -453,6 +463,8 @@ export const JobDetailsPage = () => {
           </Stack>
         </Stack>
       </Paper>
+
+
 
       <Box
         sx={{

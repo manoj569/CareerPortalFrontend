@@ -284,7 +284,7 @@ export const PaymentPage = () => {
 
   const [searchParams] = useSearchParams();
 
-  const safeReturnTo = getSafeMembershipReturnTo(searchParams.get('returnTo'));
+  const safeReturnTo = getSafeMembershipReturnTo(searchParams.get('returnTo')) ?? ROUTES.MEMBERSHIP;
 
   const jobPending = useGetPendingMembershipCheckoutQuery(JOB_ACCESS_PLAN);
 
@@ -374,6 +374,7 @@ export const PaymentPage = () => {
     }
 
     checkoutInFlight.current = true;
+    let redirectStarted = false;
     setError(null);
 
     try {
@@ -393,6 +394,7 @@ export const PaymentPage = () => {
 
         return;
       }
+      redirectStarted = true;
     } catch (checkoutError: unknown) {
       if (
         isPaymentsApiError(checkoutError) &&
@@ -408,7 +410,8 @@ export const PaymentPage = () => {
 
       window.requestAnimationFrame(() => purchaseButtonRef.current?.focus());
     } finally {
-      checkoutInFlight.current = false;
+      // Keep duplicate protection until the document leaves after navigation starts.
+      if (!redirectStarted) checkoutInFlight.current = false;
     }
   };
 

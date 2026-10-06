@@ -26,7 +26,11 @@ export const isSafePhonePeRedirectUrl = (value: unknown): value is string => {
 
 export const storePhonePeMerchantOrderId = (merchantOrderId: string): boolean => {
   if (!isValidPhonePeMerchantOrderId(merchantOrderId)) return false;
-  sessionStorage.setItem(PHONEPE_ORDER_STORAGE_KEY, merchantOrderId);
+  try {
+    sessionStorage.setItem(PHONEPE_ORDER_STORAGE_KEY, merchantOrderId);
+  } catch {
+    // Browser storage can be unavailable. The provider return still carries the order ID.
+  }
   return true;
 };
 
@@ -35,8 +39,12 @@ export const clearPhonePeMerchantOrderId = (): void =>
 
 export const storePhonePeReturnTo = (returnTo: string | undefined): void => {
   const safeReturnTo = getSafeMembershipReturnTo(returnTo ?? null);
-  if (safeReturnTo) sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, safeReturnTo);
-  else sessionStorage.removeItem(PHONEPE_RETURN_TO_STORAGE_KEY);
+  try {
+    if (safeReturnTo) sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, safeReturnTo);
+    else sessionStorage.removeItem(PHONEPE_RETURN_TO_STORAGE_KEY);
+  } catch {
+    // Return-path caching must not prevent an otherwise valid checkout redirect.
+  }
 };
 
 export const getStoredPhonePeReturnTo = (): string | null =>

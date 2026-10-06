@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -39,7 +39,6 @@ import { ReferralPremiumBanner } from './ReferralPremiumBanner';
 
 export const ReferralJobsSection = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const currentUser = useAppSelector(selectCurrentUser);
 
   const [page, setPage] = useState(1);
@@ -66,8 +65,7 @@ export const ReferralJobsSection = () => {
   const [triggerUnlock, unlockState] =
     useLazyUnlockReferralContactQuery();
 
-  const returnTo =
-    `${location.pathname}${location.search}${location.hash}`;
+  const returnTo = `${ROUTES.DASHBOARD_JOBS}?mode=referral`;
 
   const goToAccess = () => {
     void navigate(

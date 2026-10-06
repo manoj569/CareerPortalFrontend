@@ -18,7 +18,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/authSlice';
-import { buildMembershipPath } from '@/features/payments/utils/paymentReturnUrl';
+import { getSafeMembershipReturnTo } from '@/features/interviewInsights/utils/membershipAccess';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { UserRole } from '@/types';
 import { getSafeExternalUrl } from '@/utils/safeExternalUrl';
@@ -57,7 +57,6 @@ export const ApplyToJobButton = ({
   applicationUrl,
   ariaDescribedBy,
   jobId,
-  jobSlug,
   companyName,
   jobTitle,
   label = 'Apply on company site',
@@ -66,6 +65,9 @@ export const ApplyToJobButton = ({
   size = 'large',
 }: ApplyToJobButtonProps) => {
   const location = useLocation();
+  const membershipPath = `${ROUTES.MEMBERSHIP}?${new URLSearchParams({
+    returnTo: getSafeMembershipReturnTo(`${location.pathname}${location.search}`) ?? ROUTES.DASHBOARD_JOBS,
+  }).toString()}`;
   const navigate = useNavigate();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectCurrentUser);
@@ -147,7 +149,7 @@ export const ApplyToJobButton = ({
         return;
       }
       if (failure.kind === 'membership') {
-        await navigate(buildMembershipPath(jobSlug));
+        await navigate(membershipPath);
         return;
       }
       if (failure.kind === 'duplicate') {
@@ -165,7 +167,7 @@ export const ApplyToJobButton = ({
 
   return (
     <>
-      <ApplicationQuotaDialog kind={quotaDialog} resetsAtUtc={quota.data?.resetsAtUtc} onClose={() => setQuotaDialog(null)} onUpgrade={() => { void navigate(buildMembershipPath(jobSlug)); }} />
+      <ApplicationQuotaDialog kind={quotaDialog} resetsAtUtc={quota.data?.resetsAtUtc} onClose={() => setQuotaDialog(null)} onUpgrade={() => { void navigate(membershipPath); }} />
       <Button
         sx={hideTrigger ? { display: 'none' } : undefined}
         aria-busy={isPending}

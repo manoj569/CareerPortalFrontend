@@ -15,6 +15,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
+import { ResumePaymentReturn } from '@/features/aiResume/components/ResumePaymentReturn';
+import { resumeWorkflowStorage } from '@/features/aiResume/services/resumeWorkflow';
 import { dashboardApi } from '@/features/dashboard/api/dashboardApi';
 import {
   isPaymentsApiError,
@@ -28,7 +30,10 @@ import {
   isValidPhonePeMerchantOrderId,
 } from '@/features/payments/services/phonePeCheckout';
 import { PhonePePaymentStatus } from '@/features/payments/types/paymentModels';
-import { useAppDispatch } from '@/hooks/reduxHooks';
+import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
+import { selectAuthStatus } from '@/features/auth/store/authSlice';
+import { paymentsApi } from '@/features/payments/api/paymentsApi';
+import { interviewInsightsApi } from '@/features/interviewInsights/api/interviewInsightsApi';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { getSafeMembershipReturnTo } from '@/features/interviewInsights/utils/membershipAccess';
 import {
@@ -54,6 +59,20 @@ const ResultCard = ({ children }: { children: React.ReactNode }) => (
 );
 
 export const PhonePeReturnPage = () => {
+  const [params] = useSearchParams();
+  const authStatus = useAppSelector(selectAuthStatus);
+  const order = params.get('merchantOrderId') ?? params.get('order');
+  if (
+    authStatus === 'authenticated' &&
+    isValidPhonePeMerchantOrderId(order) &&
+    (order.startsWith('air_') || resumeWorkflowStorage.get('purchase') === order)
+  ) {
+    return <ResumePaymentReturn merchantOrderId={order} />;
+  }
+  return <MembershipPhonePeReturnPage />;
+};
+
+const MembershipPhonePeReturnPage = () => {
   useDocumentMetadata(
     'PhonePe payment status | Career Harbor',
     'Check the server-verified status of your Career Harbor membership payment.',
@@ -62,6 +81,8 @@ export const PhonePeReturnPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const authStatus = useAppSelector(selectAuthStatus);
+  const authRestoring = authStatus === 'idle' || authStatus === 'initializing';
   const isLegacyReturn = location.pathname === ROUTES.PHONEPE_RETURN_LEGACY;
   const merchantOrderId = searchParams.get(isLegacyReturn ? 'order' : 'merchantOrderId');
   // Retain the validated order in memory after successful session-storage cleanup.
@@ -82,7 +103,14 @@ export const PhonePeReturnPage = () => {
   }, []);
 
   const requestStatus = useCallback(async () => {
-    if (isLegacyReturn || !sessionMatches || !merchantOrderId || document.hidden) return;
+    if (
+      authStatus !== 'authenticated' ||
+      isLegacyReturn ||
+      !sessionMatches ||
+      !merchantOrderId ||
+      document.hidden
+    )
+      return;
     await checkStatus(
       {
         merchantOrderId,
@@ -90,7 +118,7 @@ export const PhonePeReturnPage = () => {
       },
       false,
     );
-  }, [checkStatus, isLegacyReturn, merchantOrderId, sessionMatches]);
+  }, [authStatus, checkStatus, isLegacyReturn, merchantOrderId, sessionMatches]);
 
   useEffect(() => {
     if (isLegacyReturn || !sessionMatches) return;
@@ -147,13 +175,25 @@ export const PhonePeReturnPage = () => {
       query.data?.merchantOrderId !== merchantOrderId ||
       query.data.status !== PhonePePaymentStatus.Completed ||
       !sessionMatches ||
+      authStatus !== 'authenticated' ||
       completedHandled.current
     )
       return;
     completedHandled.current = true;
     const confirmMembership = async () => {
       try {
-        dispatch(dashboardApi.util.invalidateTags(['Memberships']));
+        dispatch(
+          dashboardApi.util.invalidateTags(['Memberships', 'ApplicationQuota', 'RecruiterContact']),
+        );
+        dispatch(
+          paymentsApi.util.invalidateTags([
+            'Payments',
+            'PaymentHistory',
+            'PaymentStatus',
+            'PendingCheckout',
+          ]),
+        );
+        dispatch(interviewInsightsApi.util.invalidateTags(['Insights', 'CompanySummary']));
         const memberships = await dispatch(
           dashboardApi.endpoints.getMemberships.initiate(undefined, {
             forceRefetch: true,
@@ -166,7 +206,7 @@ export const PhonePeReturnPage = () => {
         }
         setActivationConfirmed(true);
         clearPhonePeMerchantOrderId();
-        const returnTo = getSafeMembershipReturnTo(getStoredPhonePeReturnTo());
+        const returnTo = getSafeMembershipReturnTo(query.data?.returnTo ?? null);
         clearPhonePeReturnTo();
         if (
           returnTo &&
@@ -179,7 +219,18 @@ export const PhonePeReturnPage = () => {
       }
     };
     void confirmMembership();
-  }, [dispatch, merchantOrderId, navigate, query.data, sessionMatches]);
+  }, [authStatus, dispatch, merchantOrderId, navigate, query.data, sessionMatches]);
+
+  if (authRestoring) {
+    return (
+      <ResultCard>
+        <Stack alignItems="center" role="status" spacing={2}>
+          <CircularProgress />
+          <Typography>Restoring your secure session…</Typography>
+        </Stack>
+      </ResultCard>
+    );
+  }
 
   if (isLegacyReturn && sessionMatches && merchantOrderId) {
     return (

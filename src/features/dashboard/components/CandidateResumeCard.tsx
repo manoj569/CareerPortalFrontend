@@ -34,6 +34,7 @@ import {
 
 interface CandidateResumeCardProps {
   resume: ResumeMetadata | null;
+  onResumeUpdated?: (resume: ResumeMetadata) => void;
 }
 
 export interface CandidateResumeCardHandle {
@@ -41,7 +42,7 @@ export interface CandidateResumeCardHandle {
 }
 
 export const CandidateResumeCard = forwardRef<CandidateResumeCardHandle, CandidateResumeCardProps>(
-  ({ resume }, ref) => {
+  ({ resume, onResumeUpdated }, ref) => {
     const fileInput = useRef<HTMLInputElement>(null);
     const resumeStatus = useGetResumeStatusQuery();
     const [uploadResume, uploadState] = useUploadResumeMutation();
@@ -73,7 +74,8 @@ export const CandidateResumeCard = forwardRef<CandidateResumeCardHandle, Candida
 
       setError(null);
       try {
-        await uploadResume(file).unwrap();
+        const uploadedResume = await uploadResume(file).unwrap();
+        onResumeUpdated?.(uploadedResume);
         enqueueSnackbar(resume ? 'Resume replaced successfully.' : 'Resume uploaded.', {
           variant: 'success',
         });

@@ -39,6 +39,20 @@ describe('PhonePe pending checkout resume', () => {
 });
 
 describe('PhonePe checkout redirect', () => {
+  it('calls the browser location.assign with its receiver using the production default', () => {
+    const url = 'https://mercury-t2.phonepe.com/transact/pgv3?token=test&routingKey=W';
+    const assign = vi.fn(function (this: { assign: unknown }) {
+      expect(this).toBe(location);
+    });
+    const location = { assign };
+    vi.stubGlobal('window', { location });
+    try {
+      expect(beginPhonePeRedirect(checkout(url))).toBe(true);
+      expect(assign).toHaveBeenCalledExactlyOnceWith(url);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it.each([
     'https://mercury-uat.phonepe.com/transact/uat_v3?token=sandbox-token',
     'https://mercury.phonepe.com/checkout/test',

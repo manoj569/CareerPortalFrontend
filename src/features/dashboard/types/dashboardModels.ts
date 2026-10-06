@@ -2,6 +2,8 @@ import type { EmploymentType, ExperienceLevel, WorkplaceType } from '@/features/
 import type { PaginatedResponse } from '@/types';
 
 export interface ResumeMetadata {
+  /** Persistent CandidateResumeProfile.Id used by AI Resume sessions. */
+  resumeId?: string | null;
   fileName: string;
   contentType: string;
   sizeBytes: number;
@@ -20,6 +22,8 @@ export interface ResumeStatusResponse {
   extractionStatus: ResumeExtractionStatus;
   hasResume: boolean;
   message: string;
+  /** Persistent CandidateResumeProfile.Id when a resume is available. */
+  resumeId?: string | null;
 }
 
 export interface RecommendedJob {

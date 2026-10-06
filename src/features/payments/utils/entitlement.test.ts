@@ -29,8 +29,8 @@ describe('independent membership entitlements', () => {
     expect(findActivePlanMembership([membership], undefined)).toBeUndefined();
   });
   it('allows exact referral routes and rejects external, encoded and redirected destinations', () => {
-    expect(getSafeMembershipReturnTo('/dashboard/jobs/referral/job-123/contact')).toBe(
-      '/dashboard/jobs/referral/job-123/contact',
+    expect(getSafeMembershipReturnTo('/dashboard/jobs/referral/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/contact')).toBe(
+      '/dashboard/jobs/referral/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/contact',
     );
     for (const value of [
       'https://evil.test',

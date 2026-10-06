@@ -31,7 +31,13 @@ const profile: UserProfile = {
   location: null,
   portfolioUrl: null,
   preferredJobTypes: [EmploymentType.FullTime],
-  resume: null,
+  resume: {
+    resumeId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    fileName: 'candidate-resume.pdf',
+    contentType: 'application/pdf',
+    sizeBytes: 128,
+    uploadedAtUtc: '2026-07-29T00:00:00Z',
+  },
   skills: [],
 };
 
@@ -57,7 +63,8 @@ describe('Candidate API integration', () => {
     const store = createAppStore();
     mockRequest.mockResolvedValue({ data: { data: profile } });
 
-    await store.dispatch(dashboardApi.endpoints.getProfile.initiate()).unwrap();
+    const loadedProfile = await store.dispatch(dashboardApi.endpoints.getProfile.initiate()).unwrap();
+    expect(loadedProfile.resume?.resumeId).toBe(profile.resume?.resumeId);
     expect(mockRequest).toHaveBeenLastCalledWith(
       expect.objectContaining({ method: 'GET', url: '/candidate/profile' }),
     );
@@ -320,6 +327,7 @@ describe('Candidate API integration', () => {
     mockRequest.mockResolvedValue({
       data: {
         data: {
+          resumeId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
           contentType: 'application/pdf',
           fileName: file.name,
           sizeBytes: file.size,
@@ -328,7 +336,8 @@ describe('Candidate API integration', () => {
       },
     });
 
-    await store.dispatch(dashboardApi.endpoints.uploadResume.initiate(file)).unwrap();
+    const uploaded = await store.dispatch(dashboardApi.endpoints.uploadResume.initiate(file)).unwrap();
+    expect(uploaded.resumeId).toBe('cccccccc-cccc-cccc-cccc-cccccccccccc');
 
     const request = mockRequest.mock.calls[0]?.[0] as {
       data: FormData;
@@ -360,9 +369,10 @@ describe('Candidate API integration', () => {
   it('uses the resume-status and pagination-only recommendation contracts', async () => {
     const store = createAppStore();
     mockRequest
-      .mockResolvedValueOnce({ data: { data: { extractedAtUtc: null, extractionStatus: 2, hasResume: true, message: 'Ready' } } })
+      .mockResolvedValueOnce({ data: { data: { extractedAtUtc: null, extractionStatus: 2, hasResume: true, message: 'Ready', resumeId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' } } })
       .mockResolvedValueOnce({ data: { data: { extractionStatus: 2, items: [], message: '', pageNumber: 2, pageSize: 20, totalCount: 0, totalPages: 0 } } });
-    await store.dispatch(dashboardApi.endpoints.getResumeStatus.initiate()).unwrap();
+    const resumeStatus = await store.dispatch(dashboardApi.endpoints.getResumeStatus.initiate()).unwrap();
+    expect(resumeStatus.resumeId).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
     await store.dispatch(dashboardApi.endpoints.getRecommendedJobs.initiate({ pageNumber: 2, pageSize: 20 })).unwrap();
     expect(mockRequest).toHaveBeenNthCalledWith(1, expect.objectContaining({ url: '/candidate/resume/status' }));
     expect(mockRequest).toHaveBeenNthCalledWith(2, expect.objectContaining({ params: { pageNumber: 2, pageSize: 20 }, url: '/candidate/jobs/recommended' }));

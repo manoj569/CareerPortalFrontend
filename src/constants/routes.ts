@@ -29,6 +29,7 @@ export const ROUTES = {
   PROFILE: '/dashboard/profile',
   PUBLIC_PORTFOLIO: '/p/:slug',
   RESUME: '/dashboard/resume',
+  RESUME_MAKER: '/dashboard/resume-maker',
   SAVED_JOBS: '/dashboard/saved-jobs',
   APPLICATIONS: '/dashboard/applications',
   APPLICATION_DETAILS: '/dashboard/applications/:applicationId',

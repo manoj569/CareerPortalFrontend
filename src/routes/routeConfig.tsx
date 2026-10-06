@@ -357,6 +357,7 @@ export const appRoutes: RouteObject[] = [
 
               },
 
+              { path: ROUTES.RESUME_MAKER, element: lazyPage(() => import('@/pages/ResumeMakerPage'), 'ResumeMakerPage') },
               {
 
                 path: ROUTES.RESUME,

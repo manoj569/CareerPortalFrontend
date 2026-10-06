@@ -34,9 +34,13 @@ export const getSafeCandidateDashboardReturnPath = (
 
 export const getSafeMembershipReturnTo = (value: string | null): string | undefined =>
   value === ROUTES.INTERVIEW_INSIGHTS ||
-  value === ROUTES.AI_APPLY ||
+  value === ROUTES.DASHBOARD_JOBS ||
+  value === `${ROUTES.DASHBOARD_JOBS}?mode=referral` ||
+  value === ROUTES.MEMBERSHIP ||
+  value === ROUTES.RESUME_MAKER ||
   (typeof value === 'string' &&
-    /^\/dashboard\/jobs\/referral\/[a-zA-Z0-9_-]+\/contact$/.test(value))
+    /^\/dashboard\/jobs\/referral\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/contact$/.test(value) &&
+    !value.includes('/00000000-0000-0000-0000-000000000000/'))
     ? value
     : undefined;
 

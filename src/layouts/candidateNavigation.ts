@@ -56,6 +56,9 @@ export const candidateNavigationItems: NavigationItem[] = [
     icon: WorkspacePremiumOutlinedIcon,
   },
   {
+    label: 'Resume maker', path: ROUTES.RESUME_MAKER, icon: DescriptionOutlinedIcon, badge: 'New',
+  },
+  {
     label: 'Settings',
     path: ROUTES.SETTINGS,
     icon: SettingsOutlinedIcon,

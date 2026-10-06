@@ -1,3 +1,4 @@
+import type { ResumeJob } from '@/features/aiResume/components/ResumeWorkflow';
 import { ROUTES } from '@/constants/routes';
 import {
   useGetFeaturedJobsQuery,
@@ -450,7 +451,15 @@ describe('jobs listing page', () => {
   });
 });
 
+vi.mock('@/features/aiResume/components/ResumeWorkflow', () => ({ ResumeWorkflow: ({ job }: { job?: ResumeJob }) => <div data-testid='resume-tailor-workflow'>{job?.id} {job?.title}</div> }));
 describe('job details page', () => {
+  it('opens AI Resume Tailor for the real backend job without changing existing actions', async () => {
+    mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
+    renderDetailsPage(authenticated);
+    await userEvent.click(screen.getByRole('button', { name: /Tailor Resume for This Job/ }));
+    expect(screen.getByTestId('resume-tailor-workflow')).toHaveTextContent(jobDetails.id);
+    expect(screen.getByRole('dialog', { name: 'AI Resume Tailor' })).toBeVisible();
+  });
   it('renders job details', () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
 
