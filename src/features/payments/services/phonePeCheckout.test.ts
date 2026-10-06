@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PhonePeCheckoutResponse } from '../types/paymentModels';
 import {
   beginPhonePeRedirect,
+  isSafePhonePeRedirectUrl,
+  isValidPhonePeMerchantOrderId,
   PHONEPE_ORDER_STORAGE_KEY,
   resumePhonePeRedirect,
 } from './phonePeCheckout';
@@ -40,6 +42,7 @@ describe('PhonePe checkout redirect', () => {
   it.each([
     'https://mercury-uat.phonepe.com/transact/uat_v3?token=sandbox-token',
     'https://mercury.phonepe.com/checkout/test',
+    'https://mercury-t2.phonepe.com/transact/pgv3?token=backend-token',
   ])('accepts an exact HTTPS PhonePe checkout host: %s', (url) => {
     const assign = vi.fn();
 
@@ -57,6 +60,9 @@ describe('PhonePe checkout redirect', () => {
     'https://evilphonepe.com/checkout',
     'https://mercury.phonepe.com.evil.example/checkout',
     'not-a-url',
+    '',
+    'https://mercury-t2.phonepe.com.evil.example/transact/pgv3',
+    'https://user:password@mercury-t2.phonepe.com/transact/pgv3',
   ])('blocks an unsafe redirect without storing a session: %s', (url) => {
     const assign = vi.fn();
 
@@ -64,4 +70,15 @@ describe('PhonePe checkout redirect', () => {
     expect(assign).not.toHaveBeenCalled();
     expect(sessionStorage.getItem(PHONEPE_ORDER_STORAGE_KEY)).toBeNull();
   });
+});
+
+it.each([undefined, null, 123])('rejects a missing/non-string runtime redirect: %s', (url) => {
+  expect(isSafePhonePeRedirectUrl(url)).toBe(false);
+});
+
+it('accepts only the backend AI Resume order shape alongside existing membership orders', () => {
+  expect(isValidPhonePeMerchantOrderId('air_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')).toBe(true);
+  expect(isValidPhonePeMerchantOrderId('air_missing-guid')).toBe(false);
+  expect(isValidPhonePeMerchantOrderId('air_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?token=secret')).toBe(false);
+  expect(isValidPhonePeMerchantOrderId('ch_order123')).toBe(true);
 });

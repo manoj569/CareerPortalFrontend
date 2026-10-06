@@ -6,16 +6,19 @@ export const PHONEPE_RETURN_TO_STORAGE_KEY = 'careerHarbor.phonePeReturnTo';
 const PHONEPE_CHECKOUT_HOSTS = new Set([
   'mercury-uat.phonepe.com',
   'mercury.phonepe.com',
+  'mercury-t2.phonepe.com',
 ]);
-const merchantOrderPattern = /^ch_[A-Za-z0-9_-]{1,100}$/;
+const merchantOrderPattern = /^(?:ch_[A-Za-z0-9_-]{1,100}|air_[0-9a-f]{32})$/;
 
 export const isValidPhonePeMerchantOrderId = (value: string | null): value is string =>
   Boolean(value && merchantOrderPattern.test(value));
 
-export const isSafePhonePeRedirectUrl = (value: string): boolean => {
+export const isSafePhonePeRedirectUrl = (value: unknown): value is string => {
+  if (typeof value !== 'string' || !value.trim()) return false;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && PHONEPE_CHECKOUT_HOSTS.has(url.hostname);
+    return url.protocol === 'https:' && !url.username && !url.password &&
+      PHONEPE_CHECKOUT_HOSTS.has(url.hostname);
   } catch {
     return false;
   }

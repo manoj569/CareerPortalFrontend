@@ -147,6 +147,27 @@ describe('Razorpay payment API integration', () => {
 });
 
 describe('PhonePe payment API integration', () => {
+  it.each(['CareerHarborMembership', 'ReferralContactAccess'] as const)(
+    'unwraps the 201 %s checkout and does not refetch pending before redirect',
+    async (planCode) => {
+      const store = createAppStore();
+      mockRequest.mockResolvedValueOnce({ data: { data: null } });
+      const pending = store.dispatch(paymentsApi.endpoints.getPendingMembershipCheckout.initiate(planCode));
+      await pending.unwrap();
+      const checkout = {
+        merchantOrderId: 'ch_order123',
+        redirectUrl: 'https://mercury-t2.phonepe.com/transact/pgv3?token=backend-token',
+        planCode,
+      };
+      mockRequest.mockResolvedValueOnce({ status: 201, data: { data: checkout, message: 'PhonePe checkout created.' } });
+      const result = await store.dispatch(paymentsApi.endpoints.createPhonePeCheckout.initiate({ planCode })).unwrap();
+      expect(result).toEqual(checkout);
+      expect(mockRequest).toHaveBeenCalledTimes(2);
+      expect(store.getState().paymentsApi.queries[pending.queryCacheKey]?.data).toBeNull();
+      pending.unsubscribe();
+      store.dispatch(paymentsApi.util.resetApiState());
+    },
+  );
   it('sends referral plan in the body and its return path only in the query', async () => {
     mockRequest.mockResolvedValue({ data: { data: {} } });
     const store = createAppStore();

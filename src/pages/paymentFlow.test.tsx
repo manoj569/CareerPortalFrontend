@@ -3,8 +3,10 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { UserRole } from '@/types';
+import { sessionRefreshed } from '@/features/auth/store/authSlice';
 import { ROUTES } from '@/constants/routes';
-import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
+import { dashboardApi, useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
 import {
   useCancelPendingMembershipCheckoutMutation,
@@ -107,13 +109,14 @@ const renderRoute = (path: string, element: React.ReactNode) => {
       { path: ROUTES.MEMBERSHIP, element: <div>Membership destination</div> },
       { path: ROUTES.INTERVIEW_INSIGHTS, element: <div>Interview Insights destination</div> },
       { path: ROUTES.DASHBOARD, element: <div>Dashboard destination</div> },
+      { path: ROUTES.DASHBOARD_JOBS, element: <div>Browse Jobs destination</div> },
       { path: ROUTES.REFERRAL_CONTACT_DETAILS, element: <div>Referral contact destination</div> },
       { path: ROUTES.PHONEPE_RETURN, element },
       { path: ROUTES.PHONEPE_RETURN_LEGACY, element },
     ],
     { initialEntries: [path] },
   );
-  return { router, ...renderWithProviders(<RouterProvider router={router} />) };
+  return { router, ...renderWithProviders(<RouterProvider router={router} />, { auth: { status: 'authenticated', user: { id: 'candidate', email: 'candidate@example.com', firstName: 'Avery', lastName: 'Patel', role: UserRole.Candidate }, isSubmitting: false, error: null, accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z' } }) };
 };
 
 describe('PhonePe membership checkout', () => {
@@ -125,6 +128,18 @@ describe('PhonePe membership checkout', () => {
         })}
       />,
     );
+  it.each([
+    ['/dashboard/jobs', 'CareerHarborMembership', 'Get Access'],
+    ['/dashboard/jobs?mode=referral', 'ReferralContactAccess', 'Get Referral Contact Access'],
+    ['/dashboard/interview-insights', 'CareerHarborMembership', 'Get Access'],
+    ['/dashboard/membership', 'CareerHarborMembership', 'Get Access'],
+    ['/dashboard/jobs/referral/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/contact', 'ReferralContactAccess', 'Get Referral Contact Access'],
+  ])('sends the originating %s and selected plan to checkout', async (returnTo, planCode, button) => {
+    renderMembership(`?returnTo=${encodeURIComponent(returnTo)}`);
+    await userEvent.click(screen.getByRole('button', { name: button }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+    expect(createTrigger).toHaveBeenCalledWith({ planCode, returnTo });
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
@@ -291,7 +306,7 @@ describe('PhonePe membership checkout', () => {
       expect(screen.getByRole('button', { name: 'Pay ₹131.61' })).toBeEnabled();
       await userEvent.click(screen.getByRole('button', { name: 'Pay ₹131.61' }));
       expect(createTrigger).toHaveBeenCalledTimes(1);
-      expect(createTrigger).toHaveBeenCalledWith({ planCode, returnTo: undefined });
+      expect(createTrigger).toHaveBeenCalledWith({ planCode, returnTo: ROUTES.MEMBERSHIP });
       expect(payment.status).toBe(PaymentStatus.Failed);
       expect(payment.amount).toBe(299);
     },
@@ -357,7 +372,7 @@ describe('PhonePe membership checkout', () => {
   });
 
   it('preserves the safe referral return before redirect and prevents duplicate checkout', async () => {
-    const returnTo = '/dashboard/jobs/referral/job-123/contact';
+    const returnTo = '/dashboard/jobs/referral/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/contact';
     let resolveCheckout: (value: PhonePeCheckoutResponse) => void = () => {
       throw new Error('Checkout not started');
     };
@@ -403,7 +418,7 @@ describe('PhonePe membership checkout', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
     expect(createTrigger).toHaveBeenCalledWith({
       planCode: 'CareerHarborMembership',
-      returnTo: undefined,
+      returnTo: ROUTES.MEMBERSHIP,
     });
   });
 
@@ -477,10 +492,41 @@ describe('PhonePe membership checkout', () => {
 
     expect(createTrigger).toHaveBeenCalledWith({
       planCode: 'CareerHarborMembership',
-      returnTo: undefined,
+      returnTo: ROUTES.MEMBERSHIP,
     });
     expect(beginPhonePeRedirect).toHaveBeenCalledWith(checkout);
   });
+
+  it.each([
+    ['CareerHarborMembership', 'Get Access'],
+    ['ReferralContactAccess', 'Get Referral Contact Access'],
+  ] as const)('navigates the new %s checkout to the exact backend t2 URL', async (planCode, button) => {
+    const actual = await vi.importActual<typeof PhonePeCheckoutModule>('@/features/payments/services/phonePeCheckout');
+    const assign = vi.fn();
+    vi.mocked(beginPhonePeRedirect).mockImplementation((response) => actual.beginPhonePeRedirect(response, assign));
+    const redirectUrl = 'https://mercury-t2.phonepe.com/transact/pgv3?token=backend-token';
+    createTrigger.mockReturnValue({ unwrap: () => Promise.resolve({ ...checkout, planCode, redirectUrl }) });
+    renderWithProviders(<RouterProvider router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], { initialEntries: [ROUTES.MEMBERSHIP] })} />);
+    await userEvent.click(screen.getByRole('button', { name: button }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+    expect(assign).toHaveBeenCalledExactlyOnceWith(redirectUrl);
+    expect(screen.queryByRole('heading', { name: 'Payment in progress' })).not.toBeInTheDocument();
+  });
+
+  it.each([undefined, '', 'not-a-url', 'http://mercury-t2.phonepe.com/transact/pgv3'])(
+    'shows a payment-start error rather than pending for invalid redirect %s', async (redirectUrl) => {
+      const actual = await vi.importActual<typeof PhonePeCheckoutModule>('@/features/payments/services/phonePeCheckout');
+      const assign = vi.fn();
+      vi.mocked(beginPhonePeRedirect).mockImplementation((response) => actual.beginPhonePeRedirect(response, assign));
+      createTrigger.mockReturnValue({ unwrap: () => Promise.resolve({ ...checkout, redirectUrl }) });
+      renderWithProviders(<RouterProvider router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], { initialEntries: [ROUTES.MEMBERSHIP] })} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Get Access' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+      expect(await screen.findByText(/destination could not be verified/i)).toBeVisible();
+      expect(assign).not.toHaveBeenCalled();
+      expect(screen.queryByRole('heading', { name: 'Payment in progress' })).not.toBeInTheDocument();
+    },
+  );
 
   it.each([['Referral Contact Access', 'Get Referral Contact Access', 'ReferralContactAccess']])(
     'checks out the %s card with its exact plan code',
@@ -497,7 +543,7 @@ describe('PhonePe membership checkout', () => {
       );
       await userEvent.click(screen.getByRole('button', { name: buttonName }));
       await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
-      expect(createTrigger).toHaveBeenCalledWith({ planCode, returnTo: undefined });
+      expect(createTrigger).toHaveBeenCalledWith({ planCode, returnTo: ROUTES.MEMBERSHIP });
       expect(createTrigger.mock.calls[0]?.[0]).not.toHaveProperty('amount');
       expect(createTrigger.mock.calls[0]?.[0]).not.toHaveProperty('durationDays');
     },
@@ -535,6 +581,19 @@ describe('PhonePe membership checkout', () => {
     expect(await screen.findByText(/destination could not be verified/i)).toBeVisible();
     expect(await screen.findByRole('button', { name: 'Get Access' })).toBeEnabled();
   });
+
+  it.each(['Get Access', 'Get Referral Contact Access'])(
+    'keeps the user on membership when %s checkout fails', async (button) => {
+      createTrigger.mockReturnValue({ unwrap: () => Promise.reject(new Error('private provider failure')) });
+      renderWithProviders(<RouterProvider router={createMemoryRouter([{ path: ROUTES.MEMBERSHIP, element: <PaymentPage /> }], { initialEntries: [ROUTES.MEMBERSHIP] })} />);
+      await userEvent.click(screen.getByRole('button', { name: button }));
+      await userEvent.click(screen.getByRole('button', { name: 'Continue to PhonePe' }));
+      expect(await screen.findByText(/We could not create a secure PhonePe checkout/i)).toBeVisible();
+      expect(beginPhonePeRedirect).not.toHaveBeenCalled();
+      expect(screen.queryByText('private provider failure')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Payment in progress' })).not.toBeInTheDocument();
+    },
+  );
 
   it('refreshes the pending card for a pending_membership_checkout conflict', async () => {
     const refetch = vi.fn().mockResolvedValue({ data: pendingCheckout });
@@ -642,6 +701,24 @@ describe('PhonePe membership checkout', () => {
 });
 
 describe('PhonePe return status', () => {
+  it('waits for auth restoration before verifying a payment', async () => {
+    const router = createMemoryRouter([{ path: ROUTES.PHONEPE_RETURN, element: <PhonePeReturnPage /> }], { initialEntries: ['/payment/phonepe/return?merchantOrderId=ch_order123'] });
+    const { store } = renderWithProviders(<RouterProvider router={router} />);
+    expect(screen.getByText('Restoring your secure session…')).toBeVisible();
+    expect(statusTrigger).not.toHaveBeenCalled();
+    act(() => { store.dispatch(sessionRefreshed({ user: { id: 'candidate', email: 'candidate@example.com', firstName: 'Avery', lastName: 'Patel', role: UserRole.Candidate }, accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z' })); });
+    await waitFor(() => expect(statusTrigger).toHaveBeenCalledTimes(1));
+  });
+
+  it.each(['/dashboard/jobs', '/dashboard/jobs?mode=referral', '/dashboard/membership', '/dashboard/interview-insights'])('refreshes access and replaces the return page with backend destination %s', async (returnTo) => {
+    sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, ROUTES.INTERVIEW_INSIGHTS);
+    statusState = { data: { merchantOrderId: 'ch_order123', status: PhonePePaymentStatus.Completed, payment: { planCode: 'CareerHarborMembership' }, returnTo }, isFetching: false };
+    dispatch.mockImplementation(() => ({ unsubscribe: vi.fn(), unwrap: () => Promise.resolve([{ id: 'active', planCode: 'CareerHarborMembership', status: 2, endsAtUtc: '2099-01-01T00:00:00Z' }]) }));
+    const { router } = renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123&returnTo=https://evil.example', <PhonePeReturnPage />);
+    await waitFor(() => expect(`${router.state.location.pathname}${router.state.location.search}`).toBe(returnTo));
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(dispatch).toHaveBeenCalledWith(dashboardApi.util.invalidateTags(['Memberships', 'ApplicationQuota', 'RecruiterContact']));
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
@@ -733,13 +810,13 @@ describe('PhonePe return status', () => {
   });
 
   it('returns to the exact referral contact path only after matching activation', async () => {
-    const returnTo = '/dashboard/jobs/referral/job-123/contact';
+    const returnTo = '/dashboard/jobs/referral/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/contact';
     sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, returnTo);
     statusState = {
       data: {
         merchantOrderId: 'ch_order123',
         status: PhonePePaymentStatus.Completed,
-        payment: { planCode: 'ReferralContactAccess' },
+        payment: { planCode: 'ReferralContactAccess' }, returnTo,
       },
       isFetching: false,
     };
@@ -774,6 +851,15 @@ describe('PhonePe return status', () => {
     );
     expect(screen.getByText('We are confirming your payment')).toBeVisible();
     expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate to a stored destination or an unsafe backend destination after completion', async () => {
+    sessionStorage.setItem(PHONEPE_RETURN_TO_STORAGE_KEY, ROUTES.INTERVIEW_INSIGHTS);
+    statusState = { data: { merchantOrderId: 'ch_order123', status: PhonePePaymentStatus.Completed, payment: { planCode: 'CareerHarborMembership' }, returnTo: 'https://evil.example?token=secret' }, isFetching: false };
+    dispatch.mockImplementation(() => ({ unsubscribe: vi.fn(), unwrap: () => Promise.resolve([{ id: 'active', planCode: 'CareerHarborMembership', status: 2, endsAtUtc: '2099-01-01T00:00:00Z' }]) }));
+    const { router } = renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123', <PhonePeReturnPage />);
+    await screen.findByRole('heading', { name: 'Job Application Access activated' });
+    expect(router.state.location.pathname).toBe(ROUTES.PHONEPE_RETURN);
   });
 
   it('renders the canonical return route and checks its merchantOrderId', async () => {
@@ -861,7 +947,7 @@ describe('PhonePe return status', () => {
       data: {
         merchantOrderId: 'ch_order123',
         status: PhonePePaymentStatus.Completed,
-        payment: { planCode: 'CareerHarborMembership' },
+        payment: { planCode: 'CareerHarborMembership' }, returnTo: ROUTES.INTERVIEW_INSIGHTS,
       },
       isFetching: false,
     };
@@ -900,6 +986,7 @@ describe('PhonePe return status', () => {
     statusState = { data: { merchantOrderId: 'ch_order123', status }, isFetching: false };
     renderRoute('/payment/phonepe/return?merchantOrderId=ch_order123', <PhonePeReturnPage />);
     expect(screen.getByRole('heading', { name: heading })).toBeVisible();
+    expect(dispatch).not.toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Try again' })).toHaveAttribute(
       'href',
       ROUTES.MEMBERSHIP,

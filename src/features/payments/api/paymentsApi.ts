@@ -79,12 +79,8 @@ export const paymentsApi = createApi({
         response: ApiResponse<PhonePeCheckoutResponse>,
       ) => response.data,
 
-      invalidatesTags: [
-        'Payments',
-        'PaymentHistory',
-        'PaymentStatus',
-        'PendingCheckout',
-      ],
+      // A newly created checkout must redirect before pending queries refresh.
+      // Return verification and cancellation reconcile payment state separately.
     }),
 
     /*
