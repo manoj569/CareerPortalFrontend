@@ -136,7 +136,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   disabled={busy}
                   onChange={(event) => field.onChange(Number(event.target.value))}
                 >
-                  {[AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.Custom].map(
+                  {[AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.Custom, AtsType.SuccessFactors].map(
                     (type) => (
                       <MenuItem key={type} value={type}>
                         {AtsType[type]}
@@ -165,6 +165,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   1: 'Board token',
                   2: 'Site/company token',
                   3: 'Job board name',
+                  4: 'Board / career-site identifier',
                 }[atsType]
               }
             />

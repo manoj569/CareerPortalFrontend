@@ -98,6 +98,54 @@ describe('job sources administrator workflow', () => {
     );
   });
 
+  it('displays and filters SuccessFactors while retaining existing provider mappings', async () => {
+    expect([AtsType.Custom, AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.SuccessFactors]).toEqual([0, 1, 2, 3, 4]);
+    items = [{ ...source, atsType: AtsType.SuccessFactors, atsIdentifier: '718244' }];
+    renderPage();
+    const table = await screen.findByRole('table', { name: 'Job sources' });
+    expect(within(table).getByText('SuccessFactors')).toBeVisible();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS' }));
+    fireEvent.click(screen.getByRole('option', { name: 'SuccessFactors' }));
+    expect(within(table).getByText('718244')).toBeVisible();
+  });
+
+  it('loads SuccessFactors in edit and sends its numeric type and unchanged identifier', async () => {
+    items = [{ ...source, atsType: AtsType.SuccessFactors, atsIdentifier: '718244' }];
+    request.mockImplementation(({ url, method, data }) => {
+      if (url.endsWith('/options')) return Promise.resolve({ data: { data: [{ id: source.companyId, name: source.companyName, slug: 'together-ai' }] } });
+      if (method === 'PUT') return Promise.resolve({ data: { data: { ...source, ...(data as object) } } });
+      if (url.endsWith('/source-1')) return Promise.resolve({ data: { data: { ...source, atsType: 4, atsIdentifier: '718244' } } });
+      return Promise.resolve({ data: { data: { items, pageNumber: 1, pageSize: 100, totalCount: 1, totalPages: 1 } } });
+    });
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(firstButton('Edit'));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('combobox', { name: 'ATS Type' })).toHaveTextContent('SuccessFactors');
+    expect(within(dialog).getByLabelText(/ATS Identifier/)).toHaveValue('718244');
+    expect(within(dialog).getByText('Board / career-site identifier')).toBeVisible();
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: /Save/ })).toBeEnabled());
+    fireEvent.click(within(dialog).getByRole('button', { name: /Save/ }));
+    await waitFor(() => expect(request.mock.calls.find(([config]) => config.method === 'PUT')?.[0].data).toMatchObject({ atsType: 4, atsIdentifier: '718244' }));
+  });
+
+  it('selects SuccessFactors in Add and creates a source with identifier 718244', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(firstButton('+ Add Job Source'));
+    const dialog = within(await screen.findByRole('dialog'));
+    await waitFor(() => expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled());
+    fireEvent.change(dialog.getByRole('combobox', { name: /Company/ }), { target: { value: 'Together' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Together AI' }));
+    fireEvent.change(dialog.getByRole('textbox', { name: /Career Page URL/ }), { target: { value: 'https://southasiacareers.deloitte.com/go/Deloitte-India/718244' } });
+    fireEvent.mouseDown(dialog.getByRole('combobox', { name: 'ATS Type' }));
+    for (const name of ['Greenhouse', 'Lever', 'Ashby', 'Custom', 'SuccessFactors']) expect(screen.getByRole('option', { name })).toBeVisible();
+    fireEvent.click(screen.getByRole('option', { name: 'SuccessFactors' }));
+    fireEvent.change(dialog.getByRole('textbox', { name: /ATS Identifier/ }), { target: { value: '718244' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
+    await waitFor(() => expect(request.mock.calls.find(([config]) => config.method === 'POST')?.[0].data).toMatchObject({ atsType: 4, atsIdentifier: '718244' }));
+  });
+
   it('shows loading and an empty state', async () => {
     items = [];
     renderPage();

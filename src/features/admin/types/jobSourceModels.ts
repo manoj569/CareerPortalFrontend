@@ -4,6 +4,7 @@ export enum AtsType {
   Greenhouse = 1,
   Lever = 2,
   Ashby = 3,
+  SuccessFactors = 4,
 }
 
 export interface SaveJobSourceRequest {

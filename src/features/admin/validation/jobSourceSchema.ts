@@ -16,7 +16,7 @@ export const jobSourceSchema: yup.ObjectSchema<SaveJobSourceRequest> = yup.objec
         return false;
       }
     }),
-  atsType: yup.mixed<AtsType>().oneOf([0, 1, 2, 3]).required(),
+  atsType: yup.mixed<AtsType>().oneOf([0, 1, 2, 3, 4]).required(),
   atsIdentifier: yup
     .string()
     .nullable()

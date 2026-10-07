@@ -10,6 +10,11 @@ const valid = {
   scanIntervalMinutes: 720,
 };
 describe('source validation and formatting', () => {
+  it('supports the exact ATS mapping and requires a SuccessFactors identifier', async () => {
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 4, atsIdentifier: '718244' })).toBe(true);
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 4, atsIdentifier: '' })).toBe(false);
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 5 })).toBe(false);
+  });
   it.each(['javascript:alert(1)', 'https://user:password@example.com', '/careers'])(
     'rejects unsupported URL %s',
     async (careerPageUrl) => {
