@@ -1,12 +1,15 @@
-import { Avatar, Box, ButtonBase, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Button, ButtonBase, Chip, Paper, Stack, Typography } from '@mui/material';
 import GroupsIcon from '@mui/icons-material/Groups';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
 import type { PublicReferralJob } from '../types/referralModels';
+import type { ReferralRequestRecord } from '../types/marketplaceModels';
+import { dateLabel, statusLabel } from '../types/marketplaceModels';
+import { getWorkplaceTypeLabel } from '@/features/jobs/constants/jobOptions';
+import type { WorkplaceType } from '@/features/jobs/types/jobModels';
 
 const initials = (name: string | null | undefined) =>
   name
@@ -45,32 +48,36 @@ export const ReferralJobCard = ({
   job,
   onSeeDetails,
   busy = false,
+  request,
+  onViewRequest,
+  onSave,
+  saved = false,
 }: {
   job: PublicReferralJob;
   onSeeDetails: (job: PublicReferralJob) => void;
   busy?: boolean;
+  request?: ReferralRequestRecord;
+  onViewRequest?: () => void;
+  onSave?: () => void;
+  saved?: boolean;
 }) => {
   const experience = referralExperience(job.minimumExperienceYears, job.maximumExperienceYears);
   const employment =
     job.employmentType == null ? null : employmentLabels[String(job.employmentType)];
-  const unlocked = job.canViewReferrerContact === true;
-  const roleLine = [job.referrerCurrentRole, job.referrerCompanyName].filter(Boolean).join(' at ');
-  const tenure = job.referrerCompletedYearsAtCompany;
-  const start = job.referrerCompanyStartDate ? new Date(job.referrerCompanyStartDate) : null;
   return (
     <Paper
       component="article"
       variant="outlined"
       sx={{
-        p: { xs: 2.5, md: 3 },
-        minHeight: { md: 190 },
+        p: { xs: 2, md: 2.25 },
+        minHeight: { md: 150 },
         borderColor: '#e6eaf1',
         borderRadius: 1.5,
         boxShadow: '0 2px 8px rgba(25, 45, 80, 0.025)',
         display: 'grid',
         gridTemplateColumns: {
           xs: 'minmax(0, 1fr)',
-          md: 'minmax(0, 1.6fr) minmax(0, 1fr) minmax(210px, .95fr)',
+          md: 'minmax(0, 2fr) minmax(0, 1fr) minmax(145px, .75fr)',
         },
         alignItems: 'center',
         gap: 3,
@@ -83,8 +90,8 @@ export const ReferralJobCard = ({
           src={job.companyLogoUrl ?? undefined}
           alt={job.companyName ?? 'Company'}
           sx={{
-            width: 72,
-            height: 72,
+            width: 62,
+            height: 62,
             bgcolor: '#f7f9fe',
             color: 'primary.main',
             border: '1px solid #e5e8ee',
@@ -95,7 +102,7 @@ export const ReferralJobCard = ({
           {initials(job.companyName) || <WorkOutlineIcon />}
         </Avatar>
         <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-          <Typography component="h3" sx={{ fontSize: 19, fontWeight: 750, lineHeight: 1.4 }}>
+          <Typography component="h3" sx={{ fontSize: 16, fontWeight: 750, lineHeight: 1.4 }}>
             {job.jobTitle}
           </Typography>
           {job.companyName && (
@@ -130,6 +137,8 @@ export const ReferralJobCard = ({
               <Box component="span">
                 <LocationOnOutlinedIcon />
                 {job.location}
+                {job.workplaceType != null &&
+                  ` (${getWorkplaceTypeLabel(job.workplaceType as WorkplaceType)})`}
               </Box>
             )}
             {employment && (
@@ -184,70 +193,66 @@ export const ReferralJobCard = ({
             }}
           />
         )}
-        {(job.referrerName || roleLine || tenure != null) && (
-          <Stack direction="row" spacing={1.75} alignItems="center">
-            <Avatar
-              src={job.referrerProfileImageUrl ?? undefined}
-              alt={job.referrerName ?? 'Referrer'}
-              sx={{ width: 48, height: 48, bgcolor: '#e8eef8', color: '#435b83', fontSize: 14 }}
-            >
-              {initials(job.referrerName)}
-            </Avatar>
-            <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-              {job.referrerName && (
-                <Typography sx={{ fontSize: 15, fontWeight: 700 }}>
-                  Referred by {job.referrerName}
-                </Typography>
-              )}
-              {roleLine && (
-                <Typography sx={{ fontSize: 13, color: '#4c5b75' }}>{roleLine}</Typography>
-              )}
-              {tenure != null && (
-                <Typography sx={{ fontSize: 12.5, color: '#4c5b75' }}>
-                  {tenure} {tenure === 1 ? 'year' : 'years'} at the company · Self-reported
-                </Typography>
-              )}
-              {tenure == null && start && !Number.isNaN(start.getTime()) && (
-                <Typography sx={{ fontSize: 12.5, color: '#4c5b75' }}>
-                  Since{' '}
-                  {start.toLocaleDateString('en', {
-                    month: 'short',
-                    year: 'numeric',
-                    timeZone: 'UTC',
-                  })}{' '}
-                  · Self-reported
-                </Typography>
-              )}
-            </Box>
-          </Stack>
+        <Typography sx={{ fontSize: 14, fontWeight: 700 }}>
+          {job.referrerLabel || 'Employee Referrer'}
+        </Typography>
+        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+          Contact details are private until acceptance.
+        </Typography>
+        {request ? (
+          <Box sx={{ bgcolor: '#eef5ff', p: 1.5, borderRadius: 1 }}>
+            <Typography fontSize={13} fontWeight={750} color="primary">
+              {statusLabel(request.status)}
+            </Typography>
+            <Typography fontSize={11}>Requested {dateLabel(request.requestedAtUtc)}</Typography>
+            <Button size="small" onClick={onViewRequest}>
+              View request status →
+            </Button>
+          </Box>
+        ) : (
+          job.remainingReferralSlots != null && (
+            <Typography sx={{ fontSize: 12 }}>
+              {job.remainingReferralSlots} referral slots remaining
+            </Typography>
+          )
         )}
       </Stack>
-      <ButtonBase
-        disabled={busy}
-        onClick={() => onSeeDetails(job)}
-        sx={{
-          bgcolor: '#eff4ff',
-          color: '#064ebc',
-          borderRadius: 1.5,
-          minHeight: 138,
-          p: 2.5,
-          gap: 1.75,
-          flexDirection: 'column',
-          justifyContent: 'center',
-          textAlign: 'center',
-          width: '100%',
-          '&:hover': { bgcolor: '#e5edff' },
-          '&.Mui-focusVisible': { outline: '2px solid', outlineOffset: 2 },
-        }}
-      >
-        {unlocked ? <ArrowForwardIcon /> : <LockOutlinedIcon sx={{ fontSize: 34 }} />}
-        <Box>
-          <Typography sx={{ fontSize: 15, fontWeight: 700 }}>View referrer details</Typography>
-          <Typography sx={{ fontSize: 13, mt: 0.5, color: '#334468' }}>
-            {unlocked ? 'Contact access available' : 'Unlock with Referral Contact Access'}
-          </Typography>
-        </Box>
-      </ButtonBase>
+      <Stack gap={1}>
+        <ButtonBase
+          aria-label={request ? 'View referral request' : 'Request a referral'}
+          disabled={
+            busy ||
+            (!request && (job.referralAvailable === false || job.remainingReferralSlots === 0))
+          }
+          onClick={() => (request ? onViewRequest?.() : onSeeDetails(job))}
+          sx={{
+            bgcolor: '#eff4ff',
+            color: '#064ebc',
+            borderRadius: 1.5,
+            minHeight: 40,
+            p: 1,
+            gap: 1.75,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            textAlign: 'center',
+            width: '100%',
+            '&:hover': { bgcolor: '#e5edff' },
+            '&.Mui-focusVisible': { outline: '2px solid', outlineOffset: 2 },
+          }}
+        >
+          <ArrowForwardIcon />
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
+              {request ? 'View request' : 'Request a referral'}
+            </Typography>
+          </Box>
+        </ButtonBase>
+        {onSave && (
+          <Button size="small" disabled={busy} onClick={onSave}>
+            {saved ? 'Saved · Remove' : 'Save job'}
+          </Button>
+        )}
+      </Stack>
     </Paper>
   );
 };

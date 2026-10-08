@@ -1,497 +1,397 @@
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
-import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
-import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import { dateLabel } from '@/features/referrals/types/marketplaceModels';
+import { PendingRequestActions } from '@/features/referrals/components/PendingRequestActions';
+import { OpportunityCapacity } from '@/features/referrals/components/OpportunityCapacity';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
-  CircularProgress,
-  InputAdornment,
   Pagination,
-  Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import AddIcon from '@mui/icons-material/Add';
+import {
+  useGetOwnedOpportunitiesQuery,
+  useGetReferrerInboxQuery,
+  useGetReferralMetricsQuery,
+} from '@/features/referrals/api/marketplaceApi';
+import {
+  ApprovalBadge,
+  CandidateSummary,
+  Difference,
+  Impact,
+  JobSummary,
+  Metrics,
+  ReferralCard,
+  ReferralFailure,
+  ReferralHero,
+  ReferralLayout,
+  ReferralLoading,
+  ReferralTips,
+  StatusBadge,
+} from '@/features/referrals/components/MarketplaceUI';
+import {
+  approvalStatus,
+  opportunityPath,
+  requestPath,
+  requestStatus,
+  statusLabel,
+  type ReferrerRequestRecord,
+} from '@/features/referrals/types/marketplaceModels';
 
-import { ROUTES } from '@/constants/routes';
-import { useGetMyReferralsQuery } from '@/features/referrals/api/referralsApi';
-import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
-
-const PAGE_SIZE = 10;
-
-type ReferralStatusFilter = 'All' | 'Pending' | 'Approved' | 'Rejected';
-
-const formatSubmittedDate = (value: string) => {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Date unavailable';
-  }
-
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-};
-
-const normalizeReferralStatus = (value: string | number) => {
-  const normalized = String(value);
-
-  if (normalized === '1') return 'Pending';
-  if (normalized === '2') return 'Approved';
-  if (normalized === '3') return 'Rejected';
-
-  return normalized;
-};
-
-const getStatusColor = (status: string) => {
-  if (status === 'Approved') return '#15803D';
-  if (status === 'Rejected') return '#DC2626';
-
-  return '#D97706';
-};
-
+const useFresh = { pollingInterval: 60000, refetchOnMountOrArgChange: true };
 export const AllReferralsPage = () => {
-  useDocumentMetadata(
-    'All referrals | CareerHarbor',
-    'View and track all the jobs you have referred on CareerHarbor.',
-  );
-
   const navigate = useNavigate();
-
-  const [searchInput, setSearchInput] = useState('');
+  const [tab, setTab] = useState('All');
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<ReferralStatusFilter>('All');
   const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
-
-  const {
-    data,
-    isError,
-    isFetching,
-    isLoading,
-    refetch,
-  } = useGetMyReferralsQuery({
-    search: search || undefined,
-    status: status === 'All' ? undefined : status,
-    pageNumber: page,
-    pageSize: PAGE_SIZE,
-  });
-
-  const handleStatusChange = (
-    _: React.MouseEvent<HTMLElement>,
-    nextStatus: ReferralStatusFilter | null,
-  ) => {
-    if (!nextStatus) {
-      return;
-    }
-
-    setStatus(nextStatus);
-    setPage(1);
-  };
-
-  const handleClearSearch = () => {
-    setSearchInput('');
-    setSearch('');
-    setPage(1);
-  };
-
+  const jobs = useGetOwnedOpportunitiesQuery(undefined, useFresh);
+  const inbox = useGetReferrerInboxQuery(undefined, useFresh);
+  const metrics = useGetReferralMetricsQuery(undefined, useFresh);
+  const filtered = (jobs.currentData ?? [])
+    .filter(
+      (j) =>
+        (tab === 'All' || approvalStatus(j.approvalStatus) === tab) &&
+        `${j.jobTitle} ${j.companyName} ${j.location ?? ''}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+    )
+    .sort((a, b) => Date.parse(b.createdAtUtc) - Date.parse(a.createdAtUtc));
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Button
-onClick={() => {
-  void navigate(ROUTES.REFER_A_JOB);
-}}          startIcon={<ArrowBackRoundedIcon />}
-          sx={{
-            mb: 1.5,
-            px: 0,
-            textTransform: 'none',
-          }}
-          variant="text"
-        >
-          Back to Refer a job
-        </Button>
-
-        <Typography
-          component="h1"
-          sx={{
-            color: '#172B4D',
-            fontSize: { xs: 28, md: 34 },
-            fontWeight: 800,
-            letterSpacing: '-0.03em',
-          }}
-        >
-          All referrals
-        </Typography>
-
-        <Typography
-          color="text.secondary"
-          sx={{
-            mt: 0.5,
-            maxWidth: 680,
-          }}
-        >
-          View and track all the jobs you've referred.
-        </Typography>
-      </Box>
-
-      <Paper
-        elevation={0}
-        sx={{
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 3,
-          p: { xs: 2, md: 2.5 },
-        }}
-      >
-        <Stack spacing={2}>
-          <Stack
-            alignItems={{ xs: 'stretch', md: 'center' }}
-            direction={{ xs: 'column', md: 'row' }}
-            justifyContent="space-between"
-            spacing={2}
+    <ReferralLayout
+      aside={
+        <>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => void navigate('/dashboard/refer-a-job')}
+            sx={{ minHeight: 48 }}
           >
-            <TextField
-              fullWidth
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search referrals by job title or location..."
-              size="small"
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchRoundedIcon color="action" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchInput ? (
-                    <InputAdornment position="end">
-                      <Button
-                        onClick={handleClearSearch}
-                        size="small"
-                        sx={{ minWidth: 0 }}
-                      >
-                        Clear
-                      </Button>
-                    </InputAdornment>
-                  ) : undefined,
-                },
-              }}
-              sx={{
-                maxWidth: { md: 620 },
-              }}
-              value={searchInput}
-            />
-
-            {isFetching && !isLoading ? (
-              <Stack
-                alignItems="center"
-                direction="row"
-                spacing={1}
-                sx={{ color: 'text.secondary' }}
-              >
-                <CircularProgress size={16} />
-                <Typography variant="body2">Updating...</Typography>
-              </Stack>
-            ) : null}
-          </Stack>
-
-          <Box
-            sx={{
-              overflowX: 'auto',
-              pb: 0.25,
+            Share a new job opportunity
+          </Button>
+          <Impact />
+          <ReferralTips />
+          <Difference />
+        </>
+      }
+    >
+      <ReferralHero
+        title="My Referral Jobs"
+        subtitle="Manage the opportunities you’ve shared and track referral requests."
+      />
+      <ReferralCard tint="#f2f8ff">
+        {metrics.isLoading ? (
+          <ReferralLoading />
+        ) : metrics.error ? (
+          <ReferralFailure error={metrics.error} retry={metrics.refetch} />
+        ) : metrics.data ? (
+          <Metrics metrics={metrics.data} />
+        ) : null}
+      </ReferralCard>
+      <ReferralCard>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          alignItems={{ md: 'center' }}
+          gap={1}
+          justifyContent="space-between"
+        >
+          <Tabs
+            value={tab}
+            variant="scrollable"
+            scrollButtons="auto"
+            onChange={(_, v: string) => {
+              setTab(v);
+              setPage(1);
             }}
           >
-            <ToggleButtonGroup
-              exclusive
-onChange={(event, nextStatus) => {
-  handleStatusChange(event, nextStatus as ReferralStatusFilter | null);
-}}
-              size="small"
-              value={status}
-              sx={{
-                '& .MuiToggleButton-root': {
-                  borderRadius: '999px !important',
-                  fontWeight: 700,
-                  minWidth: 82,
-                  px: 2,
-                  textTransform: 'none',
-                },
-                '& .Mui-selected': {
-                  bgcolor: 'primary.main',
-                  color: '#fff',
-                },
-                display: 'flex',
-                gap: 1,
-                width: 'max-content',
-              }}
-            >
-              <ToggleButton value="All">All</ToggleButton>
-              <ToggleButton value="Pending">Pending</ToggleButton>
-              <ToggleButton value="Approved">Approved</ToggleButton>
-              <ToggleButton value="Rejected">Rejected</ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-        </Stack>
-      </Paper>
-
-      {isLoading && !data ? (
-        <Paper
-          elevation={0}
-          sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 3,
-            p: 5,
-          }}
-        >
-          <Stack alignItems="center" spacing={1.5}>
-            <CircularProgress size={28} />
-            <Typography color="text.secondary">
-              Loading your referrals...
-            </Typography>
-          </Stack>
-        </Paper>
-      ) : null}
-
-      {isError && !data ? (
-        <Alert
-          action={
-            <Button color="inherit" onClick={() => void refetch()} size="small">
-              Retry
-            </Button>
-          }
-          severity="error"
-        >
-          We couldn't load your referrals.
-        </Alert>
-      ) : null}
-
-      {data && data.items.length === 0 ? (
-        <Paper
-          elevation={0}
-          sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 3,
-            p: { xs: 3, md: 5 },
-            textAlign: 'center',
-          }}
-        >
-          <Stack alignItems="center" spacing={1.5}>
-            <Box
-              sx={{
-                alignItems: 'center',
-                bgcolor: '#EEF4FF',
-                borderRadius: '50%',
-                color: 'primary.main',
-                display: 'flex',
-                height: 52,
-                justifyContent: 'center',
-                width: 52,
-              }}
-            >
-              <BusinessRoundedIcon />
-            </Box>
-
-            <Typography fontSize={18} fontWeight={800}>
-              {search || status !== 'All'
-                ? 'No matching referrals'
-                : 'No referrals yet'}
-            </Typography>
-
-            <Typography color="text.secondary" variant="body2">
-              {search || status !== 'All'
-                ? 'Try changing your search or status filter.'
-                : 'Jobs you refer will appear here so you can track their status.'}
-            </Typography>
-
-            {!search && status === 'All' ? (
-              <Button
-onClick={() => {
-  void navigate(ROUTES.REFER_A_JOB);
-}}                sx={{ mt: 1 }}
-                variant="contained"
-              >
-                Refer a job
-              </Button>
-            ) : null}
-          </Stack>
-        </Paper>
-      ) : null}
-
-      {data && data.items.length > 0 ? (
-        <Stack spacing={2}>
-          <Typography color="text.secondary" variant="body2">
-            {data.totalCount.toLocaleString()}{' '}
-            {data.totalCount === 1 ? 'referral' : 'referrals'}
+            {[
+              ['All', 'All'],
+              ['Approved', 'Active'],
+              ['Pending', 'Pending approval'],
+              ['Rejected', 'Rejected'],
+            ].map(([v, l]) => (
+              <Tab key={v} value={v} label={l} sx={{ textTransform: 'none', minWidth: 70 }} />
+            ))}
+          </Tabs>
+          <TextField
+            size="small"
+            label="Search title, company, location"
+            sx={{ maxWidth: { md: 280 } }}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <Typography fontSize={12} color="text.secondary">
+            Newest first
           </Typography>
-
-          <Paper
-            elevation={0}
-            sx={{
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 3,
-              overflow: 'hidden',
-            }}
-          >
-            {data.items.map((referral, index) => {
-              const referralStatus = normalizeReferralStatus(
-                referral.approvalStatus,
-              );
-
-              return (
-                <Box
-                  component="article"
-                  key={referral.id}
-                  sx={{
-                    borderBottom:
-                      index < data.items.length - 1 ? '1px solid' : 'none',
-                    borderColor: 'divider',
-                    p: { xs: 2, sm: 2.5 },
-                    transition: 'background-color 0.2s ease',
-                    '&:hover': {
-                      bgcolor: '#F8FAFD',
-                    },
-                  }}
-                >
-                  <Stack
-                    alignItems={{ xs: 'flex-start', sm: 'center' }}
-                    direction={{ xs: 'column', sm: 'row' }}
-                    justifyContent="space-between"
-                    spacing={2}
-                  >
-                    <Stack
-                      alignItems="flex-start"
-                      direction="row"
-                      spacing={1.5}
-                      sx={{ minWidth: 0 }}
-                    >
-                      <Box
-                        sx={{
-                          alignItems: 'center',
-                          bgcolor: '#EEF4FF',
-                          borderRadius: 2,
-                          color: 'primary.main',
-                          display: 'flex',
-                          flexShrink: 0,
-                          height: 42,
-                          justifyContent: 'center',
-                          width: 42,
-                        }}
-                      >
-                        <BusinessRoundedIcon fontSize="small" />
-                      </Box>
-
-                      <Stack spacing={0.6} sx={{ minWidth: 0 }}>
-                        <Typography
-                          sx={{
-                            color: '#172B4D',
-                            fontSize: 16,
-                            fontWeight: 800,
-                            overflowWrap: 'anywhere',
-                          }}
-                        >
-                          {referral.jobTitle}
-                        </Typography>
-
-                        <Stack
-                          alignItems="center"
-                          direction="row"
-                          spacing={0.5}
-                        >
-                          <LocationOnOutlinedIcon
-                            sx={{
-                              color: 'text.secondary',
-                              fontSize: 17,
-                            }}
-                          />
-                          <Typography
-                            color="text.secondary"
-                            variant="body2"
-                          >
-                            {referral.location?.trim() || 'Location not specified'}
-                          </Typography>
-                        </Stack>
-
-                        <Typography color="text.secondary" variant="caption">
-                          Submitted {formatSubmittedDate(referral.createdAtUtc)}
-                        </Typography>
-                      </Stack>
-                    </Stack>
-
-                    <Stack
-                      alignItems="center"
-                      direction="row"
-                      spacing={0.75}
-                      sx={{
-                        flexShrink: 0,
-                        pl: { xs: 7.25, sm: 0 },
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          bgcolor: getStatusColor(referralStatus),
-                          borderRadius: '50%',
-                          height: 7,
-                          width: 7,
-                        }}
-                      />
-
-                      <Typography
-                        fontWeight={700}
-                        sx={{
-                          color: getStatusColor(referralStatus),
-                        }}
-                        variant="body2"
-                      >
-                        {referralStatus}
-                      </Typography>
-                    </Stack>
+        </Stack>
+      </ReferralCard>
+      {jobs.isLoading ? (
+        <ReferralLoading />
+      ) : jobs.error ? (
+        <ReferralFailure error={jobs.error} retry={jobs.refetch} />
+      ) : !filtered.length ? (
+        <ReferralCard>
+          <Typography fontWeight={700}>
+            {search || tab !== 'All'
+              ? 'No opportunities match this filter.'
+              : 'No referral opportunities yet.'}
+          </Typography>
+          <Button onClick={() => void navigate('/dashboard/refer-a-job')}>
+            Share a job opportunity
+          </Button>
+        </ReferralCard>
+      ) : (
+        filtered.slice((page - 1) * 5, page * 5).map((job) => {
+          const rows = inbox.currentData?.filter((r) => r.request.referralId === job.id);
+          return (
+            <ReferralCard key={job.id}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', xl: 'minmax(0,1.2fr) minmax(240px,1fr) auto' },
+                  gap: 2,
+                  alignItems: 'center',
+                }}
+              >
+                <Box>
+                  <JobSummary job={job} />
+                  <Stack direction="row" justifyContent="space-between" gap={1} mt={1.5}>
+                    <ApprovalBadge value={job.approvalStatus} />
+                    <Typography fontSize={11} color="text.secondary">
+                      Posted {dateLabel(job.createdAtUtc)}
+                    </Typography>
                   </Stack>
                 </Box>
-              );
-            })}
-          </Paper>
-
-          {data.totalPages > 1 ? (
-            <Stack alignItems="center" pt={1}>
-              <Pagination
-                boundaryCount={1}
-                color="primary"
-                count={data.totalPages}
-               onChange={(_, nextPage) => {
-  void Promise.resolve().then(() => {
-    setPage(nextPage);
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  });
-}}
-                page={Math.min(page, data.totalPages)}
-                siblingCount={1}
-              />
-            </Stack>
-          ) : null}
+                <Box>
+                  <Stack direction="row" flexWrap="wrap" useFlexGap gap={2} mb={1.5}>
+                    {[
+                      ['Requests', rows?.length],
+                      ['Submitted', rows?.filter((r) => r.request.referralSubmittedAtUtc).length],
+                      ['Confirmed', rows?.filter((r) => r.request.candidateConfirmedAtUtc).length],
+                    ].map(([l, v]) => (
+                      <Box key={l}>
+                        <Typography fontWeight={750}>
+                          {inbox.isLoading ? '…' : inbox.error ? 'Unavailable' : v}
+                        </Typography>
+                        <Typography fontSize={11} color="text.secondary">
+                          {l}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                  <OpportunityCapacity job={job} />
+                </Box>
+                <Button
+                  variant="outlined"
+                  disabled={approvalStatus(job.approvalStatus) === 'Pending'}
+                  onClick={() =>
+                    void navigate(
+                      approvalStatus(job.approvalStatus) === 'Approved'
+                        ? opportunityPath(job.id)
+                        : `/dashboard/referrals/${encodeURIComponent(job.id)}/submitted`,
+                    )
+                  }
+                >
+                  {approvalStatus(job.approvalStatus) === 'Approved'
+                    ? 'View requests →'
+                    : 'View details →'}
+                </Button>
+              </Box>
+            </ReferralCard>
+          );
+        })
+      )}
+      {inbox.error && <ReferralFailure error={inbox.error} retry={inbox.refetch} />}{' '}
+      {filtered.length > 5 && (
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography fontSize={12}>
+            Showing {(page - 1) * 5 + 1}–{Math.min(page * 5, filtered.length)} of {filtered.length}
+          </Typography>
+          <Pagination
+            count={Math.ceil(filtered.length / 5)}
+            page={page}
+            onChange={(_, p) => setPage(p)}
+            color="primary"
+          />
         </Stack>
-      ) : null}
-    </Stack>
+      )}
+    </ReferralLayout>
   );
 };
+export const ReferralRequestsPage = () => {
+  const { referralId } = useParams();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState('All');
+  const [page, setPage] = useState(1);
+  const jobs = useGetOwnedOpportunitiesQuery(undefined, useFresh);
+  const inbox = useGetReferrerInboxQuery(undefined, useFresh);
+  const job = jobs.currentData?.find((j) => j.id === referralId);
+  const rows = (inbox.currentData ?? []).filter(
+    (r) => !referralId || r.request.referralId === referralId,
+  );
+  const filtered = rows.filter((r) => tab === 'All' || requestStatus(r.request.status) === tab);
+  return (
+    <ReferralLayout
+      aside={
+        <>
+          {job && (
+            <ReferralCard title="Job summary">
+              <JobSummary job={job} />
+              <Box mt={2}>
+                <OpportunityCapacity job={job} />
+              </Box>
+            </ReferralCard>
+          )}
+          <ReferralTips review />
+          <Impact />
+          <Difference />
+        </>
+      }
+    >
+      <ReferralHero
+        title={referralId ? 'Referral requests for job' : 'Referral requests'}
+        subtitle={
+          job
+            ? `${job.jobTitle} · ${job.companyName}`
+            : 'Review candidates and choose who you’re comfortable referring.'
+        }
+      />
+      {job && (
+        <ReferralCard>
+          <JobSummary job={job} />
+          <Box mt={1}>
+            <ApprovalBadge value={job.approvalStatus} />
+          </Box>
+        </ReferralCard>
+      )}
+      {inbox.isLoading ? (
+        <ReferralLoading />
+      ) : inbox.error ? (
+        <ReferralFailure error={inbox.error} retry={inbox.refetch} />
+      ) : jobs.error ? (
+        <ReferralFailure error={jobs.error} retry={jobs.refetch} />
+      ) : referralId && jobs.isLoading ? (
+        <ReferralLoading />
+      ) : referralId && !job ? (
+        <Alert severity="error">This referral opportunity is unavailable.</Alert>
+      ) : (
+        <>
+          <ReferralCard>
+            <Stack direction="row" gap={3} flexWrap="wrap" useFlexGap>
+              {[
+                ['Total requests', rows.length],
+                ['Accepted', rows.filter((r) => r.request.acceptedAtUtc).length],
+                ['Submitted', rows.filter((r) => r.request.referralSubmittedAtUtc).length],
+                ['Confirmed', rows.filter((r) => r.request.candidateConfirmedAtUtc).length],
+              ].map(([l, v]) => (
+                <Box key={l}>
+                  <Typography fontSize={22} fontWeight={750}>
+                    {v}
+                  </Typography>
+                  <Typography fontSize={12} color="text.secondary">
+                    {l}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          </ReferralCard>
+          <ReferralCard>
+            <Tabs
+              value={tab}
+              variant="scrollable"
+              scrollButtons="auto"
+              onChange={(_, v: string) => {
+                setTab(v);
+                setPage(1);
+              }}
+            >
+              {[
+                'All',
+                'Requested',
+                'Accepted',
+                'ReferralSubmitted',
+                'CandidateConfirmed',
+                'Rejected',
+                'Expired',
+              ].map((v) => (
+                <Tab
+                  key={v}
+                  value={v}
+                  label={v === 'All' ? 'All' : statusLabel(v as Parameters<typeof statusLabel>[0])}
+                  sx={{ textTransform: 'none' }}
+                />
+              ))}
+            </Tabs>
+          </ReferralCard>
+          {!filtered.length ? (
+            <ReferralCard>
+              <Typography fontWeight={750}>
+                {rows.length ? 'No requests match this filter.' : 'No requests yet.'}
+              </Typography>
+              <Typography color="text.secondary" fontSize={13}>
+                When candidates request a referral, they’ll appear here.
+              </Typography>
+            </ReferralCard>
+          ) : (
+            filtered
+              .slice((page - 1) * 10, page * 10)
+              .map((record) => (
+                <RequestRow
+                  key={record.request.id}
+                  record={record}
+                  onView={() => void navigate(requestPath(record.request.id))}
+                />
+              ))
+          )}
+          {filtered.length > 10 && (
+            <Pagination
+              count={Math.ceil(filtered.length / 10)}
+              page={page}
+              onChange={(_, v) => setPage(v)}
+            />
+          )}
+        </>
+      )}
+    </ReferralLayout>
+  );
+};
+const RequestRow = ({ record, onView }: { record: ReferrerRequestRecord; onView: () => void }) => (
+  <ReferralCard>
+    <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2}>
+      <CandidateSummary record={record} />
+      <Stack alignItems={{ md: 'flex-end' }} gap={1}>
+        <StatusBadge status={requestStatus(record.request.status)} />
+        <Typography fontSize={11} color="text.secondary">
+          Requested {dateLabel(record.request.requestedAtUtc)}
+        </Typography>
+        <Button variant="outlined" onClick={onView}>
+          {requestStatus(record.request.status) === 'Accepted'
+            ? 'Mark as referred'
+            : 'View profile & resume'}{' '}
+          →
+        </Button>
+        {requestStatus(record.request.status) === 'Requested' && (
+          <PendingRequestActions id={record.request.id} onAccepted={onView} />
+        )}
+      </Stack>
+    </Stack>
+    {record.request.candidateMessage && (
+      <Typography fontSize={13} color="text.secondary" mt={2} sx={{ whiteSpace: 'pre-wrap' }}>
+        {record.request.candidateMessage}
+      </Typography>
+    )}
+    {record.request.notReceivedAtUtc && (
+      <Alert severity="info" sx={{ mt: 2 }}>
+        Candidate reported that they haven’t received referral confirmation yet.
+      </Alert>
+    )}
+  </ReferralCard>
+);

@@ -340,6 +340,14 @@ export const appRoutes: RouteObject[] = [
   element: lazyPage(() => import('@/pages/AllReferralsPage'), 'AllReferralsPage'),
 
 },
+              {path:'/dashboard/referrals/:referralId/submitted',element:lazyPage(()=>import('@/pages/ReferralMarketplacePages'),'ReferralSubmissionSuccessPage')},
+              {path:'/dashboard/referrals/:referralId/requests',element:lazyPage(()=>import('@/pages/AllReferralsPage'),'ReferralRequestsPage')},
+              {path:'/dashboard/referral-requests',element:lazyPage(()=>import('@/pages/AllReferralsPage'),'ReferralRequestsPage')},
+              {path:'/dashboard/referral-requests/:requestId',element:lazyPage(()=>import('@/pages/ReferralMarketplacePages'),'ReferrerRequestDetailPage')},
+              {path:'/dashboard/referral-requests/:requestId/complete',element:lazyPage(()=>import('@/pages/ReferralMarketplacePages'),'ReferrerRequestDetailPage')},
+              {path:'/dashboard/referral-requests/:requestId/submitted',element:lazyPage(()=>import('@/pages/ReferralMarketplacePages'),'ReferrerRequestDetailPage')},
+              {path:'/dashboard/my-referral-requests',element:lazyPage(()=>import('@/pages/CandidateReferralRequestsPage'),'CandidateReferralRequestsPage')},
+              {path:'/dashboard/my-referral-requests/:requestId',element:lazyPage(()=>import('@/pages/CandidateReferralRequestsPage'),'CandidateReferralRequestPage')},
 
               {
 

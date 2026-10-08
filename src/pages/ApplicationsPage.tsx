@@ -1,6 +1,6 @@
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
-import { Box, Chip, FormControl, Grid, InputLabel, Link as MuiLink, MenuItem, Pagination, Paper, Select, Stack, Typography } from '@mui/material';
+import { Alert, Box, Chip, FormControl, Grid, InputLabel, Link as MuiLink, MenuItem, Pagination, Paper, Select, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -49,6 +49,11 @@ export const ApplicationsPage = () => {
 
   return (
     <Stack spacing={3}>
+      <Alert severity="info">
+        Referral requests have their own lifecycle. Employee acceptance, reported referral submission,
+        and your acknowledgement do not establish an employer application outcome.{' '}
+        <MuiLink component={Link} to="/dashboard/my-referral-requests">View My Referral Requests</MuiLink>
+      </Alert>
      
       <FormControl size="small" sx={{ maxWidth: 280 }}>
         <InputLabel id="application-status-filter-label">Application status</InputLabel>

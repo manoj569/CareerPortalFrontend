@@ -39,6 +39,17 @@ export const candidateNavigationItems: NavigationItem[] = [
     icon: GroupAddOutlinedIcon,
     badge: 'New',
   },
+  { label: 'My referrals', path: ROUTES.REFERRALS, icon: GroupAddOutlinedIcon, end: true },
+  {
+    label: 'Referral requests',
+    path: '/dashboard/referral-requests',
+    icon: QuestionAnswerOutlinedIcon,
+  },
+  {
+    label: 'My referral requests',
+    path: '/dashboard/my-referral-requests',
+    icon: DescriptionOutlinedIcon,
+  },
   {
     label: 'Interview insights',
     path: ROUTES.INTERVIEW_INSIGHTS,
@@ -56,7 +67,10 @@ export const candidateNavigationItems: NavigationItem[] = [
     icon: WorkspacePremiumOutlinedIcon,
   },
   {
-    label: 'Resume maker', path: ROUTES.RESUME_MAKER, icon: DescriptionOutlinedIcon, badge: 'New',
+    label: 'Resume maker',
+    path: ROUTES.RESUME_MAKER,
+    icon: DescriptionOutlinedIcon,
+    badge: 'New',
   },
   {
     label: 'Settings',

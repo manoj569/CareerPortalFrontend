@@ -1,7 +1,18 @@
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import { Box, Button, Chip, Link as MuiLink, Pagination, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Chip,
+  Link as MuiLink,
+  Pagination,
+  Paper,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -31,11 +42,14 @@ export const NotificationsPage = () => {
   );
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<ReadFilter>('all');
-  const { data, isError, isFetching, isLoading, refetch } = useGetNotificationsQuery({
-    isRead: filter === 'all' ? undefined : filter === 'read',
-    pageNumber: page,
-    pageSize: PAGE_SIZE,
-  });
+  const { data, isError, isFetching, isLoading, refetch } = useGetNotificationsQuery(
+    {
+      isRead: filter === 'all' ? undefined : filter === 'read',
+      pageNumber: page,
+      pageSize: PAGE_SIZE,
+    },
+    { pollingInterval: 30000, refetchOnMountOrArgChange: true },
+  );
   const [markRead, markReadState] = useMarkNotificationReadMutation();
   const [markAllRead, markAllState] = useMarkAllNotificationsReadMutation();
 

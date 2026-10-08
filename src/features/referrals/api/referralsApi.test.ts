@@ -15,7 +15,8 @@ describe('authoritative referral contact access', () => {
     [1, 'Granted'],
     [2, 'LoginRequired'],
     [3, 'MembershipRequired'],
-    [99, 'MembershipRequired'],
+    [4, 'RequestRequired'],
+    [99, 'RequestRequired'],
   ])('maps backend status %s and keeps denied contact private', async (status, expected) => {
     request.mockResolvedValue({
       data: {

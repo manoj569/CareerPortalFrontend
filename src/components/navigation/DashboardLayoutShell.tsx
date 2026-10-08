@@ -20,7 +20,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { useRef, useState } from 'react';
-import { Outlet, useMatch, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { logout, selectCurrentUser } from '@/features/auth/store/authSlice';
@@ -112,7 +112,10 @@ const isPortfolioPage = portfolioMatch !== null;
 const isMembershipPage = membershipMatch !== null;
 const isSettingsPage = settingsMatch !== null;
 
+const referralLocation = useLocation();
+const isReferralPage = /^\/dashboard\/(referrals|referral-requests|my-referral-requests)(\/|$)/.test(referralLocation.pathname);
 const isFullWidthPage =
+  isReferralPage ||
   isBrowseJobsPage ||
   isDashboardPage ||
   isSavedJobsPage ||

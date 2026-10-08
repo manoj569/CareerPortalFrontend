@@ -475,6 +475,9 @@ describe('candidate dashboard pages', () => {
     );
     renderPage(<ApplicationsPage />);
 
+    expect(screen.getByText(/Referral requests have their own lifecycle/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View My Referral Requests' })).toHaveAttribute('href', '/dashboard/my-referral-requests');
+
     expect(screen.getByText(job.title)).toBeInTheDocument();
     expect(screen.getByText('Submitted')).toBeInTheDocument();
     expect(screen.getByText(job.categoryName)).toBeInTheDocument();

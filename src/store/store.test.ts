@@ -43,7 +43,7 @@ describe('private server-state lifecycle', () => {
   it('clears candidate, payment, and administrator caches after session expiration', async () => {
     const store = createAppStore();
     await store.dispatch(referralsApi.util.upsertQueryData('unlockReferralContact', 'job-1', {
-      status: 'Granted', message: '', contact: { referrerName: 'Referrer', email: 'private@example.test', phoneNumber: null, linkedInUrl: null },
+      status: 'Granted', message: '', contact: { referrerLabel: 'Employee Referrer', email: 'private@example.test', phoneNumber: null, linkedInUrl: null },
     }));
     await store.dispatch(dashboardApi.util.upsertQueryData('getProfile', undefined, profile));
     await store.dispatch(

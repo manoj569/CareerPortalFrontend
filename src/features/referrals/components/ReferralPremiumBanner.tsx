@@ -47,8 +47,8 @@ export const ReferralPremiumBanner = ({
             Connect with employees who can help you get referred
           </Typography>
           <Typography sx={{ mt: 1.5, fontSize: 15, lineHeight: 1.6 }}>
-            Get 30-day Referral Contact Access and connect with referrers across all eligible
-            referral jobs.
+            Get Referral Access for up to 10 accepted connections per applicable 30-day period
+            across eligible referral jobs.
           </Typography>
         </Box>
       </Stack>
@@ -60,10 +60,10 @@ export const ReferralPremiumBanner = ({
         sx={{ justifyContent: 'space-between' }}
       >
         {[
-          'See employee referrers',
-          'Direct contact access (LinkedIn / Email)',
-          'Apply with confidence',
-          'One plan. Multiple referral connections.',
+          'Discover employee opportunities',
+          'Contact only after acceptance',
+          'Requests consume zero connections',
+          'Up to 10 accepted connections per period.',
         ].map((benefit) => (
           <Stack key={benefit} direction="row" alignItems="center" spacing={1.5}>
             <CheckCircleIcon sx={{ color: 'primary.main', fontSize: 19 }} />
@@ -88,8 +88,8 @@ export const ReferralPremiumBanner = ({
       </Typography>
       <Typography sx={{ fontSize: 14, maxWidth: 240, lineHeight: 1.5 }}>
         {access === 'active'
-          ? 'Your plan covers contact access across eligible referral jobs.'
-          : 'Unlock referrer contact details across all eligible referral jobs.'}
+          ? 'Contact requires an accepted request and active access.'
+          : 'Request a referral. Contact becomes available after acceptance.'}
       </Typography>
       <Button
         fullWidth
@@ -108,7 +108,7 @@ export const ReferralPremiumBanner = ({
               : 'Get Referral Contact Access'}
       </Button>
       <Typography sx={{ fontSize: 13, color: '#237439', fontWeight: 600 }}>
-        One plan. Many opportunities.
+        Acceptance consumes one connection.
       </Typography>
     </Stack>
   </Box>

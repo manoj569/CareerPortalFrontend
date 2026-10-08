@@ -1,436 +1,507 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box,
+  Alert,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
+  MenuItem,
   Pagination,
-  Paper,
-  Skeleton,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
-import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-
-import { EmptyState } from '@/components/feedback/EmptyState';
-import { ErrorState } from '@/components/feedback/ErrorState';
 import {
-  buildReferralContactDetailsPath,
-  ROUTES,
-} from '@/constants/routes';
-import { selectCurrentUser } from '@/features/auth/store/authSlice';
-import { useAppSelector } from '@/hooks/reduxHooks';
-import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
-import { useGetAIApplyPlansQuery } from '@/features/aiApply/api/aiApplyApi';
-import { isMembershipActive } from '@/features/payments/utils/entitlement';
-
+  useCreateReferralRequestMutation,
+  useGetCandidateActivityQuery,
+  useGetReferralCatalogueQuery,
+  useGetReferralSavedJobsQuery,
+} from '../api/marketplaceApi';
 import {
-  useGetPublicReferralJobsQuery,
-  useLazyUnlockReferralContactQuery,
-} from '../api/referralsApi';
+  useGetProfileQuery,
+  useGetResumeStatusQuery,
+  useSaveJobMutation,
+  useRemoveSavedJobMutation,
+} from '@/features/dashboard/api/dashboardApi';
 import type { PublicReferralJob } from '../types/referralModels';
+import type { ReferralRequestRecord } from '../types/marketplaceModels';
+import { dateLabel, referralError, statusLabel } from '../types/marketplaceModels';
+import { useAppSelector } from '@/hooks/reduxHooks';
+import { selectCurrentUser } from '@/features/auth/store/authSlice';
+import { ROUTES } from '@/constants/routes';
+import {
+  ReferralCard,
+  ReferralFailure,
+  ReferralHero,
+  ReferralLayout,
+  ReferralLoading,
+} from './MarketplaceUI';
+import {
+  CandidateHowItWorks,
+  CandidateJobSummary,
+  CandidateQuotaCard,
+} from './CandidateReferralUI';
 import { ReferralJobCard } from './ReferralJobCard';
-import { ReferralPremiumBanner } from './ReferralPremiumBanner';
+import { getEmploymentTypeLabel } from '@/features/jobs/constants/jobOptions';
 
 export const ReferralJobsSection = () => {
   const navigate = useNavigate();
-  const currentUser = useAppSelector(selectCurrentUser);
-
+  const user = useAppSelector(selectCurrentUser);
   const [page, setPage] = useState(1);
-  const [learnMore, setLearnMore] = useState(false);
-
-  const inFlight = useRef(false);
-
-  const {
-    currentData: data,
-    isError,
-    isFetching,
-    refetch,
-  } = useGetPublicReferralJobsQuery({
-    pageNumber: page,
-    pageSize: 12,
+  const [filters, setFilters] = useState({
+    search: '',
+    category: '',
+    location: '',
+    experience: '',
+    employment: '',
+    company: '',
   });
-
-  const memberships = useGetMembershipsQuery(undefined, {
-    skip: !currentUser,
+  const [selected, setSelected] = useState<PublicReferralJob | null>(null);
+  const [sent, setSent] = useState<{
+    job: PublicReferralJob;
+    request: ReferralRequestRecord;
+  } | null>(null);
+  const [message, setMessage] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [error, setError] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const submitting = useRef(false);
+  const query = useGetReferralCatalogueQuery(undefined, { refetchOnMountOrArgChange: true });
+  const activity = useGetCandidateActivityQuery(undefined, {
+    skip: !user,
+    refetchOnMountOrArgChange: true,
+    pollingInterval: 60000,
   });
-
-  const plans = useGetAIApplyPlansQuery();
-
-  const [triggerUnlock, unlockState] =
-    useLazyUnlockReferralContactQuery();
-
-  const returnTo = `${ROUTES.DASHBOARD_JOBS}?mode=referral`;
-
-  const goToAccess = () => {
-    void navigate(
-      `${ROUTES.MEMBERSHIP}?plan=ReferralContactAccess&returnTo=${encodeURIComponent(
-        returnTo,
-      )}`,
-    );
-  };
-
-  const referralPlan = plans.data?.find(
-    (plan) => plan.planCode === 'ReferralContactAccess',
+  const saved = useGetReferralSavedJobsQuery(undefined, {
+    skip: !user,
+    refetchOnMountOrArgChange: true,
+  });
+  const profile = useGetProfileQuery(undefined, { skip: !selected });
+  const resume = useGetResumeStatusQuery(undefined, { skip: !selected });
+  const [create, state] = useCreateReferralRequestMutation();
+  const [save, saveState] = useSaveJobMutation();
+  const [remove, removeState] = useRemoveSavedJobMutation();
+  const requestsByReferral = useMemo(
+    () => new Map(activity.currentData?.items.map((r) => [r.referralId, r])),
+    [activity.currentData?.items],
   );
-
-  const activeAccess = Boolean(
-    currentUser &&
-      (data?.items.some(
-        (job) => job.canViewReferrerContact === true,
-      ) ||
-        (referralPlan &&
-          memberships.data?.some(
-            (membership) =>
-              membership.planName === referralPlan.displayName &&
-              isMembershipActive(membership),
-          ))),
-  );
-
-  const access = activeAccess
-    ? 'active'
-    : !currentUser
-      ? 'inactive'
-      : memberships.isLoading || plans.isLoading
-        ? 'checking'
-        : memberships.isError ||
-            plans.isError ||
-            !referralPlan
-          ? 'unknown'
-          : 'inactive';
-
-  const handleSeeDetails = async (
-    job: PublicReferralJob,
-  ) => {
-    if (inFlight.current) return;
-
-    const contactPath =
-      buildReferralContactDetailsPath(job.jobId);
-
-    /*
-     * User is not logged in.
-     *
-     * Send them to login and preserve the exact referral
-     * contact page they were trying to open.
-     */
+  const existing = (job: PublicReferralJob) => requestsByReferral.get(job.referralId!);
+  const quota = activity.currentData?.quota;
+  const unavailable = !quota || !quota.hasActiveAccess || quota.remainingConnections <= 0;
+  const request = async () => {
     if (
-      !currentUser ||
-      job.contactAccessStatus === 'LoginRequired'
-    ) {
-      void navigate(ROUTES.LOGIN, {
-        state: {
-          from: contactPath,
-        },
-      });
-
+      !selected?.referralId ||
+      state.isLoading ||
+      submitting.current ||
+      !consent ||
+      unavailable ||
+      existing(selected) ||
+      message.trim().length > 2000 ||
+      selected.remainingReferralSlots === 0
+    )
       return;
-    }
-
-    /*
-     * The public job response already tells us that
-     * Referral Contact Access is required.
-     */
-    if (
-      job.canViewReferrerContact !== true &&
-      job.contactAccessStatus === 'MembershipRequired'
-    ) {
-      void navigate(
-        `${ROUTES.MEMBERSHIP}?plan=ReferralContactAccess&returnTo=${encodeURIComponent(
-          contactPath,
-        )}`,
-      );
-
-      return;
-    }
-
-    /*
-     * Even if the public job says access is available,
-     * verify it again with the backend before opening
-     * the contact page.
-     */
-    inFlight.current = true;
-
+    submitting.current = true;
+    setError('');
     try {
-      const result = await triggerUnlock(
-        job.jobId,
-        false,
-      ).unwrap();
-
-      if (result.status === 'LoginRequired') {
-        void navigate(ROUTES.LOGIN, {
-          state: {
-            from: contactPath,
-          },
-        });
-
-        return;
-      }
-
-      if (result.status === 'MembershipRequired') {
-        void navigate(
-          `${ROUTES.MEMBERSHIP}?plan=ReferralContactAccess&returnTo=${encodeURIComponent(
-            contactPath,
-          )}`,
-        );
-
-        return;
-      }
-
-      if (result.status === 'Granted') {
-        void navigate(contactPath);
-      }
+      const result = await create({
+        referralId: selected.referralId,
+        candidateMessage: message,
+      }).unwrap();
+      setSent({ job: selected, request: result });
+      setSelected(null);
+    } catch (e) {
+      setError(referralError(e));
+      void query.refetch();
+      void activity.refetch();
     } finally {
-      inFlight.current = false;
+      submitting.current = false;
     }
   };
-
+  const saveJob = async (job: PublicReferralJob) => {
+    if (!user) {
+      void navigate(ROUTES.LOGIN);
+      return;
+    }
+    if (saveState.isLoading || removeState.isLoading || !saved.currentData) return;
+    setSaveError('');
+    try {
+      await (
+        saved.currentData.some((item) => item.jobId === job.jobId)
+          ? remove(job.jobId)
+          : save(job.jobId)
+      ).unwrap();
+      void saved.refetch();
+    } catch (e) {
+      setSaveError(referralError(e));
+    }
+  };
+  const jobs = query.currentData ?? [];
+  const visible = useMemo(
+    () =>
+      (query.currentData ?? []).filter((job) => {
+        const text = [job.jobTitle, job.companyName, ...(job.skills ?? [])].join(' ').toLowerCase();
+        const years = filters.experience === '' ? null : Number(filters.experience);
+        return (
+          text.includes(filters.search.trim().toLowerCase()) &&
+          (!filters.category || job.categoryName === filters.category) &&
+          (!filters.location || job.location === filters.location) &&
+          (!filters.company || job.companyName === filters.company) &&
+          (!filters.employment || String(job.employmentType) === filters.employment) &&
+          (years == null ||
+            ((job.minimumExperienceYears ?? Infinity) <= years &&
+              (job.maximumExperienceYears ?? Infinity) >= years))
+        );
+      }),
+    [query.currentData, filters],
+  );
+  const update = (key: keyof typeof filters, value: string) => {
+    setFilters((v) => ({ ...v, [key]: value }));
+    setPage(1);
+  };
+  const openRequest = (job: PublicReferralJob) => {
+    if (!user) {
+      void navigate(ROUTES.LOGIN, { state: { from: `${ROUTES.DASHBOARD_JOBS}?mode=referral` } });
+      return;
+    }
+    setSelected(job);
+    setMessage('');
+    setConsent(false);
+    setError('');
+  };
+  const viewRequest = (id: string) =>
+    void navigate(`/dashboard/my-referral-requests/${encodeURIComponent(id)}`);
   return (
-    <Stack spacing={2.5} sx={{ minWidth: 0 }}>
-      <ReferralPremiumBanner
-        access={access}
-        onAccess={goToAccess}
-      />
-
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        gap={1}
-        sx={{
-          py: 1.25,
-          flexWrap: 'wrap',
-          rowGap: 1.5,
-        }}
+    <>
+      <ReferralLayout
+        aside={
+          <>
+            {quota && <CandidateQuotaCard quota={quota} />}
+            <ReferralCard title="Referral Access">
+              <Typography fontSize={13}>
+                Eligibility and accepted-connection limits come from your current access period.
+                Direct application quotas are separate.
+              </Typography>
+              <Button
+                onClick={() => void navigate(`${ROUTES.MEMBERSHIP}?plan=ReferralContactAccess`)}
+              >
+                Manage Referral Access →
+              </Button>
+            </ReferralCard>
+            <CandidateHowItWorks />
+            <ReferralCard title="Tips for requesting a referral" tint="#fffaf0">
+              <Stack gap={1}>
+                {[
+                  'Keep your profile and resume updated',
+                  'Write a short, relevant message',
+                  'Request roles that match your skills',
+                  'Check actual updates in My Referral Requests',
+                  'Acknowledge receipt only when you receive company instructions',
+                ].map((tip) => (
+                  <Typography key={tip} fontSize={12}>
+                    ✓ {tip}
+                  </Typography>
+                ))}
+              </Stack>
+            </ReferralCard>
+          </>
+        }
       >
-        <Typography
-          component="h2"
-          sx={{
-            fontSize: 18,
-            fontWeight: 700,
-          }}
-        >
-          {data
-            ? `${data.totalCount} referral jobs`
-            : 'Referral jobs'}
-        </Typography>
-
-        <Box
-          title="Results use the backend's default order"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            border: '1px solid #dce2eb',
-            borderRadius: 1,
-            px: 2,
-            py: 1.5,
-            bgcolor: 'background.paper',
-            fontSize: 14,
-          }}
-        >
-          Sort by:{' '}
-          <Box component="strong">
-            Most relevant
-          </Box>
-
-          <ExpandMoreIcon
-            sx={{
-              ml: 2,
-              fontSize: 16,
-            }}
-          />
-        </Box>
-      </Stack>
-
-      {isError ? (
-        <ErrorState
-          title="Referral jobs unavailable"
-          onRetry={() => void refetch()}
+        <ReferralHero
+          title="Get Referred. Get Noticed."
+          subtitle="Discover employee referral opportunities and track your requests in CareerHarbor."
         />
-      ) : isFetching && !data ? (
-        <Stack
-          spacing={2.5}
-          role="status"
-          aria-label="Loading referral jobs"
-        >
-          {[1, 2, 3].map((key) => (
-            <Paper
-              key={key}
-              variant="outlined"
-              sx={{
-                p: 3,
-                display: 'flex',
-                gap: 3,
-                alignItems: 'center',
-                minHeight: 190,
+        <ReferralCard>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            gap={1}
+            useFlexGap
+            flexWrap="wrap"
+          >
+            <Typography fontWeight={750}>
+              Referral Jobs {query.currentData ? `(${jobs.length})` : ''}
+            </Typography>
+            <Typography fontSize={12}>Sort: Newest</Typography>
+            <Button onClick={() => void navigate('/dashboard/my-referral-requests')}>
+              My referral requests →
+            </Button>
+          </Stack>
+          <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} mt={2}>
+            <TextField
+              size="small"
+              label="Search job title, company or skills"
+              value={filters.search}
+              onChange={(e) => update('search', e.target.value)}
+              sx={{ flex: '1 1 260px' }}
+            />
+            {(['category', 'location', 'employment', 'company'] as const).map((key) => {
+              const options = [
+                ...new Set(
+                  jobs
+                    .map((j) =>
+                      key === 'category'
+                        ? j.categoryName
+                        : key === 'location'
+                          ? j.location
+                          : key === 'company'
+                            ? j.companyName
+                            : j.employmentType == null
+                              ? null
+                              : String(j.employmentType),
+                    )
+                    .filter((v): v is string => !!v),
+                ),
+              ].sort();
+              return (
+                <TextField
+                  key={key}
+                  size="small"
+                  select
+                  label={key === 'employment' ? 'Job type' : key[0]!.toUpperCase() + key.slice(1)}
+                  value={filters[key]}
+                  onChange={(e) => update(key, e.target.value)}
+                  sx={{ minWidth: 120, flex: '1 1 120px' }}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {options.map((v) => (
+                    <MenuItem key={v} value={v}>
+                      {key === 'employment' ? getEmploymentTypeLabel(Number(v)) : v}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              );
+            })}
+            <TextField
+              size="small"
+              label="Experience (years)"
+              type="number"
+              value={filters.experience}
+              onChange={(e) => update('experience', e.target.value)}
+              slotProps={{ htmlInput: { min: 0 } }}
+              sx={{ width: 160 }}
+            />
+            <Button
+              onClick={() => {
+                setFilters({
+                  search: '',
+                  category: '',
+                  location: '',
+                  experience: '',
+                  employment: '',
+                  company: '',
+                });
+                setPage(1);
               }}
             >
-              <Skeleton
-                variant="rounded"
-                width={72}
-                height={72}
-              />
-
-              <Box sx={{ flex: 1 }}>
-                <Skeleton width="65%" />
-                <Skeleton width="85%" />
-                <Skeleton width="50%" />
-              </Box>
-
-              <Skeleton
-                variant="rounded"
-                sx={{
-                  display: {
-                    xs: 'none',
-                    md: 'block',
-                  },
-                  width: '27%',
-                }}
-                height={138}
-              />
-            </Paper>
-          ))}
-        </Stack>
-      ) : data?.items.length ? (
-        data.items.map((job) => (
-          <ReferralJobCard
-            key={job.referralId ?? job.jobId}
-            job={job}
-            busy={unlockState.isFetching}
-            onSeeDetails={(selected) =>
-              void handleSeeDetails(selected)
-            }
-          />
-        ))
-      ) : (
-        <EmptyState
-          title="No referral jobs yet"
-          description="Check back soon for new employee referral opportunities."
-        />
-      )}
-
-      {data && data.totalPages > 1 && (
-        <Pagination
-          page={data.pageNumber}
-          count={data.totalPages}
-          onChange={(_, value) => setPage(value)}
-          sx={{
-            alignSelf: 'center',
-          }}
-        />
-      )}
-
-      <Stack
-        direction={{
-          xs: 'column',
-          md: 'row',
-        }}
-        alignItems={{
-          xs: 'flex-start',
-          md: 'center',
-        }}
-        useFlexGap
-        flexWrap="wrap"
-        gap={3}
-        sx={{
-          bgcolor: '#fff9e9',
-          borderRadius: 1.5,
-          px: 3,
-          py: 2.5,
-          minHeight: 90,
-        }}
-      >
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={1}
-        >
-          <LightbulbOutlinedIcon
-            sx={{
-              color: '#dba51b',
-            }}
-          />
-
-          <Typography
-            sx={{
-              fontSize: 15,
-              fontWeight: 700,
-              color: '#714719',
-            }}
-          >
-            Why referral jobs?
-          </Typography>
-        </Stack>
-
-        {[
-          'Higher chance of getting shortlisted',
-          'Faster interview process',
-          'Insights from current employees',
-        ].map((benefit) => (
-          <Stack
-            key={benefit}
-            direction="row"
-            alignItems="center"
-            spacing={0.75}
-          >
-            <CheckCircleOutlineIcon
-              sx={{
-                fontSize: 21,
-                color: 'primary.main',
-              }}
-            />
-
-            <Typography sx={{ fontSize: 13 }}>
-              {benefit}
-            </Typography>
+              Reset
+            </Button>
           </Stack>
-        ))}
-
-        <Button
-          variant="outlined"
-          onClick={() => setLearnMore(true)}
-          sx={{
-            ml: {
-              md: 'auto',
-            },
-            minHeight: 32,
-            fontSize: 13,
-          }}
-        >
-          Learn more
-        </Button>
-      </Stack>
-
-      {/* Keep only the informational dialog. */}
+          {jobs.some((j) => !j.categoryName) && (
+            <Typography fontSize={11} mt={1}>
+              Category metadata is unavailable for some opportunities; category filters include only
+              known matches.
+            </Typography>
+          )}
+        </ReferralCard>
+        {user && activity.error && (
+          <ReferralFailure error={activity.error} retry={activity.refetch} />
+        )}
+        {saved.error && <ReferralFailure error={saved.error} retry={saved.refetch} />}
+        {saveError && <Alert severity="error">{saveError}</Alert>}
+        {query.isFetching ? (
+          <ReferralLoading />
+        ) : query.error ? (
+          <ReferralFailure error={query.error} retry={query.refetch} />
+        ) : !visible.length ? (
+          <ReferralCard>No referral jobs match your filters.</ReferralCard>
+        ) : (
+          visible.slice((page - 1) * 5, page * 5).map((job) => (
+            <ReferralJobCard
+              key={job.referralId}
+              job={job}
+              onSeeDetails={openRequest}
+              request={existing(job)}
+              onViewRequest={() => {
+                const r = existing(job);
+                if (r) viewRequest(r.id);
+              }}
+              busy={!!user && (!activity.currentData || !!activity.error)}
+              onSave={() => void saveJob(job)}
+              saved={saved.currentData?.some((item) => item.jobId === job.jobId)}
+            />
+          ))
+        )}
+        {visible.length > 5 && (
+          <Pagination
+            count={Math.ceil(visible.length / 5)}
+            page={page}
+            onChange={(_, v) => setPage(v)}
+          />
+        )}
+      </ReferralLayout>
       <Dialog
-        open={learnMore}
-        onClose={() => setLearnMore(false)}
+        fullWidth
+        maxWidth="md"
+        open={!!selected}
+        onClose={() => {
+          if (!state.isLoading) setSelected(null);
+        }}
+        aria-labelledby="request-dialog-title"
       >
-        <DialogTitle>
-          Why referral jobs?
-        </DialogTitle>
-
+        <DialogTitle id="request-dialog-title">Request Referral</DialogTitle>
         <DialogContent>
-          Referrers can share insights about a role and
-          their workplace. Contact access lasts 30 days
-          across eligible referral jobs. A referral does
-          not guarantee a response, interview, faster
-          process, or job offer.
-        </DialogContent>
-
-        <DialogActions>
-          <Button
-            onClick={() => setLearnMore(false)}
+          <ReferralLayout
+            aside={
+              <>
+                <ReferralCard title="Referral slots available" tint="#edfcf5">
+                  <Typography fontSize={25} fontWeight={800}>
+                    {selected?.remainingReferralSlots ?? 'Unavailable'}
+                    {selected?.referralSlots != null ? ` / ${selected.referralSlots}` : ''}
+                  </Typography>
+                  <Typography fontSize={12}>
+                    Slots count accepted connections, not requests.
+                  </Typography>
+                </ReferralCard>
+                {quota && <CandidateQuotaCard quota={quota} />}
+                <CandidateHowItWorks />
+              </>
+            }
           >
-            Close
+            {selected && (
+              <ReferralCard>
+                <CandidateJobSummary job={selected} />
+              </ReferralCard>
+            )}
+            <ReferralCard title="Your profile">
+              {profile.isFetching ? (
+                <ReferralLoading />
+              ) : profile.error ? (
+                <ReferralFailure error={profile.error} retry={profile.refetch} />
+              ) : (
+                <>
+                  <Typography fontWeight={750}>
+                    {profile.data?.firstName} {profile.data?.lastName}
+                  </Typography>
+                  <Typography fontSize={12}>{profile.data?.email}</Typography>
+                </>
+              )}
+              <Button onClick={() => void navigate(ROUTES.PROFILE)}>Review profile →</Button>
+              <Typography fontSize={12}>
+                Resume:{' '}
+                {resume.isFetching
+                  ? 'Checking…'
+                  : resume.error
+                    ? 'Status unavailable'
+                    : resume.data?.hasResume
+                      ? (profile.data?.resume?.fileName ?? 'Uploaded')
+                      : 'Not uploaded'}
+              </Typography>
+              <Typography fontSize={11} color="text.secondary">
+                A resume is recommended. The current referral request policy does not require one.
+              </Typography>
+            </ReferralCard>
+            <TextField
+              fullWidth
+              multiline
+              minRows={4}
+              label="Message to the referrer (optional)"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              slotProps={{ htmlInput: { maxLength: 2000 } }}
+              helperText={`${message.length}/2000`}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              }
+              label="I consent to sharing my profile and available resume with the employee for this referral request."
+            />
+            {unavailable && (
+              <Alert severity="info">
+                {!quota
+                  ? 'Checking referral eligibility…'
+                  : !quota.hasActiveAccess
+                    ? 'Active Referral Access is required to send this request.'
+                    : 'Your accepted-connection quota is exhausted for this access period.'}
+                <Button
+                  onClick={() => void navigate(`${ROUTES.MEMBERSHIP}?plan=ReferralContactAccess`)}
+                >
+                  Manage access
+                </Button>
+              </Alert>
+            )}
+            {error && <Alert severity="error">{error}</Alert>}
+          </ReferralLayout>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={state.isLoading} onClick={() => setSelected(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={
+              state.isLoading ||
+              !consent ||
+              unavailable ||
+              !!activity.error ||
+              !selected?.referralId ||
+              selected.referralAvailable === false ||
+              selected.remainingReferralSlots === 0 ||
+              !!(selected && existing(selected))
+            }
+            onClick={() => void request()}
+          >
+            {state.isLoading ? 'Requesting…' : 'Send referral request →'}
           </Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={!!sent}
+        onClose={() => setSent(null)}
+        aria-labelledby="referral-sent-title"
+      >
+        <DialogTitle id="referral-sent-title" sx={{ textAlign: 'center', pt: 4 }}>
+          ✓ Referral request sent!
+        </DialogTitle>
+        <DialogContent>
+          <Stack gap={2}>
+            <Typography textAlign="center">
+              Your request was recorded. The employee has not yet accepted or reported submitting
+              this referral.
+            </Typography>
+            {sent && (
+              <>
+                <ReferralCard>
+                  <CandidateJobSummary job={sent.job} />
+                </ReferralCard>
+                <Typography fontSize={13}>
+                  Requested {dateLabel(sent.request.requestedAtUtc)} ·{' '}
+                  {statusLabel(sent.request.status)}
+                </Typography>
+              </>
+            )}
+            <CandidateHowItWorks />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSent(null)}>View Referral Jobs</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (sent) viewRequest(sent.request.id);
+            }}
+          >
+            View My Referral Request →
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };

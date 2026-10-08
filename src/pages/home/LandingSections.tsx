@@ -170,7 +170,7 @@ export const ReferralFeature = () => {
               <GroupsOutlinedIcon />
             </span>
             <h3>Connect with employees</h3>
-            <p>View referrer details on eligible jobs with Referral Contact Access.</p>
+            <p>Request referrals on eligible jobs. Contact access requires acceptance and active Referral Access.</p>
           </div>
         </div>
       </div>

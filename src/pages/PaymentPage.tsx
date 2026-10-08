@@ -114,8 +114,8 @@ const formatCreatedTime = (value: string): string => {
 const planBenefits = (plan: MembershipPlan): string[] => {
   if (plan.planCode === REFERRAL_ACCESS_PLAN) {
     return [
-      'Unlock referrer contact details',
-      'Connect directly with job referrers',
+      'Contact access after request acceptance',
+      'Up to 10 accepted connections per applicable 30-day period',
       'Access approved referral opportunities',
       'Browse referral jobs',
       `${plan.durationDays}-day referral contact access`,
@@ -133,7 +133,7 @@ const planBenefits = (plan: MembershipPlan): string[] => {
 
 const planDescription = (planCode: string): string => {
   if (planCode === REFERRAL_ACCESS_PLAN) {
-    return 'Connect directly with employees who are sharing approved referral opportunities.';
+    return 'Request referrals for approved opportunities. Contact access requires acceptance and active Referral Access.';
   }
 
   return 'Apply to jobs and use the standard Career Harbor candidate experience.';

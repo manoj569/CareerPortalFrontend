@@ -731,7 +731,10 @@ describe('Candidate Browse jobs', () => {
     expect(screen.getAllByRole('link', { name: 'Browse jobs' }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: 'Applied jobs' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Resume' })).toBeNull();
-    expect(mockNotifications).toHaveBeenCalledWith({ pageNumber: 1, pageSize: 1 });
+    expect(mockNotifications).toHaveBeenCalledWith(
+      { pageNumber: 1, pageSize: 1 },
+      { pollingInterval: 60000, refetchOnMountOrArgChange: true },
+    );
     candidateView.unmount();
 
     const adminRouter = createMemoryRouter(

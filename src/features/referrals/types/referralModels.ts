@@ -1,9 +1,12 @@
 export interface PublicReferralJob {
+  referralSlots?: number;
+  acceptedReferralCount?: number;
+  remainingReferralSlots?: number;
   jobId: string;
   jobTitle: string;
   companyName: string | null;
   location: string | null;
-  referrerName: string | null;
+  referrerLabel: string;
   jobSlug?: string | null;
   companyId?: string | null;
   companyLogoUrl?: string | null;
@@ -17,23 +20,24 @@ export interface PublicReferralJob {
   referralAvailable?: boolean;
   referrerCurrentRole?: string | null;
   referrerCompanyName?: string | null;
-  referrerCompanyStartDate?: string | null;
-  referrerCompletedYearsAtCompany?: number | null;
-  referrerProfileImageUrl?: string | null;
+
   contactAccessStatus?: ReferralUnlockStatus;
   canViewReferrerContact?: boolean;
   isContactLocked?: boolean;
   referralId?: string | null;
-  referralApprovedAtUtc?: string | null;
-  matchScore?: number | null;
-  matchReasons?: string[];
-  isResumeMatch?: boolean | null;
 }
-export interface ReferralCategoryOption { id: string; name: string; slug?: string; }
+export interface ReferralCategoryOption {
+  id: string;
+  name: string;
+  slug?: string;
+}
 
 export type JobReferralApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface JobReferralSubmission {
+  referralSlots: number;
+  acceptedReferralCount: number;
+  remainingReferralSlots: number;
   id: string;
   jobId: string;
   jobTitle: string;
@@ -65,10 +69,11 @@ export interface ExtractedJobDetails {
   failureReason: string | null;
 }
 
-export type ReferralUnlockStatus = 'Granted' | 'LoginRequired' | 'MembershipRequired';
+export type ReferralUnlockStatus =
+  'Granted' | 'LoginRequired' | 'MembershipRequired' | 'RequestRequired';
 
 export interface ReferrerContactDetails {
-  referrerName: string;
+  referrerLabel: string;
   linkedInUrl: string | null;
   email: string | null;
   phoneNumber: string | null;
@@ -115,8 +120,8 @@ export interface ComposeJobDraft {
   workplaceType?: string | null;
   experienceLevel?: string | null;
   minimumExperienceYears?: number | null;
-maximumExperienceYears?: number | null;
-skills?: string[] | null;
+  maximumExperienceYears?: number | null;
+  skills?: string[] | null;
   location?: string | null;
   minimumSalary?: number | null;
   maximumSalary?: number | null;
@@ -132,24 +137,10 @@ export interface SubmitJobReferralRequest {
     job: ComposeJobDraft;
     company: ComposeRelation<InlineCompany>;
     category: ComposeRelation<InlineCategory>;
-    recruiterContact?: {
-      showLinkedIn: boolean;
-      showEmail: boolean;
-      showPhone: boolean;
-      overrideLinkedInUrl?: string | null;
-      overrideEmail?: string | null;
-      overridePhoneNumber?: string | null;
-      referrerRole?: string | null;
-      personalNote?: string | null;
-    };
   };
   sourceUrl?: string | null;
   showLinkedIn: boolean;
   showEmail: boolean;
   showPhone: boolean;
-  overrideLinkedInUrl?: string | null;
-  overrideEmail?: string | null;
-  overridePhoneNumber?: string | null;
-  referrerRole?: string | null;
-  personalNote?: string | null;
+  referralSlots: number;
 }
