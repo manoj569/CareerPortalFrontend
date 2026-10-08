@@ -1,7 +1,11 @@
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import type { ApiResponse, PaginatedResponse } from '@/types';
 import { adminApi } from './adminApi';
-import type { JobSource, JobSourceRunResult, SaveJobSourceRequest } from '../types/jobSourceModels';
+import type {
+  JobSource,
+  DurableJobSourceRun,
+  SaveJobSourceRequest,
+} from '../types/jobSourceModels';
 
 const endpoints = API_ENDPOINTS.ADMIN.JOB_SOURCES;
 
@@ -50,12 +54,18 @@ export const jobSourcesApi = adminApi
         query: (id) => ({ url: endpoints.DETAILS(id), method: 'DELETE' }),
         invalidatesTags: ['JobSources'],
       }),
-      runJobSource: builder.mutation<JobSourceRunResult, string>({
-        // A manual run includes fetching and ingesting the complete ATS board.
-        query: (id) => ({ url: endpoints.RUN(id), method: 'POST', timeout: 300_000 }),
-        transformResponse: (response: ApiResponse<JobSourceRunResult>) => response.data,
-        // Failed runs can also change bookkeeping or partially ingest drafts.
-        invalidatesTags: ['JobSources', 'AdminJobs', 'Statistics'],
+      runJobSource: builder.mutation<DurableJobSourceRun, string>({
+        // Axios accepts 202. Acceptance queues work; only GET status proves completion.
+        query: (id) => ({ url: endpoints.RUN(id), method: 'POST' }),
+        transformResponse: (response: ApiResponse<DurableJobSourceRun>) => response.data,
+      }),
+      getJobSourceRun: builder.query<DurableJobSourceRun, { sourceId: string; runId: string }>({
+        // Build the authenticated route from IDs; never follow an arbitrary response URL.
+        query: ({ sourceId, runId }) => ({
+          url: `${endpoints.DETAILS(sourceId)}/runs/${encodeURIComponent(runId)}`,
+        }),
+        transformResponse: (response: ApiResponse<DurableJobSourceRun>) => response.data,
+        keepUnusedDataFor: 0,
       }),
     }),
   });
@@ -67,4 +77,5 @@ export const {
   useUpdateJobSourceMutation,
   useDeleteJobSourceMutation,
   useRunJobSourceMutation,
+  useLazyGetJobSourceRunQuery,
 } = jobSourcesApi;

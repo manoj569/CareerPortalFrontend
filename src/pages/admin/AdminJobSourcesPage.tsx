@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Alert,
@@ -46,7 +46,6 @@ import { JobSourceFormDialog } from '@/features/admin/components/JobSourceFormDi
 import {
   AtsType,
   type JobSource,
-  type JobSourceRunResult,
   type SaveJobSourceRequest,
 } from '@/features/admin/types/jobSourceModels';
 import { JobStatus } from '@/features/admin/types/adminModels';
@@ -57,6 +56,7 @@ import {
   sourceRequest,
 } from '@/features/admin/utils/jobSourceFormatting';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { useJobSourceRuns } from '@/features/admin/hooks/useJobSourceRuns';
 
 type Action = { kind: 'run' | 'toggle' | 'delete'; source: JobSource };
 const errorMessage = (error: unknown) =>
@@ -86,7 +86,33 @@ export const AdminJobSourcesPage = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [result, setResult] = useState<{ company: string; run: JobSourceRunResult } | null>(null);
+  const [resultId, setResultId] = useState<string | null>(null);
+  const runs = useJobSourceRuns((entry) => {
+    enqueueSnackbar(
+      entry.run?.status === 'Succeeded'
+        ? 'Aggregation complete.'
+        : `Aggregation ${entry.run?.status.toLowerCase()}. Review the result.`,
+      {
+        variant: entry.run?.status === 'Succeeded' ? 'success' : 'error',
+      },
+    );
+  });
+  const result = resultId ? runs.entries[resultId] : null;
+  const runError = Object.values(runs.entries).find((entry) => entry.error);
+  const mounted = useRef(true);
+  const generation = useRef(0);
+  const submission = useRef<{ abort: () => void } | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    generation.current++;
+    const activeGeneration = generation.current;
+    return () => {
+      mounted.current = false;
+      generation.current = activeGeneration + 1;
+      lock.current = false;
+      submission.current?.abort();
+    };
+  }, [runs.accountKey]);
   const [errorSource, setErrorSource] = useState<JobSource | null>(null);
   const collection = sources.data ?? [];
   const filtered = collection.filter((source) => {
@@ -149,15 +175,19 @@ export const AdminJobSourcesPage = () => {
   const execute = async () => {
     if (!pending || !begin(pending.source.id)) return;
     const { source, kind } = pending;
+    const currentGeneration = generation.current;
     setActionError(null);
     try {
       if (kind === 'run') {
-        const response = await run(source.id).unwrap();
-        setResult({ company: source.companyName, run: response });
-        enqueueSnackbar(
-          response.succeeded ? 'Aggregation complete.' : 'Aggregation failed. Review the result.',
-          { variant: response.succeeded ? 'success' : 'error' },
-        );
+        if (runs.active(source.id)) return;
+        const request = run(source.id);
+        submission.current = request;
+        const response = await request.unwrap();
+        if (!mounted.current || currentGeneration !== generation.current) return;
+        if (response.jobSourceId !== source.id)
+          throw new Error('The server returned a different source run.');
+        runs.track(source.companyName, response);
+        setResultId(source.id);
       } else if (kind === 'delete') {
         await remove(source.id).unwrap();
         enqueueSnackbar('Job source deleted.', { variant: 'success' });
@@ -174,6 +204,7 @@ export const AdminJobSourcesPage = () => {
       }
       setPending(null);
     } catch (error) {
+      if (!mounted.current || currentGeneration !== generation.current) return;
       const message =
         kind === 'run' &&
         isAdminApiError(error) &&
@@ -183,10 +214,14 @@ export const AdminJobSourcesPage = () => {
       setActionError(message);
       enqueueSnackbar(message, { variant: 'error' });
     } finally {
-      finish();
+      if (currentGeneration === generation.current) {
+        submission.current = null;
+        if (mounted.current) finish();
+      }
     }
   };
   const openAction = (kind: Action['kind'], source: JobSource) => {
+    if (kind === 'run' && runs.active(source.id)) return;
     setActionError(null);
     setPending({ kind, source });
   };
@@ -196,6 +231,7 @@ export const AdminJobSourcesPage = () => {
         size="small"
         disabled={
           Boolean(busy) ||
+          runs.active(source.id) ||
           sources.isFetching ||
           !source.isActive ||
           source.atsType === AtsType.Custom
@@ -203,7 +239,11 @@ export const AdminJobSourcesPage = () => {
         onClick={() => openAction('run', source)}
         startIcon={busy === source.id ? <CircularProgress size={14} /> : undefined}
       >
-        {busy === source.id ? 'Working…' : 'Run Now'}
+        {busy === source.id
+          ? 'Working…'
+          : runs.active(source.id)
+            ? (runs.entries[source.id]?.run?.status ?? 'Checking run…')
+            : 'Run Now'}
       </Button>
       <Button
         size="small"
@@ -277,6 +317,14 @@ export const AdminJobSourcesPage = () => {
       {notice && (
         <Alert severity="error" onClose={() => setNotice(null)}>
           {notice}
+        </Alert>
+      )}
+      {runError && (
+        <Alert
+          severity="error"
+          action={<Button onClick={() => setResultId(runError.sourceId)}>Check run status</Button>}
+        >
+          {runError.company}: {runError.error}
         </Alert>
       )}
       {sources.isLoading ? (
@@ -535,21 +583,32 @@ export const AdminJobSourcesPage = () => {
       />
       <Dialog
         open={Boolean(result)}
-        onClose={() => setResult(null)}
+        onClose={() => setResultId(null)}
         fullWidth
         maxWidth="sm"
         aria-labelledby="run-result-title"
       >
         <DialogTitle id="run-result-title">
-          {result?.run.succeeded ? 'Aggregation Complete' : 'Aggregation Failed'}
+          {result?.run?.status === 'Succeeded'
+            ? 'Aggregation Complete'
+            : `Aggregation ${result?.run?.status ?? 'Status unknown'}`}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
             <Typography>{result?.company}</Typography>
-            <Alert severity={result?.run.succeeded ? 'success' : 'error'}>
-              Succeeded: {result?.run.succeeded ? 'Yes' : 'No'}
+            <Alert
+              severity={
+                result?.run?.status === 'Succeeded'
+                  ? 'success'
+                  : result?.run?.status === 'Failed'
+                    ? 'error'
+                    : 'info'
+              }
+            >
+              Status: {result?.run?.status ?? 'Checking'}
+              {result?.run?.retryPending ? ' — retry pending' : ''}
             </Alert>
-            {result && (
+            {result?.run && (
               <Grid container spacing={2}>
                 {[
                   ['Total Received', result.run.totalReceived],
@@ -566,7 +625,8 @@ export const AdminJobSourcesPage = () => {
                 ))}
               </Grid>
             )}
-            {result?.run.error && (
+            {result?.error && <Alert severity="error">{result.error}</Alert>}
+            {result?.run?.error && (
               <Alert severity="error" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                 {result.run.error}
               </Alert>
@@ -577,7 +637,10 @@ export const AdminJobSourcesPage = () => {
           <Button component={Link} to={`${ROUTES.ADMIN_JOBS}?status=${JobStatus.Draft}`}>
             Review draft jobs
           </Button>
-          <Button onClick={() => setResult(null)}>Close</Button>
+          {result?.error && (
+            <Button onClick={() => runs.retry(result.sourceId)}>Retry status check</Button>
+          )}
+          <Button onClick={() => setResultId(null)}>Close</Button>
         </DialogActions>
       </Dialog>
       <Dialog

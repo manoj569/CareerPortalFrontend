@@ -3,7 +3,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiRequestError } from '@/api/apiError';
 import { renderWithProviders } from '@/test/renderWithProviders';
-import { AtsType, type JobSource } from '@/features/admin/types/jobSourceModels';
+import {
+  AtsType,
+  type JobSource,
+  type DurableJobSourceRun,
+} from '@/features/admin/types/jobSourceModels';
 import { AdminJobSourcesPage } from './AdminJobSourcesPage';
 
 const { request } = vi.hoisted(() => ({
@@ -31,7 +35,13 @@ const source: JobSource = {
   createdAtUtc: '2026-09-20T00:00:00Z',
   updatedAtUtc: null,
 };
-const runResult = {
+const runResult: DurableJobSourceRun = {
+  runId: 'run-1',
+  status: 'Succeeded',
+  statusUrl: '/api/admin/job-sources/source-1/runs/run-1',
+  retryPending: false,
+  attemptCount: 1,
+  completedAtUtc: '2026-10-09T00:00:00Z',
   jobSourceId: source.id,
   totalReceived: 78,
   created: 0,
@@ -69,7 +79,8 @@ describe('job sources administrator workflow', () => {
               data: [{ id: source.companyId, name: source.companyName, slug: 'together-ai' }],
             },
           });
-        if (url.endsWith('/run')) return Promise.resolve({ data: { data: runResponse } });
+        if (url.endsWith('/run') || url.includes('/runs/'))
+          return Promise.resolve({ data: { data: runResponse } });
         if (method === 'POST' || method === 'PUT')
           return Promise.resolve({ data: { data: { ...source, ...(data as object) } } });
         if (method === 'DELETE') {
@@ -99,7 +110,13 @@ describe('job sources administrator workflow', () => {
   });
 
   it('displays and filters SuccessFactors while retaining existing provider mappings', async () => {
-    expect([AtsType.Custom, AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.SuccessFactors]).toEqual([0, 1, 2, 3, 4]);
+    expect([
+      AtsType.Custom,
+      AtsType.Greenhouse,
+      AtsType.Lever,
+      AtsType.Ashby,
+      AtsType.SuccessFactors,
+    ]).toEqual([0, 1, 2, 3, 4]);
     items = [{ ...source, atsType: AtsType.SuccessFactors, atsIdentifier: '718244' }];
     renderPage();
     const table = await screen.findByRole('table', { name: 'Job sources' });
@@ -112,21 +129,36 @@ describe('job sources administrator workflow', () => {
   it('loads SuccessFactors in edit and sends its numeric type and unchanged identifier', async () => {
     items = [{ ...source, atsType: AtsType.SuccessFactors, atsIdentifier: '718244' }];
     request.mockImplementation(({ url, method, data }) => {
-      if (url.endsWith('/options')) return Promise.resolve({ data: { data: [{ id: source.companyId, name: source.companyName, slug: 'together-ai' }] } });
-      if (method === 'PUT') return Promise.resolve({ data: { data: { ...source, ...(data as object) } } });
-      if (url.endsWith('/source-1')) return Promise.resolve({ data: { data: { ...source, atsType: 4, atsIdentifier: '718244' } } });
-      return Promise.resolve({ data: { data: { items, pageNumber: 1, pageSize: 100, totalCount: 1, totalPages: 1 } } });
+      if (url.endsWith('/options'))
+        return Promise.resolve({
+          data: { data: [{ id: source.companyId, name: source.companyName, slug: 'together-ai' }] },
+        });
+      if (method === 'PUT')
+        return Promise.resolve({ data: { data: { ...source, ...(data as object) } } });
+      if (url.endsWith('/source-1'))
+        return Promise.resolve({
+          data: { data: { ...source, atsType: 4, atsIdentifier: '718244' } },
+        });
+      return Promise.resolve({
+        data: { data: { items, pageNumber: 1, pageSize: 100, totalCount: 1, totalPages: 1 } },
+      });
     });
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(firstButton('Edit'));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByRole('combobox', { name: 'ATS Type' })).toHaveTextContent('SuccessFactors');
+    expect(within(dialog).getByRole('combobox', { name: 'ATS Type' })).toHaveTextContent(
+      'SuccessFactors',
+    );
     expect(within(dialog).getByLabelText(/ATS Identifier/)).toHaveValue('718244');
     expect(within(dialog).getByText('Board / career-site identifier')).toBeVisible();
     await waitFor(() => expect(within(dialog).getByRole('button', { name: /Save/ })).toBeEnabled());
     fireEvent.click(within(dialog).getByRole('button', { name: /Save/ }));
-    await waitFor(() => expect(request.mock.calls.find(([config]) => config.method === 'PUT')?.[0].data).toMatchObject({ atsType: 4, atsIdentifier: '718244' }));
+    await waitFor(() =>
+      expect(
+        request.mock.calls.find(([config]) => config.method === 'PUT')?.[0].data,
+      ).toMatchObject({ atsType: 4, atsIdentifier: '718244' }),
+    );
   });
 
   it('selects SuccessFactors in Add and creates a source with identifier 718244', async () => {
@@ -134,16 +166,29 @@ describe('job sources administrator workflow', () => {
     await screen.findByRole('table');
     fireEvent.click(firstButton('+ Add Job Source'));
     const dialog = within(await screen.findByRole('dialog'));
-    await waitFor(() => expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled());
-    fireEvent.change(dialog.getByRole('combobox', { name: /Company/ }), { target: { value: 'Together' } });
+    await waitFor(() =>
+      expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled(),
+    );
+    fireEvent.change(dialog.getByRole('combobox', { name: /Company/ }), {
+      target: { value: 'Together' },
+    });
     fireEvent.click(await screen.findByRole('option', { name: 'Together AI' }));
-    fireEvent.change(dialog.getByRole('textbox', { name: /Career Page URL/ }), { target: { value: 'https://southasiacareers.deloitte.com/go/Deloitte-India/718244' } });
+    fireEvent.change(dialog.getByRole('textbox', { name: /Career Page URL/ }), {
+      target: { value: 'https://southasiacareers.deloitte.com/go/Deloitte-India/718244' },
+    });
     fireEvent.mouseDown(dialog.getByRole('combobox', { name: 'ATS Type' }));
-    for (const name of ['Greenhouse', 'Lever', 'Ashby', 'Custom', 'SuccessFactors']) expect(screen.getByRole('option', { name })).toBeVisible();
+    for (const name of ['Greenhouse', 'Lever', 'Ashby', 'Custom', 'SuccessFactors'])
+      expect(screen.getByRole('option', { name })).toBeVisible();
     fireEvent.click(screen.getByRole('option', { name: 'SuccessFactors' }));
-    fireEvent.change(dialog.getByRole('textbox', { name: /ATS Identifier/ }), { target: { value: '718244' } });
+    fireEvent.change(dialog.getByRole('textbox', { name: /ATS Identifier/ }), {
+      target: { value: '718244' },
+    });
     fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
-    await waitFor(() => expect(request.mock.calls.find(([config]) => config.method === 'POST')?.[0].data).toMatchObject({ atsType: 4, atsIdentifier: '718244' }));
+    await waitFor(() =>
+      expect(
+        request.mock.calls.find(([config]) => config.method === 'POST')?.[0].data,
+      ).toMatchObject({ atsType: 4, atsIdentifier: '718244' }),
+    );
   });
 
   it('shows loading and an empty state', async () => {
@@ -249,13 +294,47 @@ describe('job sources administrator workflow', () => {
     );
   });
 
+  it('treats HTTP 202 as Queued, blocks duplicate clicks and waits for authenticated GET status', async () => {
+    const fallback = request.getMockImplementation()!;
+    let resolveStatus!: (response: { data: unknown }) => void;
+    request.mockImplementation((config) => {
+      if (config.url.endsWith('/run'))
+        return Promise.resolve({
+          status: 202,
+          data: { data: { ...runResult, status: 'Queued', succeeded: false } },
+        });
+      if (config.url.includes('/runs/'))
+        return new Promise((resolve) => {
+          resolveStatus = resolve;
+        });
+      return fallback(config);
+    });
+    const view = renderPage();
+    await screen.findByRole('table');
+    await confirm('Run Now', 'Run Now');
+    expect(await screen.findByText('Aggregation Queued')).toBeInTheDocument();
+    expect(screen.queryByText('Aggregation Complete')).not.toBeInTheDocument();
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Aggregation Queued' })).getByRole('button', {
+        name: 'Close',
+      }),
+    );
+    await waitFor(() => expect(firstButton('Queued')).toBeDisabled());
+    fireEvent.click(firstButton('Queued'));
+    expect(request.mock.calls.filter(([config]) => config.method === 'POST')).toHaveLength(1);
+    resolveStatus({ data: { data: { ...runResult, status: 'Running', succeeded: false } } });
+    await waitFor(() => expect(firstButton('Running')).toBeDisabled());
+    expect(firstButton('Running')).toBeDisabled();
+    view.unmount();
+  });
+
   it('renders a failed run response even when HTTP succeeds', async () => {
-    runResponse = { ...runResult, succeeded: false, failed: 1 };
+    runResponse = { ...runResult, status: 'Failed', succeeded: false, failed: 1 };
     renderPage();
     await screen.findByRole('table');
     await confirm('Run Now', 'Run Now');
     expect(await screen.findByText('Aggregation Failed')).toBeInTheDocument();
-    expect(screen.getByText('Succeeded: No')).toBeInTheDocument();
+    expect(screen.getByText('Status: Failed')).toBeInTheDocument();
   });
 
   it('preserves the actual 409 explanation and prevents repeat clicks while running', async () => {
