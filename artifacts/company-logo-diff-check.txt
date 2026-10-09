@@ -1,7 +1,0 @@
-warning: in the working copy of 'src/features/jobs/api/jobsApi.test.ts', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/features/jobs/components/CompanyLogoFallback.tsx', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/features/jobs/types/jobModels.ts', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/features/referrals/api/referralsApi.test.ts', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/features/referrals/components/CandidateReferralUI.tsx', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/features/referrals/components/ReferralJobCard.tsx', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'src/pages/jobPages.test.tsx', LF will be replaced by CRLF the next time Git touches it
