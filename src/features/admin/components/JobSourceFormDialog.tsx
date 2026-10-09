@@ -3,6 +3,8 @@ import {
   Alert,
   Autocomplete,
   Button,
+  CircularProgress,
+  createFilterOptions,
   Dialog,
   DialogActions,
   DialogContent,
@@ -15,7 +17,13 @@ import {
   Typography,
 } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
-import { useGetAdminCompanyOptionsQuery } from '../api/adminApi';
+import { useRef, useState } from 'react';
+import {
+  isAdminApiError,
+  useCreateAdminCompanyMutation,
+  useGetAdminCompanyOptionsQuery,
+} from '../api/adminApi';
+import type { AdminOption } from '../types/adminModels';
 import { AtsType, type JobSource, type SaveJobSourceRequest } from '../types/jobSourceModels';
 import { sourceRequest } from '../utils/jobSourceFormatting';
 import { jobSourceSchema } from '../validation/jobSourceSchema';
@@ -28,13 +36,22 @@ interface Props {
   onSave: (request: SaveJobSourceRequest) => Promise<void>;
 }
 
+type CompanyOption = AdminOption & { create?: boolean };
+const filterCompanies = createFilterOptions<CompanyOption>();
+const normalizeName = (name: string) => name.trim().toLowerCase();
+
 export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }: Props) => {
   const companies = useGetAdminCompanyOptionsQuery();
+  const [createCompany, { isLoading: isCreating }] = useCreateAdminCompanyMutation();
+  const creating = useRef(false);
+  const [createdCompanies, setCreatedCompanies] = useState<AdminOption[]>([]);
+  const [companyError, setCompanyError] = useState<string | null>(null);
   const {
     control,
     register,
     watch,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SaveJobSourceRequest>({
     resolver: yupResolver(jobSourceSchema),
@@ -49,14 +66,54 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
           scanIntervalMinutes: 720,
         },
   });
-  const busy = isSaving || isSubmitting;
+  const busy = isSaving || isSubmitting || isCreating;
   const atsType = watch('atsType');
   const interval = watch('scanIntervalMinutes');
-  const options = companies.data ?? [];
+  const options = [
+    ...(companies.data ?? []),
+    ...createdCompanies.filter(
+      (created) => !companies.data?.some((company) => company.id === created.id),
+    ),
+  ];
   const companyOptions =
     source && !options.some((company) => company.id === source.companyId)
       ? [...options, { id: source.companyId, name: source.companyName, slug: '' }]
       : options;
+  const addCompany = async (name: string) => {
+    if (creating.current) return;
+    const existing = companyOptions.find(
+      (company) => normalizeName(company.name) === normalizeName(name),
+    );
+    if (existing) {
+      setValue('companyId', existing.id, { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+    creating.current = true;
+    setCompanyError(null);
+    try {
+      const company = await createCompany({
+        name: name.trim(),
+        slug: null,
+        description: null,
+        websiteUrl: null,
+        logoUrl: null,
+        industry: null,
+        location: null,
+        employeeCount: null,
+        isVerified: false,
+      }).unwrap();
+      setCreatedCompanies((current) => [...current, company]);
+      setValue('companyId', company.id, { shouldDirty: true, shouldValidate: true });
+    } catch (cause) {
+      setCompanyError(
+        isAdminApiError(cause)
+          ? [cause.message, ...Object.values(cause.errors ?? {}).flat()].join(' ')
+          : 'Company could not be created. Please try again.',
+      );
+    } finally {
+      creating.current = false;
+    }
+  };
   return (
     <Dialog
       open
@@ -70,6 +127,10 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
       </DialogTitle>
       <form
         onSubmit={(event) => {
+          if (creating.current) {
+            event.preventDefault();
+            return;
+          }
           void handleSubmit((request) =>
             onSave({ ...request, atsIdentifier: request.atsIdentifier?.trim() || null }),
           )(event);
@@ -95,14 +156,35 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
               control={control}
               name="companyId"
               render={({ field }) => (
-                <Autocomplete
+                <Autocomplete<CompanyOption>
                   options={companyOptions}
+                  filterOptions={(options, params) => {
+                    const matches = filterCompanies(options, params);
+                    const name = params.inputValue.trim();
+                    if (
+                      !source &&
+                      name &&
+                      !options.some((option) => normalizeName(option.name) === normalizeName(name))
+                    ) {
+                      matches.push({ id: '__create__', name, slug: '', create: true });
+                    }
+                    return matches;
+                  }}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      {option.create ? `+ Create "${option.name}"` : option.name}
+                    </li>
+                  )}
                   getOptionLabel={(option) => option.name}
                   isOptionEqualToValue={(a, b) => a.id === b.id}
                   loading={companies.isLoading}
                   disabled={busy || companies.isLoading || companies.isError}
                   value={companyOptions.find((option) => option.id === field.value) ?? null}
-                  onChange={(_, value) => field.onChange(value?.id ?? '')}
+                  onChange={(_, value) => {
+                    setCompanyError(null);
+                    if (value?.create) void addCompany(value.name);
+                    else field.onChange(value?.id ?? '');
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -110,8 +192,19 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                       onBlur={field.onBlur}
                       label="Company"
                       required
-                      error={Boolean(errors.companyId)}
-                      helperText={errors.companyId?.message}
+                      error={Boolean(companyError || errors.companyId)}
+                      helperText={companyError || errors.companyId?.message}
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isCreating && (
+                              <CircularProgress size={20} aria-label="Creating company" />
+                            )}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
                     />
                   )}
                 />
@@ -136,13 +229,17 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   disabled={busy}
                   onChange={(event) => field.onChange(Number(event.target.value))}
                 >
-                  {[AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.Custom, AtsType.SuccessFactors].map(
-                    (type) => (
-                      <MenuItem key={type} value={type}>
-                        {AtsType[type]}
-                      </MenuItem>
-                    ),
-                  )}
+                  {[
+                    AtsType.Greenhouse,
+                    AtsType.Lever,
+                    AtsType.Ashby,
+                    AtsType.Custom,
+                    AtsType.SuccessFactors,
+                  ].map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {AtsType[type]}
+                    </MenuItem>
+                  ))}
                 </TextField>
               )}
             />
@@ -231,7 +328,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
             variant="contained"
             disabled={busy || companies.isLoading || companies.isError}
           >
-            {busy ? 'Saving…' : 'Save Job Source'}
+            {isCreating ? 'Creating company…' : busy ? 'Saving…' : 'Save Job Source'}
           </Button>
         </DialogActions>
       </form>
