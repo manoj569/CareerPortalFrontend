@@ -91,7 +91,7 @@ export interface PublicJobSummary {
   companyId: string;
   companyName: string;
   companySlug: string;
-  companyLogoUrl: string | null;
+  companyLogoUrl?: string | null;
   categoryId: string;
   categoryName: string;
   location: string | null;

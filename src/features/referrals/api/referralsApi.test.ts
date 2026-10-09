@@ -11,6 +11,26 @@ describe('authoritative referral contact access', () => {
     localStorage.clear();
     sessionStorage.clear();
   });
+  it.each(['/company.svg', null, undefined])('passes referral logo %s without a company lookup', async (companyLogoUrl) => {
+    request.mockResolvedValue({ data: { data: {
+      items: [{ jobId: 'job-1', jobTitle: 'Engineer', companyName: 'Deloitte', companyLogoUrl }],
+      pageNumber: 3, pageSize: 5, totalCount: 10000, totalPages: 2000,
+    } } });
+    const store = createAppStore();
+    const subscription = store.dispatch(referralsApi.endpoints.getPublicReferralJobs.initiate({
+      pageNumber: 3, pageSize: 5,
+    }));
+    const result = await subscription.unwrap();
+    expect(result.items[0]?.companyLogoUrl).toBe(companyLogoUrl);
+    expect(result.items[0]?.companyName).toBe('Deloitte');
+    expect(result.totalCount).toBe(10000);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0]?.[0]).toMatchObject({
+      url: '/referrals/public', params: { pageNumber: 3, pageSize: 5 },
+    });
+    subscription.unsubscribe();
+    store.dispatch(referralsApi.util.resetApiState());
+  });
   it.each([
     [1, 'Granted'],
     [2, 'LoginRequired'],

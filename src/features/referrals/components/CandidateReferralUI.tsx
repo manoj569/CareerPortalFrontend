@@ -14,6 +14,7 @@ import {
   getWorkplaceTypeLabel,
 } from '@/features/jobs/constants/jobOptions';
 import type { EmploymentType, WorkplaceType } from '@/features/jobs/types/jobModels';
+import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
 
 export const CandidateJobSummary = ({
   job,
@@ -27,13 +28,14 @@ export const CandidateJobSummary = ({
   const company = job?.companyName ?? request?.companyName;
   return (
     <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} alignItems={{ sm: 'center' }}>
-      <Avatar
+      <CompanyLogoFallback
         variant="rounded"
-        src={job?.companyLogoUrl ?? undefined}
+        companyName={company}
+        logoUrl={job?.companyLogoUrl}
+        size={64}
+        fallback="J"
         sx={{ width: 64, height: 64, bgcolor: '#eef5ff', color: 'primary.main', fontWeight: 800 }}
-      >
-        {company?.slice(0, 1) || 'J'}
-      </Avatar>
+      />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography fontWeight={800} fontSize={16}>
           {title}

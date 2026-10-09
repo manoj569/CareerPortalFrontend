@@ -1,5 +1,4 @@
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
-import BookmarkOutlinedIcon from '@mui/icons-material/BookmarkOutlined';
 import { Button, Grid, Link as MuiLink, Pagination, Paper, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -9,6 +8,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
 import { useGetSavedJobsQuery } from '@/features/dashboard/api/dashboardApi';
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
+import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
 import { formatDashboardDate } from '@/features/dashboard/utils/dashboardFormatting';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
@@ -58,7 +58,12 @@ export const SavedJobsPage = () => {
               <Grid key={savedJob.savedJobId} size={{ xs: 12, md: 6 }}>
                 <Paper component="article" sx={{ height: '100%', p: 3 }}>
                   <Stack alignItems="flex-start" height="100%" spacing={2}>
-                    <BookmarkOutlinedIcon color="primary" />
+                    <CompanyLogoFallback
+                      companyName={savedJob.companyName}
+                      logoUrl={savedJob.companyLogoUrl}
+                      size={24}
+                      sx={{ bgcolor: 'transparent', color: 'primary.main', fontSize: 12 }}
+                    />
                     <Stack spacing={0.5} sx={{ flex: 1 }}>
                       <MuiLink
                         component={Link}

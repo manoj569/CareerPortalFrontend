@@ -1,0 +1,178 @@
+
+> career-portal-frontend@0.1.0 build
+> tsc -b && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+node_modules/@microsoft/signalr/dist/esm/Utils.js (190:0): A comment
+
+"/*#__PURE__*/"
+
+in "node_modules/@microsoft/signalr/dist/esm/Utils.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+node_modules/@microsoft/signalr/dist/esm/Utils.js (208:0): A comment
+
+"/*#__PURE__*/"
+
+in "node_modules/@microsoft/signalr/dist/esm/Utils.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+✓ 12292 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                              1.99 kB │ gzip:   0.65 kB
+dist/assets/index-C2EU1cFn.css                               1.25 kB │ gzip:   0.66 kB
+dist/assets/HomePage-D2TpqFi3.css                           14.29 kB │ gzip:   3.90 kB
+dist/assets/AIApplySectionNavigation-Du-OfmWS.js             0.03 kB │ gzip:   0.05 kB
+dist/assets/ButtonSpinner-CJ_udsWW.js                        0.13 kB │ gzip:   0.14 kB
+dist/assets/publicConsultantPhoto-COg-Ti8g.js                0.13 kB │ gzip:   0.14 kB
+dist/assets/safeExternalUrl-ChFT48Lw.js                      0.17 kB │ gzip:   0.14 kB
+dist/assets/useDebouncedValue-j8_ehX1d.js                    0.21 kB │ gzip:   0.17 kB
+dist/assets/AuthPageHeader-BNdT92n2.js                       0.25 kB │ gzip:   0.21 kB
+dist/assets/formErrors-B9oXIb-p.js                           0.33 kB │ gzip:   0.25 kB
+dist/assets/CompanyLogoFallback-CT-S5XVf.js                  0.35 kB │ gzip:   0.29 kB
+dist/assets/AdminSessionPage-XpNs7xK6.js                     0.36 kB │ gzip:   0.26 kB
+dist/assets/ApplicationStatusChip-DpyZtnl-.js                0.40 kB │ gzip:   0.29 kB
+dist/assets/PaymentStatusBadge-BpKwyZCC.js                   0.44 kB │ gzip:   0.31 kB
+dist/assets/ReferralContactDetailsPage-DKA5tjVn.js           0.49 kB │ gzip:   0.33 kB
+dist/assets/AdminUnavailableState-CG0axHgu.js                0.50 kB │ gzip:   0.34 kB
+dist/assets/paymentModels-CfVtHenL.js                        0.56 kB │ gzip:   0.29 kB
+dist/assets/AdminStatusBadge-C5Muk9aw.js                     0.56 kB │ gzip:   0.33 kB
+dist/assets/EmptyState-CrwvcqKk.js                           0.57 kB │ gzip:   0.38 kB
+dist/assets/DashboardStatCard-DzwqXxXw.js                    0.58 kB │ gzip:   0.38 kB
+dist/assets/useGuidanceAction-sC4V_8qR.js                    0.59 kB │ gzip:   0.39 kB
+dist/assets/PasswordField-DtMGQUGV.js                        0.63 kB │ gzip:   0.41 kB
+dist/assets/analyticsApi-3eN38vMy.js                         0.63 kB │ gzip:   0.30 kB
+dist/assets/OpportunityCapacity-C1parIPs.js                  0.65 kB │ gzip:   0.40 kB
+dist/assets/resumeValidation-D1cmAlva.js                     0.66 kB │ gzip:   0.45 kB
+dist/assets/ConfirmActionDialog-CUTQoHjJ.js                  0.67 kB │ gzip:   0.39 kB
+dist/assets/AdminUserDetailsPage-CjHjYOi6.js                 0.67 kB │ gzip:   0.42 kB
+dist/assets/UnauthorizedPage-Bw_LyQtO.js                     0.72 kB │ gzip:   0.45 kB
+dist/assets/paymentFormatting-DAduQZvG.js                    0.73 kB │ gzip:   0.45 kB
+dist/assets/NotFoundPage-CxwiAtYr.js                         0.75 kB │ gzip:   0.46 kB
+dist/assets/dashboardFormatting-BmVqNaHR.js                  0.78 kB │ gzip:   0.46 kB
+dist/assets/jobFormatting-Cz5ymO6F.js                        0.78 kB │ gzip:   0.48 kB
+dist/assets/paymentReturnUrl-xmLqcw-d.js                     0.79 kB │ gzip:   0.43 kB
+dist/assets/AdminDisputePage-BycnWQ3X.js                     0.80 kB │ gzip:   0.48 kB
+dist/assets/ResumeMakerPage-etMaaaH4.js                      0.86 kB │ gzip:   0.52 kB
+dist/assets/safeRedirect-DMF37X_0.js                         0.87 kB │ gzip:   0.48 kB
+dist/assets/PaymentResult-OVxn46D5.js                        0.87 kB │ gzip:   0.50 kB
+dist/assets/jobModels-BWHT-Y57.js                            0.92 kB │ gzip:   0.42 kB
+dist/assets/useAuthenticatedProfilePhoto-mItWIjPy.js         0.92 kB │ gzip:   0.49 kB
+dist/assets/membershipAccess-D0-EigPC.js                     0.95 kB │ gzip:   0.56 kB
+dist/assets/ConsultantDisputePage-abwWfHl0.js                0.95 kB │ gzip:   0.55 kB
+dist/assets/publicBusinessDetails-DduEw-cB.js                0.98 kB │ gzip:   0.57 kB
+dist/assets/phonePeCheckout-6fYjppo6.js                      1.00 kB │ gzip:   0.54 kB
+dist/assets/RouteErrorPage-BnWlxl5s.js                       1.04 kB │ gzip:   0.59 kB
+dist/assets/SaveJobButton-cKhBNSCK.js                        1.06 kB │ gzip:   0.68 kB
+dist/assets/AIApplyApplicationCard-CsrePt1s.js               1.07 kB │ gzip:   0.56 kB
+dist/assets/sessionsApi-BK6omyPc.js                          1.21 kB │ gzip:   0.47 kB
+dist/assets/PublicPortfolioPage-CKGYTx1v.js                  1.28 kB │ gzip:   0.72 kB
+dist/assets/financeApi-C9V_qG8c.js                           1.33 kB │ gzip:   0.50 kB
+dist/assets/adminFormatting-DYbs1d5U.js                      1.55 kB │ gzip:   0.71 kB
+dist/assets/ForgotPasswordPage-6ouNNY5Z.js                   1.70 kB │ gzip:   0.96 kB
+dist/assets/interviewInsightOptions-0nlcMq_G.js              1.78 kB │ gzip:   0.75 kB
+dist/assets/profilesApi-2jMI6vup.js                          1.83 kB │ gzip:   0.54 kB
+dist/assets/PaymentFailedPage-Df3M1UIb.js                    1.97 kB │ gzip:   1.03 kB
+dist/assets/jobOptions-DZVNiyus.js                           2.17 kB │ gzip:   0.76 kB
+dist/assets/formValues-BIXNW6q7.js                           2.21 kB │ gzip:   1.13 kB
+dist/assets/VerifyEmailPage-BIaVEm_i.js                      2.29 kB │ gzip:   1.13 kB
+dist/assets/authSchemas-DPCK7r5Q.js                          2.29 kB │ gzip:   0.93 kB
+dist/assets/SavedJobsPage-LGTcP89I.js                        2.29 kB │ gzip:   1.17 kB
+dist/assets/schedulingApi-CQ4cx-yc.js                        2.32 kB │ gzip:   0.68 kB
+dist/assets/jobSearchParams-BJeIsJ7L.js                      2.44 kB │ gzip:   0.91 kB
+dist/assets/aiApplyModels-DKVIimfi.js                        2.45 kB │ gzip:   0.91 kB
+dist/assets/PaymentHistoryTable-BnShqZ7y.js                  2.47 kB │ gzip:   0.99 kB
+dist/assets/AIApplyQuestionsPage-ImelwZBP.js                 2.48 kB │ gzip:   1.19 kB
+dist/assets/AdminPaymentDetailsPage-CAymTgwa.js              2.49 kB │ gzip:   1.18 kB
+dist/assets/aiApplyStatus-_3fGhB2m.js                        2.64 kB │ gzip:   0.90 kB
+dist/assets/PaymentPendingPage-C1bmV4kd.js                   2.68 kB │ gzip:   1.28 kB
+dist/assets/PaymentSuccessPage-UNs4qsaH.js                   2.75 kB │ gzip:   1.28 kB
+dist/assets/trustApi-1SIais6T.js                             2.75 kB │ gzip:   0.71 kB
+dist/assets/ResetPasswordPage-CvDuZ3gg.js                    2.78 kB │ gzip:   1.30 kB
+dist/assets/dashboardSchemas-DlMDrpZv.js                     2.81 kB │ gzip:   1.04 kB
+dist/assets/AdminJobDiscoveryPage-CGe_fqWV.js                3.14 kB │ gzip:   1.33 kB
+dist/assets/AIApplyHandoffCard-C-aOhstm.js                   3.15 kB │ gzip:   1.43 kB
+dist/assets/LoginPage-CHb-OmPs.js                            3.21 kB │ gzip:   1.64 kB
+dist/assets/AIApplyApplicationsPage-CarLo-OW.js              3.26 kB │ gzip:   1.45 kB
+dist/assets/AdminGuidancePage-BqWpiqbU.js                    3.52 kB │ gzip:   1.45 kB
+dist/assets/NotificationsPage-CenHvrKc.js                    3.56 kB │ gzip:   1.64 kB
+dist/assets/ApplicationDetailsPage-C2Cl9bXk.js               3.59 kB │ gzip:   1.58 kB
+dist/assets/AnalysisScreen-ofVIC4Pv.js                       3.62 kB │ gzip:   1.58 kB
+dist/assets/MySupportTicketsPage-CLLn-Djt.js                 3.63 kB │ gzip:   1.60 kB
+dist/assets/JobCard-Bfb1gekJ.js                              3.73 kB │ gzip:   1.50 kB
+dist/assets/PaymentsPage-D1xWK2-o.js                         3.73 kB │ gzip:   1.50 kB
+dist/assets/CandidateReferralUI-C9m9NHEa.js                  3.74 kB │ gzip:   1.73 kB
+dist/assets/DisputeDetail-C2COV0cs.js                        3.77 kB │ gzip:   1.53 kB
+dist/assets/CandidateResumeCard-Dk6M5L78.js                  4.01 kB │ gzip:   1.78 kB
+dist/assets/AIApplyQuestionDetailPage-DLvaFQxh.js            4.18 kB │ gzip:   1.84 kB
+dist/assets/AIApplyAnswersPage-Dduvcw81.js                   4.19 kB │ gzip:   1.81 kB
+dist/assets/AdminUsersPage-B1WzxFyU.js                       4.35 kB │ gzip:   1.83 kB
+dist/assets/AdminApplicationDetailsPage-D1J9pE71.js          4.58 kB │ gzip:   1.96 kB
+dist/assets/AdminAuditLogsPage-DkEN_Duk.js                   4.81 kB │ gzip:   1.85 kB
+dist/assets/ApplicationsPage-VvIYrE1n.js                     5.19 kB │ gzip:   2.14 kB
+dist/assets/RegistrationOtpPage-D_AWtO8w.js                  5.21 kB │ gzip:   2.34 kB
+dist/assets/AIApplyDashboardPage-BE7biZLZ.js                 5.21 kB │ gzip:   1.99 kB
+dist/assets/AdminApplicationsPage-4McvBxJK.js                5.24 kB │ gzip:   1.89 kB
+dist/assets/AdminSupportTicketDetailsPage-QeonMAyo.js        5.28 kB │ gzip:   2.20 kB
+dist/assets/SessionPage-BoFX1mXM.js                          5.40 kB │ gzip:   2.28 kB
+dist/assets/AIApplyApplicationDetailPage-C_0Lejvd.js         5.41 kB │ gzip:   2.08 kB
+dist/assets/AdminJobDetailsPage-OoJnw40R.js                  5.57 kB │ gzip:   2.16 kB
+dist/assets/AdminSupportTicketsPage-CgyZCpky.js              5.89 kB │ gzip:   2.40 kB
+dist/assets/AdminPaymentsPage-Do3JlGT1.js                    5.93 kB │ gzip:   2.28 kB
+dist/assets/AdminDashboardPage-DjtDCL2r.js                   5.95 kB │ gzip:   1.89 kB
+dist/assets/PublicInformationPages-Ddp2KPUg.js               6.76 kB │ gzip:   2.26 kB
+dist/assets/MarketplaceUI-CH5aSCEJ.js                        6.82 kB │ gzip:   2.73 kB
+dist/assets/AdminJobDiscoveryRunPage-BKEGGLCL.js             6.86 kB │ gzip:   2.62 kB
+dist/assets/dayjs.min-Drdl7ag4.js                            7.16 kB │ gzip:   3.12 kB
+dist/assets/ApplyToJobButton-mwRYypyr.js                     7.82 kB │ gzip:   3.25 kB
+dist/assets/AllReferralsPage-NfDJxyBu.js                     8.18 kB │ gzip:   2.97 kB
+dist/assets/RegisterPage-ourhXv_o.js                         8.49 kB │ gzip:   3.29 kB
+dist/assets/CandidateReferralRequestsPage-C8-XYvbM.js        8.82 kB │ gzip:   3.24 kB
+dist/assets/BookingsPage-D5fOL_g7.js                         8.94 kB │ gzip:   2.88 kB
+dist/assets/BookingFeedbackPage-Bgs22HZO.js                  8.95 kB │ gzip:   3.31 kB
+dist/assets/SettingsPage-CKjWBEdq.js                         9.01 kB │ gzip:   2.97 kB
+dist/assets/ReferAJobPage-BCSd8tw3.js                        9.25 kB │ gzip:   3.62 kB
+dist/assets/BookingConfirmedPage-hp7IRtp7.js                 9.56 kB │ gzip:   3.52 kB
+dist/assets/PhonePeReturnPage-DOA2-K6d.js                    9.72 kB │ gzip:   3.25 kB
+dist/assets/AdminInterviewInsightsPage-BpDAaqum.js           9.86 kB │ gzip:   3.32 kB
+dist/assets/ConsultantBookingConfirmPage-DV2SRau3.js        10.10 kB │ gzip:   3.49 kB
+dist/assets/BookingCreatePage-D987ZqXp.js                   10.50 kB │ gzip:   3.43 kB
+dist/assets/ReferralMarketplacePages-DQSwGAY0.js            10.82 kB │ gzip:   3.75 kB
+dist/assets/PortfolioRenderer-DShh-mFE.js                   11.06 kB │ gzip:   3.00 kB
+dist/assets/AdminCreateJobPage-DGfAgqKr.js                  11.50 kB │ gzip:   3.51 kB
+dist/assets/MarketplacePage-gmKbPl1Q.js                     11.61 kB │ gzip:   3.97 kB
+dist/assets/AdminEditJobPage-BD1BIdPg.js                    11.68 kB │ gzip:   3.86 kB
+dist/assets/OnboardingPage-8Ugh0ViH.js                      11.81 kB │ gzip:   4.11 kB
+dist/assets/ConsultantBasicInformationPage-BmdlsFyX.js      11.89 kB │ gzip:   4.04 kB
+dist/assets/ConsultantAvailabilityPage-B_FfroZj.js          12.18 kB │ gzip:   4.18 kB
+dist/assets/ConsultantPublicPage-Cet1giHN.js                12.20 kB │ gzip:   3.19 kB
+dist/assets/JobsPage-DPjSc3vd.js                            12.81 kB │ gzip:   4.29 kB
+dist/assets/ConsultantExpertiseServicesPage-CL4RajQl.js     14.03 kB │ gzip:   4.52 kB
+dist/assets/ConsultantReviewSubmitPage-BZJx06yn.js          14.58 kB │ gzip:   5.16 kB
+dist/assets/ConsultantProfessionalDetailsPage-9CQ9GjOp.js   15.00 kB │ gzip:   4.46 kB
+dist/assets/AdminAIApplyOperationsPage-DQtkz6N7.js          15.30 kB │ gzip:   5.08 kB
+dist/assets/BecomeConsultantPage-e-3hppnn.js                15.61 kB │ gzip:   5.02 kB
+dist/assets/DashboardPage-C6TiriEo.js                       16.40 kB │ gzip:   5.18 kB
+dist/assets/AIApplyPage-DtiLuiw7.js                         16.61 kB │ gzip:   5.57 kB
+dist/assets/AdminJobSourcesPage-CdNBIT5s.js                 16.70 kB │ gzip:   5.94 kB
+dist/assets/AdminJobsPage-pik3ySTt.js                       17.56 kB │ gzip:   5.94 kB
+dist/assets/BookingDetailPage-BYWs0NcE.js                   17.83 kB │ gzip:   5.94 kB
+dist/assets/JobDetailsPage-De_nF2Vg.js                      17.96 kB │ gzip:   5.95 kB
+dist/assets/PaymentPage-DzZafhdm.js                         18.65 kB │ gzip:   6.01 kB
+dist/assets/LegalDocumentPage-C2poq5KC.js                   19.90 kB │ gzip:   6.65 kB
+dist/assets/HomePage-CpSdg6PZ.js                            25.09 kB │ gzip:   7.54 kB
+dist/assets/ResumeWorkflow-DqEBc7vy.js                      27.05 kB │ gzip:   8.61 kB
+dist/assets/state-vendor-Cj_kZihB.js                        36.85 kB │ gzip:  13.95 kB
+dist/assets/CandidateBrowseJobsPage-sMi2aF-C.js             46.75 kB │ gzip:  15.57 kB
+dist/assets/GuidanceOwnerPage-DSPEV2W3.js                   48.73 kB │ gzip:  11.39 kB
+dist/assets/AIApplyExternalConnectionsPage-C8sKEMKr.js      69.09 kB │ gzip:  19.01 kB
+dist/assets/InterviewInsightsMembershipGate-hwpUwF5m.js     70.41 kB │ gzip:  18.12 kB
+dist/assets/index.esm-CopZsNin.js                           74.03 kB │ gzip:  25.00 kB
+dist/assets/react-vendor-DSUGrNEc.js                       102.79 kB │ gzip:  34.77 kB
+dist/assets/PortfolioPage-DDC_ZU7-.js                      103.42 kB │ gzip:  28.57 kB
+dist/assets/index-DsYEfgQR.js                              457.50 kB │ gzip: 142.17 kB
+dist/assets/mui-vendor-C5WehJcM.js                         514.10 kB │ gzip: 154.73 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 41.50s

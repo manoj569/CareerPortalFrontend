@@ -32,7 +32,7 @@ import {
 } from '@/features/jobs/types/jobModels';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { UserRole } from '@/types';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -453,6 +453,19 @@ describe('jobs listing page', () => {
 
 vi.mock('@/features/aiResume/components/ResumeWorkflow', () => ({ ResumeWorkflow: ({ job }: { job?: ResumeJob }) => <div data-testid='resume-tailor-workflow'>{job?.id} {job?.title}</div> }));
 describe('job details page', () => {
+  it('uses supplied company logos in the existing detail and company slots with safe fallbacks', () => {
+    mockJobDetails.mockReturnValue(detailsResult({
+      data: { ...jobDetails, companyLogoUrl: '/company.svg' },
+    }));
+    renderDetailsPage();
+    const images = screen.getAllByRole('img', { name: `${job.companyName} logo` });
+    expect(images).toHaveLength(2);
+    expect(images[0]?.parentElement).toHaveStyle({ width: '76px', height: '76px' });
+    expect(images[1]?.parentElement).toHaveStyle({ width: '52px', height: '52px' });
+    images.forEach((image) => fireEvent.error(image));
+    expect(screen.getAllByRole('img', { name: `${job.companyName} initials` })).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: job.title })).toBeInTheDocument();
+  });
   it('opens AI Resume Tailor for the real backend job without changing existing actions', async () => {
     mockJobDetails.mockReturnValue(detailsResult({ data: jobDetails }));
     renderDetailsPage(authenticated);

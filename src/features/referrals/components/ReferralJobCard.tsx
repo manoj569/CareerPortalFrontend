@@ -1,4 +1,4 @@
-import { Avatar, Box, Button, ButtonBase, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, ButtonBase, Chip, Paper, Stack, Typography } from '@mui/material';
 import GroupsIcon from '@mui/icons-material/Groups';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -10,15 +10,7 @@ import type { ReferralRequestRecord } from '../types/marketplaceModels';
 import { dateLabel, statusLabel } from '../types/marketplaceModels';
 import { getWorkplaceTypeLabel } from '@/features/jobs/constants/jobOptions';
 import type { WorkplaceType } from '@/features/jobs/types/jobModels';
-
-const initials = (name: string | null | undefined) =>
-  name
-    ?.trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0))
-    .join('')
-    .toUpperCase();
+import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
 
 const referralExperience = (minimum?: number | null, maximum?: number | null) => {
   if (minimum === 0 && maximum === 0) return 'Fresher';
@@ -85,10 +77,12 @@ export const ReferralJobCard = ({
       }}
     >
       <Stack direction="row" spacing={2} sx={{ minWidth: 0 }}>
-        <Avatar
+        <CompanyLogoFallback
           variant="rounded"
-          src={job.companyLogoUrl ?? undefined}
-          alt={job.companyName ?? 'Company'}
+          companyName={job.companyName}
+          logoUrl={job.companyLogoUrl}
+          size={62}
+          fallback={<WorkOutlineIcon />}
           sx={{
             width: 62,
             height: 62,
@@ -98,9 +92,7 @@ export const ReferralJobCard = ({
             fontWeight: 700,
             '& img': { objectFit: 'contain', p: 0.75 },
           }}
-        >
-          {initials(job.companyName) || <WorkOutlineIcon />}
-        </Avatar>
+        />
         <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
           <Typography component="h3" sx={{ fontSize: 16, fontWeight: 750, lineHeight: 1.4 }}>
             {job.jobTitle}

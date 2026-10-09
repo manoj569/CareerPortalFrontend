@@ -1,0 +1,17 @@
+{
+  "totalTests": 176,
+  "passed": 175,
+  "failed": 1,
+  "failedTests": [
+    "Phase-1 contract integration loads all 1000 jobs without truncation and reuses category reads on refresh"
+  ],
+  "headJobPagesPassed": 29,
+  "currentJobPagesPassed": 30,
+  "modifiedFilesEslint": "passed",
+  "fullRepositoryEslint": "attempted, interrupted before completion",
+  "testTeardownError": "cancelAnimationFrame is not defined after timed-out catalogue test",
+  "productionBuild": "passed, including TypeScript",
+  "finalComponentEslint": "passed",
+  "diffCheck": "passed",
+  "addedTestsPassed": 19
+}

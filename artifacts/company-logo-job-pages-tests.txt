@@ -1,0 +1,43 @@
+
+> career-portal-frontend@0.1.0 test
+> vitest run src/pages/jobPages.test.tsx --maxWorkers=1 --reporter=default --reporter=json --outputFile=artifacts/company-logo-job-pages-tests.json
+
+
+ RUN  v3.2.7 D:/career-portal-frontend/career-portal-frontend-Run
+
+ ✓ src/pages/jobPages.test.tsx (30 tests) 43753ms
+   ✓ jobs listing page > shows a loading state  4830ms
+   ✓ jobs listing page > renders successful job results  3126ms
+   ✓ jobs listing page > shows an empty state  1270ms
+   ✓ jobs listing page > shows an API failure and retries  1601ms
+   ✓ jobs listing page > hydrates supported filters from the URL  1471ms
+   ✓ jobs listing page > applies and clears free-text company and category filters  9025ms
+   ✓ job details page > uses supplied company logos in the existing detail and company slots with safe fallbacks  1285ms
+   ✓ job details page > opens AI Resume Tailor for the real backend job without changing existing actions  1215ms
+   ✓ job details page > renders job details  506ms
+   ✓ job details page > shows a safe company interview-insight summary to candidates without round details  781ms
+   ✓ job details page > allows a 'free Candidate below the monthly limit' and opens the validated external URL  2147ms
+   ✓ job details page > allows a 'premium Candidate below the daily lim…' and opens the validated external URL  1874ms
+   ✓ job details page > opens the upgrade dialog for a free Candidate to membership when the monthly quota is exhausted  1281ms
+   ✓ job details page > opens the upgrade dialog before submitting or opening a tab when the quota endpoint reports 10 free applications used  1082ms
+   ✓ job details page > shows the premium daily-limit message and stays on the job page  712ms
+   ✓ job details page > shows the duplicate-application message without opening the employer site  1789ms
+   ✓ job details page > redirects an unauthenticated user to Login and preserves the return location  687ms
+   ✓ job details page > prevents an Administrator from applying  607ms
+   ✓ job details page > disables Apply while the backend request is pending  1063ms
+   ✓ job details page > does not render the internal cover-letter application flow  1125ms
+   ✓ job details page > does not submit or open an unsafe application URL: javascript:alert(1)  497ms
+   ✓ job details page > does not submit or open an unsafe application URL: /relative-application-path  540ms
+   ✓ job details page > submits a Portal application without opening a new tab when no application URL exists  717ms
+   ✓ job details page > keeps save, share, and recruiter-contact actions working  876ms
+   ✓ job details page > does not promise fixed application volume in the recruiter-contact upsell  1199ms
+   ✓ job details page > keeps related jobs visible in the compact sidebar  871ms
+   ✓ share button > uses the clipboard fallback when Web Share is unavailable  304ms
+   ✓ share button > offers a keyboard-accessible manual copy fallback  986ms
+
+ Test Files  1 passed (1)
+      Tests  30 passed (30)
+   Start at  01:48:24
+   Duration  74.09s (transform 4.47s, setup 2.31s, collect 17.85s, tests 43.75s, environment 7.57s, prepare 937ms)
+
+JSON report written to D:/career-portal-frontend/career-portal-frontend-Run/artifacts/company-logo-job-pages-tests.json

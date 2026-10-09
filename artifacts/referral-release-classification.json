@@ -1,0 +1,186 @@
+{
+  "newCurrentFailures": [],
+  "recordedFailures": [
+    {
+      "test": "adminNavigationItems uses the expected admin navigation order",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Career Guidance dashboard navigation places the candidate entry after Interview insights and before Membership",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Career Guidance dashboard navigation keeps candidate Career Guidance active for nested routes",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs restores cross-facet selections from shared URLs and synchronizes chips, back and forward",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs preserves existing facets while refetching and does not depend on supplemental counts",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs hides empty string facets without hiding job results",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs keeps selected facets in the URL and renders exact backend counts",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs debounces keyword search into shareable URL state",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs uses one shared 52px height for every search-row control",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs uses backend role values for multi-select and removes stale company-name state",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs opens and closes the responsive filter drawer",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs renders the redesigned filter groups and supports individual removal and Clear all",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs commits accessible experience and annual-salary sliders using backend units",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs treats the experience and salary UI upper endpoints as unbounded",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs uses temporary View more selections and applies them once",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs renders backend location and education labels without changing query values or summing counts",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs cleans every removed filter parameter without reintroducing removed chips",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs renders loading, retryable error, and empty result states",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs keeps results usable while facet loading and errors are handled separately",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs uses the real saved-job and application actions",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs shows Browse jobs only in the Candidate dashboard navigation",
+      "currentFailed": false,
+      "headFailed": false,
+      "classification": "Notification polling assertion corrected; current test verifies required options"
+    },
+    {
+      "test": "Candidate Browse jobs shows the original uploaded filename only after profile metadata refresh",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs uses recommendation mode without sending All jobs filters and removes an applied recommendation",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs shows a View all jobs action when recommendations are empty",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs shows safe Processing and Failed resume states with the API filename",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs renders all five modes in order and maps them to backend query fields",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs collapses and restores the desktop filters without clearing selected values",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate Browse jobs downloads a ready resume securely and revokes the temporary object URL",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate job search URL state round-trips the nine retained filter groups and pagination",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    },
+    {
+      "test": "Candidate job search URL state counts only retained visible filters",
+      "currentFailed": true,
+      "headFailed": true,
+      "classification": "Pre-existing HEAD failure"
+    }
+  ],
+  "head": "757a475bc4c9cd1995d3d3a1a23af1f99de21ead"
+}

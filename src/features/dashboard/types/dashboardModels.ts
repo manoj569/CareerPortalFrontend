@@ -211,6 +211,8 @@ export interface SavedJob {
   title: string;
   slug: string;
   companyName: string;
+  // Older saved-job DTOs omit this field; never fetch individual jobs for a logo.
+  companyLogoUrl?: string | null;
 }
 
 export enum JobApplicationStatus {

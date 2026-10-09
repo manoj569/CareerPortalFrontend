@@ -24,6 +24,31 @@ interface CapturedRequest {
 describe('public jobs advanced search API', () => {
   beforeEach(() => mockRequest.mockReset());
 
+  it('keeps a 10,000-job catalogue server-paged and passes logos without company lookups', async () => {
+    const store = createAppStore();
+    const items = [
+      { id: 'deloitte', companyName: 'Deloitte', companyLogoUrl: '/deloitte.svg' },
+      { id: 'future', companyName: 'Future Provider' },
+    ];
+    mockRequest.mockResolvedValue({
+      data: { data: { items, pageNumber: 2, pageSize: 20, totalCount: 10000, totalPages: 500 } },
+    });
+    const subscription = store.dispatch(jobsApi.endpoints.searchJobs.initiate({
+      pageNumber: 2, pageSize: 20, sortBy: PublicJobSort.LatestPublished, sortDirection: 'desc',
+    }));
+    const response = await subscription.unwrap();
+    expect(response.items).toEqual(items);
+    expect(response.totalCount).toBe(10000);
+    expect(response.totalPages).toBe(500);
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+    const request = mockRequest.mock.calls[0]?.[0] as CapturedRequest;
+    expect(request.url).toBe('/jobs');
+    expect(request.params?.get('pageNumber')).toBe('2');
+    expect(request.params?.get('pageSize')).toBe('20');
+    subscription.unsubscribe();
+    store.dispatch(jobsApi.util.resetApiState());
+  });
+
   it('sends supported multi-select filters as repeated backend query parameters', async () => {
     const store = createAppStore();
     mockRequest.mockResolvedValue({

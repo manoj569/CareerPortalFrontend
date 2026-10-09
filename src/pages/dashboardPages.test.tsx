@@ -445,12 +445,32 @@ describe('candidate dashboard pages', () => {
     renderPage(<SavedJobsPage />);
 
     expect(screen.getByText(job.title)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: `${savedJob.companyName} initials` })).toHaveTextContent('NL');
     await userEvent.click(
       screen.getByRole('button', {
         name: `Remove ${job.title} from saved jobs`,
       }),
     );
     expect(mutation.trigger).toHaveBeenCalledWith(job.id);
+  });
+
+  it('renders an optional saved-job logo while paging a 10,000-job catalogue on the server', async () => {
+    mockSavedJobs.mockReturnValue(
+      queryResult({
+        data: {
+          items: [{ ...savedJob, companyLogoUrl: '/company-logo.svg' }],
+          pageNumber: 1, pageSize: 12, totalCount: 10000, totalPages: 834,
+        },
+      }),
+    );
+    renderPage(<SavedJobsPage />);
+    const image = screen.getByRole('img', { name: `${savedJob.companyName} logo` });
+    expect(image).toHaveAttribute('src', '/company-logo.svg');
+    expect(image.parentElement).toHaveStyle({ width: '24px', height: '24px' });
+    expect(mockSavedJobs).toHaveBeenCalledWith({ pageNumber: 1, pageSize: 12 });
+    await userEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+    expect(mockSavedJobs).toHaveBeenCalledWith({ pageNumber: 2, pageSize: 12 });
+    expect(screen.getAllByRole('article')).toHaveLength(1);
   });
 
   it('saves a public job through the authenticated dashboard endpoint', async () => {
