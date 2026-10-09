@@ -229,17 +229,18 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   disabled={busy}
                   onChange={(event) => field.onChange(Number(event.target.value))}
                 >
-                  {[
-                    AtsType.Greenhouse,
-                    AtsType.Lever,
-                    AtsType.Ashby,
-                    AtsType.Custom,
-                    AtsType.SuccessFactors,
-                  ].map((type) => (
-                    <MenuItem key={type} value={type}>
-                      {AtsType[type]}
-                    </MenuItem>
-                  ))}
+             {[
+  AtsType.Greenhouse,
+  AtsType.Lever,
+  AtsType.Ashby,
+  AtsType.Custom,
+  AtsType.SuccessFactors,
+  AtsType.Workday,
+].map((type) => (
+  <MenuItem key={type} value={type}>
+    {AtsType[type]}
+  </MenuItem>
+))}
                 </TextField>
               )}
             />
@@ -257,13 +258,14 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
               error={Boolean(errors.atsIdentifier)}
               helperText={
                 errors.atsIdentifier?.message ??
-                {
-                  0: 'Optional for Custom.',
-                  1: 'Board token',
-                  2: 'Site/company token',
-                  3: 'Job board name',
-                  4: 'Board / career-site identifier',
-                }[atsType]
+         {
+  0: 'Optional for Custom.',
+  1: 'Board token',
+  2: 'Site/company token',
+  3: 'Job board name',
+  4: 'Board / career-site identifier',
+  5: 'Tenant/site identifier, e.g. accenture/AccentureCareers',
+}[atsType]
               }
             />
             <Controller
