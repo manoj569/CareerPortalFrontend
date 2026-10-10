@@ -6,6 +6,8 @@ coverage/
 .env
 .env.*
 !.env.example
+# Public production API URL; never add secrets to this file.
+!.env.production
 *.local
 *.log
 .DS_Store

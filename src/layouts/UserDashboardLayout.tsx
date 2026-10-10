@@ -1,11 +1,9 @@
+import { NotificationBell } from '@/features/dashboard/components/NotificationBell';
 import { useGetReferrerInboxQuery } from '@/features/referrals/api/marketplaceApi';
 import { requestStatus } from '@/features/referrals/types/marketplaceModels';
 import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
 import { ROUTES } from '@/constants/routes';
-import {
-  useGetMembershipsQuery,
-  useGetNotificationsQuery,
-} from '@/features/dashboard/api/dashboardApi';
+import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
 import { isMembershipActive } from '@/features/payments/utils/entitlement';
 import { candidateNavigationItems } from './candidateNavigation';
 export const UserDashboardLayout = () => {
@@ -17,13 +15,6 @@ export const UserDashboardLayout = () => {
     (r) => requestStatus(r.request.status) === 'Requested',
   ).length;
   const memberships = useGetMembershipsQuery();
-  const notifications = useGetNotificationsQuery(
-    { pageNumber: 1, pageSize: 1 },
-    {
-      pollingInterval: 60000,
-      refetchOnMountOrArgChange: true,
-    },
-  );
   const activeAccessCount =
     memberships.data?.filter((membership) => isMembershipActive(membership)).length ?? 0;
   const accessStatus = memberships.isLoading
@@ -45,7 +36,7 @@ export const UserDashboardLayout = () => {
           ? { ...item, badge: String(pendingCount) }
           : item,
       )}
-      notificationCount={notifications.data?.unreadCount ?? 0}
+      notificationBell={<NotificationBell />}
       showNotifications
     />
   );

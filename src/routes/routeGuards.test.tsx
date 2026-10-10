@@ -44,6 +44,8 @@ const renderGuardRouter = (initialPath: string, auth: AuthState) => {
         element: <AdminRoute />,
         children: [
           { path: '/admin-only', element: <p>Admin content</p> },
+          { path: '/admin/jobs', element: <p>Referral approval</p> },
+          { path: '/admin/notifications', element: <p>Admin notifications</p> },
           { path: '/admin/companies', element: <p>Company administration</p> },
           { path: '/admin/interview-insights', element: <p>Insight moderation</p> },
         ],
@@ -70,6 +72,26 @@ const renderGuardRouter = (initialPath: string, auth: AuthState) => {
 };
 
 describe('route guards', () => {
+  it.each(['/admin/jobs', '/admin/notifications'])(
+    'restricts %s to authenticated administrators',
+    async (path) => {
+      const candidateView = renderGuardRouter(
+        path,
+        createAuthState('authenticated', UserRole.Candidate),
+      );
+      expect(await screen.findByText('Unauthorized destination')).toBeInTheDocument();
+      candidateView.unmount();
+      const loggedOutView = renderGuardRouter(path, createAuthState('unauthenticated'));
+      expect(await screen.findByText('Login destination')).toBeInTheDocument();
+      loggedOutView.unmount();
+      renderGuardRouter(path, createAuthState('authenticated', UserRole.Administrator));
+      expect(
+        await screen.findByText(
+          path === '/admin/jobs' ? 'Referral approval' : 'Admin notifications',
+        ),
+      ).toBeInTheDocument();
+    },
+  );
   it('redirects unauthenticated users from protected routes to login', async () => {
     renderGuardRouter('/private', createAuthState('unauthenticated'));
     expect(await screen.findByText('Login destination')).toBeInTheDocument();

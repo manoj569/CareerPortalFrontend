@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@/constants/routes';
 import type { ReactNode } from 'react';
 import {
   Alert,
@@ -66,6 +68,9 @@ export const ReferralLayout = ({ children, aside }: { children: ReactNode; aside
     }}
   >
     <Stack spacing={2} sx={{ minWidth: 0 }}>
+      <Button component={Link} to={ROUTES.NOTIFICATIONS} sx={{ alignSelf: 'flex-start' }}>
+        View referral notifications
+      </Button>
       {children}
     </Stack>
     <Stack spacing={2} sx={{ minWidth: 0 }}>

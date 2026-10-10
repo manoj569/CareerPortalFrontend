@@ -24,6 +24,22 @@ const collectPaths = (route: RouteObject): string[] => [
 ];
 
 describe('release route structure', () => {
+  it('keeps verified referral destinations and inboxes in their existing role guards', () => {
+    const candidates = collectPaths(findGuardedGroup(CandidateRoute));
+    const admins = collectPaths(findGuardedGroup(AdminRoute));
+    expect(candidates).toEqual(
+      expect.arrayContaining([
+        '/dashboard/referrals',
+        '/dashboard/referral-requests',
+        '/dashboard/my-referral-requests',
+        ROUTES.NOTIFICATIONS,
+      ]),
+    );
+    expect(admins).toEqual(expect.arrayContaining([ROUTES.ADMIN_JOBS, ROUTES.ADMIN_NOTIFICATIONS]));
+    expect(candidates).not.toContain(ROUTES.ADMIN_NOTIFICATIONS);
+    expect(admins).not.toContain(ROUTES.NOTIFICATIONS);
+    expect(admins).not.toContain('/admin/referrals');
+  });
   it('keeps authentication routes inside the guest-only group', () => {
     expect(collectPaths(findGuardedGroup(GuestRoute))).toEqual(
       expect.arrayContaining([

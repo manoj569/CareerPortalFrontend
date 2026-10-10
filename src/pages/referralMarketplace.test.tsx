@@ -339,6 +339,7 @@ describe('creation and protected contact', () => {
       kind === 'shared' ? <AllReferralsPage /> : <ReferralRequestsPage />,
       kind === 'shared' ? '/dashboard/referrals' : '/dashboard/referral-requests',
     );
+    expect(screen.getByRole('link', { name: 'View referral notifications' })).toHaveAttribute('href', '/dashboard/notifications');
     expect(
       screen.getByText(
         kind === 'shared'

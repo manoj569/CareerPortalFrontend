@@ -264,13 +264,25 @@ export interface ApplyJobResponse {
   appliedAtUtc: string;
 }
 
+/** Numeric values mirror DomainEnums.NotificationType; no global string enum converter. */
 export enum NotificationType {
-  General = 1,
-  Job,
-  Application,
+  Application = 0,
+  Profile,
   Payment,
   Membership,
   Security,
+  System,
+  ReferralApproved,
+  ReferralJobSubmitted,
+  ReferralRejected,
+  ReferralRequested,
+  ReferralAccepted,
+  ReferralRequestRejected,
+  ReferralSubmitted,
+  ReferralConfirmed,
+  ReferralNotReceived,
+  ReferralExpired,
+  ReferralRequestReminder,
 }
 
 export interface DashboardNotification {

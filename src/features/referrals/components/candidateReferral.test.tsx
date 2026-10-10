@@ -358,6 +358,7 @@ describe('referral navigation empty states', () => {
   it('links empty My Requests to Find Referral Jobs', async () => {
     show(<CandidateReferralRequestsPage />);
     expect(screen.getByText("You haven't requested any referrals yet.")).toBeVisible();
+    expect(screen.getByRole('link', { name: 'View referral notifications' })).toHaveAttribute('href', '/dashboard/notifications');
     await userEvent.click(screen.getAllByRole('button', { name: 'Find Referral Jobs' })[0]!);
     expect(screen.getByLabelText('location')).toHaveTextContent('/dashboard/jobs');
   });
@@ -425,8 +426,8 @@ describe('Phase 2 membership and request presentation', () => {
       }),
     );
     show(<CandidateReferralRequestsPage />);
-    expect(screen.getByText(explanation!)).toBeVisible();
+    expect(screen.getByText(explanation)).toBeVisible();
     expect(screen.getByText(/Last status update:/)).toBeVisible();
-    expect(screen.getByRole('button', { name: new RegExp(action!) })).toBeVisible();
+    expect(screen.getByRole('button', { name: new RegExp(action) })).toBeVisible();
   });
 });

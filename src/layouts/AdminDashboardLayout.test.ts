@@ -17,6 +17,7 @@ describe('adminNavigationItems', () => {
       'Interview insights',
       'AI Apply Operations',
       'Payments',
+      'Support Tickets',
       'Audit logs',
       'View public site',
     ]);

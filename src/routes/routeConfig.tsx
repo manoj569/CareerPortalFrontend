@@ -1041,6 +1041,11 @@ export const appRoutes: RouteObject[] = [
               },
 
               {
+                path: ROUTES.ADMIN_NOTIFICATIONS,
+                element: lazyPage(() => import('@/pages/NotificationsPage'), 'NotificationsPage'),
+              },
+
+              {
 
                 path: ROUTES.ADMIN_JOBS,
 

@@ -26,12 +26,23 @@ const applicationStatusLabels: Record<JobApplicationStatus, string> = {
 };
 
 const notificationTypeLabels: Record<NotificationType, string> = {
-  [NotificationType.General]: 'General',
-  [NotificationType.Job]: 'Job',
+  [NotificationType.Profile]: 'Profile',
+  [NotificationType.System]: 'General',
   [NotificationType.Application]: 'Application',
   [NotificationType.Payment]: 'Payment',
   [NotificationType.Membership]: 'Membership',
   [NotificationType.Security]: 'Security',
+  [NotificationType.ReferralApproved]: 'Referral',
+  [NotificationType.ReferralJobSubmitted]: 'Referral',
+  [NotificationType.ReferralRejected]: 'Referral',
+  [NotificationType.ReferralRequested]: 'Referral',
+  [NotificationType.ReferralAccepted]: 'Referral',
+  [NotificationType.ReferralRequestRejected]: 'Referral',
+  [NotificationType.ReferralSubmitted]: 'Referral',
+  [NotificationType.ReferralConfirmed]: 'Referral',
+  [NotificationType.ReferralNotReceived]: 'Referral',
+  [NotificationType.ReferralExpired]: 'Referral',
+  [NotificationType.ReferralRequestReminder]: 'Referral',
 };
 
 export const getMembershipStatusLabel = (value: MembershipStatus): string =>
@@ -47,6 +58,21 @@ export const getNotificationTypeLabel = (value: NotificationType): string =>
   notificationTypeLabels[value] ?? 'General';
 
 export const getSafeNotificationPath = (value: string | null): string | null => {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
-  return value;
+  const unsafe = (text: string) =>
+    text.includes('\\') ||
+    [...text].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127);
+  if (!value || !value.startsWith('/') || value.startsWith('//') || unsafe(value)) return null;
+  try {
+    const decoded = decodeURIComponent(value);
+    if (
+      unsafe(decoded) ||
+      decoded.startsWith('//') ||
+      decoded.split(/[/?#]/).some((segment) => segment === '.' || segment === '..')
+    )
+      return null;
+    const url = new URL(value, 'https://careerharbor.in');
+    return url.origin === 'https://careerharbor.in' ? value : null;
+  } catch {
+    return null;
+  }
 };

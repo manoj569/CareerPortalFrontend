@@ -19,7 +19,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
@@ -42,6 +42,7 @@ interface DashboardLayoutShellProps {
   accountMenuProfilePath?: string;
   notificationCount?: number;
   showNotifications?: boolean;
+  notificationBell?: ReactNode;
 }
 
 export const DashboardLayoutShell = ({
@@ -52,6 +53,7 @@ export const DashboardLayoutShell = ({
   collapsibleDesktop = false,
   notificationCount = 0,
   showNotifications = false,
+  notificationBell,
 }: DashboardLayoutShellProps) => {
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -286,7 +288,7 @@ const isFullWidthPage =
             {areaLabel}
           </Typography>
 
-          {showNotifications ? (
+          {notificationBell ?? (showNotifications ? (
             <IconButton
               aria-label={
                 notificationCount > 0
@@ -309,7 +311,7 @@ const isFullWidthPage =
                 <NotificationsNoneOutlinedIcon />
               )}
             </IconButton>
-          ) : null}
+          ) : null)}
 
           {accountMenuProfilePath ? (
             <CandidateAccountMenu

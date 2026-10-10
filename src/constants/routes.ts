@@ -56,6 +56,7 @@ export const ROUTES = {
   PHONEPE_RETURN: '/payment/phonepe/return',
   PHONEPE_RETURN_LEGACY: '/payments/phonepe/return',
   ADMIN: '/admin',
+  ADMIN_NOTIFICATIONS: '/admin/notifications',
   ADMIN_JOBS: '/admin/jobs',
   ADMIN_JOB_CREATE: '/admin/jobs/create',
   ADMIN_JOB_DISCOVERY: '/admin/jobs/discovery',
