@@ -818,11 +818,11 @@ const InsightDetailDialog = ({ id, onClose, onFeedback, onMembershipRequired }: 
 
 
 
-    if (requiresMembership(query.error)) onMembershipRequired?.();
+    if (id && requiresMembership(query.error)) onMembershipRequired?.();
 
 
 
-  }, [onMembershipRequired, query.error]);
+  }, [id, onMembershipRequired, query.error]);
 
 
 
@@ -2123,6 +2123,7 @@ const MoreFiltersDialog = ({ onApply, onClose, open, params }: MoreFiltersProps)
 
 
 interface InterviewInsightsPageProps {
+  canReadDetails?: boolean;
 
 
 
@@ -2150,7 +2151,7 @@ const requiresMembership = (error: unknown): boolean =>
 
 
 
-export const InterviewInsightsPage = ({ onMembershipRequired }: InterviewInsightsPageProps = {}) => {
+export const InterviewInsightsPage = ({ canReadDetails = true, onMembershipRequired }: InterviewInsightsPageProps = {}) => {
 
 
 
@@ -2473,39 +2474,7 @@ export const InterviewInsightsPage = ({ onMembershipRequired }: InterviewInsight
 
 
 
-  useEffect(() => {
 
-
-
-    if (
-
-
-
-      [insights.error, schedules.error, contributions.error].some((error) =>
-
-
-
-        requiresMembership(error),
-
-
-
-      )
-
-
-
-    ) {
-
-
-
-      onMembershipRequired?.();
-
-
-
-    }
-
-
-
-  }, [contributions.error, insights.error, onMembershipRequired, schedules.error]);
 
 
 
@@ -3389,7 +3358,7 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
-                    <InsightCard insight={item} onOpen={setDetailId} onReport={setReportId} />
+                    <InsightCard insight={item} onOpen={(id) => { if (!canReadDetails) onMembershipRequired?.(); else setDetailId(id); }} onReport={setReportId} />
 
 
 
@@ -4529,7 +4498,7 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
-        onMembershipRequired={onMembershipRequired}
+        onMembershipRequired={() => { setDetailId(null); onMembershipRequired?.(); }}
 
 
 

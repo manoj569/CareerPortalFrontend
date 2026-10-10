@@ -1,3 +1,4 @@
+import { SHOW_HOME_CAREER_GUIDANCE } from '@/constants/homeVisibility';
 import {
   LandingFeatures,
   LandingHeroVisual,
@@ -148,7 +149,7 @@ export const HomePage = () => {
               <span>Get prepared.</span> <em>Grow faster.</em>
             </Typography>
             <p className="hero-description">
-              Jobs, employee referrals, real interview experiences, career guidance and a
+              Jobs, employee referrals, real interview experiences,{SHOW_HOME_CAREER_GUIDANCE ? ' career guidance and a' : ' and a'}
               professional portfolio — all in one place.
             </p>
             <HeroSearch
@@ -267,7 +268,7 @@ export const HomePage = () => {
               [
                 '03',
                 'Prepare better',
-                'Use Interview Insights, referrals and Career Guidance.',
+                SHOW_HOME_CAREER_GUIDANCE ? 'Use Interview Insights, referrals and Career Guidance.' : 'Use Interview Insights and referrals.',
                 <DescriptionOutlinedIcon />,
               ],
               [
@@ -320,7 +321,7 @@ export const HomePage = () => {
         </Tabs>
         <JobCollection jobs={currentJobs} />
       </section>
-      <GuidanceFeature />
+      {SHOW_HOME_CAREER_GUIDANCE && <GuidanceFeature />}
       <LandingCommunity />
       <FinalCareerCTA />
     </Box>

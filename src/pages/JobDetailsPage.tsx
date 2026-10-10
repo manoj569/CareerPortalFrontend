@@ -1,3 +1,4 @@
+const SHOW_JOB_RESUME_TAILOR = false;
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { ResumeWorkflow } from '@/features/aiResume/components/ResumeWorkflow';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -439,7 +440,7 @@ export const JobDetailsPage = () => {
               />
             </Stack>
 
-      {currentUser?.role === UserRole.Candidate && (
+      {SHOW_JOB_RESUME_TAILOR && currentUser?.role === UserRole.Candidate && (
         <Stack alignItems="flex-end">
           <Button variant="outlined" sx={{ color: '#0655fa', borderColor: '#bcb5ff', bgcolor: '#f6f3ff' }} onClick={() => setResumeTailorOpen(true)}>✨ Tailor Resume for This Job</Button>
           <Dialog open={resumeTailorOpen} onClose={() => setResumeTailorOpen(false)} fullWidth maxWidth="xl" slotProps={{ paper: { 'aria-label': 'AI Resume Tailor' } }}>

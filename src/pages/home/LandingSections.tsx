@@ -1,3 +1,4 @@
+import { SHOW_HOME_CAREER_GUIDANCE } from '@/constants/homeVisibility';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
@@ -69,7 +70,7 @@ export const LandingFeatures = ({
       <h2>More than just a job portal</h2>
       <p>Everything you need to discover opportunities, prepare better and build your career.</p>
       <div className="platform-features">
-        {features.map((feature) => (
+        {features.filter((feature) => SHOW_HOME_CAREER_GUIDANCE || feature.path !== guidanceRoutes.marketplace).map((feature) => (
           <Link
             className={`platform-card ${feature.tone}`}
             to={feature.tone === 'pink' ? portfolioPath : feature.path}
@@ -97,7 +98,7 @@ export const LandingHeroVisual = ({ company }: { company?: string }) => (
       src="/images/career-professional.webp"
       alt="Fictional professional representing a Career Harbor job seeker"
     />
-    {features.slice(0, 4).map((feature, index) => (
+    {features.slice(0, 4).filter((feature) => SHOW_HOME_CAREER_GUIDANCE || feature.path !== guidanceRoutes.marketplace).map((feature, index) => (
       <Link
         to={feature.path}
         key={feature.title}
@@ -293,7 +294,7 @@ export const FinalCareerCTA = () => (
       </div>
       <div className="career-dashboard-preview" aria-label="Illustrative Career Harbor workspace">
         <span className="preview-label">Your Career Harbor workspace</span>
-        {features.map((feature) => (
+        {features.filter((feature) => SHOW_HOME_CAREER_GUIDANCE || feature.path !== guidanceRoutes.marketplace).map((feature) => (
           <div key={feature.title} className={feature.tone}>
             {feature.icon}
             <strong>{feature.title}</strong>

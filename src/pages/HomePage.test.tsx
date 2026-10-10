@@ -307,7 +307,7 @@ describe('premium public homepage', () => {
       ),
     ).not.toBeInTheDocument();
   });
-  it('keeps the exact hero asset, real referral data and supported guidance destinations', () => {
+  it('keeps the exact hero asset, real referral data while hiding homepage guidance', () => {
     vi.mocked(useGetPublicReferralJobsQuery).mockReturnValue(
       result({
         items: [
@@ -331,10 +331,8 @@ describe('premium public homepage', () => {
       'href',
       '/dashboard/jobs?mode=referral',
     );
-    expect(screen.getByRole('link', { name: 'Become a consultant' })).toHaveAttribute(
-      'href',
-      '/career-guidance/become-consultant',
-    );
+    expect(screen.queryByRole('link', { name: 'Become a consultant' })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('link').filter((link) => link.getAttribute('href')?.startsWith('/career-guidance'))).toHaveLength(0);
     expect(screen.queryByText('3 new roles')).not.toBeInTheDocument();
   });
 
@@ -361,16 +359,15 @@ describe('premium public homepage', () => {
       screen.queryByRole('heading', { name: 'Jobs are temporarily unavailable' }),
     ).not.toBeInTheDocument();
   });
-  it('keeps all four interactive hero cards and only repeats real companies for the marquee', () => {
+  it('keeps the three visible interactive hero cards and only repeats real companies for the marquee', () => {
     const router = createMemoryRouter([{ path: '/', element: <HomePage /> }]);
     renderWithProviders(<RouterProvider router={router} />);
     const hero = within(screen.getByRole('group', { name: 'Career Harbor hero features' }));
-    expect(hero.getAllByRole('link')).toHaveLength(4);
+    expect(hero.getAllByRole('link')).toHaveLength(3);
     for (const [title, path] of [
       ['Jobs', '/jobs'],
       ['Employee Referrals', '/dashboard/jobs?mode=referral'],
       ['Interview Insights', '/dashboard/interview-insights'],
-      ['Career Guidance', '/career-guidance'],
     ]) {
       expect(hero.getByRole('link', { name: new RegExp(`^${title}`) })).toHaveAttribute(
         'href',

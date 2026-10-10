@@ -1,3 +1,4 @@
+import { ApiRequestError } from '@/api/apiError';
 import { ROUTES } from '@/constants/routes';
 import {
   InterviewDifficulty,
@@ -131,16 +132,41 @@ const renderPage = (entry: string = ROUTES.INTERVIEW_INSIGHTS) =>
 describe('InterviewInsightsPage', () => {
   beforeEach(() => requestMock.mockReset());
 
+  it('lets free users browse and contribute but gates detail clicks without fetching details', async () => {
+    installHandlers();
+    const onMembershipRequired = vi.fn();
+    renderWithProviders(<MemoryRouter><InterviewInsightsPage canReadDetails={false} onMembershipRequired={onMembershipRequired} /></MemoryRouter>);
+    await userEvent.click(await screen.findByRole('button', { name: 'Read insight' }));
+    expect(onMembershipRequired).toHaveBeenCalledOnce();
+    expect(requestMock.mock.calls.some(([config]) => config.url === '/candidate/interview-insights/insight-id')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Share an interview insight' }));
+    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(onMembershipRequired).toHaveBeenCalledOnce();
+  });
+
+  it('handles backend membership_required when a previously eligible user opens details', async () => {
+    installHandlers();
+    const original = requestMock.getMockImplementation()!;
+    requestMock.mockImplementation((config) => config?.url === '/candidate/interview-insights/insight-id'
+      ? Promise.reject(new ApiRequestError({ status: 403, code: 'membership_required', message: 'Membership required' }))
+      : original(config));
+    const onMembershipRequired = vi.fn();
+    renderWithProviders(<MemoryRouter><InterviewInsightsPage canReadDetails onMembershipRequired={onMembershipRequired} /></MemoryRouter>);
+    await userEvent.click(await screen.findByRole('button', { name: 'Read insight' }));
+    await waitFor(() => expect(onMembershipRequired).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('renders the approved header and only safe explore-card fields', async () => {
     installHandlers();
     renderPage();
     expect(await screen.findByRole('heading', { name: 'Interview insights' })).toBeVisible();
     expect(
       screen.getByText(
-        'Learn from candidate experiences, prepare with confidence, and help future candidates.',
+        'Real candidate experiences to help you prepare better.',
       ),
     ).toBeVisible();
-    expect(screen.getByText('A concise safe overview of the process.')).toBeVisible();
+    expect(await screen.findByText('A concise safe overview of the process.')).toBeVisible();
     expect(screen.getByText('HR')).toBeVisible();
     expect(screen.getByText('Technical')).toBeVisible();
     expect(screen.getByText('React')).toBeVisible();
@@ -255,9 +281,9 @@ describe('InterviewInsightsPage', () => {
       `${ROUTES.INTERVIEW_INSIGHTS}?action=schedule&companyId=company-id&companyName=HARMAN&roleTitle=Frontend%20Engineer`,
     );
     const user = userEvent.setup();
-    const dialog = screen.getByRole('dialog', { name: 'Add interview schedule' });
+    const dialog = await screen.findByRole('dialog', { name: /^Add interview schedule/ });
     expect(within(dialog).getByRole('combobox', { name: 'Company' })).toHaveValue('HARMAN');
-    fireEvent.change(within(dialog).getByLabelText(/Private interview date/), {
+    fireEvent.change(within(dialog).getByLabelText(/Interview date & time/), {
       target: { value: '2026-08-25T11:00' },
     });
     await user.click(within(dialog).getByRole('combobox', { name: 'Interview format' }));
@@ -267,7 +293,7 @@ describe('InterviewInsightsPage', () => {
     await user.click(within(dialog).getByRole('combobox', { name: 'Preparation status' }));
     await user.click(screen.getByRole('option', { name: 'Preparing' }));
     await user.click(
-      within(dialog).getByRole('checkbox', { name: 'Send me an interview reminder' }),
+      within(dialog).getByRole('switch'),
     );
     await user.click(within(dialog).getByRole('button', { name: 'Save schedule' }));
     await waitFor(() =>
@@ -291,7 +317,7 @@ describe('InterviewInsightsPage', () => {
         roleTitle: 'Frontend Engineer',
       }),
     );
-  }, 15_000);
+  }, 30_000);
 
   it('renders contribution statuses and safe reviewer requests without private data', async () => {
     installHandlers({

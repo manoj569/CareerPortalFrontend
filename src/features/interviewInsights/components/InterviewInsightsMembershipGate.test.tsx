@@ -1,14 +1,12 @@
 import userEvent from '@testing-library/user-event';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import type { Location } from 'react-router-dom';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { NavigationList } from '@/components/navigation/NavigationList';
 import { ROUTES } from '@/constants/routes';
 import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
 import { MembershipStatus, type Membership } from '@/features/dashboard/types/dashboardModels';
-import { candidateNavigationItems } from '@/layouts/candidateNavigation';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { InterviewInsightsMembershipGate } from './InterviewInsightsMembershipGate';
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
@@ -21,11 +19,12 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => ({
 }));
 
 vi.mock('@/pages/InterviewInsightsPage', () => ({
-  InterviewInsightsPage: ({ onMembershipRequired }: { onMembershipRequired?: () => void }) => {
+  InterviewInsightsPage: ({ canReadDetails, onMembershipRequired }: { canReadDetails?: boolean; onMembershipRequired?: () => void }) => {
     insightPageRender();
     return (
       <main>
         Interview insight content
+        <button onClick={() => { if (!canReadDetails) onMembershipRequired?.(); }}>Read details</button>
         <button onClick={onMembershipRequired}>Simulate membership-required response</button>
       </main>
     );
@@ -106,92 +105,38 @@ describe('InterviewInsightsMembershipGate', () => {
     vi.clearAllMocks();
     vi.mocked(useGetMembershipsQuery).mockReturnValue(queryResult([]));
   });
-
-  it('shows the centered loading status without mounting protected content while checking access', () => {
-    vi.mocked(useGetMembershipsQuery).mockReturnValue({ ...queryResult([]), isLoading: true });
+  it.each(['free', 'loading', 'error', 'premium'])('allows browsing on entry for %s without a popup', (state) => {
+    vi.mocked(useGetMembershipsQuery).mockReturnValue({ ...queryResult(state === 'premium' ? [membership(MembershipStatus.Active)] : []), isLoading: state === 'loading', isError: state === 'error' });
     renderGate([ROUTES.INTERVIEW_INSIGHTS]);
-    expect(screen.getByRole('status', { name: 'Checking membership access…' })).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByText('Checking membership access…')).toBeVisible();
-    expect(insightPageRender).not.toHaveBeenCalled();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('blocks a direct route before rendering or querying insight content', () => {
-    renderGate([ROUTES.INTERVIEW_INSIGHTS]);
-
-    expect(screen.getByRole('dialog', { name: 'Unlock Interview Insights' })).toBeVisible();
-    expect(screen.queryByText('Interview insight content')).not.toBeInTheDocument();
-    expect(insightPageRender).not.toHaveBeenCalled();
-  });
-
-  it('opens the lock from candidate navigation and cancels to the previous safe route', async () => {
-    const router = createMemoryRouter(
-      [
-        {
-          path: ROUTES.DASHBOARD_JOBS,
-          element: <NavigationList items={candidateNavigationItems} />,
-        },
-        { path: ROUTES.INTERVIEW_INSIGHTS, element: <InterviewInsightsMembershipGate /> },
-      ],
-      { initialEntries: [ROUTES.DASHBOARD_JOBS] },
-    );
-    renderWithProviders(<RouterProvider router={router} />);
-
-    await userEvent.click(screen.getByRole('link', { name: 'Interview insights' }));
-    expect(await screen.findByRole('dialog', { name: 'Unlock Interview Insights' })).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
-    expect(router.state.location.pathname).toBe(ROUTES.DASHBOARD_JOBS);
-  });
-
-  it('renders Insights normally for an active member', () => {
-    vi.mocked(useGetMembershipsQuery).mockReturnValue(
-      queryResult([membership(MembershipStatus.Active)]),
-    );
-    renderGate([ROUTES.INTERVIEW_INSIGHTS]);
-
     expect(screen.getByText('Interview insight content')).toBeVisible();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
-
-  it('sends the CTA to pricing with an internal Insights returnTo', async () => {
+  it.each(['loading', 'error'])('defers detail access to the backend when membership is %s', async (state) => {
+    vi.mocked(useGetMembershipsQuery).mockReturnValue({ ...queryResult([]), isLoading: state === 'loading', isError: state === 'error' });
     renderGate([ROUTES.INTERVIEW_INSIGHTS]);
-    await userEvent.click(screen.getByRole('button', { name: 'Get membership — ₹99' }));
-
-    expect(screen.getByText('Membership pricing')).toBeVisible();
-    expect(screen.getByLabelText('location')).toHaveTextContent(
-      '/dashboard/membership?returnTo=%2Fdashboard%2Finterview-insights',
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Read details' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
-
-  it('falls back safely when cancel state contains an external URL', async () => {
-    renderGate([
-      {
-        pathname: ROUTES.INTERVIEW_INSIGHTS,
-        state: { from: 'https://malicious.example/steal' },
-      },
-    ]);
-    await userEvent.keyboard('{Escape}');
-
-    expect(screen.getByText('Candidate dashboard')).toBeVisible();
-  });
-
-  it('opens the same dialog after a stale membership receives membership_required', async () => {
-    vi.mocked(useGetMembershipsQuery).mockReturnValue(
-      queryResult([membership(MembershipStatus.Active)]),
-    );
+  it('opens the existing dialog for details and dismisses back to listings', async () => {
     renderGate([ROUTES.INTERVIEW_INSIGHTS]);
-
+    await userEvent.click(screen.getByRole('button', { name: 'Read details' }));
+    expect(screen.getByRole('dialog', { name: 'Unlock Interview Insights' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByText('Interview insight content')).toBeVisible();
+  });
+  it('allows premium details but handles a backend membership-required response', async () => {
+    vi.mocked(useGetMembershipsQuery).mockReturnValue(queryResult([membership(MembershipStatus.Active)]));
+    renderGate([ROUTES.INTERVIEW_INSIGHTS]);
+    await userEvent.click(screen.getByRole('button', { name: 'Read details' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /simulate membership-required/i }));
     expect(screen.getByRole('dialog', { name: 'Unlock Interview Insights' })).toBeVisible();
-    expect(screen.queryByText('Interview insight content')).not.toBeInTheDocument();
   });
-
-  it('uses an accessible responsive dialog surface', () => {
+  it('preserves the pricing return path', async () => {
     renderGate([ROUTES.INTERVIEW_INSIGHTS]);
-
-    const dialog = screen.getByRole('dialog', { name: 'Unlock Interview Insights' });
-    expect(dialog).toHaveAttribute('aria-describedby', 'interview-insights-membership-description');
-    expect(screen.getByRole('button', { name: 'Close membership offer' })).toBeVisible();
-    expect(dialog.closest('.MuiDialog-container')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Read details' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Get membership — ₹99' }));
+    expect(screen.getByLabelText('location')).toHaveTextContent('/dashboard/membership?returnTo=%2Fdashboard%2Finterview-insights');
   });
 });

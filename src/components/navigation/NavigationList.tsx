@@ -21,7 +21,7 @@ export const NavigationList = ({
 
   return (
   <List component="nav" aria-label={ariaLabel} sx={{ px: compact ? 0.75 : 1 }}>
-    {items.map(({ badge, end, icon: Icon, label, path, preserveCurrentLocation }) => (
+    {items.filter((item) => item.label.trim().toLowerCase() !== 'resume checker').map(({ badge, end, icon: Icon, label, path, preserveCurrentLocation }) => (
       <Tooltip key={path} placement="right" title={compact ? label : ''}>
         <ListItemButton
           aria-label={compact ? label : undefined}

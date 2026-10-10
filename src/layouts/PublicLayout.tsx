@@ -1,3 +1,4 @@
+import { SHOW_HOME_CAREER_GUIDANCE } from '@/constants/homeVisibility';
 import { SupportButton } from '@/features/support/SupportButton';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import InstagramIcon from '@mui/icons-material/Instagram';
@@ -69,7 +70,7 @@ export const PublicLayout = () => {
         { label: 'Jobs', path: ROUTES.JOBS },
         ...(isHomePage
           ? [
-              { label: 'Career Guidance', path: ROUTES.CAREER_GUIDANCE },
+              ...(SHOW_HOME_CAREER_GUIDANCE ? [{ label: 'Career Guidance', path: ROUTES.CAREER_GUIDANCE }] : []),
               { label: 'Interview Insights', path: ROUTES.INTERVIEW_INSIGHTS },
             ]
           : []),
@@ -130,9 +131,9 @@ export const PublicLayout = () => {
                   </Button>
                   {isHomePage && (
                     <>
-                      <Button component={NavLink} to={ROUTES.CAREER_GUIDANCE}>
+                      {SHOW_HOME_CAREER_GUIDANCE && <Button component={NavLink} to={ROUTES.CAREER_GUIDANCE}>
                         Career Guidance
-                      </Button>
+                      </Button>}
                       <Button component={NavLink} to={ROUTES.INTERVIEW_INSIGHTS}>
                         Interview Insights
                       </Button>
@@ -269,7 +270,7 @@ export const PublicLayout = () => {
                           ? ([
                               ['Career portfolio', ROUTES.PORTFOLIO],
                               ['Interview insights', ROUTES.INTERVIEW_INSIGHTS],
-                              ['Career guidance', ROUTES.CAREER_GUIDANCE],
+                              ...(SHOW_HOME_CAREER_GUIDANCE ? [['Career guidance', ROUTES.CAREER_GUIDANCE] as [string, string]] : []),
                             ] as Array<[string, string]>)
                           : []),
                       ]

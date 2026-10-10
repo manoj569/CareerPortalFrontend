@@ -239,7 +239,7 @@
 }
 .platform-features {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
   margin-top: 30px;
 }
@@ -585,7 +585,7 @@
     padding: 18px;
   }
   .platform-features {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .career-timeline {
     grid-template-columns: repeat(2, minmax(0, 1fr));
