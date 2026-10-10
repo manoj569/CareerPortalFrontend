@@ -10,23 +10,26 @@ import { renderWithProviders } from '@/test/renderWithProviders';
 import { NavigationList } from './NavigationList';
 
 describe('navigation feature visibility', () => {
-  it.each([false, true])('hides only Resume Checker in compact=%s navigation', (compact) => {
-    renderWithProviders(
-      <MemoryRouter>
-        <NavigationList
-          compact={compact}
-          items={[
-            { label: 'Resume Checker', path: '/resume-checker' },
-            { label: 'Resume maker', path: '/resume-maker' },
-            { label: 'Career Guidance', path: '/career-guidance' },
-          ]}
-        />
-      </MemoryRouter>,
-    );
-    expect(screen.queryByRole('link', { name: 'Resume Checker' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Resume maker' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Career Guidance' })).toBeVisible();
-  });
+  it.each([false, true])(
+    'hides Resume Maker and Resume Checker in compact=%s navigation',
+    (compact) => {
+      renderWithProviders(
+        <MemoryRouter>
+          <NavigationList
+            compact={compact}
+            items={[
+              { label: 'Resume Checker', path: '/resume-checker' },
+              { label: 'Resume maker', path: '/dashboard/resume-maker' },
+              { label: 'Career Guidance', path: '/career-guidance' },
+            ]}
+          />
+        </MemoryRouter>,
+      );
+      expect(screen.queryByRole('link', { name: 'Resume Checker' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Resume maker' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Career Guidance' })).toBeVisible();
+    },
+  );
 });
 
 const LocationProbe = () => {
@@ -78,7 +81,7 @@ describe('Referrals group navigation', () => {
     'auto-expands and highlights %s at %s',
     (label, path) => {
       renderWithProviders(
-        <MemoryRouter initialEntries={[path!]}>
+        <MemoryRouter initialEntries={[path]}>
           <NavigationList items={candidateNavigationItems} />
         </MemoryRouter>,
       );
@@ -86,8 +89,8 @@ describe('Referrals group navigation', () => {
         'aria-expanded',
         'true',
       );
-      expect(screen.getByRole('link', { name: label! })).toHaveClass('active');
-      expect(screen.getByRole('link', { name: label! })).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('link', { name: label })).toHaveClass('active');
+      expect(screen.getByRole('link', { name: label })).toHaveAttribute('aria-current', 'page');
       if (path?.includes('mode=referral'))
         expect(screen.getByRole('link', { name: 'Browse jobs' })).not.toHaveClass('active');
     },
@@ -103,7 +106,7 @@ describe('Referrals group navigation', () => {
         </MemoryRouter>,
       );
       await userEvent.click(screen.getByRole('button', { name: 'Referrals' }));
-      await userEvent.click(screen.getByRole('link', { name: label! }));
+      await userEvent.click(screen.getByRole('link', { name: label }));
       expect(screen.getByLabelText('location').textContent).toBe(path);
       expect(onNavigate).toHaveBeenCalledOnce();
     },

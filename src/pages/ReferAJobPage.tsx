@@ -1,10 +1,13 @@
+import { EmploymentType } from '@/features/jobs/types/jobModels';
+import { employmentTypeOptions } from '@/features/jobs/constants/jobOptions';
+import { ReferralSkillsInput } from '@/features/referrals/components/ReferralSkillsInput';
+import { referralSubmissionError } from '@/features/referrals/utils/referralSubmissionError';
 import { ReferralUnsavedChanges } from '@/features/referrals/components/ReferralUnsavedChanges';
 import { ReferralStepper } from '@/features/referrals/components/ReferralStepper';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -37,8 +40,8 @@ import { ROUTES } from '@/constants/routes';
 const initial = {
   title: '',
   companyName: '',
-  employmentType: 'FullTime',
-  skills: '',
+  employmentType: EmploymentType.FullTime,
+  skills: [] as string[],
   minimumExperienceYears: '',
   maximumExperienceYears: '',
   categoryId: '',
@@ -87,17 +90,15 @@ export const ReferAJobPage = () => {
   const [extract, extractState] = useExtractJobFromUrlMutation();
   const [submit, submitState] = useSubmitJobReferralMutation();
   const busy = submitting || submitState.isLoading;
-  const update = (key: keyof typeof initial, value: string) =>
+  const update = (key: Exclude<keyof typeof initial, 'employmentType' | 'skills'>, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
-  const skills = [
-    ...new Set(
-      form.skills
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    ),
-  ];
-  const field = (key: keyof typeof initial, label: string, required = false, type = 'text') => (
+  const skills = form.skills;
+  const field = (
+    key: Exclude<keyof typeof initial, 'employmentType' | 'skills'>,
+    label: string,
+    required = false,
+    type = 'text',
+  ) => (
     <TextField
       size="small"
       fullWidth
@@ -148,11 +149,11 @@ export const ReferAJobPage = () => {
       for (const key of ['minimumExperienceYears', 'maximumExperienceYears'] as const) {
         if (
           !form[key].trim() ||
-          !Number.isFinite(Number(form[key])) ||
+          !Number.isInteger(Number(form[key])) ||
           Number(form[key]) < 0 ||
           Number(form[key]) > 50
         )
-          errors[key] = 'Enter experience between 0 and 50 years.';
+          errors[key] = 'Enter a whole number between 0 and 50 years.';
       }
       if (Number(form.maximumExperienceYears) < Number(form.minimumExperienceYears))
         errors.maximumExperienceYears =
@@ -172,6 +173,8 @@ export const ReferAJobPage = () => {
         }
       }
     }
+    if (!employmentTypeOptions.some((option) => option.value === form.employmentType))
+      errors.employmentType = 'Select an employment type.';
     setValidation(errors);
     if (Object.keys(errors).length) {
       if (step === 2) setStep(0);
@@ -231,7 +234,7 @@ export const ReferAJobPage = () => {
         state: { submission: result },
       });
     } catch (e) {
-      setError(referralError(e));
+      setError(referralSubmissionError(e));
     } finally {
       guard.current = false;
       setSubmitting(false);
@@ -370,39 +373,30 @@ export const ReferAJobPage = () => {
                   select
                   size="small"
                   label="Employment type"
+                  error={Boolean(validation.employmentType)}
+                  helperText={validation.employmentType}
                   value={form.employmentType}
-                  onChange={(e) => update('employmentType', e.target.value)}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      employmentType: Number(e.target.value),
+                    }))
+                  }
                   required
                 >
-                  {[
-                    ['FullTime', 'Full-time'],
-                    ['PartTime', 'Part-time'],
-                    ['Contract', 'Contract'],
-                    ['Internship', 'Internship'],
-                    ['Freelance', 'Freelance'],
-                    ['Temporary', 'Temporary'],
-                  ].map(([v, l]) => (
-                    <MenuItem key={v} value={v}>
-                      {l}
+                  {employmentTypeOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label.replace(' time', '-time')}
                     </MenuItem>
                   ))}
                 </TextField>
-                <Autocomplete
-                  multiple
-                  freeSolo
-                  options={[]}
+                <ReferralSkillsInput
                   value={skills}
-                  onChange={(_, values) => update('skills', values.join(', '))}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      error={Boolean(validation.skills)}
-                      helperText={validation.skills}
-                      label="Skills"
-                      required={!skills.length}
-                      placeholder="Add skill and press Enter"
-                    />
-                  )}
+                  onChange={(values) => {
+                    setForm((f) => ({ ...f, skills: values }));
+                    setValidation((v) => ({ ...v, skills: values.length ? '' : v.skills || '' }));
+                  }}
+                  error={validation.skills}
                 />
                 <Stack direction="row" gap={1}>
                   {field('minimumExperienceYears', 'Minimum experience', true, 'number')}
@@ -552,14 +546,9 @@ export const ReferAJobPage = () => {
                   ['Company', form.companyName],
                   [
                     'Employment type',
-                    {
-                      FullTime: 'Full-time',
-                      PartTime: 'Part-time',
-                      Contract: 'Contract',
-                      Internship: 'Internship',
-                      Freelance: 'Freelance',
-                      Temporary: 'Temporary',
-                    }[form.employmentType] ?? form.employmentType,
+                    employmentTypeOptions
+                      .find((option) => option.value === form.employmentType)
+                      ?.label.replace(' time', '-time') ?? 'Not selected',
                   ],
                   ['Skills', skills.join(', ')],
                   [

@@ -11,7 +11,11 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { forwardRef, useEffect, useId, useState } from 'react';
 import { matchPath, NavLink, useLocation, type NavLinkProps } from 'react-router-dom';
-import { SHOW_RESUME_CHECKER_NAVIGATION } from '@/constants/navigationVisibility';
+import {
+  SHOW_RESUME_CHECKER_NAVIGATION,
+  SHOW_RESUME_MAKER_NAVIGATION,
+} from '@/constants/navigationVisibility';
+import { ROUTES } from '@/constants/routes';
 import type { NavigationItem } from './navigationTypes';
 
 interface NavigationListProps {
@@ -29,7 +33,8 @@ const NavigationLink = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) 
   />
 ));
 const visible = (item: NavigationItem) =>
-  SHOW_RESUME_CHECKER_NAVIGATION || item.label.trim().toLowerCase() !== 'resume checker';
+  (SHOW_RESUME_CHECKER_NAVIGATION || item.label.trim().toLowerCase() !== 'resume checker') &&
+  (SHOW_RESUME_MAKER_NAVIGATION || item.path !== ROUTES.RESUME_MAKER);
 const isActive = (item: NavigationItem, pathname: string, search: string): boolean => {
   const [path, query] = item.path.split('?');
   if (item.activePaths?.some((pattern) => matchPath({ path: pattern, end: true }, pathname)))

@@ -120,6 +120,17 @@ describe('Candidate workspace shell', () => {
 
     expect(desktopDrawer).not.toBeNull();
     expect(
+      within(desktopDrawer as HTMLElement).queryByRole('link', {
+        name: /Resume maker|Resume Checker/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(desktopDrawer as HTMLElement).getByRole('link', { name: 'Portfolio' }),
+    ).toBeVisible();
+    expect(
+      within(desktopDrawer as HTMLElement).getByRole('link', { name: 'Membership' }),
+    ).toBeVisible();
+    expect(
       within(desktopDrawer as HTMLElement).getByRole('link', { name: 'Browse jobs' }),
     ).toHaveClass('active');
     expect(
@@ -145,6 +156,11 @@ describe('Candidate workspace shell', () => {
     const openButton = screen.getByRole('button', { name: 'Open candidate workspace navigation' });
     await userEvent.click(openButton);
     const drawer = screen.getByLabelText('Candidate workspace navigation drawer');
+    expect(
+      within(drawer).queryByRole('link', { name: /Resume maker|Resume Checker/i }),
+    ).not.toBeInTheDocument();
+    expect(within(drawer).getByRole('link', { name: 'Portfolio' })).toBeVisible();
+    expect(within(drawer).getByRole('link', { name: 'Membership' })).toBeVisible();
     const group = within(drawer).getByRole('button', { name: 'Referrals' });
     await userEvent.click(group);
     expect(group).toHaveAttribute('aria-expanded', 'true');

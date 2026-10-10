@@ -1,3 +1,9 @@
+import type {
+  EmploymentType,
+  WorkplaceType,
+  ExperienceLevel,
+} from '@/features/jobs/types/jobModels';
+
 export interface PublicReferralJob {
   referralSlots?: number;
   acceptedReferralCount?: number;
@@ -116,9 +122,9 @@ export interface ComposeJobDraft {
   title: string;
   description?: string | null;
   applicationUrl?: string | null;
-  employmentType?: string | null;
-  workplaceType?: string | null;
-  experienceLevel?: string | null;
+  employmentType?: EmploymentType | null;
+  workplaceType?: WorkplaceType | null;
+  experienceLevel?: ExperienceLevel | null;
   minimumExperienceYears?: number | null;
   maximumExperienceYears?: number | null;
   skills?: string[] | null;

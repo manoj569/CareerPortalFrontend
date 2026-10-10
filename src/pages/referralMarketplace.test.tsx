@@ -105,7 +105,7 @@ const fillJobDetails = async () => {
     fireEvent.change(screen.getByLabelText(new RegExp(label!.replace(/[()]/g, '\\$&'))), {
       target: { value },
     });
-  await userEvent.type(screen.getByRole('combobox', { name: /Skills/ }), 'React{Enter}SQL{Enter}');
+  await userEvent.type(screen.getByRole('textbox', { name: /Skills/ }), 'React{Enter}SQL{Enter}');
   await userEvent.click(screen.getByRole('combobox', { name: /Category/ }));
   await userEvent.click(screen.getByRole('option', { name: 'Software Development' }));
 };
@@ -299,6 +299,8 @@ describe('creation and protected contact', () => {
       });
       await userEvent.click(screen.getByRole('button', { name: 'Back' }));
       expect(screen.getByLabelText(/Job title/)).toHaveValue('Engineer');
+      expect(screen.getByRole('button', { name: 'Remove skill React' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Remove skill SQL' })).toBeVisible();
       await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
       await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
       expect(screen.getByRole('heading', { name: /Step 3 of 3/ })).toHaveFocus();
@@ -506,7 +508,7 @@ describe('Phase 2 referral regressions', () => {
   ])('labels shared job %s accurately', (status, label) => {
     mocks.owned.mockReturnValue({ currentData: [{ ...opportunity, approvalStatus: status }] });
     show(<AllReferralsPage />, '/dashboard/referrals');
-    expect(screen.getAllByText(label!)).not.toHaveLength(0);
+    expect(screen.getAllByText(label)).not.toHaveLength(0);
     if (status !== 'Approved')
       expect(screen.queryByRole('button', { name: 'View Requests' })).not.toBeInTheDocument();
   });
@@ -540,4 +542,83 @@ it('warns on browser abandonment only after editing', () => {
   const dirty = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(dirty);
   expect(dirty.defaultPrevented).toBe(true);
+});
+
+describe('referral hotfix request contract', () => {
+  it.each([
+    ['Full-time', 1],
+    ['Part-time', 2],
+    ['Contract', 3],
+    ['Internship', 4],
+    ['Freelance', 5],
+    ['Temporary', 6],
+  ])('sends backend numeric employment type for %s', async (label, expected) => {
+    show(<ReferAJobPage />, '/dashboard/refer-a-job');
+    await fillJobDetails();
+    await userEvent.click(screen.getByRole('combobox', { name: /Employment type/ }));
+    await userEvent.click(screen.getByRole('option', { name: String(label) }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByText(String(label))).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for Approval' }));
+    expect(JSON.parse(JSON.stringify(mocks.submit.mock.calls[0]?.[0]))).toEqual({
+      jobDetails: {
+        job: {
+          title: 'Engineer',
+          description: 'Build software',
+          applicationUrl: null,
+          employmentType: expected,
+          minimumExperienceYears: 0,
+          maximumExperienceYears: 3,
+          location: null,
+          skills: ['React', 'SQL'],
+        },
+        company: { new: { name: 'Example' } },
+        category: { existingId: 'cat-1' },
+      },
+      sourceUrl: null,
+      showLinkedIn: true,
+      showEmail: false,
+      showPhone: false,
+      referralSlots: 5,
+    });
+  });
+  it('reports backend field errors with readable labels and retains the review data', async () => {
+    mocks.submit.mockReturnValue({
+      unwrap: () =>
+        Promise.reject(
+          new ApiRequestError({
+            status: 400,
+            message: 'One or more validation errors occurred.',
+            errors: {
+              'jobDetails.job.employmentType': [
+                'The JSON value could not be converted to JobPortal.Application.Features.Jobs.ComposeJobDraftRequest. Path: $.jobDetails.job.employmentType | LineNumber: 0 | BytePositionInLine: 106.',
+              ],
+              'jobDetails.job.title': ['The title is too long.'],
+            },
+          }),
+        ),
+    });
+    show(<ReferAJobPage />, '/dashboard/refer-a-job');
+    await fillJobDetails();
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for Approval' }));
+    expect(
+      await screen.findByText(
+        /Employment type: The selected value could not be read by the server/,
+      ),
+    ).toBeVisible();
+    expect(screen.getByText(/Job title: The title is too long/)).toBeVisible();
+    expect(screen.getByText('Build software')).toBeVisible();
+    expect(screen.getByLabelText('Route location')).toHaveTextContent('/dashboard/refer-a-job');
+  });
+  it('blocks fractional experience values required to be integers by the backend', async () => {
+    show(<ReferAJobPage />, '/dashboard/refer-a-job');
+    await fillJobDetails();
+    fireEvent.change(screen.getByLabelText(/Minimum experience/), { target: { value: '1.5' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByText('Enter a whole number between 0 and 50 years.')).toBeVisible();
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
 });
