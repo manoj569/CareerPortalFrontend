@@ -136,7 +136,7 @@ describe('candidate referral browsing and request', () => {
     });
     expect(screen.queryByText('Engineer')).not.toBeInTheDocument();
     expect(screen.getByText('Data Analyst')).toBeInTheDocument();
-    await userEvent.click(screen.getByText('Reset'));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Clear Filters' })[0]!);
     expect(screen.getByText('Engineer')).toBeInTheDocument();
   });
   it.each([
@@ -175,12 +175,8 @@ describe('candidate referral browsing and request', () => {
     expect(mocks.create).toHaveBeenCalledWith({ referralId: 'op-1', candidateMessage: '' });
     const success = await screen.findByRole('dialog', { name: /Referral request sent!/ });
     expect(within(success).getByText(/has not yet accepted/)).toBeInTheDocument();
-    await userEvent.click(
-      within(success).getByRole('button', { name: /View My Referral Request/ }),
-    );
-    expect(screen.getByLabelText('location')).toHaveTextContent(
-      '/dashboard/my-referral-requests/req-1',
-    );
+    await userEvent.click(within(success).getByRole('button', { name: /View My Request/ }));
+    expect(screen.getByLabelText('location')).toHaveTextContent('/dashboard/my-referral-requests');
   });
   it('prevents double submissions while a response is pending', async () => {
     mocks.create.mockReturnValue({ unwrap: () => new Promise(() => {}) });
@@ -190,6 +186,9 @@ describe('candidate referral browsing and request', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: /Send referral request/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: /Send referral request/ }));
     expect(mocks.create).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText('location')).toHaveTextContent(
+      '/dashboard/my-referral-requests/req-1',
+    );
   });
   it('shows existing requests instead of allowing another request', () => {
     mocks.activity.mockReturnValue(result({ items: [requestRecord.request], quota }));
@@ -238,6 +237,9 @@ describe('candidate referral browsing and request', () => {
       screen.queryByRole('dialog', { name: /Referral request sent!/ }),
     ).not.toBeInTheDocument();
     expect(mocks.refetch).toHaveBeenCalled();
+    expect(screen.getByLabelText('location')).toHaveTextContent(
+      '/dashboard/my-referral-requests/req-1',
+    );
   });
   it('saves through existing API and refreshes saved records', async () => {
     show();
@@ -353,3 +355,22 @@ function statusLabel(value: ReferralRequestRecord['status']) {
     } as Record<string, string>
   )[value]!;
 }
+
+describe('referral navigation empty states', () => {
+  it('links empty My Requests to Find Referral Jobs', async () => {
+    show(<CandidateReferralRequestsPage />);
+    expect(screen.getByText("You haven't requested any referrals yet.")).toBeVisible();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Find Referral Jobs' })[0]!);
+    expect(screen.getByLabelText('location')).toHaveTextContent('/dashboard/jobs');
+  });
+  it('clears referral catalogue filters from the empty state', async () => {
+    show();
+    fireEvent.change(screen.getByLabelText('Search job title, company or skills'), {
+      target: { value: 'no matching job' },
+    });
+    expect(screen.getByText('No matching referral jobs found.')).toBeVisible();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Clear Filters' }).at(-1)!);
+    expect(screen.getByLabelText('Search job title, company or skills')).toHaveValue('');
+    expect(screen.queryByText('No matching referral jobs found.')).not.toBeInTheDocument();
+  });
+});

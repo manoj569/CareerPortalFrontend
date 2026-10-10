@@ -196,7 +196,7 @@ export const ReferAJobPage = () => {
     >
       <ReferralHero
         trust
-        title="Share a job opportunity"
+        title="Share a Job"
         subtitle="Help qualified candidates discover openings at your company and request a referral from you."
       />
       <ReferralCard>

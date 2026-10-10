@@ -34,21 +34,36 @@ export const candidateNavigationItems: NavigationItem[] = [
     icon: DescriptionOutlinedIcon,
   },
   {
-    label: 'Refer a job',
-    path: ROUTES.REFER_A_JOB,
+    label: 'Referrals',
+    path: ROUTES.REFERRALS,
     icon: GroupAddOutlinedIcon,
-    badge: 'New',
-  },
-  { label: 'My referrals', path: ROUTES.REFERRALS, icon: GroupAddOutlinedIcon, end: true },
-  {
-    label: 'Referral requests',
-    path: '/dashboard/referral-requests',
-    icon: QuestionAnswerOutlinedIcon,
-  },
-  {
-    label: 'My referral requests',
-    path: '/dashboard/my-referral-requests',
-    icon: DescriptionOutlinedIcon,
+    children: [
+      {
+        label: 'Find Referral Jobs',
+        path: `${ROUTES.DASHBOARD_JOBS}?mode=referral`,
+        icon: WorkOutlineIcon,
+        end: true,
+      },
+      {
+        label: 'My Requests',
+        path: '/dashboard/my-referral-requests',
+        icon: DescriptionOutlinedIcon,
+      },
+      { label: 'Share a Job', path: ROUTES.REFER_A_JOB, icon: GroupAddOutlinedIcon },
+      {
+        label: "Jobs I've Shared",
+        path: ROUTES.REFERRALS,
+        icon: GroupAddOutlinedIcon,
+        end: true,
+        activePaths: ['/dashboard/referrals/:referralId/submitted'],
+      },
+      {
+        label: 'Requests Received',
+        path: '/dashboard/referral-requests',
+        icon: QuestionAnswerOutlinedIcon,
+        activePaths: ['/dashboard/referrals/:referralId/requests'],
+      },
+    ],
   },
   {
     label: 'Interview insights',

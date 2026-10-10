@@ -7,4 +7,6 @@ export interface NavigationItem {
   end?: boolean;
   preserveCurrentLocation?: boolean;
   badge?: string;
+  children?: NavigationItem[];
+  activePaths?: string[];
 }

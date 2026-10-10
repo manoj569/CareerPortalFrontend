@@ -159,7 +159,7 @@ export const ReferralSubmissionSuccessPage = () => {
       <ReferralCard title="Next actions">
         <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}>
           <Button variant="outlined" onClick={() => void navigate('/dashboard/referrals')}>
-            View my referrals →
+            View My Shared Jobs
           </Button>
           <Button
             variant="outlined"
@@ -212,7 +212,7 @@ export const ReferrerRequestDetailPage = () => {
     guard.current = true;
     setError('');
     try {
-      const result = await (
+      await (
         action === 'accept'
           ? accept(requestId)
           : action === 'reject'
@@ -220,11 +220,8 @@ export const ReferrerRequestDetailPage = () => {
             : mark(requestId)
       ).unwrap();
       setModal(null);
-      if (action === 'reject') void navigate(opportunityPath(result.request.referralId));
-      else
-        void navigate(requestPath(requestId) + (action === 'submit' ? '/submitted' : ''), {
-          replace: true,
-        });
+      void query.refetch();
+      void jobs.refetch();
     } catch (e) {
       setError(referralError(e));
       void query.refetch();
@@ -308,7 +305,7 @@ export const ReferrerRequestDetailPage = () => {
         title={
           status === 'CandidateConfirmed'
             ? 'Candidate confirmed receipt'
-            : success && isSubmitted
+            : isSubmitted
               ? 'Referral marked as submitted'
               : completion && status === 'Accepted'
                 ? `Complete referral for ${record.candidate.displayName}`
@@ -319,7 +316,7 @@ export const ReferrerRequestDetailPage = () => {
         subtitle={
           status === 'CandidateConfirmed'
             ? 'The candidate confirmed receiving the referral/application confirmation.'
-            : success && isSubmitted
+            : isSubmitted
               ? `You confirmed that you submitted ${record.candidate.displayName} for ${record.request.jobTitle} through your company’s referral process.`
               : status === 'Accepted'
                 ? 'Submit the candidate through your company’s employee referral process, then confirm it here.'

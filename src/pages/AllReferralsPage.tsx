@@ -72,7 +72,7 @@ export const AllReferralsPage = () => {
             onClick={() => void navigate('/dashboard/refer-a-job')}
             sx={{ minHeight: 48 }}
           >
-            Share a new job opportunity
+            Share a Job
           </Button>
           <Impact />
           <ReferralTips />
@@ -81,7 +81,7 @@ export const AllReferralsPage = () => {
       }
     >
       <ReferralHero
-        title="My Referral Jobs"
+        title="Jobs I've Shared"
         subtitle="Manage the opportunities you’ve shared and track referral requests."
       />
       <ReferralCard tint="#f2f8ff">
@@ -137,18 +137,16 @@ export const AllReferralsPage = () => {
         <ReferralLoading />
       ) : jobs.error ? (
         <ReferralFailure error={jobs.error} retry={jobs.refetch} />
-      ) : !filtered.length ? (
+      ) : jobs.currentData && !filtered.length ? (
         <ReferralCard>
           <Typography fontWeight={700}>
             {search || tab !== 'All'
               ? 'No opportunities match this filter.'
-              : 'No referral opportunities yet.'}
+              : "You haven't shared any opportunities yet."}
           </Typography>
-          <Button onClick={() => void navigate('/dashboard/refer-a-job')}>
-            Share a job opportunity
-          </Button>
+          <Button onClick={() => void navigate('/dashboard/refer-a-job')}>Share a Job</Button>
         </ReferralCard>
-      ) : (
+      ) : jobs.currentData ? (
         filtered.slice((page - 1) * 5, page * 5).map((job) => {
           const rows = inbox.currentData?.filter((r) => r.request.referralId === job.id);
           return (
@@ -201,14 +199,14 @@ export const AllReferralsPage = () => {
                   }
                 >
                   {approvalStatus(job.approvalStatus) === 'Approved'
-                    ? 'View requests →'
+                    ? 'View Requests'
                     : 'View details →'}
                 </Button>
               </Box>
             </ReferralCard>
           );
         })
-      )}
+      ) : null}
       {inbox.error && <ReferralFailure error={inbox.error} retry={inbox.refetch} />}{' '}
       {filtered.length > 5 && (
         <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -256,8 +254,14 @@ export const ReferralRequestsPage = () => {
         </>
       }
     >
+      <Button
+        sx={{ alignSelf: 'flex-start' }}
+        onClick={() => void navigate('/dashboard/referrals')}
+      >
+        Back to Shared Jobs
+      </Button>
       <ReferralHero
-        title={referralId ? 'Referral requests for job' : 'Referral requests'}
+        title={referralId ? 'Requests Received for Job' : 'Requests Received'}
         subtitle={
           job
             ? `${job.jobTitle} · ${job.companyName}`
@@ -282,7 +286,7 @@ export const ReferralRequestsPage = () => {
         <ReferralLoading />
       ) : referralId && !job ? (
         <Alert severity="error">This referral opportunity is unavailable.</Alert>
-      ) : (
+      ) : inbox.currentData ? (
         <>
           <ReferralCard>
             <Stack direction="row" gap={3} flexWrap="wrap" useFlexGap>
@@ -334,11 +338,20 @@ export const ReferralRequestsPage = () => {
           {!filtered.length ? (
             <ReferralCard>
               <Typography fontWeight={750}>
-                {rows.length ? 'No requests match this filter.' : 'No requests yet.'}
+                {rows.length
+                  ? 'No requests match this filter.'
+                  : "No referral requests yet. We'll notify you when someone requests a referral."}
               </Typography>
               <Typography color="text.secondary" fontSize={13}>
-                When candidates request a referral, they’ll appear here.
+                {rows.length ? 'Try another status filter.' : ''}
               </Typography>
+              <Button
+                onClick={() =>
+                  rows.length ? (setTab('All'), setPage(1)) : void navigate('/dashboard/referrals')
+                }
+              >
+                {rows.length ? 'Clear Filters' : 'View Shared Jobs'}
+              </Button>
             </ReferralCard>
           ) : (
             filtered
@@ -347,6 +360,7 @@ export const ReferralRequestsPage = () => {
                 <RequestRow
                   key={record.request.id}
                   record={record}
+                  onAccepted={() => void inbox.refetch()}
                   onView={() => void navigate(requestPath(record.request.id))}
                 />
               ))
@@ -359,11 +373,19 @@ export const ReferralRequestsPage = () => {
             />
           )}
         </>
-      )}
+      ) : null}
     </ReferralLayout>
   );
 };
-const RequestRow = ({ record, onView }: { record: ReferrerRequestRecord; onView: () => void }) => (
+const RequestRow = ({
+  record,
+  onView,
+  onAccepted,
+}: {
+  record: ReferrerRequestRecord;
+  onView: () => void;
+  onAccepted: () => void;
+}) => (
   <ReferralCard>
     <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2}>
       <CandidateSummary record={record} />
@@ -379,7 +401,7 @@ const RequestRow = ({ record, onView }: { record: ReferrerRequestRecord; onView:
           →
         </Button>
         {requestStatus(record.request.status) === 'Requested' && (
-          <PendingRequestActions id={record.request.id} onAccepted={onView} />
+          <PendingRequestActions id={record.request.id} onAccepted={onAccepted} />
         )}
       </Stack>
     </Stack>

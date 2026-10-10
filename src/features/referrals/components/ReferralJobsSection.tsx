@@ -60,6 +60,17 @@ export const ReferralJobsSection = () => {
     employment: '',
     company: '',
   });
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      category: '',
+      location: '',
+      experience: '',
+      employment: '',
+      company: '',
+    });
+    setPage(1);
+  };
   const [selected, setSelected] = useState<PublicReferralJob | null>(null);
   const [sent, setSent] = useState<{
     job: PublicReferralJob;
@@ -224,11 +235,11 @@ export const ReferralJobsSection = () => {
             flexWrap="wrap"
           >
             <Typography fontWeight={750}>
-              Referral Jobs {query.currentData ? `(${jobs.length})` : ''}
+              Find Referral Jobs {query.currentData ? `(${jobs.length})` : ''}
             </Typography>
             <Typography fontSize={12}>Sort: Newest</Typography>
             <Button onClick={() => void navigate('/dashboard/my-referral-requests')}>
-              My referral requests →
+              My Requests
             </Button>
           </Stack>
           <Stack direction="row" useFlexGap flexWrap="wrap" gap={1} mt={2}>
@@ -285,21 +296,7 @@ export const ReferralJobsSection = () => {
               slotProps={{ htmlInput: { min: 0 } }}
               sx={{ width: 160 }}
             />
-            <Button
-              onClick={() => {
-                setFilters({
-                  search: '',
-                  category: '',
-                  location: '',
-                  experience: '',
-                  employment: '',
-                  company: '',
-                });
-                setPage(1);
-              }}
-            >
-              Reset
-            </Button>
+            <Button onClick={clearFilters}>Clear Filters</Button>
           </Stack>
           {jobs.some((j) => !j.categoryName) && (
             <Typography fontSize={11} mt={1}>
@@ -317,9 +314,12 @@ export const ReferralJobsSection = () => {
           <ReferralLoading />
         ) : query.error ? (
           <ReferralFailure error={query.error} retry={query.refetch} />
-        ) : !visible.length ? (
-          <ReferralCard>No referral jobs match your filters.</ReferralCard>
-        ) : (
+        ) : query.currentData && !visible.length ? (
+          <ReferralCard>
+            <Typography>No matching referral jobs found.</Typography>
+            <Button onClick={clearFilters}>Clear Filters</Button>
+          </ReferralCard>
+        ) : query.currentData ? (
           visible.slice((page - 1) * 5, page * 5).map((job) => (
             <ReferralJobCard
               key={job.referralId}
@@ -335,7 +335,7 @@ export const ReferralJobsSection = () => {
               saved={saved.currentData?.some((item) => item.jobId === job.jobId)}
             />
           ))
-        )}
+        ) : null}
         {visible.length > 5 && (
           <Pagination
             count={Math.ceil(visible.length / 5)}
@@ -495,10 +495,10 @@ export const ReferralJobsSection = () => {
           <Button
             variant="contained"
             onClick={() => {
-              if (sent) viewRequest(sent.request.id);
+              if (sent) void navigate('/dashboard/my-referral-requests');
             }}
           >
-            View My Referral Request →
+            View My Request
           </Button>
         </DialogActions>
       </Dialog>

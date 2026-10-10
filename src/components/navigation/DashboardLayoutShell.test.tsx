@@ -140,6 +140,20 @@ describe('Candidate workspace shell', () => {
     expect(screen.getByRole('button', { name: 'Collapse candidate navigation' })).toBeVisible();
   });
 
+  it('keeps the mobile drawer open when expanding Referrals and closes after a child navigation', async () => {
+    renderShell(0);
+    const openButton = screen.getByRole('button', { name: 'Open candidate workspace navigation' });
+    await userEvent.click(openButton);
+    const drawer = screen.getByLabelText('Candidate workspace navigation drawer');
+    const group = within(drawer).getByRole('button', { name: 'Referrals' });
+    await userEvent.click(group);
+    expect(group).toHaveAttribute('aria-expanded', 'true');
+    expect(openButton).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(within(drawer).getByRole('link', { name: 'Find Referral Jobs' }));
+    await waitFor(() => expect(openButton).toHaveAttribute('aria-expanded', 'false'));
+    expect(screen.getByText('Browse jobs page')).toBeVisible();
+  });
+
   it('includes the candidate Interview insights navigation entry', () => {
     expect(candidateNavigationItems).toEqual(
       expect.arrayContaining([

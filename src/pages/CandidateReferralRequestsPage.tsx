@@ -120,10 +120,10 @@ export const CandidateReferralRequestsPage = () => {
         sx={{ alignSelf: 'flex-start' }}
         onClick={() => void navigate(`${ROUTES.DASHBOARD_JOBS}?mode=referral`)}
       >
-        ← Back to Referral Jobs
+        Find Referral Jobs
       </Button>
       <ReferralHero
-        title="My Referral Requests"
+        title="My Requests"
         subtitle="Track your referral requests and check their status."
       />
       {q.isLoading ? (
@@ -192,7 +192,20 @@ export const CandidateReferralRequestsPage = () => {
             ))
           ) : (
             <ReferralCard>
-              {rows.length ? 'No requests match your filters.' : 'No referral requests yet.'}
+              <Typography>
+                {rows.length
+                  ? 'No requests match your filters.'
+                  : "You haven't requested any referrals yet."}
+              </Typography>
+              <Button
+                onClick={() =>
+                  rows.length
+                    ? (setSearch(''), setFilter('All'), setPage(1))
+                    : void navigate(`${ROUTES.DASHBOARD_JOBS}?mode=referral`)
+                }
+              >
+                {rows.length ? 'Clear Filters' : 'Find Referral Jobs'}
+              </Button>
             </ReferralCard>
           )}
           {visible.length > 5 && (

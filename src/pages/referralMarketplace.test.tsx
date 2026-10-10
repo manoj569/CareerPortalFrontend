@@ -107,7 +107,7 @@ describe('referrer screens', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Accept request' }));
     expect(mocks.accept).toHaveBeenCalledWith('req-1');
   });
-  it('rejects only after accessible confirmation and returns to scoped requests', async () => {
+  it('rejects only after accessible confirmation and refreshes in place', async () => {
     show(<ReferrerRequestDetailPage />);
     await userEvent.click(screen.getByRole('button', { name: 'Reject request' }));
     expect(mocks.reject).not.toHaveBeenCalled();
@@ -118,9 +118,10 @@ describe('referrer screens', () => {
     expect(mocks.reject).toHaveBeenCalledWith('req-1');
     await waitFor(() =>
       expect(screen.getByLabelText('Route location')).toHaveTextContent(
-        '/dashboard/referrals/op-1/requests',
+        '/dashboard/referral-requests/req-1',
       ),
     );
+    expect(mocks.refetch).toHaveBeenCalledTimes(2);
   });
   it('shows capacity conflict and refreshes backend state without claiming success', async () => {
     mocks.accept.mockReturnValue({
@@ -174,7 +175,9 @@ describe('referrer screens', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Yes, mark as referred' }));
     expect(mocks.mark).toHaveBeenCalledWith('req-1');
     await waitFor(() =>
-      expect(screen.getByLabelText('Route location')).toHaveTextContent('/submitted'),
+      expect(screen.getByLabelText('Route location')).toHaveTextContent(
+        '/dashboard/referral-requests/req-1/complete',
+      ),
     );
     expect(screen.queryByLabelText(/upload/i)).not.toBeInTheDocument();
   });
@@ -215,7 +218,7 @@ describe('referrer screens', () => {
     expect(screen.getAllByText('73').length).toBeGreaterThan(0);
     expect(screen.getByText('4 / 5 Accepted')).toBeInTheDocument();
     expect(screen.queryByText(/this month/)).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'View requests →' }));
+    await userEvent.click(screen.getByRole('button', { name: 'View Requests' }));
     await waitFor(() =>
       expect(screen.getByLabelText('Route location')).toHaveTextContent(
         '/dashboard/referrals/op-1/requests',
@@ -230,7 +233,11 @@ describe('referrer screens', () => {
   it('empty states use no sample candidates', () => {
     mocks.inbox.mockReturnValue({ currentData: [] });
     show(<ReferralRequestsPage />, '/dashboard/referral-requests');
-    expect(screen.getByText('No requests yet.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No referral requests yet. We'll notify you when someone requests a referral.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Pooja Sharma')).not.toBeInTheDocument();
   });
   it('request row opens authorized candidate review', async () => {
@@ -252,33 +259,78 @@ describe('creation and protected contact', () => {
     expect(screen.getByRole('button', { name: 'Submit for approval' })).toBeDisabled();
     expect(screen.getByText('Enter 1–1000 whole slots')).toBeInTheDocument();
   });
-  it('creates with supported fields and redirects to submission success', async () => {
-    show(<ReferAJobPage />, '/dashboard/refer-a-job');
-    for (const [label, value] of [
-      ['Job title', 'Engineer'],
-      ['Company name', 'Example'],
-      ['Minimum experience', '0'],
-      ['Maximum experience', '3'],
-      ['Job description', 'Build software'],
-    ])
-      fireEvent.change(screen.getByLabelText(new RegExp(label!.replace(/[()]/g, '\\$&'))), {
-        target: { value },
-      });
-    await userEvent.type(
-      screen.getByRole('combobox', { name: /Skills/ }),
-      'React{Enter}SQL{Enter}',
+  it.each([true, false])(
+    'keeps form submission navigation conditional on backend success=%s',
+    async (succeeds) => {
+      if (!succeeds)
+        mocks.submit.mockReturnValue({
+          unwrap: () =>
+            Promise.reject(new ApiRequestError({ status: 400, message: 'Submission failed.' })),
+        });
+      show(<ReferAJobPage />, '/dashboard/refer-a-job');
+      for (const [label, value] of [
+        ['Job title', 'Engineer'],
+        ['Company name', 'Example'],
+        ['Minimum experience', '0'],
+        ['Maximum experience', '3'],
+        ['Job description', 'Build software'],
+      ])
+        fireEvent.change(screen.getByLabelText(new RegExp(label!.replace(/[()]/g, '\\$&'))), {
+          target: { value },
+        });
+      await userEvent.type(
+        screen.getByRole('combobox', { name: /Skills/ }),
+        'React{Enter}SQL{Enter}',
+      );
+      await userEvent.click(screen.getByRole('combobox', { name: /Category/ }));
+      await userEvent.click(screen.getByRole('option', { name: 'Software Development' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Submit for approval' }));
+      expect(mocks.submit).toHaveBeenCalledWith(
+        expect.objectContaining({ referralSlots: 5, showLinkedIn: true }),
+      );
+      expect(mocks.submit.mock.calls[0]?.[0]).not.toHaveProperty('overrideEmail');
+      if (!succeeds) expect(await screen.findByText('Submission failed.')).toBeVisible();
+      await waitFor(() =>
+        expect(screen.getByLabelText('Route location')).toHaveTextContent(
+          succeeds ? '/dashboard/referrals/op-1/submitted' : '/dashboard/refer-a-job',
+        ),
+      );
+    },
+  );
+  it('submission confirmation links to shared jobs without changing approval', async () => {
+    mocks.owned.mockReturnValue({ currentData: [{ ...opportunity, approvalStatus: 'Pending' }] });
+    show(<ReferralSubmissionSuccessPage />, '/dashboard/referrals/op-1/submitted');
+    await userEvent.click(screen.getByRole('button', { name: 'View My Shared Jobs' }));
+    expect(screen.getByLabelText('Route location')).toHaveTextContent('/dashboard/referrals');
+  });
+  it.each(['shared', 'received'])('provides the %s empty-state navigation action', async (kind) => {
+    mocks.owned.mockReturnValue({ currentData: [] });
+    mocks.inbox.mockReturnValue({ currentData: [] });
+    show(
+      kind === 'shared' ? <AllReferralsPage /> : <ReferralRequestsPage />,
+      kind === 'shared' ? '/dashboard/referrals' : '/dashboard/referral-requests',
     );
-    await userEvent.click(screen.getByRole('combobox', { name: /Category/ }));
-    await userEvent.click(screen.getByRole('option', { name: 'Software Development' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for approval' }));
-    expect(mocks.submit).toHaveBeenCalledWith(
-      expect.objectContaining({ referralSlots: 5, showLinkedIn: true }),
-    );
-    expect(mocks.submit.mock.calls[0]?.[0]).not.toHaveProperty('overrideEmail');
-    await waitFor(() =>
-      expect(screen.getByLabelText('Route location')).toHaveTextContent(
-        '/dashboard/referrals/op-1/submitted',
+    expect(
+      screen.getByText(
+        kind === 'shared'
+          ? "You haven't shared any opportunities yet."
+          : "No referral requests yet. We'll notify you when someone requests a referral.",
       ),
+    ).toBeVisible();
+    await userEvent.click(
+      screen.getAllByRole('button', {
+        name: kind === 'shared' ? 'Share a Job' : 'View Shared Jobs',
+      })[0]!,
+    );
+    expect(screen.getByLabelText('Route location')).toHaveTextContent(
+      kind === 'shared' ? '/dashboard/refer-a-job' : '/dashboard/referrals',
+    );
+  });
+  it('keeps the job-specific request route for View Requests', async () => {
+    show(<AllReferralsPage />, '/dashboard/referrals');
+    await userEvent.click(screen.getByRole('button', { name: 'View Requests' }));
+    expect(screen.getByLabelText('Route location')).toHaveTextContent(
+      '/dashboard/referrals/op-1/requests',
     );
   });
   it('submission success shows admin review and clean share-another navigation', async () => {
@@ -312,4 +364,37 @@ describe('creation and protected contact', () => {
     expect(mocks.contact).toHaveBeenCalledWith('req-1', expect.anything());
     expect(screen.getByText('Email: authorized@example.test')).toBeInTheDocument();
   });
+});
+
+describe('referral empty-state guards', () => {
+  it.each(['loading', 'error', 'uninitialized'])(
+    'keeps shared jobs empty state hidden during %s',
+    (state) => {
+      mocks.owned.mockReturnValue({
+        isLoading: state === 'loading',
+        error: state === 'error' ? { message: 'Unavailable' } : undefined,
+        refetch: mocks.refetch,
+      });
+      show(<AllReferralsPage />, '/dashboard/referrals');
+      expect(
+        screen.queryByText("You haven't shared any opportunities yet."),
+      ).not.toBeInTheDocument();
+    },
+  );
+  it.each(['loading', 'error', 'uninitialized'])(
+    'keeps received requests empty state hidden during %s',
+    (state) => {
+      mocks.inbox.mockReturnValue({
+        isLoading: state === 'loading',
+        error: state === 'error' ? { message: 'Unavailable' } : undefined,
+        refetch: mocks.refetch,
+      });
+      show(<ReferralRequestsPage />, '/dashboard/referral-requests');
+      expect(
+        screen.queryByText(
+          "No referral requests yet. We'll notify you when someone requests a referral.",
+        ),
+      ).not.toBeInTheDocument();
+    },
+  );
 });

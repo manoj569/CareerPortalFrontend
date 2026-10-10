@@ -1,6 +1,17 @@
-import { Chip, List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
-import { NavLink, useLocation } from 'react-router-dom';
-
+import {
+  Chip,
+  Collapse,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+} from '@mui/material';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { forwardRef, useEffect, useId, useState } from 'react';
+import { matchPath, NavLink, useLocation, type NavLinkProps } from 'react-router-dom';
+import { SHOW_RESUME_CHECKER_NAVIGATION } from '@/constants/navigationVisibility';
 import type { NavigationItem } from './navigationTypes';
 
 interface NavigationListProps {
@@ -9,53 +20,156 @@ interface NavigationListProps {
   onNavigate?: () => void;
   compact?: boolean;
 }
-
+// NavLink's pathname-only active class would also highlight ordinary jobs in referral mode.
+const NavigationLink = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) => (
+  <NavLink
+    {...props}
+    ref={ref}
+    className={() => (typeof props.className === 'string' ? props.className : '')}
+  />
+));
+const visible = (item: NavigationItem) =>
+  SHOW_RESUME_CHECKER_NAVIGATION || item.label.trim().toLowerCase() !== 'resume checker';
+const isActive = (item: NavigationItem, pathname: string, search: string): boolean => {
+  const [path, query] = item.path.split('?');
+  if (item.activePaths?.some((pattern) => matchPath({ path: pattern, end: true }, pathname)))
+    return true;
+  if (!matchPath({ path: path!, end: item.end ?? false }, pathname)) return false;
+  const params = new URLSearchParams(search);
+  if (query)
+    return [...new URLSearchParams(query)].every(([key, value]) => params.get(key) === value);
+  // The regular jobs entry and referral jobs share a pathname.
+  if (item.path === '/dashboard/jobs' && params.get('mode') === 'referral') return false;
+  return true;
+};
+const itemSx = (compact: boolean) => ({
+  borderRadius: 1.5,
+  justifyContent: compact ? 'center' : 'flex-start',
+  mb: 0.5,
+  minHeight: 44,
+  px: compact ? 1 : 2,
+  '&.active': {
+    bgcolor: 'primary.main',
+    color: 'primary.contrastText',
+    '& .MuiListItemIcon-root': { color: 'inherit' },
+    '&:hover': { bgcolor: 'primary.dark' },
+  },
+});
+const NavigationEntry = ({
+  item,
+  onNavigate,
+  compact = false,
+}: {
+  item: NavigationItem;
+  onNavigate?: () => void;
+  compact?: boolean;
+}) => {
+  const location = useLocation();
+  const children = item.children?.filter(visible);
+  const active =
+    children?.some((child) => isActive(child, location.pathname, location.search)) ??
+    isActive(item, location.pathname, location.search);
+  const [expanded, setExpanded] = useState(active);
+  const childrenId = useId();
+  useEffect(() => {
+    if (active && children?.length) setExpanded(true);
+  }, [active, location.pathname, location.search, children?.length]);
+  const Icon = item.icon;
+  const content = (
+    <>
+      {Icon && (
+        <ListItemIcon
+          sx={{ color: 'text.secondary', justifyContent: 'center', minWidth: compact ? 0 : 40 }}
+        >
+          <Icon fontSize="small" />
+        </ListItemIcon>
+      )}
+      {!compact && (
+        <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 600 }} />
+      )}
+      {!compact && item.badge && (
+        <Chip
+          label={item.badge}
+          size="small"
+          color="primary"
+          sx={{ height: 20, fontSize: 11, fontWeight: 700 }}
+        />
+      )}
+      {children?.length ? (
+        expanded ? (
+          <ExpandLessIcon fontSize="small" />
+        ) : (
+          <ExpandMoreIcon fontSize="small" />
+        )
+      ) : null}
+    </>
+  );
+  return (
+    <>
+      <Tooltip placement="right" title={compact ? item.label : ''}>
+        {children?.length ? (
+          <ListItemButton
+            component="button"
+            type="button"
+            aria-label={item.label}
+            aria-expanded={expanded}
+            aria-controls={childrenId}
+            onClick={() => setExpanded((value) => !value)}
+            sx={{ ...itemSx(compact), width: '100%', color: active ? 'primary.main' : undefined }}
+          >
+            {content}
+          </ListItemButton>
+        ) : (
+          <ListItemButton
+            aria-label={compact ? item.label : undefined}
+            aria-current={active ? 'page' : false}
+            component={NavigationLink}
+            className={active ? 'active' : ''}
+            end={item.end}
+            onClick={onNavigate}
+            sx={itemSx(compact)}
+            state={
+              item.preserveCurrentLocation
+                ? { from: `${location.pathname}${location.search}${location.hash}` }
+                : undefined
+            }
+            to={item.path}
+          >
+            {content}
+          </ListItemButton>
+        )}
+      </Tooltip>
+      {children?.length ? (
+        <Collapse in={expanded} timeout="auto" unmountOnExit>
+          <List
+            id={childrenId}
+            aria-label={`${item.label} navigation`}
+            disablePadding
+            sx={{ pl: compact ? 0 : 2 }}
+          >
+            {children.map((child) => (
+              <NavigationEntry
+                key={child.path}
+                item={child}
+                onNavigate={onNavigate}
+                compact={compact}
+              />
+            ))}
+          </List>
+        </Collapse>
+      ) : null}
+    </>
+  );
+};
 export const NavigationList = ({
   ariaLabel = 'Primary navigation',
   items,
   onNavigate,
   compact = false,
-}: NavigationListProps) => {
-  const location = useLocation();
-  const currentLocation = `${location.pathname}${location.search}${location.hash}`;
-
-  return (
+}: NavigationListProps) => (
   <List component="nav" aria-label={ariaLabel} sx={{ px: compact ? 0.75 : 1 }}>
-    {items.filter((item) => item.label.trim().toLowerCase() !== 'resume checker').map(({ badge, end, icon: Icon, label, path, preserveCurrentLocation }) => (
-      <Tooltip key={path} placement="right" title={compact ? label : ''}>
-        <ListItemButton
-          aria-label={compact ? label : undefined}
-          component={NavLink}
-          end={end}
-          onClick={onNavigate}
-          sx={{
-            borderRadius: 1.5,
-            justifyContent: compact ? 'center' : 'flex-start',
-            mb: 0.5,
-            minHeight: 44,
-            px: compact ? 1 : 2,
-            '&.active': {
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              '& .MuiListItemIcon-root': { color: 'inherit' },
-              '&:hover': { bgcolor: 'primary.dark' },
-            },
-          }}
-          state={preserveCurrentLocation ? { from: currentLocation } : undefined}
-          to={path}
-        >
-          {Icon ? (
-            <ListItemIcon sx={{ color: 'text.secondary', justifyContent: 'center', minWidth: compact ? 0 : 40 }}>
-              <Icon fontSize="small" />
-            </ListItemIcon>
-          ) : null}
-          {compact ? null : <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 600 }} />}
-          {compact || !badge ? null : (
-            <Chip label={badge} size="small" color="primary" sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
-          )}
-        </ListItemButton>
-      </Tooltip>
+    {items.filter(visible).map((item) => (
+      <NavigationEntry key={item.path} item={item} onNavigate={onNavigate} compact={compact} />
     ))}
   </List>
-  );
-};
+);
