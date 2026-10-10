@@ -400,5 +400,20 @@ export const CandidateSummary = ({ record }: { record: ReferrerRequestRecord }) 
   </Stack>
 );
 export const ApprovalBadge = ({ value }: { value: string | number }) => (
-  <StatusBadge status={approvalStatus(value)} />
+  <Chip
+    size="small"
+    label={
+      { Pending: 'Pending Approval', Approved: 'Active', Rejected: 'Rejected' }[
+        approvalStatus(value)
+      ]
+    }
+    color={
+      approvalStatus(value) === 'Approved'
+        ? 'success'
+        : approvalStatus(value) === 'Rejected'
+          ? 'error'
+          : 'primary'
+    }
+    variant="outlined"
+  />
 );

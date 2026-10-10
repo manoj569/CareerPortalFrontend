@@ -190,8 +190,9 @@ export const ReferrerRequestDetailPage = () => {
   const [accept, acceptState] = useAcceptReferralRequestMutation();
   const [reject, rejectState] = useRejectReferralRequestMutation();
   const [mark, markState] = useMarkReferralSubmittedMutation();
-  const [modal, setModal] = useState<'reject' | 'submit' | null>(null);
+  const [modal, setModal] = useState<'accept' | 'reject' | 'submit' | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [understood, setUnderstood] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -211,6 +212,7 @@ export const ReferrerRequestDetailPage = () => {
     if (guard.current) return;
     guard.current = true;
     setError('');
+    setNotice('');
     try {
       await (
         action === 'accept'
@@ -220,6 +222,13 @@ export const ReferrerRequestDetailPage = () => {
             : mark(requestId)
       ).unwrap();
       setModal(null);
+      setNotice(
+        action === 'accept'
+          ? 'Referral request accepted. Submission is a separate step.'
+          : action === 'reject'
+            ? 'Referral request rejected.'
+            : 'Referral marked as submitted.',
+      );
       void query.refetch();
       void jobs.refetch();
     } catch (e) {
@@ -323,6 +332,11 @@ export const ReferrerRequestDetailPage = () => {
                 : 'Review the authorized candidate details before deciding whether to refer.'
         }
       />
+      {notice && (
+        <Alert severity="success" role="status">
+          {notice}
+        </Alert>
+      )}
       {error && <Alert severity="error">{error}</Alert>}
       {record.request.notReceivedAtUtc && (
         <Alert severity="info">
@@ -413,7 +427,7 @@ export const ReferrerRequestDetailPage = () => {
             connections. Complete the actual referral using your company’s process.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}>
-            <Button variant="contained" disabled={busy} onClick={() => void mutate('accept')}>
+            <Button variant="contained" disabled={busy} onClick={() => setModal('accept')}>
               {acceptState.isLoading ? 'Accepting…' : 'Accept request'}
             </Button>
             <Button
@@ -495,13 +509,19 @@ export const ReferrerRequestDetailPage = () => {
         aria-describedby="referral-confirm-copy"
       >
         <DialogTitle id="referral-confirm-title">
-          {modal === 'reject' ? 'Reject this referral request?' : 'Confirm referral submission?'}
+          {modal === 'accept'
+            ? 'Accept this referral request?'
+            : modal === 'reject'
+              ? 'Reject this referral request?'
+              : 'Confirm referral submission?'}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="referral-confirm-copy">
-            {modal === 'reject'
-              ? 'The candidate will be informed that you declined this request.'
-              : 'You should confirm only after you have actually submitted this candidate through your company’s referral process.'}
+            {modal === 'accept'
+              ? 'Acceptance consumes one referral connection and shares your selected contact methods. Submission is a separate step.'
+              : modal === 'reject'
+                ? 'Confirm that you want to decline this request.'
+                : 'You should confirm only after you have actually submitted this candidate through your company’s referral process.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -511,13 +531,17 @@ export const ReferrerRequestDetailPage = () => {
           <Button
             variant="contained"
             disabled={busy}
-            onClick={() => void mutate(modal === 'reject' ? 'reject' : 'submit')}
+            onClick={() =>
+              void mutate(modal === 'accept' ? 'accept' : modal === 'reject' ? 'reject' : 'submit')
+            }
           >
             {busy
               ? 'Saving…'
-              : modal === 'reject'
-                ? 'Yes, reject request'
-                : 'Yes, mark as referred'}
+              : modal === 'accept'
+                ? 'Yes, accept request'
+                : modal === 'reject'
+                  ? 'Yes, reject request'
+                  : 'Yes, mark as referred'}
           </Button>
         </DialogActions>
       </Dialog>

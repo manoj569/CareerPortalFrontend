@@ -19,11 +19,11 @@ export const PendingRequestActions = ({
   onAccepted,
 }: {
   id: string;
-  onAccepted: () => void;
+  onAccepted: (message: string) => void;
 }) => {
   const [accept, a] = useAcceptReferralRequestMutation();
   const [reject, r] = useRejectReferralRequestMutation();
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<'accept' | 'reject' | null>(null);
   const [error, setError] = useState('');
   const guard = useRef(false);
   const busy = a.isLoading || r.isLoading;
@@ -33,11 +33,15 @@ export const PendingRequestActions = ({
     setError('');
     try {
       await (rejected ? reject(id) : accept(id)).unwrap();
-      setConfirm(false);
-      if (!rejected) onAccepted();
+      setConfirm(null);
+      onAccepted(
+        rejected
+          ? 'Referral request rejected.'
+          : 'Referral request accepted. Submission is a separate step.',
+      );
     } catch (e) {
       setError(referralError(e));
-      setConfirm(false);
+      setConfirm(null);
     } finally {
       guard.current = false;
     }
@@ -45,33 +49,46 @@ export const PendingRequestActions = ({
   return (
     <>
       <Stack direction="row" gap={1}>
-        <Button variant="contained" disabled={busy} onClick={() => void act()}>
+        <Button variant="contained" disabled={busy} onClick={() => setConfirm('accept')}>
           {a.isLoading ? 'Accepting…' : 'Accept'}
         </Button>
-        <Button variant="outlined" color="error" disabled={busy} onClick={() => setConfirm(true)}>
+        <Button
+          variant="outlined"
+          color="error"
+          disabled={busy}
+          onClick={() => setConfirm('reject')}
+        >
           Reject
         </Button>
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
       <Dialog
-        open={confirm}
+        open={confirm !== null}
         onClose={() => {
-          if (!busy) setConfirm(false);
+          if (!busy) setConfirm(null);
         }}
         aria-labelledby={`reject-${id}`}
       >
-        <DialogTitle id={`reject-${id}`}>Reject this referral request?</DialogTitle>
+        <DialogTitle id={`reject-${id}`}>
+          {confirm === 'reject' ? 'Reject this referral request?' : 'Accept this referral request?'}
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            The candidate will be informed that you declined this request.
+            {confirm === 'reject'
+              ? 'Confirm that you want to decline this request.'
+              : 'Acceptance consumes one referral connection and shares your selected contact methods. Submission is a separate step.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button disabled={busy} onClick={() => setConfirm(false)}>
+          <Button disabled={busy} onClick={() => setConfirm(null)}>
             Cancel
           </Button>
-          <Button disabled={busy} onClick={() => void act(true)}>
-            {r.isLoading ? 'Rejecting…' : 'Yes, reject request'}
+          <Button disabled={busy} onClick={() => void act(confirm === 'reject')}>
+            {busy
+              ? 'Saving…'
+              : confirm === 'reject'
+                ? 'Yes, reject request'
+                : 'Yes, accept request'}
           </Button>
         </DialogActions>
       </Dialog>

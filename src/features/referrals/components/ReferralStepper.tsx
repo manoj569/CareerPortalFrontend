@@ -14,6 +14,7 @@ export const ReferralStepper = ({
     {steps.map(([title, subtitle], i) => (
       <Box
         key={title}
+        aria-current={i === active ? 'step' : undefined}
         sx={{ display: 'flex', alignItems: 'center', flex: 1, gap: 1.25, minWidth: 0 }}
       >
         <Box

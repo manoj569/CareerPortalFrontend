@@ -211,7 +211,7 @@ export const ReferralJobCard = ({
       </Stack>
       <Stack gap={1}>
         <ButtonBase
-          aria-label={request ? 'View referral request' : 'Request a referral'}
+          aria-label={request ? 'View referral request' : 'Request Referral'}
           disabled={
             busy ||
             (!request && (job.referralAvailable === false || job.remainingReferralSlots === 0))
@@ -235,7 +235,7 @@ export const ReferralJobCard = ({
           <ArrowForwardIcon />
           <Box>
             <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
-              {request ? 'View request' : 'Request a referral'}
+              {request ? 'View request' : 'Request Referral'}
             </Typography>
           </Box>
         </ButtonBase>

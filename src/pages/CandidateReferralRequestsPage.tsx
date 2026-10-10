@@ -1,3 +1,4 @@
+import { ReferralRequestStatusSummary } from '@/features/referrals/components/ReferralRequestStatusSummary';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -184,9 +185,15 @@ export const CandidateReferralRequestsPage = () => {
                       void navigate(`/dashboard/my-referral-requests/${encodeURIComponent(r.id)}`)
                     }
                   >
-                    View Details →
+                    {requestStatus(r.status) === 'ReferralSubmitted'
+                      ? 'Acknowledge Receipt'
+                      : requestStatus(r.status) === 'Accepted'
+                        ? 'View Referral Details'
+                        : 'View Details'}{' '}
+                    →
                   </Button>
                 </Stack>
+                <ReferralRequestStatusSummary request={r} />
                 <CandidateReferralTimeline request={r} />
               </ReferralCard>
             ))

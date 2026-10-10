@@ -1,5 +1,6 @@
+import { ReferralUnsavedChanges } from '@/features/referrals/components/ReferralUnsavedChanges';
 import { ReferralStepper } from '@/features/referrals/components/ReferralStepper';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -48,6 +49,20 @@ const initial = {
 export const ReferAJobPage = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState(initial);
+  const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [validation, setValidation] = useState<Record<string, string>>({});
+  const heading = useRef<HTMLHeadingElement>(null);
+  const formElement = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (Object.keys(validation).length)
+      formElement.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [validation]);
+  const allowLeave = useRef(false);
+  useEffect(() => {
+    heading.current?.focus();
+  }, [step]);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const [source, setSource] = useState('');
   const [slots, setSlots] = useState(5);
   const [sharing, setSharing] = useState({
@@ -55,12 +70,23 @@ export const ReferAJobPage = () => {
     showEmail: false,
     showPhone: false,
   });
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!allowLeave.current && (dirty || Boolean(source) || slots !== 5 || step > 0)) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, source, slots, step]);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const guard = useRef(false);
   const categories = useGetReferralCategoryOptionsQuery();
   const [extract, extractState] = useExtractJobFromUrlMutation();
   const [submit, submitState] = useSubmitJobReferralMutation();
+  const busy = submitting || submitState.isLoading;
   const update = (key: keyof typeof initial, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
   const skills = [
@@ -78,6 +104,8 @@ export const ReferAJobPage = () => {
       required={required}
       label={label}
       type={type}
+      error={Boolean(validation[key])}
+      helperText={validation[key]}
       value={form[key]}
       onChange={(e) => update(key, e.target.value)}
       slotProps={type === 'number' ? { htmlInput: { min: 0, max: 50 } } : undefined}
@@ -111,7 +139,50 @@ export const ReferAJobPage = () => {
   };
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (guard.current) return;
+    if (guard.current || extractState.isLoading) return;
+    const errors: Record<string, string> = {};
+    if (step === 0 || step === 2) {
+      for (const key of ['title', 'companyName', 'description', 'categoryId'] as const) {
+        if (!form[key].trim()) errors[key] = 'This field is required.';
+      }
+      for (const key of ['minimumExperienceYears', 'maximumExperienceYears'] as const) {
+        if (
+          !form[key].trim() ||
+          !Number.isFinite(Number(form[key])) ||
+          Number(form[key]) < 0 ||
+          Number(form[key]) > 50
+        )
+          errors[key] = 'Enter experience between 0 and 50 years.';
+      }
+      if (Number(form.maximumExperienceYears) < Number(form.minimumExperienceYears))
+        errors.maximumExperienceYears =
+          'Maximum experience cannot be less than minimum experience.';
+      if (!skills.length) errors.skills = 'Add at least one skill.';
+      for (const [key, value] of [
+        ['source', source],
+        ['applicationUrl', form.applicationUrl],
+      ] as const) {
+        if (value.trim()) {
+          try {
+            const url = new URL(value);
+            if (!['https:', 'http:'].includes(url.protocol)) throw new Error();
+          } catch {
+            errors[key] = 'Enter a valid HTTP or HTTPS URL.';
+          }
+        }
+      }
+    }
+    setValidation(errors);
+    if (Object.keys(errors).length) {
+      if (step === 2) setStep(0);
+      setError('Please correct the highlighted job details.');
+      return;
+    }
+    if (step === 0) {
+      setError('');
+      setStep(1);
+      return;
+    }
     setError('');
     if (!validSlots(slots)) {
       setError('Referral slots must be a whole number between 1 and 1000.');
@@ -129,7 +200,12 @@ export const ReferAJobPage = () => {
       setError('Select at least one contact method for accepted candidates.');
       return;
     }
+    if (step === 1) {
+      setStep(2);
+      return;
+    }
     guard.current = true;
+    setSubmitting(true);
     try {
       const result = await submit({
         jobDetails: {
@@ -150,6 +226,7 @@ export const ReferAJobPage = () => {
         ...sharing,
         referralSlots: slots,
       }).unwrap();
+      allowLeave.current = true;
       void navigate(`/dashboard/referrals/${encodeURIComponent(result.id)}/submitted`, {
         state: { submission: result },
       });
@@ -157,6 +234,7 @@ export const ReferAJobPage = () => {
       setError(referralError(e));
     } finally {
       guard.current = false;
+      setSubmitting(false);
     }
   };
   return (
@@ -194,6 +272,18 @@ export const ReferAJobPage = () => {
         </>
       }
     >
+      <ReferralUnsavedChanges
+        dirty={
+          dirty ||
+          Boolean(source) ||
+          slots !== 5 ||
+          !sharing.showLinkedIn ||
+          sharing.showEmail ||
+          sharing.showPhone
+        }
+        allowLeave={allowLeave}
+        busy={busy}
+      />
       <ReferralHero
         trust
         title="Share a Job"
@@ -204,13 +294,15 @@ export const ReferAJobPage = () => {
           steps={[
             ['Job Details', 'Basic information about the job'],
             ['Referral Preferences', 'Set slots and contact options'],
-            ['Submit', 'For approval'],
+            ['Review & Submit', 'Review before sending for approval'],
           ]}
-          active={form.title && form.companyName && form.categoryId && skills.length ? 1 : 0}
+          active={step}
         />
       </ReferralCard>
       <Box
         component="form"
+        ref={formElement}
+        noValidate
         onSubmit={(e) => void handleSubmit(e)}
         sx={{
           '& .MuiInputLabel-root': {
@@ -235,203 +327,320 @@ export const ReferAJobPage = () => {
         }}
       >
         <Stack gap={2}>
-          <ReferralCard title="Job details">
-            <Typography fontSize={12} color="text.secondary" mb={2}>
-              Add accurate details to help relevant candidates find this opportunity.
-            </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} mb={2}>
-              <TextField
-                size="small"
-                fullWidth
-                label="Paste the job link (optional)"
-                type="url"
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
-              />
-              <Button
-                variant="outlined"
-                disabled={!source.trim() || extractState.isLoading || submitState.isLoading}
-                onClick={() => void fetchDetails()}
-                sx={{ minWidth: 185 }}
+          <Typography ref={heading} component="h2" tabIndex={-1} fontSize={18} fontWeight={700}>
+            Step {step + 1} of 3 —{' '}
+            {['Job Details', 'Referral Preferences', 'Review & Submit'][step]}
+          </Typography>
+          {step === 0 && (
+            <ReferralCard title="Job details">
+              <Typography fontSize={12} color="text.secondary" mb={2}>
+                Add accurate details to help relevant candidates find this opportunity.
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} mb={2}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  label="Paste the job link (optional)"
+                  type="url"
+                  error={Boolean(validation.source)}
+                  helperText={validation.source}
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                />
+                <Button
+                  variant="outlined"
+                  disabled={!source.trim() || extractState.isLoading || busy}
+                  onClick={() => void fetchDetails()}
+                  sx={{ minWidth: 185 }}
+                >
+                  {extractState.isLoading ? 'Fetching…' : 'Fetch details from link'}
+                </Button>
+              </Stack>
+              {note && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  {note}
+                </Alert>
+              )}
+              <Box
+                sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}
               >
-                {extractState.isLoading ? 'Fetching…' : 'Fetch details from link'}
-              </Button>
-            </Stack>
-            {note && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                {note}
-              </Alert>
-            )}
-            <Box
-              sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}
-            >
-              {field('title', 'Job title', true)}
-              {field('companyName', 'Company name', true)}
-              <TextField
-                select
-                size="small"
-                label="Employment type"
-                value={form.employmentType}
-                onChange={(e) => update('employmentType', e.target.value)}
-                required
+                {field('title', 'Job title', true)}
+                {field('companyName', 'Company name', true)}
+                <TextField
+                  select
+                  size="small"
+                  label="Employment type"
+                  value={form.employmentType}
+                  onChange={(e) => update('employmentType', e.target.value)}
+                  required
+                >
+                  {[
+                    ['FullTime', 'Full-time'],
+                    ['PartTime', 'Part-time'],
+                    ['Contract', 'Contract'],
+                    ['Internship', 'Internship'],
+                    ['Freelance', 'Freelance'],
+                    ['Temporary', 'Temporary'],
+                  ].map(([v, l]) => (
+                    <MenuItem key={v} value={v}>
+                      {l}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <Autocomplete
+                  multiple
+                  freeSolo
+                  options={[]}
+                  value={skills}
+                  onChange={(_, values) => update('skills', values.join(', '))}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      error={Boolean(validation.skills)}
+                      helperText={validation.skills}
+                      label="Skills"
+                      required={!skills.length}
+                      placeholder="Add skill and press Enter"
+                    />
+                  )}
+                />
+                <Stack direction="row" gap={1}>
+                  {field('minimumExperienceYears', 'Minimum experience', true, 'number')}
+                  {field('maximumExperienceYears', 'Maximum experience', true, 'number')}
+                </Stack>
+                <TextField
+                  select
+                  size="small"
+                  required
+                  error={Boolean(validation.categoryId)}
+                  helperText={validation.categoryId}
+                  label="Category"
+                  value={form.categoryId}
+                  onChange={(e) => update('categoryId', e.target.value)}
+                  disabled={categories.isLoading || categories.isError}
+                >
+                  {categories.data?.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                {field('location', 'Location')}
+                {field('applicationUrl', 'Application URL', false, 'url')}
+                <TextField
+                  sx={{ gridColumn: '1 / -1' }}
+                  error={Boolean(validation.description)}
+                  helperText={validation.description}
+                  label="Job description"
+                  required
+                  multiline
+                  minRows={3}
+                  value={form.description}
+                  onChange={(e) => update('description', e.target.value)}
+                />
+              </Box>
+              {categories.error && (
+                <Alert
+                  severity="error"
+                  sx={{ mt: 2 }}
+                  action={<Button onClick={() => void categories.refetch()}>Retry</Button>}
+                >
+                  {referralError(categories.error)}
+                </Alert>
+              )}
+            </ReferralCard>
+          )}
+          {step === 1 && (
+            <ReferralCard title="Referral preferences">
+              <Typography fontSize={12} color="text.secondary" mb={2}>
+                Tell candidates how many people you’re willing to consider and how accepted
+                candidates can contact you.
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: '1fr 1.3fr' },
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ bgcolor: '#edf5ff', borderRadius: 1.5, p: 2 }}>
+                  <Typography fontSize={14} fontWeight={700}>
+                    Referral slots *
+                  </Typography>
+                  <Typography fontSize={12} color="text.secondary" mb={1.5}>
+                    How many candidates can you refer for this opportunity?
+                  </Typography>
+                  <Stack direction="row" gap={0.5}>
+                    <Button
+                      aria-label="Decrease referral slots"
+                      disabled={slots <= 1 || busy}
+                      onClick={() => setSlots((s) => s - 1)}
+                    >
+                      <RemoveIcon />
+                    </Button>
+                    <TextField
+                      aria-label="Referral slots"
+                      size="small"
+                      type="number"
+                      value={slots}
+                      error={!validSlots(slots)}
+                      helperText={!validSlots(slots) ? 'Enter 1–1000 whole slots' : undefined}
+                      onChange={(e) => setSlots(Number(e.target.value))}
+                      slotProps={{
+                        htmlInput: { min: 1, max: 1000, 'aria-label': 'Referral slots' },
+                      }}
+                    />
+                    <Button
+                      aria-label="Increase referral slots"
+                      disabled={slots >= 1000 || busy}
+                      onClick={() => setSlots((s) => s + 1)}
+                    >
+                      <AddIcon />
+                    </Button>
+                  </Stack>
+                  <Typography fontSize={11} color="text.secondary" mt={1}>
+                    You can accept up to {validSlots(slots) ? slots : '—'} candidates.
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography fontSize={14} fontWeight={700}>
+                    Contact sharing
+                  </Typography>
+                  <Typography fontSize={12} color="text.secondary">
+                    Select how accepted candidates can contact you.
+                  </Typography>
+                  {(['showLinkedIn', 'showEmail', 'showPhone'] as const).map((key, i) => (
+                    <FormControlLabel
+                      sx={{ display: 'flex' }}
+                      key={key}
+                      label={['LinkedIn', 'Email', 'Phone'][i]}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={sharing[key]}
+                          onChange={(e) => setSharing((s) => ({ ...s, [key]: e.target.checked }))}
+                        />
+                      }
+                    />
+                  ))}
+                  <Typography fontSize={12} color="text.secondary">
+                    Contact methods use your profile details.{' '}
+                    <Button size="small" onClick={() => void navigate(ROUTES.PORTFOLIO)}>
+                      Review your profile
+                    </Button>
+                  </Typography>
+                </Box>
+              </Box>
+              <Typography fontSize={12} color="text.secondary" mt={2}>
+                Your contact details remain private until you accept a candidate’s referral request.
+              </Typography>
+            </ReferralCard>
+          )}
+          {step === 2 && (
+            <ReferralCard title="Review your shared job">
+              <Box
+                component="dl"
+                sx={{
+                  m: 0,
+                  overflowWrap: 'anywhere',
+                  '& dt': { fontWeight: 700, mt: 1.5 },
+                  '& dd': { ml: 0 },
+                }}
               >
                 {[
-                  ['FullTime', 'Full-time'],
-                  ['PartTime', 'Part-time'],
-                  ['Contract', 'Contract'],
-                  ['Internship', 'Internship'],
-                  ['Freelance', 'Freelance'],
-                  ['Temporary', 'Temporary'],
-                ].map(([v, l]) => (
-                  <MenuItem key={v} value={v}>
-                    {l}
-                  </MenuItem>
+                  ['Job title', form.title],
+                  ['Company', form.companyName],
+                  [
+                    'Employment type',
+                    {
+                      FullTime: 'Full-time',
+                      PartTime: 'Part-time',
+                      Contract: 'Contract',
+                      Internship: 'Internship',
+                      Freelance: 'Freelance',
+                      Temporary: 'Temporary',
+                    }[form.employmentType] ?? form.employmentType,
+                  ],
+                  ['Skills', skills.join(', ')],
+                  [
+                    'Experience',
+                    `${form.minimumExperienceYears}–${form.maximumExperienceYears} years`,
+                  ],
+                  [
+                    'Category',
+                    categories.data?.find((c) => c.id === form.categoryId)?.name ?? form.categoryId,
+                  ],
+                  ['Location', form.location || 'Not provided'],
+                  ['Job posting link', source || 'Not provided'],
+                  ['Application URL', form.applicationUrl || 'Not provided'],
+                  ['Job description', form.description],
+                  ['Referral slots', String(slots)],
+                  [
+                    'Contact preferences',
+                    (['showLinkedIn', 'showEmail', 'showPhone'] as const)
+                      .flatMap((key, index) =>
+                        sharing[key] ? [['LinkedIn', 'Email', 'Phone'][index]] : [],
+                      )
+                      .join(', '),
+                  ],
+                ].map(([label, value]) => (
+                  <Box key={label}>
+                    <Typography component="dt">{label}</Typography>
+                    <Typography component="dd" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {value}
+                    </Typography>
+                  </Box>
                 ))}
-              </TextField>
-              <Autocomplete
-                multiple
-                freeSolo
-                options={[]}
-                value={skills}
-                onChange={(_, values) => update('skills', values.join(', '))}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Skills"
-                    required={!skills.length}
-                    placeholder="Add skill and press Enter"
-                  />
-                )}
-              />
-              <Stack direction="row" gap={1}>
-                {field('minimumExperienceYears', 'Minimum experience', true, 'number')}
-                {field('maximumExperienceYears', 'Maximum experience', true, 'number')}
+              </Box>
+              <Typography mt={2} color="text.secondary">
+                Submitting confirms these details and sends the job for approval. Your contact
+                details remain private until you accept a request.
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} mt={2}>
+                <Button
+                  disabled={busy}
+                  onClick={() => {
+                    setError('');
+                    setStep(0);
+                  }}
+                >
+                  Edit Details
+                </Button>
+                <Button
+                  disabled={busy}
+                  onClick={() => {
+                    setError('');
+                    setStep(1);
+                  }}
+                >
+                  Edit Preferences
+                </Button>
               </Stack>
-              <TextField
-                select
-                size="small"
-                required
-                label="Category"
-                value={form.categoryId}
-                onChange={(e) => update('categoryId', e.target.value)}
-                disabled={categories.isLoading || categories.isError}
-              >
-                {categories.data?.map((c) => (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              {field('location', 'Location')}
-              {field('applicationUrl', 'Application URL', false, 'url')}
-              <TextField
-                sx={{ gridColumn: '1 / -1' }}
-                label="Job description"
-                required
-                multiline
-                minRows={3}
-                value={form.description}
-                onChange={(e) => update('description', e.target.value)}
-              />
-            </Box>
-            {categories.error && (
-              <Alert
-                severity="error"
-                sx={{ mt: 2 }}
-                action={<Button onClick={() => void categories.refetch()}>Retry</Button>}
-              >
-                {referralError(categories.error)}
-              </Alert>
-            )}
-          </ReferralCard>
-          <ReferralCard title="Referral preferences">
-            <Typography fontSize={12} color="text.secondary" mb={2}>
-              Tell candidates how many people you’re willing to consider and how accepted candidates
-              can contact you.
-            </Typography>
-            <Box
-              sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1.3fr' }, gap: 2 }}
-            >
-              <Box sx={{ bgcolor: '#edf5ff', borderRadius: 1.5, p: 2 }}>
-                <Typography fontSize={14} fontWeight={700}>
-                  Referral slots *
-                </Typography>
-                <Typography fontSize={12} color="text.secondary" mb={1.5}>
-                  How many candidates can you refer for this opportunity?
-                </Typography>
-                <Stack direction="row" gap={0.5}>
-                  <Button
-                    aria-label="Decrease referral slots"
-                    disabled={slots <= 1 || submitState.isLoading}
-                    onClick={() => setSlots((s) => s - 1)}
-                  >
-                    <RemoveIcon />
-                  </Button>
-                  <TextField
-                    aria-label="Referral slots"
-                    size="small"
-                    type="number"
-                    value={slots}
-                    error={!validSlots(slots)}
-                    helperText={!validSlots(slots) ? 'Enter 1–1000 whole slots' : undefined}
-                    onChange={(e) => setSlots(Number(e.target.value))}
-                    slotProps={{ htmlInput: { min: 1, max: 1000, 'aria-label': 'Referral slots' } }}
-                  />
-                  <Button
-                    aria-label="Increase referral slots"
-                    disabled={slots >= 1000 || submitState.isLoading}
-                    onClick={() => setSlots((s) => s + 1)}
-                  >
-                    <AddIcon />
-                  </Button>
-                </Stack>
-                <Typography fontSize={11} color="text.secondary" mt={1}>
-                  You can accept up to {validSlots(slots) ? slots : '—'} candidates.
-                </Typography>
-              </Box>
-              <Box>
-                <Typography fontSize={14} fontWeight={700}>
-                  Contact sharing
-                </Typography>
-                <Typography fontSize={12} color="text.secondary">
-                  Select how accepted candidates can contact you.
-                </Typography>
-                {(['showLinkedIn', 'showEmail', 'showPhone'] as const).map((key, i) => (
-                  <FormControlLabel
-                    sx={{ display: 'flex' }}
-                    key={key}
-                    label={['LinkedIn', 'Email', 'Phone'][i]}
-                    control={
-                      <Checkbox
-                        size="small"
-                        checked={sharing[key]}
-                        onChange={(e) => setSharing((s) => ({ ...s, [key]: e.target.checked }))}
-                      />
-                    }
-                  />
-                ))}
-                <Typography fontSize={12} color="text.secondary">
-                  Contact methods use your profile details.{' '}
-                  <Button size="small" onClick={() => void navigate(ROUTES.PORTFOLIO)}>
-                    Review your profile
-                  </Button>
-                </Typography>
-              </Box>
-            </Box>
-            <Typography fontSize={12} color="text.secondary" mt={2}>
-              Your contact details remain private until you accept a candidate’s referral request.
-            </Typography>
-          </ReferralCard>
+            </ReferralCard>
+          )}
           {error && <Alert severity="error">{error}</Alert>}
-          <Button
-            fullWidth
-            variant="contained"
-            type="submit"
-            startIcon={<SendOutlinedIcon />}
-            disabled={submitState.isLoading || categories.isError || !validSlots(slots)}
-          >
-            {submitState.isLoading ? 'Submitting…' : 'Submit for approval'}
-          </Button>
+          <Stack direction="row" gap={1}>
+            {step > 0 && (
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  setError('');
+                  setStep((s) => s - 1);
+                }}
+              >
+                Back
+              </Button>
+            )}
+            <Button
+              fullWidth
+              variant="contained"
+              type="submit"
+              startIcon={step === 2 ? <SendOutlinedIcon /> : undefined}
+              disabled={busy || extractState.isLoading || categories.isError}
+            >
+              {busy ? 'Submitting…' : step === 2 ? 'Submit for Approval' : 'Continue'}
+            </Button>
+          </Stack>
         </Stack>
       </Box>
     </ReferralLayout>

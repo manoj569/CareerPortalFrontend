@@ -167,6 +167,12 @@ export const AllReferralsPage = () => {
                       Posted {dateLabel(job.createdAtUtc)}
                     </Typography>
                   </Stack>
+                  {(job.approvedAtUtc || job.reviewedAtUtc) && (
+                    <Typography fontSize={11} color="text.secondary">
+                      {job.approvedAtUtc ? 'Approved' : 'Reviewed'}{' '}
+                      {dateLabel((job.approvedAtUtc || job.reviewedAtUtc)!)}
+                    </Typography>
+                  )}
                 </Box>
                 <Box>
                   <Stack direction="row" flexWrap="wrap" useFlexGap gap={2} mb={1.5}>
@@ -177,7 +183,7 @@ export const AllReferralsPage = () => {
                     ].map(([l, v]) => (
                       <Box key={l}>
                         <Typography fontWeight={750}>
-                          {inbox.isLoading ? '…' : inbox.error ? 'Unavailable' : v}
+                          {inbox.isLoading ? '…' : inbox.error ? 'Unavailable' : (v ?? '—')}
                         </Typography>
                         <Typography fontSize={11} color="text.secondary">
                           {l}
@@ -229,6 +235,7 @@ export const ReferralRequestsPage = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState('All');
   const [page, setPage] = useState(1);
+  const [notice, setNotice] = useState('');
   const jobs = useGetOwnedOpportunitiesQuery(undefined, useFresh);
   const inbox = useGetReferrerInboxQuery(undefined, useFresh);
   const job = jobs.currentData?.find((j) => j.id === referralId);
@@ -268,6 +275,11 @@ export const ReferralRequestsPage = () => {
             : 'Review candidates and choose who you’re comfortable referring.'
         }
       />
+      {notice && (
+        <Alert severity="success" role="status">
+          {notice}
+        </Alert>
+      )}
       {job && (
         <ReferralCard>
           <JobSummary job={job} />
@@ -338,9 +350,7 @@ export const ReferralRequestsPage = () => {
           {!filtered.length ? (
             <ReferralCard>
               <Typography fontWeight={750}>
-                {rows.length
-                  ? 'No requests match this filter.'
-                  : "No referral requests yet. We'll notify you when someone requests a referral."}
+                {rows.length ? 'No requests match this filter.' : 'No referral requests yet.'}
               </Typography>
               <Typography color="text.secondary" fontSize={13}>
                 {rows.length ? 'Try another status filter.' : ''}
@@ -354,16 +364,17 @@ export const ReferralRequestsPage = () => {
               </Button>
             </ReferralCard>
           ) : (
-            filtered
-              .slice((page - 1) * 10, page * 10)
-              .map((record) => (
-                <RequestRow
-                  key={record.request.id}
-                  record={record}
-                  onAccepted={() => void inbox.refetch()}
-                  onView={() => void navigate(requestPath(record.request.id))}
-                />
-              ))
+            filtered.slice((page - 1) * 10, page * 10).map((record) => (
+              <RequestRow
+                key={record.request.id}
+                record={record}
+                onAccepted={(message) => {
+                  setNotice(message);
+                  void inbox.refetch();
+                }}
+                onView={() => void navigate(requestPath(record.request.id))}
+              />
+            ))
           )}
           {filtered.length > 10 && (
             <Pagination
@@ -384,11 +395,17 @@ const RequestRow = ({
 }: {
   record: ReferrerRequestRecord;
   onView: () => void;
-  onAccepted: () => void;
+  onAccepted: (message: string) => void;
 }) => (
   <ReferralCard>
     <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2}>
-      <CandidateSummary record={record} />
+      <Stack gap={1}>
+        <CandidateSummary record={record} />
+        <Typography fontWeight={700}>{record.request.jobTitle}</Typography>
+        <Typography color="text.secondary" fontSize={13}>
+          {record.request.companyName}
+        </Typography>
+      </Stack>
       <Stack alignItems={{ md: 'flex-end' }} gap={1}>
         <StatusBadge status={requestStatus(record.request.status)} />
         <Typography fontSize={11} color="text.secondary">
@@ -396,8 +413,10 @@ const RequestRow = ({
         </Typography>
         <Button variant="outlined" onClick={onView}>
           {requestStatus(record.request.status) === 'Accepted'
-            ? 'Mark as referred'
-            : 'View profile & resume'}{' '}
+            ? 'Mark Submitted'
+            : record.candidate.resumeAvailable
+              ? 'View profile & resume'
+              : 'View profile'}{' '}
           →
         </Button>
         {requestStatus(record.request.status) === 'Requested' && (

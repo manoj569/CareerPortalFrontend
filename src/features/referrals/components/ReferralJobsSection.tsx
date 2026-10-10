@@ -222,7 +222,7 @@ export const ReferralJobsSection = () => {
         }
       >
         <ReferralHero
-          title="Get Referred. Get Noticed."
+          title="Find Referral Jobs"
           subtitle="Discover employee referral opportunities and track your requests in CareerHarbor."
         />
         <ReferralCard>
@@ -468,7 +468,7 @@ export const ReferralJobsSection = () => {
         aria-labelledby="referral-sent-title"
       >
         <DialogTitle id="referral-sent-title" sx={{ textAlign: 'center', pt: 4 }}>
-          ✓ Referral request sent!
+          Referral Request Sent
         </DialogTitle>
         <DialogContent>
           <Stack gap={2}>

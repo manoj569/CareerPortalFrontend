@@ -119,7 +119,7 @@ beforeEach(() => {
     fn.mockReturnValue({ unwrap: () => Promise.resolve(requestRecord.request) });
 });
 const open = async () => {
-  await userEvent.click(screen.getAllByRole('button', { name: 'Request a referral' })[0]!);
+  await userEvent.click(screen.getAllByRole('button', { name: 'Request Referral' })[0]!);
   return screen.getByRole('dialog', { name: 'Request Referral' });
 };
 describe('candidate referral browsing and request', () => {
@@ -173,7 +173,7 @@ describe('candidate referral browsing and request', () => {
     await userEvent.click(within(dialog).getByRole('checkbox'));
     await userEvent.click(within(dialog).getByRole('button', { name: /Send referral request/ }));
     expect(mocks.create).toHaveBeenCalledWith({ referralId: 'op-1', candidateMessage: '' });
-    const success = await screen.findByRole('dialog', { name: /Referral request sent!/ });
+    const success = await screen.findByRole('dialog', { name: /Referral Request Sent/ });
     expect(within(success).getByText(/has not yet accepted/)).toBeInTheDocument();
     await userEvent.click(within(success).getByRole('button', { name: /View My Request/ }));
     expect(screen.getByLabelText('location')).toHaveTextContent('/dashboard/my-referral-requests');
@@ -194,12 +194,12 @@ describe('candidate referral browsing and request', () => {
     mocks.activity.mockReturnValue(result({ items: [requestRecord.request], quota }));
     show();
     expect(screen.getByRole('button', { name: 'View referral request' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Request a referral' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Request Referral' })).toHaveLength(1);
   });
   it('disables exhausted opportunities', () => {
     mocks.catalogue.mockReturnValue(result([{ ...job, remainingReferralSlots: 0 }]));
     show();
-    expect(screen.getByRole('button', { name: 'Request a referral' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Request Referral' })).toBeDisabled();
   });
   it.each([
     ['inactive access', false, 0],
@@ -233,9 +233,7 @@ describe('candidate referral browsing and request', () => {
     await userEvent.click(within(d).getByRole('checkbox'));
     await userEvent.click(within(d).getByRole('button', { name: /Send referral request/ }));
     expect(await within(d).findByText('Server rejected this request.')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('dialog', { name: /Referral request sent!/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /Referral Request Sent/ })).not.toBeInTheDocument();
     expect(mocks.refetch).toHaveBeenCalled();
     expect(screen.getByLabelText('location')).toHaveTextContent(
       '/dashboard/my-referral-requests/req-1',
@@ -256,7 +254,7 @@ describe('candidate referral browsing and request', () => {
   it('anonymous request navigates to login', async () => {
     mocks.user.current = false;
     show();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Request a referral' })[0]!);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Request Referral' })[0]!);
     expect(screen.getByLabelText('location')).toHaveTextContent('/login');
   });
 });
@@ -372,5 +370,63 @@ describe('referral navigation empty states', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Clear Filters' }).at(-1)!);
     expect(screen.getByLabelText('Search job title, company or skills')).toHaveValue('');
     expect(screen.queryByText('No matching referral jobs found.')).not.toBeInTheDocument();
+  });
+});
+
+describe('Phase 2 membership and request presentation', () => {
+  it('uses explicit inactive entitlement despite a nonzero quota limit', () => {
+    mocks.activity.mockReturnValue(
+      result({ items: [], quota: { ...quota, hasActiveAccess: false, remainingConnections: 0 } }),
+    );
+    show(<CandidateReferralRequestsPage />);
+    expect(screen.getByText('Referral Access Required')).toBeVisible();
+    expect(
+      screen.getByText('Activate an eligible plan to request and manage referral connections.'),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'View Membership' })).toHaveAttribute(
+      'href',
+      '/dashboard/membership',
+    );
+    expect(screen.queryByText(/accepted connections ·/)).not.toBeInTheDocument();
+  });
+  it('shows exact active backend counts', () => {
+    show(<CandidateReferralRequestsPage />);
+    expect(screen.getByText(/2 \/ 10 accepted connections · 8 remaining/)).toBeVisible();
+  });
+  it.each([
+    [
+      'Accepted',
+      'The employee accepted your request. The referral has not yet been reported as submitted.',
+      'View Referral Details',
+    ],
+    [
+      'ReferralSubmitted',
+      'The employee reports submitting the referral. This does not confirm employer receipt. Acknowledge only when you receive instructions.',
+      'Acknowledge Receipt',
+    ],
+    [
+      'CandidateConfirmed',
+      'You acknowledged receiving instructions. This is not independent employer verification.',
+      'View Details',
+    ],
+  ])('explains %s without fabricating employer outcomes', (status, explanation, action) => {
+    mocks.activity.mockReturnValue(
+      result({
+        items: [
+          {
+            ...requestRecord.request,
+            status,
+            acceptedAtUtc: '2026-10-08T07:00:00Z',
+            referralSubmittedAtUtc: '2026-10-09T07:00:00Z',
+            candidateConfirmedAtUtc: '2026-10-10T07:00:00Z',
+          },
+        ],
+        quota,
+      }),
+    );
+    show(<CandidateReferralRequestsPage />);
+    expect(screen.getByText(explanation!)).toBeVisible();
+    expect(screen.getByText(/Last status update:/)).toBeVisible();
+    expect(screen.getByRole('button', { name: new RegExp(action!) })).toBeVisible();
   });
 });

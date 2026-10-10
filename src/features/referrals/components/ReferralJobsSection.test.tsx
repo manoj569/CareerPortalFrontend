@@ -31,7 +31,7 @@ describe('public referral privacy', () => {
   it('shows server capacity and disables requests when exhausted', () => {
     render(<ReferralJobCard job={{ ...job, remainingReferralSlots: 0 }} onSeeDetails={() => {}} />);
     expect(screen.getByText('0 referral slots remaining')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Request a referral/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Request Referral/ })).toBeDisabled();
   });
   it('old contact links explain acceptance and never fetch protected contact', async () => {
     render(

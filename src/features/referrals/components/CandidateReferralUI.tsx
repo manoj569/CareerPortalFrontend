@@ -1,5 +1,5 @@
 import { Avatar, Box, Button, Chip, Stack, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
 import type { PublicReferralJob } from '../types/referralModels';
 import {
@@ -138,23 +138,26 @@ export const CandidateReferralTimeline = ({ request }: { request: ReferralReques
   );
 };
 
-export const CandidateQuotaCard = ({ quota }: { quota: ReferralQuota }) => (
-  <ReferralCard title="Referral connections" tint="#f1f7ff">
-    <Typography fontWeight={750}>
-      {quota.acceptedConnections} / {quota.limit} accepted connections ·{' '}
-      {quota.remainingConnections} remaining
-    </Typography>
-    <Typography fontSize={12} color="text.secondary" mt={1}>
-      Requests consume zero connections. Successful acceptance consumes one connection.{' '}
-      {quota.periodEndUtc ? `Current period ends ${dateLabel(quota.periodEndUtc)} IST.` : ''}
-    </Typography>
-    {!quota.hasActiveAccess && (
-      <Typography fontSize={12} mt={1}>
-        Active Referral Access is required. Manage access through Membership.
+export const CandidateQuotaCard = ({ quota }: { quota: ReferralQuota }) =>
+  quota.hasActiveAccess !== true ? (
+    <ReferralCard title="Referral Access Required" tint="#f1f7ff">
+      <Typography>Activate an eligible plan to request and manage referral connections.</Typography>
+      <Button component={Link} to={ROUTES.MEMBERSHIP}>
+        View Membership
+      </Button>
+    </ReferralCard>
+  ) : (
+    <ReferralCard title="Referral connections" tint="#f1f7ff">
+      <Typography fontWeight={750}>
+        {quota.acceptedConnections} / {quota.limit} accepted connections ·{' '}
+        {quota.remainingConnections} remaining
       </Typography>
-    )}
-  </ReferralCard>
-);
+      <Typography fontSize={12} color="text.secondary" mt={1}>
+        Requests consume zero connections. Successful acceptance consumes one connection.{' '}
+        {quota.periodEndUtc ? `Current period ends ${dateLabel(quota.periodEndUtc)} IST.` : ''}
+      </Typography>
+    </ReferralCard>
+  );
 
 export const CandidateHowItWorks = () => (
   <ReferralCard title="How referral jobs work?">
