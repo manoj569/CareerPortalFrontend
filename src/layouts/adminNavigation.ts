@@ -1,4 +1,5 @@
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
@@ -17,6 +18,7 @@ import { ROUTES } from '@/constants/routes';
 export const adminNavigationItems: NavigationItem[] = [
   { label: 'Dashboard', path: ROUTES.ADMIN, icon: DashboardOutlinedIcon, end: true },
   { label: 'Jobs', path: ROUTES.ADMIN_JOBS, icon: WorkOutlineIcon },
+  { label: 'Companies', path: ROUTES.ADMIN_COMPANIES, icon: BusinessOutlinedIcon },
   { label: 'Job Sources', path: ROUTES.ADMIN_JOB_SOURCES, icon: PublicOutlinedIcon },
   { label: 'Users', path: ROUTES.ADMIN_USERS, icon: PeopleOutlineIcon },
   {

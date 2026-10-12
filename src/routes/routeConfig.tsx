@@ -1044,6 +1044,22 @@ export const appRoutes: RouteObject[] = [
                 path: ROUTES.ADMIN_NOTIFICATIONS,
                 element: lazyPage(() => import('@/pages/NotificationsPage'), 'NotificationsPage'),
               },
+              {
+                path: ROUTES.ADMIN_COMPANIES,
+                element: lazyPage(() => import('@/pages/admin/AdminCompaniesPage'), 'AdminCompaniesPage'),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_CREATE,
+                element: lazyPage(() => import('@/pages/admin/AdminCompanyFormPage'), 'AdminCompanyFormPage'),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_EDIT,
+                element: lazyPage(() => import('@/pages/admin/AdminCompanyFormPage'), 'AdminCompanyFormPage'),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_DETAILS,
+                element: lazyPage(() => import('@/pages/admin/AdminCompanyDetailsPage'), 'AdminCompanyDetailsPage'),
+              },
 
               {
 

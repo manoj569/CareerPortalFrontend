@@ -1,5 +1,5 @@
 import { waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiRequestError } from '@/api/apiError';
 import {
@@ -24,6 +24,8 @@ import {
 } from '../types/adminModels';
 
 const { mockRequest } = vi.hoisted(() => ({ mockRequest: vi.fn() }));
+// Flush RTK's queued frame notifications before jsdom tears down its globals.
+afterEach(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
 interface CapturedRequestConfig {
   data?: unknown;
@@ -37,6 +39,20 @@ vi.mock('@/api/apiClient', () => ({
 }));
 const jobId = '5aeb6d48-035e-4f58-aa6f-c222ffe27e97';
 const companyId = 'ca95a5ec-7e5a-4d5f-acf6-534dd2225276';
+
+it('resolves company logo previews using the exact backend contract without PUT or cache refresh', async () => {
+  const store = createAppStore();
+  mockRequest.mockReset();
+  const preview = { companyId, companyName: 'LSEG', websiteUrl: 'https://www.lseg.com',
+    logoUrl: 'https://www.lseg.com/logo.png', source: 'Website', resolved: true };
+  mockRequest.mockResolvedValue({ data: { data: preview } });
+  const request = { websiteUrl: 'https://www.lseg.com', careerPageUrl: null, replaceExisting: true };
+  expect(await store.dispatch(adminApi.endpoints.resolveAdminCompanyLogo.initiate({ companyId, request })).unwrap()).toEqual(preview);
+  expect(mockRequest).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    data: request, method: 'POST', url: `/admin/companies/${companyId}/logo/resolve`,
+  }));
+  store.dispatch(adminApi.util.resetApiState());
+});
 const categoryId = '51741c58-0587-4c68-866e-acfe9b36836c';
 
 const request: AdminJobRequest = {

@@ -25,6 +25,8 @@ import { formatAdminDate } from '@/features/admin/utils/adminFormatting';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { CompanyLogoManagementDialog } from '@/features/admin/components/CompanyLogoManagementDialog';
+import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +35,7 @@ export const AdminCompaniesPage = () => {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState(params.get('search') ?? '');
   const [deleting, setDeleting] = useState<AdminCompany | null>(null);
+  const [managingLogo, setManagingLogo] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 350);
   const pageNumber = Math.max(1, Number(params.get('page')) || 1);
@@ -97,6 +100,7 @@ export const AdminCompaniesPage = () => {
           >
             Edit
           </Button>
+          <Button size="small" onClick={() => setManagingLogo(company.id)}>Manage Logo</Button>
           <Button
             color="error"
             onClick={() => {
@@ -184,6 +188,8 @@ export const AdminCompaniesPage = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Company</TableCell>
+                  <TableCell>Website</TableCell>
+                  <TableCell>Logo</TableCell>
                   <TableCell>Industry / location</TableCell>
                   <TableCell>Verification</TableCell>
                   <TableCell>Created</TableCell>
@@ -199,6 +205,8 @@ export const AdminCompaniesPage = () => {
                         {company.slug}
                       </Typography>
                     </TableCell>
+                    <TableCell sx={{ maxWidth: 260, overflowWrap: 'anywhere' }}>{company.websiteUrl ?? 'Not set'}</TableCell>
+                    <TableCell><CompanyLogoFallback companyName={company.name} logoUrl={company.logoUrl} /></TableCell>
                     <TableCell>
                       {company.industry ?? 'Not set'} · {company.location ?? 'Not set'}
                     </TableCell>
@@ -220,9 +228,11 @@ export const AdminCompaniesPage = () => {
             {companies.data.items.map((company) => (
               <Card component="article" key={company.id}>
                 <CardContent>
+                  <CompanyLogoFallback companyName={company.name} logoUrl={company.logoUrl} />
                   <Typography component="h2" variant="h3">
                     {company.name}
                   </Typography>
+                  <Typography sx={{ overflowWrap: 'anywhere' }}>{company.websiteUrl ?? 'Website not set'}</Typography>
                   <Typography color="text.secondary">
                     {company.industry ?? 'Industry not set'} ·{' '}
                     {company.location ?? 'Location not set'}
@@ -258,6 +268,8 @@ export const AdminCompaniesPage = () => {
         open={Boolean(deleting)}
         title="Delete company"
       />
+      {managingLogo ? <CompanyLogoManagementDialog key={managingLogo} companyId={managingLogo}
+        onClose={() => setManagingLogo(null)} onSaved={() => { void companies.refetch(); }} /> : null}
     </Stack>
   );
 };

@@ -1,4 +1,5 @@
 import * as yup from 'yup';
+import { isHttpsCompanyLogoUrl } from '../utils/companyLogoManagement';
 
 export interface AdminCompanyFormValues {
   name: string;
@@ -40,7 +41,8 @@ export const adminCompanySchema: yup.ObjectSchema<AdminCompanyFormValues> = yup.
   slug: yup.string().defined().trim().max(220),
   description: yup.string().defined().trim().max(4000),
   websiteUrl: optionalHttpUrl,
-  logoUrl: optionalHttpUrl,
+  logoUrl: yup.string().defined().trim().test('https-logo', 'Enter a direct HTTPS logo URL.',
+    (value) => !value || isHttpsCompanyLogoUrl(value)),
   industry: yup.string().defined().trim().max(150),
   location: yup.string().defined().trim().max(250),
   employeeCount: yup

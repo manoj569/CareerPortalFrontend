@@ -22,6 +22,8 @@ import type {
   AdminCompaniesQuery,
   AdminCompany,
   AdminCompanyRequest,
+  AdminCompanyLogoPreview,
+  ResolveAdminCompanyLogoRequest,
   AdminDashboardCharts,
   AdminDashboardStatistics,
   AdminCsvImportKind,
@@ -440,6 +442,18 @@ export const adminApi = createApi({
       transformResponse: (response: ApiResponse<AdminCompany>) => response.data,
       providesTags: (_, __, companyId) => [{ id: companyId, type: 'AdminCompanies' }],
     }),
+    resolveAdminCompanyLogo: builder.mutation<AdminCompanyLogoPreview, {
+      companyId: string;
+      request: ResolveAdminCompanyLogoRequest;
+    }>({
+      query: ({ companyId, request }) => ({
+        data: request,
+        method: 'POST',
+        url: API_ENDPOINTS.ADMIN.COMPANY_LOGO_RESOLVE(companyId),
+      }),
+      transformResponse: (response: ApiResponse<AdminCompanyLogoPreview>) => response.data,
+      // Resolution is a preview: no cache invalidation or persistence.
+    }),
     getAdminCompanyOptions: builder.query<AdminOption[], void>({
       query: () => ({ url: API_ENDPOINTS.ADMIN.COMPANY_OPTIONS }),
       transformResponse: (response: ApiResponse<AdminOption[]>) => response.data,
@@ -662,6 +676,7 @@ export const {
   useGetAdminCompaniesQuery,
   useGetAdminCompanyOptionsQuery,
   useGetAdminCompanyQuery,
+  useResolveAdminCompanyLogoMutation,
   useGetAdminJobQuery,
   useGetAdminJobDiscoveryRunQuery,
   useGetAdminJobDiscoveryRunsQuery,

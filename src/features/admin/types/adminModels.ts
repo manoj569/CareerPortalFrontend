@@ -1,4 +1,5 @@
 import type {
+  CompanyType,
   EmploymentType,
   ExperienceLevel,
   SalaryPeriod,
@@ -419,6 +420,7 @@ export interface AdminOption {
 }
 
 export interface AdminCompany {
+  companyType?: CompanyType | null;
   id: string;
   name: string;
   slug: string;
@@ -435,6 +437,7 @@ export interface AdminCompany {
 }
 
 export interface AdminCompanyRequest {
+  companyType?: CompanyType | null;
   name: string;
   slug: string | null;
   description: string | null;
@@ -444,6 +447,21 @@ export interface AdminCompanyRequest {
   location: string | null;
   employeeCount: number | null;
   isVerified: boolean;
+}
+
+export interface ResolveAdminCompanyLogoRequest {
+  websiteUrl?: string | null;
+  careerPageUrl?: string | null;
+  replaceExisting?: boolean;
+}
+
+export interface AdminCompanyLogoPreview {
+  companyId: string;
+  companyName: string;
+  websiteUrl: string | null;
+  logoUrl: string | null;
+  source: string;
+  resolved: boolean;
 }
 
 export interface AdminCompaniesQuery {

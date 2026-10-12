@@ -141,6 +141,7 @@ export const API_ENDPOINTS = {
     JOB_RECRUITER_CONTACT: (jobId: string) =>
       `/admin/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
     COMPANY: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}`,
+    COMPANY_LOGO_RESOLVE: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}/logo/resolve`,
     COMPANY_OPTIONS: '/admin/companies/options',
     CATEGORIES: '/admin/categories',
     CATEGORY: (categoryId: string) => `/admin/categories/${encodeURIComponent(categoryId)}`,

@@ -95,6 +95,10 @@ describe('release route structure', () => {
       expect.arrayContaining([
         ROUTES.ADMIN,
         ROUTES.ADMIN_JOBS,
+        ROUTES.ADMIN_COMPANIES,
+        ROUTES.ADMIN_COMPANY_CREATE,
+        ROUTES.ADMIN_COMPANY_EDIT,
+        ROUTES.ADMIN_COMPANY_DETAILS,
         ROUTES.ADMIN_JOB_DISCOVERY,
         ROUTES.ADMIN_JOB_DISCOVERY_RUN,
         ROUTES.ADMIN_APPLICATIONS,
@@ -106,8 +110,6 @@ describe('release route structure', () => {
     expect(adminPaths).not.toContain(ROUTES.DASHBOARD);
     expect(adminPaths).not.toEqual(
       expect.arrayContaining([
-        ROUTES.ADMIN_COMPANIES,
-        ROUTES.ADMIN_COMPANY_CREATE,
         ROUTES.ADMIN_CATEGORIES,
         ROUTES.ADMIN_CATEGORY_CREATE,
       ]),

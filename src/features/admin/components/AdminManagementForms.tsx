@@ -111,6 +111,7 @@ export const AdminCompanyForm = ({
             name: values.name.trim(),
             slug: values.slug.trim() || null,
             websiteUrl: values.websiteUrl.trim() || null,
+            companyType: initialCompany?.companyType,
           });
         })(event);
       }}
