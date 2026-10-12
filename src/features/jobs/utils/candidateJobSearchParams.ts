@@ -1,5 +1,6 @@
 import {
   candidateJobSortOptions,
+  employmentTypeOptions,
   workplaceTypeOptions,
 } from '../constants/jobOptions';
 import type {
@@ -165,10 +166,17 @@ export const parseCandidateJobSearchParams = (
 
   return {
     ...state,
-    categoryName: readText(params.get('categoryName')),
-    roleCategories: readStringArray(params, 'roleCategories', 250),
 
-    // Ignore legacy companyType/companyTypes URL parameters.
+    categoryName: readText(params.get('categoryName')),
+
+    roleCategories: readStringArray(
+      params,
+      'roleCategories',
+      250,
+    ),
+
+    // Company Type filtering has been removed.
+    // Ignore any old companyType/companyTypes URL parameters.
     companyTypes: [],
 
     departments: readStringArray(
@@ -176,6 +184,7 @@ export const parseCandidateJobSearchParams = (
       params.has('departments') ? 'departments' : 'department',
       150,
     ),
+
     educationRequirements: readStringArray(
       params,
       params.has('educationRequirements')
@@ -183,24 +192,41 @@ export const parseCandidateJobSearchParams = (
         : 'education',
       200,
     ),
+
+    employmentTypes: readEnumArray(
+      params,
+      'employmentType',
+      employmentTypeOptions,
+    ),
+
     freshnessDays: SUPPORTED_FRESHNESS_DAYS.includes(
       freshness as (typeof SUPPORTED_FRESHNESS_DAYS)[number],
     )
       ? freshness
       : undefined,
+
     keyword: readText(params.get('q')),
+
     locations: readStringArray(
       params,
       params.has('locations') ? 'locations' : 'location',
       250,
     ),
+
     maxAmount,
     maxExperienceYears,
     minAmount,
     minExperienceYears,
+
     page: readPositiveInteger(params.get('page')),
+
     sort,
-    workModes: readEnumArray(params, 'workMode', workplaceTypeOptions),
+
+    workModes: readEnumArray(
+      params,
+      'workMode',
+      workplaceTypeOptions,
+    ),
   };
 };
 
@@ -215,7 +241,9 @@ export const serializeCandidateJobSearchState = (
     options: readonly { slug: string; value: TValue }[],
   ) => {
     values.forEach((value) => {
-      const option = options.find((candidate) => candidate.value === value);
+      const option = options.find(
+        (candidate) => candidate.value === value,
+      );
 
       if (option) {
         params.append(name, option.slug);
@@ -223,52 +251,109 @@ export const serializeCandidateJobSearchState = (
     });
   };
 
-  const appendStrings = (name: string, values: string[]) =>
-    values.forEach((value) => params.append(name, value));
+  const appendStrings = (
+    name: string,
+    values: string[],
+  ) => {
+    values.forEach((value) => {
+      const normalized = value.trim();
 
-  if (state.keyword) {
-    params.set('q', state.keyword);
+      if (normalized) {
+        params.append(name, normalized);
+      }
+    });
+  };
+
+  if (state.keyword.trim()) {
+    params.set('q', state.keyword.trim());
   }
 
-  appendEnumSlugs('workMode', state.workModes, workplaceTypeOptions);
+  appendEnumSlugs(
+    'workMode',
+    state.workModes,
+    workplaceTypeOptions,
+  );
+
+  appendEnumSlugs(
+    'employmentType',
+    state.employmentTypes,
+    employmentTypeOptions,
+  );
 
   if (state.minExperienceYears !== undefined) {
-    params.set('minExperience', String(state.minExperienceYears));
+    params.set(
+      'minExperience',
+      String(state.minExperienceYears),
+    );
   }
 
   if (state.maxExperienceYears !== undefined) {
-    params.set('maxExperience', String(state.maxExperienceYears));
+    params.set(
+      'maxExperience',
+      String(state.maxExperienceYears),
+    );
   }
 
-  appendStrings('departments', state.departments);
-  appendStrings('roleCategories', state.roleCategories);
+  appendStrings(
+    'departments',
+    state.departments,
+  );
+
+  appendStrings(
+    'roleCategories',
+    state.roleCategories,
+  );
 
   if (state.minAmount !== undefined) {
-    params.set('minAmount', String(state.minAmount));
+    params.set(
+      'minAmount',
+      String(state.minAmount),
+    );
   }
 
   if (state.maxAmount !== undefined) {
-    params.set('maxAmount', String(state.maxAmount));
+    params.set(
+      'maxAmount',
+      String(state.maxAmount),
+    );
   }
 
-  appendStrings('educationRequirements', state.educationRequirements);
+  appendStrings(
+    'educationRequirements',
+    state.educationRequirements,
+  );
 
-  if ((state.categoryName ?? '').trim()) {
-    params.set('categoryName', (state.categoryName ?? '').trim());
+  if (state.categoryName.trim()) {
+    params.set(
+      'categoryName',
+      state.categoryName.trim(),
+    );
   }
 
   if (state.freshnessDays !== undefined) {
-    params.set('freshness', String(state.freshnessDays));
+    params.set(
+      'freshness',
+      String(state.freshnessDays),
+    );
   }
 
-  appendStrings('locations', state.locations);
+  appendStrings(
+    'locations',
+    state.locations,
+  );
 
   if (state.sort !== candidateJobSortOptions[0].value) {
-    params.set('sort', state.sort);
+    params.set(
+      'sort',
+      state.sort,
+    );
   }
 
   if (state.page !== 1) {
-    params.set('page', String(state.page));
+    params.set(
+      'page',
+      String(state.page),
+    );
   }
 
   return params;
@@ -277,47 +362,76 @@ export const serializeCandidateJobSearchState = (
 export const toCandidatePublicJobQuery = (
   state: CandidateJobSearchState,
 ): PublicJobQuery => ({
-  categoryName: (state.categoryName ?? '').trim() || undefined,
-  roleCategories: state.roleCategories.length
-    ? state.roleCategories
-    : undefined,
-  departments: state.departments.length
-    ? state.departments
-    : undefined,
-  educationRequirements: state.educationRequirements.length
-    ? state.educationRequirements
-    : undefined,
-  employmentTypes: state.employmentTypes.length
-    ? state.employmentTypes
-    : undefined,
+  categoryName:
+    state.categoryName.trim() || undefined,
+
+  roleCategories:
+    state.roleCategories.length > 0
+      ? state.roleCategories
+      : undefined,
+
+  departments:
+    state.departments.length > 0
+      ? state.departments
+      : undefined,
+
+  educationRequirements:
+    state.educationRequirements.length > 0
+      ? state.educationRequirements
+      : undefined,
+
+  employmentTypes:
+    state.employmentTypes.length > 0
+      ? state.employmentTypes
+      : undefined,
+
   freshnessDays: state.freshnessDays,
-  keyword: state.keyword || undefined,
-  locations: state.locations.length ? state.locations : undefined,
+
+  keyword:
+    state.keyword.trim() || undefined,
+
+  locations:
+    state.locations.length > 0
+      ? state.locations
+      : undefined,
+
   maxAmount: state.maxAmount,
   maxExperienceYears: state.maxExperienceYears,
   minAmount: state.minAmount,
   minExperienceYears: state.minExperienceYears,
+
   pageNumber: state.page,
   pageSize: PAGE_SIZE,
+
   sortBy:
-    candidateJobSortOptions.find((option) => option.value === state.sort)
-      ?.sortBy ?? candidateJobSortOptions[0].sortBy,
+    candidateJobSortOptions.find(
+      (option) => option.value === state.sort,
+    )?.sortBy ?? candidateJobSortOptions[0].sortBy,
+
   sortDirection: 'desc',
-  workModes: state.workModes.length ? state.workModes : undefined,
+
+  workModes:
+    state.workModes.length > 0
+      ? state.workModes
+      : undefined,
 });
 
 export const countCandidateJobFilters = (
   state: CandidateJobSearchState,
 ): number =>
   state.workModes.length +
+  state.employmentTypes.length +
   state.roleCategories.length +
   state.departments.length +
   state.educationRequirements.length +
-  Number(Boolean((state.categoryName ?? '').trim())) +
+  Number(Boolean(state.categoryName.trim())) +
   state.locations.length +
   Number(
     state.minExperienceYears !== undefined ||
       state.maxExperienceYears !== undefined,
   ) +
-  Number(state.minAmount !== undefined || state.maxAmount !== undefined) +
+  Number(
+    state.minAmount !== undefined ||
+      state.maxAmount !== undefined,
+  ) +
   Number(state.freshnessDays !== undefined);

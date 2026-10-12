@@ -28,17 +28,21 @@ const fieldSx = {
     borderRadius: '8px',
     backgroundColor: '#fff',
     fontSize: '0.94rem',
+
     '& fieldset': {
       borderColor: '#d9dee7',
     },
+
     '&:hover fieldset': {
       borderColor: '#b8c1cf',
     },
+
     '&.Mui-focused fieldset': {
       borderColor: 'primary.main',
       borderWidth: 1.5,
     },
   },
+
   '& .MuiInputAdornment-root': {
     color: '#7b8494',
   },
@@ -53,6 +57,7 @@ export const JobSearchBar = ({
   onSearch,
 }: JobSearchBarProps) => (
   <Paper
+    autoComplete="off"
     component="form"
     elevation={0}
     onSubmit={(event) => {
@@ -68,13 +73,6 @@ export const JobSearchBar = ({
       p: { xs: 1.5, sm: 2 },
     }}
   >
-    {/*
-      Keep the existing experience value/callback in this component's API.
-
-      Experience is intentionally not rendered in the primary search row.
-      It continues to be controlled through the existing filters on the
-      Browse Jobs page.
-    */}
     <input
       aria-hidden="true"
       readOnly
@@ -110,6 +108,9 @@ export const JobSearchBar = ({
           },
           htmlInput: {
             'aria-label': 'Job title, skills, company or keywords',
+            autoComplete: 'off',
+            name: 'careerharbor-job-keyword',
+            spellCheck: false,
           },
         }}
         sx={fieldSx}
@@ -132,6 +133,9 @@ export const JobSearchBar = ({
           },
           htmlInput: {
             'aria-label': 'Location',
+            autoComplete: 'off',
+            name: 'careerharbor-job-location',
+            spellCheck: false,
           },
         }}
         sx={fieldSx}
@@ -152,6 +156,7 @@ export const JobSearchBar = ({
           textTransform: 'none',
           whiteSpace: 'nowrap',
           boxShadow: 'none',
+
           '&:hover': {
             boxShadow: 'none',
           },

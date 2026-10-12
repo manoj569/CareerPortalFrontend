@@ -255,6 +255,8 @@ export const CandidateBrowseJobsPage = () => {
 
   const debouncedKeyword = useDebouncedValue(keywordInput, 350);
 
+  const explicitSearchKeywordRef = useRef<string | null>(null);
+
   const profile = useGetProfileQuery();
 
   const [pollAttempts, setPollAttempts] = useState(0);
@@ -555,14 +557,41 @@ const recommended = useGetRecommendedJobsQuery(
 
 
 
-  useEffect(() => {
+useEffect(() => {
+  if (debouncedKeyword !== keywordInput) {
+    return;
+  }
 
-    if (debouncedKeyword !== keywordInput || debouncedKeyword.trim() === state.keyword) return;
+  const normalizedKeyword = debouncedKeyword.trim().slice(0, 250);
 
-    applyChanges({ keyword: debouncedKeyword.trim().slice(0, 250) }, true);
+  /*
+   * An explicit Search Jobs submission may have already committed this
+   * keyword before the debounce completed.
+   *
+   * Ignore that pending debounce once so it cannot overwrite or duplicate
+   * the explicit submission.
+   */
+  if (explicitSearchKeywordRef.current === normalizedKeyword) {
+    explicitSearchKeywordRef.current = null;
+    return;
+  }
 
-  }, [applyChanges, debouncedKeyword, keywordInput, state.keyword]);
+  if (normalizedKeyword === state.keyword) {
+    return;
+  }
 
+  applyChanges(
+    {
+      keyword: normalizedKeyword,
+    },
+    true,
+  );
+}, [
+  applyChanges,
+  debouncedKeyword,
+  keywordInput,
+  state.keyword,
+]);
 
 
   useEffect(() => {
@@ -585,23 +614,76 @@ const recommended = useGetRecommendedJobsQuery(
 
 
 
-  const searchJobs = () => {
+const searchJobs = () => {
+  const keyword = keywordInput.trim().slice(0, 250);
 
-    const locations = locationInput.split(',').map((value) => value.trim()).filter(Boolean).slice(0, 25);
+  const locations = locationInput
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 25);
 
-    const parsedExperience = experienceInput === '' ? undefined : Math.min(45, Math.max(0, Number(experienceInput)));
+  const parsedExperience =
+    experienceInput === ''
+      ? undefined
+      : Math.min(
+          45,
+          Math.max(0, Number(experienceInput)),
+        );
 
-    applyChanges({
+  const minExperienceYears = Number.isFinite(parsedExperience)
+    ? parsedExperience
+    : undefined;
 
-      keyword: keywordInput.trim().slice(0, 250),
+  /*
+   * Mark the keyword as explicitly submitted so a pending debounce for
+   * the same value cannot immediately submit it again.
+   */
+  explicitSearchKeywordRef.current = keyword;
 
-      locations,
+  const normalizedCurrentLocations = state.locations
+    .map((value) => value.trim())
+    .filter(Boolean);
 
-      minExperienceYears: Number.isFinite(parsedExperience) ? parsedExperience : undefined,
+  const locationsAreEqual =
+    normalizedCurrentLocations.length === locations.length &&
+    normalizedCurrentLocations.every(
+      (value, index) => value === locations[index],
+    );
 
-    });
+  const searchStateAlreadyApplied =
+    state.keyword === keyword &&
+    locationsAreEqual &&
+    state.minExperienceYears === minExperienceYears &&
+    state.page === 1;
 
-  };
+  /*
+   * If nothing changed, RTK Query would normally reuse the same query
+   * arguments/cache. An explicit Search Jobs action should refresh the
+   * current search.
+   */
+  if (searchStateAlreadyApplied) {
+    if (!isRecommended && !isReferralTab) {
+      void jobs.refetch();
+    }
+
+    return;
+  }
+
+  /*
+   * If anything changed, update search state.
+   * useSearchJobsQuery(query) will automatically execute using the new
+   * query arguments after React updates the state.
+   *
+   * Do NOT call jobs.refetch() here because it would still reference the
+   * previous query arguments during this event.
+   */
+  applyChanges({
+    keyword,
+    locations,
+    minExperienceYears,
+  });
+};
 
 
 
