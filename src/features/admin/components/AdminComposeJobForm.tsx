@@ -18,22 +18,34 @@ import * as yup from 'yup';
 
 import {
   employmentTypeOptions,
-  experienceLevelOptions,
+  salaryPeriodOptions,
   workplaceTypeOptions,
 } from '@/features/jobs/constants/jobOptions';
+
+import {
+  EmploymentType,
+  ExperienceLevel,
+  WorkplaceType,
+} from '@/features/jobs/types/jobModels';
 import type { ComposeJobRequest } from '../types/adminModels';
 
 export interface ComposeJobFormValues {
   title: string;
   description: string;
   applicationUrl: string;
-  employmentType: number | '';
-  workMode: number | '';
-  experienceLevel: number | '';
-  location: string;
-  minimumSalary: number | null;
-  maximumSalary: number | null;
-  currency: string;
+ employmentType: EmploymentType;
+workMode: WorkplaceType;
+experienceLevel: ExperienceLevel;
+
+minimumExperienceYears: number | null;
+maximumExperienceYears: number | null;
+
+location: string;
+
+minimumSalary: number | null;
+maximumSalary: number | null;
+currency: string;
+salaryPeriod: number | '';
   closingDateUtc: string;
   responsibilities: string;
   requirements: string;
@@ -73,13 +85,86 @@ const schema = yup.object({
   title: yup.string().defined().trim().required('Job title is required.').max(250),
   description: yup.string().defined().trim().max(16000),
   applicationUrl: optionalUrl,
-  employmentType: yup.mixed<number | ''>().defined(),
-  workMode: yup.mixed<number | ''>().defined(),
-  experienceLevel: yup.mixed<number | ''>().defined(),
-  location: yup.string().defined().trim().max(250),
-  minimumSalary: yup.number().nullable().defined().min(0),
-  maximumSalary: yup.number().nullable().defined().min(0),
-  currency: yup.string().defined().trim().max(3),
+ employmentType: yup
+  .mixed<EmploymentType>()
+  .oneOf(
+    Object.values(EmploymentType).filter(
+      (value): value is EmploymentType => typeof value === 'number',
+    ),
+  )
+  .defined(),
+
+workMode: yup
+  .mixed<WorkplaceType>()
+  .oneOf(
+    Object.values(WorkplaceType).filter(
+      (value): value is WorkplaceType => typeof value === 'number',
+    ),
+  )
+  .defined(),
+
+experienceLevel: yup
+  .mixed<ExperienceLevel>()
+  .oneOf(
+    Object.values(ExperienceLevel).filter(
+      (value): value is ExperienceLevel => typeof value === 'number',
+    ),
+  )
+  .defined(),
+
+minimumExperienceYears: yup
+  .number()
+  .nullable()
+  .defined()
+  .integer('Minimum experience must be a whole number.')
+  .min(0, 'Minimum experience cannot be negative.')
+  .max(60),
+
+maximumExperienceYears: yup
+  .number()
+  .nullable()
+  .defined()
+  .integer('Maximum experience must be a whole number.')
+  .min(0, 'Maximum experience cannot be negative.')
+  .max(60)
+  .when('minimumExperienceYears', ([minimum], schema) =>
+    typeof minimum === 'number'
+      ? schema.min(
+          minimum,
+          'Maximum experience must be at least the minimum experience.',
+        )
+      : schema,
+  ),
+
+location: yup.string().defined().trim().max(250),
+
+minimumSalary: yup.number().nullable().defined().min(0),
+
+maximumSalary: yup
+  .number()
+  .nullable()
+  .defined()
+  .min(0)
+  .when('minimumSalary', ([minimum], schema) =>
+    typeof minimum === 'number'
+      ? schema.min(
+          minimum,
+          'Maximum salary must be at least the minimum salary.',
+        )
+      : schema,
+  ),
+
+currency: yup
+  .string()
+  .defined()
+  .trim()
+  .max(3)
+  .matches(
+    /^$|^[A-Za-z]{3}$/,
+    'Use a three-letter currency code.',
+  ),
+
+salaryPeriod: yup.mixed<number | ''>().defined(),
   closingDateUtc: yup.string().defined(),
   responsibilities: yup.string().defined().trim().max(8000),
   requirements: yup.string().defined().trim().max(8000),
@@ -110,13 +195,38 @@ export const buildComposeJobRequest = (values: ComposeJobFormValues): ComposeJob
     title: values.title.trim(),
     description: blankToNull(values.description),
     applicationUrl: blankToNull(values.applicationUrl),
-    employmentType: values.employmentType === '' ? null : values.employmentType,
-    workMode: values.workMode === '' ? null : values.workMode,
-    experienceLevel: values.experienceLevel === '' ? null : values.experienceLevel,
-    location: blankToNull(values.location),
-    minimumSalary: values.minimumSalary,
-    maximumSalary: values.maximumSalary,
-    currency: blankToNull(values.currency)?.toUpperCase() ?? null,
+    employmentType:
+  values.employmentType === EmploymentType.Unknown
+    ? null
+    : values.employmentType,
+
+workMode:
+  values.workMode === WorkplaceType.Unknown
+    ? null
+    : values.workMode,
+
+experienceLevel:
+  values.experienceLevel === ExperienceLevel.Unknown
+    ? null
+    : values.experienceLevel,
+
+minimumExperienceYears: values.minimumExperienceYears,
+maximumExperienceYears: values.maximumExperienceYears,
+
+location: blankToNull(values.location),
+
+minimumSalary: values.minimumSalary,
+maximumSalary: values.maximumSalary,
+
+currency:
+  blankToNull(values.currency)?.toUpperCase() ?? null,
+
+salaryPeriod:
+  values.salaryPeriod === ''
+    ? null
+    : values.salaryPeriod,
+
+manualOverrideFields: null,
     closingDateUtc: values.closingDateUtc ? new Date(values.closingDateUtc).toISOString() : null,
     responsibilities: blankToNull(values.responsibilities),
     requirements: blankToNull(values.requirements),
@@ -165,13 +275,19 @@ const defaults: ComposeJobFormValues = {
   title: '',
   description: '',
   applicationUrl: '',
-  employmentType: '',
-  workMode: '',
-  experienceLevel: '',
-  location: '',
-  minimumSalary: null,
-  maximumSalary: null,
-  currency: '',
+  employmentType: EmploymentType.Unknown,
+workMode: WorkplaceType.Unknown,
+experienceLevel: ExperienceLevel.Unknown,
+
+minimumExperienceYears: null,
+maximumExperienceYears: null,
+
+location: '',
+
+minimumSalary: null,
+maximumSalary: null,
+currency: '',
+salaryPeriod: '',
   closingDateUtc: '',
   responsibilities: '',
   requirements: '',
@@ -235,10 +351,13 @@ export const AdminComposeJobForm = ({
       'job.employmenttype': 'employmentType',
       'job.workmode': 'workMode',
       'job.experiencelevel': 'experienceLevel',
+      'job.minimumexperienceyears': 'minimumExperienceYears',
+'job.maximumexperienceyears': 'maximumExperienceYears',
       'job.location': 'location',
       'job.minimumsalary': 'minimumSalary',
       'job.maximumsalary': 'maximumSalary',
       'job.currency': 'currency',
+      'job.salaryperiod': 'salaryPeriod',
       'job.closingdateutc': 'closingDateUtc',
       'job.responsibilities': 'responsibilities',
       'job.requirements': 'requirements',
@@ -430,63 +549,184 @@ export const AdminComposeJobForm = ({
           type="url"
           {...register('applicationUrl')}
         />
-        <Grid container spacing={2}>
-          {[
-            ['employmentType', 'Employment type', employmentTypeOptions],
-            ['workMode', 'Work mode', workplaceTypeOptions],
-            ['experienceLevel', 'Experience level', experienceLevelOptions],
-          ].map(([name, label, options]) => (
-            <Grid key={name as string} size={{ xs: 12, sm: 4 }}>
-              <TextField
-                defaultValue=""
-                disabled={busy}
-                label={label as string}
-                select
-                {...register(name as 'employmentType', {
-                  setValueAs: (v: string) => (v === '' ? '' : Number(v)),
-                })}
-              >
-                <MenuItem value="">Not specified</MenuItem>
-                {(options as typeof employmentTypeOptions).map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-          ))}
-        </Grid>
+        <Alert severity="info">
+  Use only classification information supported by the job posting.
+  Do not infer Full time, On site or experience from unrelated text.
+</Alert>
+
+<input
+  type="hidden"
+  {...register('experienceLevel', {
+    valueAsNumber: true,
+  })}
+/>
+
+<Grid container spacing={2}>
+  <Grid size={{ xs: 12, sm: 6 }}>
+    <TextField
+      disabled={busy}
+      error={Boolean(errors.employmentType)}
+      helperText={errors.employmentType?.message}
+      label="Employment type"
+      select
+      {...register('employmentType', {
+        valueAsNumber: true,
+      })}
+    >
+      <MenuItem value={EmploymentType.Unknown}>
+        Not specified
+      </MenuItem>
+
+      {employmentTypeOptions.map((option) => (
+        <MenuItem key={option.value} value={option.value}>
+          {option.label}
+        </MenuItem>
+      ))}
+    </TextField>
+  </Grid>
+
+  <Grid size={{ xs: 12, sm: 6 }}>
+    <TextField
+      disabled={busy}
+      error={Boolean(errors.workMode)}
+      helperText={errors.workMode?.message}
+      label="Work mode"
+      select
+      {...register('workMode', {
+        valueAsNumber: true,
+      })}
+    >
+      <MenuItem value={WorkplaceType.Unknown}>
+        Not specified
+      </MenuItem>
+
+      {workplaceTypeOptions.map((option) => (
+        <MenuItem key={option.value} value={option.value}>
+          {option.label}
+        </MenuItem>
+      ))}
+    </TextField>
+  </Grid>
+</Grid>
+
+<Typography component="h3" variant="h6">
+  Experience requirement
+</Typography>
+
+<Grid container spacing={2}>
+  <Grid size={{ xs: 12, sm: 6 }}>
+    <TextField
+      disabled={busy}
+      error={Boolean(errors.minimumExperienceYears)}
+      helperText={
+        errors.minimumExperienceYears?.message ??
+        'Optional · exact minimum years'
+      }
+      inputProps={{
+        min: 0,
+        max: 60,
+        step: 1,
+      }}
+      label="Minimum experience (years)"
+      type="number"
+      {...register('minimumExperienceYears', {
+        setValueAs: (value: string) =>
+          value === '' ? null : Number(value),
+      })}
+    />
+  </Grid>
+
+  <Grid size={{ xs: 12, sm: 6 }}>
+    <TextField
+      disabled={busy}
+      error={Boolean(errors.maximumExperienceYears)}
+      helperText={
+        errors.maximumExperienceYears?.message ??
+        'Leave blank for requirements such as 3+ years'
+      }
+      inputProps={{
+        min: 0,
+        max: 60,
+        step: 1,
+      }}
+      label="Maximum experience (years)"
+      type="number"
+      {...register('maximumExperienceYears', {
+        setValueAs: (value: string) =>
+          value === '' ? null : Number(value),
+      })}
+    />
+  </Grid>
+</Grid>
         <TextField disabled={busy} label="Job location" {...register('location')} />
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <TextField
-              disabled={busy}
-              label="Minimum salary"
-              type="number"
-              {...register('minimumSalary', {
-                setValueAs: (v: string) => (v === '' ? null : Number(v)),
-              })}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <TextField
-              disabled={busy}
-              label="Maximum salary"
-              type="number"
-              {...register('maximumSalary', {
-                setValueAs: (v: string) => (v === '' ? null : Number(v)),
-              })}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <TextField
-              disabled={busy}
-              label="Currency"
-              inputProps={{ maxLength: 3 }}
-              {...register('currency')}
-            />
-          </Grid>
-        </Grid>
+       <Grid container spacing={2}>
+  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+    <TextField
+      disabled={busy}
+      error={Boolean(errors.minimumSalary)}
+      helperText={errors.minimumSalary?.message ?? 'Optional'}
+      inputProps={{ min: 0 }}
+      label="Minimum salary"
+      type="number"
+      {...register('minimumSalary', {
+        setValueAs: (value: string) =>
+          value === '' ? null : Number(value),
+      })}
+    />
+  </Grid>
+
+  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+    <TextField
+      disabled={busy}
+      error={Boolean(errors.maximumSalary)}
+      helperText={errors.maximumSalary?.message ?? 'Optional'}
+      inputProps={{ min: 0 }}
+      label="Maximum salary"
+      type="number"
+      {...register('maximumSalary', {
+        setValueAs: (value: string) =>
+          value === '' ? null : Number(value),
+      })}
+    />
+  </Grid>
+
+  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+    <TextField
+      disabled={busy}
+      error={Boolean(errors.currency)}
+      helperText={
+        errors.currency?.message ??
+        'Leave blank when salary is not disclosed'
+      }
+      inputProps={{ maxLength: 3 }}
+      label="Currency"
+      placeholder="INR"
+      {...register('currency')}
+    />
+  </Grid>
+
+  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+    <TextField
+      disabled={busy}
+      error={Boolean(errors.salaryPeriod)}
+      helperText={errors.salaryPeriod?.message}
+      label="Salary period"
+      select
+      {...register('salaryPeriod', {
+        setValueAs: (value: string) =>
+          value === '' ? '' : Number(value),
+      })}
+    >
+      <MenuItem value="">Not specified</MenuItem>
+
+      {salaryPeriodOptions.map((option) => (
+        <MenuItem key={option.value} value={option.value}>
+          {option.label}
+        </MenuItem>
+      ))}
+    </TextField>
+  </Grid>
+</Grid>
         <TextField
           disabled={busy}
           InputLabelProps={{ shrink: true }}

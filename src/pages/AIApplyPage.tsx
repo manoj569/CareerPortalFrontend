@@ -18,8 +18,20 @@ import { AIApplyRuleOperator, AIApplyRuleType, type AIApplyAccess, type AIApplyP
 const steps = ['Profile', 'Preferences', 'Rules', 'Automation', 'Review'];
 const ruleLabels: Record<AIApplyRuleType, string> = { 1: 'Minimum salary', 2: 'Exclude night shift', 3: 'Exclude relocation', 4: 'Exclude previously applied company', 5: 'Required skill', 6: 'Required qualification', 7: 'Custom' };
 const operatorLabels: Record<AIApplyRuleOperator, string> = { 1: 'Equals', 2: 'Does not equal', 3: 'At least', 4: 'At most', 5: 'Contains', 6: 'Does not contain' };
-const workplaceLabels = { [WorkplaceType.OnSite]: 'On-site', [WorkplaceType.Remote]: 'Remote', [WorkplaceType.Hybrid]: 'Hybrid' };
-const employmentLabels = { [EmploymentType.FullTime]: 'Full-time', [EmploymentType.PartTime]: 'Part-time', [EmploymentType.Contract]: 'Contract', [EmploymentType.Internship]: 'Internship', [EmploymentType.Freelance]: 'Freelance', [EmploymentType.Temporary]: 'Temporary' };
+const workplaceLabels: Partial<Record<WorkplaceType, string>> = {
+  [WorkplaceType.OnSite]: 'On-site',
+  [WorkplaceType.Remote]: 'Remote',
+  [WorkplaceType.Hybrid]: 'Hybrid',
+};
+
+const employmentLabels: Partial<Record<EmploymentType, string>> = {
+  [EmploymentType.FullTime]: 'Full-time',
+  [EmploymentType.PartTime]: 'Part-time',
+  [EmploymentType.Contract]: 'Contract',
+  [EmploymentType.Internship]: 'Internship',
+  [EmploymentType.Freelance]: 'Freelance',
+  [EmploymentType.Temporary]: 'Temporary',
+};
 const parseList = (value: string) => value.split(',').map((item) => item.trim()).filter(Boolean);
 const errorMessage = (error: unknown) => error && typeof error === 'object' && 'message' in error ? String(error.message) : 'Please try again.';
 
@@ -101,10 +113,162 @@ const ProfileStep = ({ onNext }: { onNext: () => void }) => {
 };
 
 const PreferencesStep = ({ onNext }: { onNext: () => void }) => {
-  const query = useGetAIApplyPreferencesQuery(); const [save, state] = useUpdateAIApplyPreferencesMutation(); const { enqueueSnackbar } = useSnackbar(); const [form, setForm] = useState<AIApplyPreferences | null>(null);
-  useEffect(() => { if (query.data) setForm(query.data); }, [query.data]); if (query.isLoading || !form) return query.isError ? <ErrorState onRetry={query.refetch} /> : <PageLoadingIndicator label="Loading preferences…" />;
-  const submit = async () => { try { await save(form).unwrap(); enqueueSnackbar('Preferences saved', { variant: 'success' }); onNext(); } catch (e) { enqueueSnackbar(errorMessage(e), { variant: 'error' }); } };
-  return <SectionCard title="Job Preferences" description="Tell Career Harbor what kinds of jobs you want AI Apply to consider."><TextField label="Desired job titles (comma separated)" value={form.jobTitles.join(', ')} onChange={(e) => setForm({ ...form, jobTitles: parseList(e.target.value) })} /><TextField label="Skills (comma separated)" value={form.skills.join(', ')} onChange={(e) => setForm({ ...form, skills: parseList(e.target.value) })} /><TextField label="Preferred locations (comma separated)" value={form.preferredLocations.join(', ')} onChange={(e) => setForm({ ...form, preferredLocations: parseList(e.target.value) })} /><Select multiple value={form.workplaceTypes} onChange={(e) => setForm({ ...form, workplaceTypes: e.target.value as WorkplaceType[] })} renderValue={(v) => v.map((x) => workplaceLabels[x]).join(', ')}>{Object.entries(workplaceLabels).map(([v, l]) => <MenuItem key={v} value={Number(v)}>{l}</MenuItem>)}</Select><Select multiple value={form.employmentTypes} onChange={(e) => setForm({ ...form, employmentTypes: e.target.value as EmploymentType[] })} renderValue={(v) => v.map((x) => employmentLabels[x]).join(', ')}>{Object.entries(employmentLabels).map(([v, l]) => <MenuItem key={v} value={Number(v)}>{l}</MenuItem>)}</Select><Stack direction={{ xs: 'column', sm: 'row' }} gap={2}>{(['minimumExperience', 'maximumExperience', 'minimumSalary', 'maximumSalary'] as const).map((field) => <TextField key={field} type="number" fullWidth label={field.replace(/([A-Z])/g, ' $1')} value={form[field] ?? ''} onChange={(e) => setForm({ ...form, [field]: e.target.value ? Number(e.target.value) : null })} />)}</Stack><Button variant="contained" disabled={state.isLoading} onClick={submit}>{state.isLoading ? 'Saving…' : 'Save and continue'}</Button></SectionCard>;
+  const query = useGetAIApplyPreferencesQuery();
+  const [save, state] = useUpdateAIApplyPreferencesMutation();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const [form, setForm] = useState<AIApplyPreferences | null>(null);
+
+  useEffect(() => {
+    if (query.data) {
+      setForm(query.data);
+    }
+  }, [query.data]);
+
+  if (query.isLoading || !form) {
+    return query.isError ? (
+      <ErrorState onRetry={query.refetch} />
+    ) : (
+      <PageLoadingIndicator label="Loading preferences…" />
+    );
+  }
+
+  const submit = async () => {
+    try {
+      await save(form).unwrap();
+
+      enqueueSnackbar('Preferences saved', {
+        variant: 'success',
+      });
+
+      onNext();
+    } catch (error) {
+      enqueueSnackbar(errorMessage(error), {
+        variant: 'error',
+      });
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Job Preferences"
+      description="Tell Career Harbor what kinds of jobs you want AI Apply to consider."
+    >
+      <TextField
+        label="Desired job titles (comma separated)"
+        value={form.jobTitles.join(', ')}
+        onChange={(event) =>
+          setForm({
+            ...form,
+            jobTitles: parseList(event.target.value),
+          })
+        }
+      />
+
+      <TextField
+        label="Skills (comma separated)"
+        value={form.skills.join(', ')}
+        onChange={(event) =>
+          setForm({
+            ...form,
+            skills: parseList(event.target.value),
+          })
+        }
+      />
+
+      <TextField
+        label="Preferred locations (comma separated)"
+        value={form.preferredLocations.join(', ')}
+        onChange={(event) =>
+          setForm({
+            ...form,
+            preferredLocations: parseList(event.target.value),
+          })
+        }
+      />
+
+      <Select
+        multiple
+        value={form.workplaceTypes}
+        onChange={(event) =>
+          setForm({
+            ...form,
+            workplaceTypes: event.target.value as WorkplaceType[],
+          })
+        }
+        renderValue={(values) =>
+          values
+            .map((value) => workplaceLabels[value])
+            .filter((label): label is string => Boolean(label))
+            .join(', ')
+        }
+      >
+        {Object.entries(workplaceLabels).map(([value, label]) => (
+          <MenuItem key={value} value={Number(value)}>
+            {label}
+          </MenuItem>
+        ))}
+      </Select>
+
+      <Select
+        multiple
+        value={form.employmentTypes}
+        onChange={(event) =>
+          setForm({
+            ...form,
+            employmentTypes: event.target.value as EmploymentType[],
+          })
+        }
+        renderValue={(values) =>
+          values
+            .map((value) => employmentLabels[value])
+            .filter((label): label is string => Boolean(label))
+            .join(', ')
+        }
+      >
+        {Object.entries(employmentLabels).map(([value, label]) => (
+          <MenuItem key={value} value={Number(value)}>
+            {label}
+          </MenuItem>
+        ))}
+      </Select>
+
+      <Stack direction={{ xs: 'column', sm: 'row' }} gap={2}>
+        {(
+          [
+            'minimumExperience',
+            'maximumExperience',
+            'minimumSalary',
+            'maximumSalary',
+          ] as const
+        ).map((field) => (
+          <TextField
+            key={field}
+            type="number"
+            fullWidth
+            label={field.replace(/([A-Z])/g, ' $1')}
+            value={form[field] ?? ''}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                [field]: event.target.value
+                  ? Number(event.target.value)
+                  : null,
+              })
+            }
+          />
+        ))}
+      </Stack>
+
+      <Button
+        variant="contained"
+        disabled={state.isLoading}
+        onClick={submit}
+      >
+        {state.isLoading ? 'Saving…' : 'Save and continue'}
+      </Button>
+    </SectionCard>
+  );
 };
 
 const RulesStep = ({ onNext }: { onNext: () => void }) => {

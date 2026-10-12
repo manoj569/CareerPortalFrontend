@@ -1,10 +1,10 @@
-import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { Stack } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { ROUTES } from '@/constants/routes';
 import {
   isAdminApiError,
@@ -22,26 +22,51 @@ import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 export const AdminEditJobPage = () => {
   const { jobId = '' } = useParams<{ jobId: string }>();
-  useDocumentMetadata('Edit job | Career Portal', 'Update a backend-managed Career Portal job.');
+
+  useDocumentMetadata(
+    'Edit job | Career Portal',
+    'Update a backend-managed Career Portal job.',
+  );
+
   const navigate = useNavigate();
-  const job = useGetAdminJobQuery(jobId, { skip: !isGuid(jobId) });
+
+  const job = useGetAdminJobQuery(jobId, {
+    skip: !isGuid(jobId),
+  });
+
   const companiesQuery = useGetAdminCompanyOptionsQuery();
   const categoriesQuery = useGetAdminCategoryOptionsQuery();
+
   const [updateJob, updateState] = useUpdateAdminJobMutation();
+
   const [serverError, setServerError] = useState<string | null>(null);
+
   const [serverFieldErrors, setServerFieldErrors] = useState<
     Record<string, string[]> | undefined
   >();
 
   const submitJob = async (request: AdminJobRequest) => {
-    if (!isGuid(jobId) || updateState.isLoading) return;
+    if (!isGuid(jobId) || updateState.isLoading) {
+      return;
+    }
+
     setServerError(null);
     setServerFieldErrors(undefined);
+
     try {
-      await updateJob({ jobId, request }).unwrap();
-      enqueueSnackbar('Job updated successfully.', { variant: 'success' });
+      await updateJob({
+        jobId,
+        request,
+      }).unwrap();
+
+      enqueueSnackbar('Job updated successfully.', {
+        variant: 'success',
+      });
     } catch (error: unknown) {
-      setServerFieldErrors(isAdminApiError(error) ? error.errors : undefined);
+      setServerFieldErrors(
+        isAdminApiError(error) ? error.errors : undefined,
+      );
+
       setServerError(
         isAdminApiError(error)
           ? error.message
@@ -61,7 +86,11 @@ export const AdminEditJobPage = () => {
     );
   }
 
-  if (job.isLoading || companiesQuery.isLoading || categoriesQuery.isLoading) {
+  if (
+    job.isLoading ||
+    companiesQuery.isLoading ||
+    categoriesQuery.isLoading
+  ) {
     return <PageLoadingIndicator label="Loading job editor" />;
   }
 
@@ -103,18 +132,37 @@ export const AdminEditJobPage = () => {
     );
   }
 
-  const companies = companiesQuery.data?.some((company) => company.id === job.data.companyId)
-    ? companiesQuery.data
+  const companyOptions = companiesQuery.data ?? [];
+
+  const companies = companyOptions.some(
+    (company) => company.id === job.data.companyId,
+  )
+    ? companyOptions
     : [
-        ...(companiesQuery.data ?? []),
-        { id: job.data.companyId, name: job.data.companyName, slug: '' },
+        ...companyOptions,
+        {
+          id: job.data.companyId,
+          name: job.data.companyName,
+          slug: '',
+        },
       ];
-  const categories = categoriesQuery.data?.some((category) => category.id === job.data.categoryId)
-    ? categoriesQuery.data
-    : [
-        ...(categoriesQuery.data ?? []),
-        { id: job.data.categoryId, name: job.data.categoryName, slug: '' },
-      ];
+
+  const categoryOptions = categoriesQuery.data ?? [];
+
+  const categories =
+    job.data.categoryId &&
+    !categoryOptions.some(
+      (category) => category.id === job.data.categoryId,
+    )
+      ? [
+          ...categoryOptions,
+          {
+            id: job.data.categoryId,
+            name: job.data.categoryName || 'Current category',
+            slug: '',
+          },
+        ]
+      : categoryOptions;
 
   return (
     <Stack spacing={3}>
@@ -123,6 +171,7 @@ export const AdminEditJobPage = () => {
         eyebrow="Jobs"
         title={`Edit ${job.data.title}`}
       />
+
       <AdminJobForm
         categories={categories}
         companies={companies}

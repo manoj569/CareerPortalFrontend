@@ -1,4 +1,7 @@
+import type { ApiResponse, PaginatedResponse } from '@/types';
+
 export enum EmploymentType {
+  Unknown = 0,
   FullTime = 1,
   PartTime,
   Contract,
@@ -8,18 +11,32 @@ export enum EmploymentType {
 }
 
 export enum WorkplaceType {
+  Unknown = 0,
   OnSite = 1,
   Remote,
   Hybrid,
 }
 
+/**
+ * Legacy experience classification retained for backend compatibility.
+ *
+ * New filtering and accurate experience requirements should use
+ * minimumExperienceYears / maximumExperienceYears instead.
+ */
 export enum ExperienceLevel {
+  Unknown = 0,
   Entry = 1,
   Junior,
   Mid,
   Senior,
   Lead,
   Executive,
+}
+
+export enum SalaryPeriod {
+  Yearly = 1,
+  Monthly,
+  Hourly,
 }
 
 export enum CompanyType {
@@ -42,6 +59,28 @@ export enum PublicJobSort {
   ClosingSoon,
   SalaryHighToLow,
 }
+
+export interface ExperienceBucket {
+  label: string;
+  minimum: number;
+  maximum?: number;
+}
+
+/**
+ * Canonical experience ranges used by CareerHarbor.
+ *
+ * Keep Admin job classification and Candidate Browse Jobs aligned
+ * with these values.
+ */
+export const EXPERIENCE_BUCKETS: readonly ExperienceBucket[] = [
+  { label: '0 – 1 years', minimum: 0, maximum: 1 },
+  { label: '1 – 2 years', minimum: 1, maximum: 2 },
+  { label: '2 – 4 years', minimum: 2, maximum: 4 },
+  { label: '4 – 6 years', minimum: 4, maximum: 6 },
+  { label: '6 – 8 years', minimum: 6, maximum: 8 },
+  { label: '8 – 10 years', minimum: 8, maximum: 10 },
+  { label: '10+ years', minimum: 10 },
+] as const;
 
 export interface PublicJobQuery {
   pageNumber: number;
@@ -66,6 +105,8 @@ export interface PublicJobQuery {
   employmentTypes?: EmploymentType[];
   minAmount?: number;
   maxAmount?: number;
+  currencyCode?: string;
+  salaryPeriod?: SalaryPeriod;
   internshipDurationMonths?: number[];
   flexibleDuration?: boolean;
   educationRequirements?: string[];
@@ -79,7 +120,12 @@ export interface PublicJobQuery {
 }
 
 export type JobSortField =
-  'publishedAt' | 'createdAt' | 'title' | 'minimumSalary' | 'maximumSalary' | 'expiresAt';
+  | 'publishedAt'
+  | 'createdAt'
+  | 'title'
+  | 'minimumSalary'
+  | 'maximumSalary'
+  | 'expiresAt';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -97,7 +143,8 @@ export interface PublicJobSummary {
   location: string | null;
   minimumSalary: number | null;
   maximumSalary: number | null;
-  currencyCode: string;
+  currencyCode: string | null;
+  salaryPeriod?: SalaryPeriod | null;
   employmentType: EmploymentType;
   workplaceType: WorkplaceType;
   experienceLevel: ExperienceLevel;
@@ -222,4 +269,3 @@ export interface CandidateRecruiterContact {
   email: string;
   phoneNumber: string | null;
 }
-import type { ApiResponse, PaginatedResponse } from '@/types';

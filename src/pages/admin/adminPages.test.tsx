@@ -38,7 +38,12 @@ import {
   type RecentAdminPayment,
   type RecentAdminUser,
 } from '@/features/admin/types/adminModels';
-import { EmploymentType, ExperienceLevel, WorkplaceType } from '@/features/jobs/types/jobModels';
+import {
+  EmploymentType,
+  ExperienceLevel,
+  SalaryPeriod,
+  WorkplaceType,
+} from '@/features/jobs/types/jobModels';
 import { PaymentProvider, PaymentStatus } from '@/features/payments/types/paymentModels';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { AdminApplicationDetailsPage } from './AdminApplicationDetailsPage';
@@ -110,33 +115,74 @@ const paymentId = '721e999a-3b15-46aa-aa66-bfdfd174ba14';
 
 const job: AdminJob = {
   applicationUrl: 'https://apply.example.com',
+
   benefits: 'Flexible work',
+
   categoryId,
   categoryName: 'Engineering',
+
   companyId,
   companyName: 'Northstar Labs',
+
+  classificationJson: null,
+
   createdAtUtc: '2026-07-27T08:00:00Z',
+
   currencyCode: 'INR',
+
   deletedAtUtc: null,
+
+  department: null,
+
   description: 'Build accessible products.',
+
+  educationRequirement: null,
+
   employmentType: EmploymentType.FullTime,
+
   experienceLevel: ExperienceLevel.Senior,
+
+  minimumExperienceYears: 5,
+  maximumExperienceYears: null,
+
   expiresAtUtc: '2099-12-31T00:00:00Z',
+
   id: jobId,
+
+  internshipDurationMonths: null,
+  isFlexibleDuration: false,
+
   isDeleted: false,
   isFeatured: false,
   isHidden: false,
+
   location: 'Pune',
-  maximumSalary: 2500000,
+
   minimumSalary: 1800000,
+  maximumSalary: 2500000,
+
+  salaryPeriod: SalaryPeriod.Yearly,
+
+  manualOverrideFields: [],
+
   publishedAtUtc: null,
+
   referenceNumber: 'JOB-20260727-1234ABCD',
+
   requirements: 'TypeScript experience.',
+
   responsibilities: 'Lead frontend delivery.',
+
+  roleCategory: null,
+
   slug: 'frontend-engineer-1234abcd',
+
   status: JobStatus.Draft,
+
   title: 'Frontend Engineer',
+
   updatedAtUtc: null,
+
   workplaceType: WorkplaceType.Hybrid,
 };
 

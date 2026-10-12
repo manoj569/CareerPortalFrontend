@@ -1,6 +1,7 @@
 import type {
   EmploymentType,
   ExperienceLevel,
+  SalaryPeriod,
   SortDirection,
   WorkplaceType,
 } from '@/features/jobs/types/jobModels';
@@ -204,14 +205,36 @@ export interface AdminJob {
   companyName: string;
   companyId: string;
   categoryName: string;
-  categoryId: string;
+  categoryId: string | null;
   location: string | null;
+
   minimumSalary: number | null;
   maximumSalary: number | null;
-  currencyCode: string;
+  currencyCode: string | null;
+  salaryPeriod: SalaryPeriod | null;
+
   employmentType: EmploymentType;
   workplaceType: WorkplaceType;
+
+  /**
+   * Legacy backend classification retained for compatibility.
+   * Prefer minimumExperienceYears / maximumExperienceYears for
+   * displaying and editing actual experience requirements.
+   */
   experienceLevel: ExperienceLevel;
+
+  minimumExperienceYears: number | null;
+  maximumExperienceYears: number | null;
+
+  internshipDurationMonths: number | null;
+  isFlexibleDuration: boolean;
+  department: string | null;
+  roleCategory: string | null;
+  educationRequirement: string | null;
+
+  manualOverrideFields: string[] | null;
+  classificationJson: string | null;
+
   status: JobStatus;
   isFeatured: boolean;
   isHidden: boolean;
@@ -221,6 +244,7 @@ export interface AdminJob {
   updatedAtUtc: string | null;
   isDeleted: boolean;
   deletedAtUtc: string | null;
+
   isReferralJob?: boolean;
   referralId?: string | null;
   referralApprovalStatus?: 'Pending' | 'Approved' | 'Rejected' | 0 | 1 | 2 | 3 | null;
@@ -262,21 +286,39 @@ export interface AdminJobRequest {
   title: string;
   description: string;
   companyId: string;
-  categoryId: string;
+  categoryId: string | null;
   applicationUrl: string;
   responsibilities: string | null;
   requirements: string | null;
   benefits: string | null;
   location: string | null;
+
   minimumSalary: number | null;
   maximumSalary: number | null;
-  currencyCode: string;
+  currencyCode: string | null;
+  salaryPeriod: SalaryPeriod | null;
+
   employmentType: EmploymentType;
   workplaceType: WorkplaceType;
+
+  /**
+   * Required by the current backend contract for backward compatibility.
+   */
   experienceLevel: ExperienceLevel;
+
+  minimumExperienceYears: number | null;
+  maximumExperienceYears: number | null;
+
+  internshipDurationMonths: number | null;
+  isFlexibleDuration: boolean;
+  department: string | null;
+  roleCategory: string | null;
+  educationRequirement: string | null;
+
+  manualOverrideFields: string[];
+
   expiresAtUtc: string | null;
 }
-
 export type ComposeRelationshipRequest<TNew> = {
   existingId: string | null;
   new: TNew | null;
@@ -306,17 +348,33 @@ export interface ComposeJobDraftRequest {
   title: string;
   description: string | null;
   applicationUrl: string | null;
+
   employmentType: EmploymentType | null;
   workMode: WorkplaceType | null;
+
+  /**
+   * Legacy classification retained for backend compatibility.
+   */
   experienceLevel: ExperienceLevel | null;
+
+  minimumExperienceYears: number | null;
+  maximumExperienceYears: number | null;
+
   location: string | null;
+
   minimumSalary: number | null;
   maximumSalary: number | null;
   currency: string | null;
+  salaryPeriod: SalaryPeriod | null;
+
   closingDateUtc: string | null;
+
   responsibilities: string | null;
   requirements: string | null;
   benefits: string | null;
+
+  skills?: string[] | null;
+  manualOverrideFields?: string[] | null;
 }
 
 export interface ComposeJobRequest {

@@ -46,35 +46,63 @@ const request: AdminJobRequest = {
   companyId,
   currencyCode: 'INR',
   description: 'Build products.',
+
   employmentType: EmploymentType.FullTime,
   experienceLevel: ExperienceLevel.Senior,
+  workplaceType: WorkplaceType.Hybrid,
+
+  minimumExperienceYears: 5,
+  maximumExperienceYears: null,
+
+  minimumSalary: 100,
+  maximumSalary: 200,
+  salaryPeriod: null,
+
+  internshipDurationMonths: null,
+  isFlexibleDuration: false,
+
+  department: null,
+  roleCategory: null,
+  educationRequirement: null,
+
+  manualOverrideFields: [],
+
   expiresAtUtc: '2099-12-31T00:00:00Z',
   location: 'Pune',
-  maximumSalary: 200,
-  minimumSalary: 100,
+
   requirements: null,
   responsibilities: null,
   title: 'Frontend Engineer',
-  workplaceType: WorkplaceType.Hybrid,
 };
-
 const createdJob: AdminJob = {
   ...request,
+
   benefits: null,
   categoryName: 'Engineering',
   companyName: 'Northstar Labs',
+
+  classificationJson: null,
+
   createdAtUtc: '2026-07-28T00:00:00Z',
   deletedAtUtc: null,
+
   id: jobId,
+
   isDeleted: false,
   isFeatured: false,
   isHidden: false,
+
   publishedAtUtc: null,
+
   referenceNumber: 'JOB-20260728-1234ABCD',
+
   requirements: null,
   responsibilities: null,
+
   slug: 'frontend-engineer-1234abcd',
+
   status: JobStatus.Draft,
+
   updatedAtUtc: null,
 };
 

@@ -27,7 +27,11 @@ import {
   getWorkplaceTypeLabel,
 } from '../constants/jobOptions';
 import type { PublicJobSummary } from '../types/jobModels';
-import { formatExperienceRange, formatJobDate, formatSalary } from '../utils/jobFormatting';
+import {
+  formatExperienceRange,
+  formatJobDate,
+  formatSalary,
+} from '../utils/jobFormatting';
 import { CompanyLogoFallback } from './CompanyLogoFallback';
 
 interface JobCardProps {
@@ -55,29 +59,93 @@ export const JobCard = ({
 }: JobCardProps) => {
   const publishedDate = formatJobDate(job.publishedAtUtc);
   const expiryDate = formatJobDate(job.expiresAtUtc);
+
   const experienceRange = formatExperienceRange(
     job.minimumExperienceYears,
     job.maximumExperienceYears,
   );
 
-  const jobDetailsPath =
-  returnPath?.startsWith(ROUTES.DASHBOARD)
+  const jobDetailsPath = returnPath?.startsWith(ROUTES.DASHBOARD)
     ? buildDashboardJobDetailsPath(job.slug)
     : buildJobDetailsPath(job.slug);
 
+  const hasSalary =
+    job.minimumSalary !== null || job.maximumSalary !== null;
+
+  const salaryText =
+    hasSalary && job.currencyCode
+      ? formatSalary(
+          job.minimumSalary,
+          job.maximumSalary,
+          job.currencyCode,
+        )
+      : null;
+
   return (
-    <Card component="article" sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, height: compact ? 'auto' : '100%' }}>
-      <CardContent sx={{ flex: 1, p: compact ? { xs: 2, sm: 2.25 } : 3 }}>
+    <Card
+      component="article"
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        height: compact ? 'auto' : '100%',
+      }}
+    >
+      <CardContent
+        sx={{
+          flex: 1,
+          p: compact ? { xs: 2, sm: 2.25 } : 3,
+        }}
+      >
         <Stack spacing={compact ? 1.5 : 2.25}>
-          <Stack alignItems="flex-start" direction="row" justifyContent="space-between" spacing={1.5}>
-            <CompanyLogoFallback companyName={job.companyName} logoUrl={job.companyLogoUrl} />
+          <Stack
+            alignItems="flex-start"
+            direction="row"
+            justifyContent="space-between"
+            spacing={1.5}
+          >
+            <CompanyLogoFallback
+              companyName={job.companyName}
+              logoUrl={job.companyLogoUrl}
+            />
+
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography component="h2" sx={{ overflowWrap: 'anywhere' }} variant="h3">{job.title}</Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.5 }}>{job.companyName}{showExtendedDetails && job.companyType ? ` · ${getCompanyTypeLabel(job.companyType)}` : ''}</Typography>
+              <Typography
+                component="h2"
+                sx={{ overflowWrap: 'anywhere' }}
+                variant="h3"
+              >
+                {job.title}
+              </Typography>
+
+              <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                {job.companyName}
+                {showExtendedDetails && job.companyType
+                  ? ` · ${getCompanyTypeLabel(job.companyType)}`
+                  : ''}
+              </Typography>
             </Box>
-            {match ? <Chip color={match.matchScore >= 85 ? 'success' : match.matchScore >= 65 ? 'info' : 'warning'} label={`${match.matchScore}% Match`} size="small" variant="outlined" /> : null}
-            {job.isFeatured && !match ? <Chip color="primary" label="Featured" size="small" /> : null}
+
+            {match ? (
+              <Chip
+                color={
+                  match.matchScore >= 85
+                    ? 'success'
+                    : match.matchScore >= 65
+                      ? 'info'
+                      : 'warning'
+                }
+                label={`${match.matchScore}% Match`}
+                size="small"
+                variant="outlined"
+              />
+            ) : null}
+
+            {job.isFeatured && !match ? (
+              <Chip color="primary" label="Featured" size="small" />
+            ) : null}
           </Stack>
+
           <Stack color="text.secondary" spacing={1}>
             {job.location ? (
               <Stack alignItems="center" direction="row" spacing={1}>
@@ -85,8 +153,10 @@ export const JobCard = ({
                 <Typography variant="body2">{job.location}</Typography>
               </Stack>
             ) : null}
+
             <Stack alignItems="center" direction="row" spacing={1}>
               <WorkOutlineIcon fontSize="small" />
+
               <Typography variant="body2">
                 {getEmploymentTypeLabel(job.employmentType)} ·{' '}
                 {getWorkplaceTypeLabel(job.workplaceType)} ·{' '}
@@ -95,15 +165,21 @@ export const JobCard = ({
                   : getExperienceLevelLabel(job.experienceLevel)}
               </Typography>
             </Stack>
-            <Stack alignItems="center" direction="row" spacing={1}>
-              <PaymentsOutlinedIcon fontSize="small" />
-              <Typography variant="body2">
-                {formatSalary(job.minimumSalary, job.maximumSalary, job.currencyCode)}
-              </Typography>
-            </Stack>
+
+            {salaryText ? (
+              <Stack alignItems="center" direction="row" spacing={1}>
+                <PaymentsOutlinedIcon fontSize="small" />
+
+                <Typography variant="body2">
+                  {salaryText}
+                </Typography>
+              </Stack>
+            ) : null}
+
             {publishedDate ? (
               <Stack alignItems="center" direction="row" spacing={1}>
                 <AccessTimeOutlinedIcon fontSize="small" />
+
                 <Typography variant="body2">
                   Posted {publishedDate}
                   {expiryDate ? ` · Closes ${expiryDate}` : ''}
@@ -111,34 +187,80 @@ export const JobCard = ({
               </Stack>
             ) : null}
           </Stack>
-          <Chip label={job.categoryName} size="small" sx={{ alignSelf: 'flex-start' }} />
+
+          <Chip
+            label={job.categoryName}
+            size="small"
+            sx={{ alignSelf: 'flex-start' }}
+          />
+
           {match && match.matchReasons.length > 0 ? (
-            <Stack component="ul" spacing={0.75} sx={{ m: 0, pl: 2.5 }} aria-label="Why this job matches you">
-              {match.matchReasons.slice(0, 3).map((reason) => <Typography component="li" color="text.secondary" key={reason} variant="body2" sx={{ overflowWrap: 'anywhere' }}>{reason}</Typography>)}
+            <Stack
+              component="ul"
+              spacing={0.75}
+              sx={{ m: 0, pl: 2.5 }}
+              aria-label="Why this job matches you"
+            >
+              {match.matchReasons.slice(0, 3).map((reason) => (
+                <Typography
+                  component="li"
+                  color="text.secondary"
+                  key={reason}
+                  variant="body2"
+                  sx={{ overflowWrap: 'anywhere' }}
+                >
+                  {reason}
+                </Typography>
+              ))}
             </Stack>
           ) : null}
+
           {showExtendedDetails ? (
             <Stack direction="row" flexWrap="wrap" gap={0.75}>
               {job.department ? (
-                <Chip label={job.department} size="small" variant="outlined" />
+                <Chip
+                  label={job.department}
+                  size="small"
+                  variant="outlined"
+                />
               ) : null}
+
               {job.roleCategory ? (
-                <Chip label={job.roleCategory} size="small" variant="outlined" />
+                <Chip
+                  label={job.roleCategory}
+                  size="small"
+                  variant="outlined"
+                />
               ) : null}
-              {job.industry ? <Chip label={job.industry} size="small" variant="outlined" /> : null}
+
+              {job.industry ? (
+                <Chip
+                  label={job.industry}
+                  size="small"
+                  variant="outlined"
+                />
+              ) : null}
+
               {job.internshipDurationMonths ? (
                 <Chip
-                  label={`${job.internshipDurationMonths} month internship${job.isFlexibleDuration ? ' · flexible' : ''}`}
+                  label={`${job.internshipDurationMonths} month internship${
+                    job.isFlexibleDuration ? ' · flexible' : ''
+                  }`}
                   size="small"
                   variant="outlined"
                 />
               ) : job.isFlexibleDuration ? (
-                <Chip label="Flexible internship duration" size="small" variant="outlined" />
+                <Chip
+                  label="Flexible internship duration"
+                  size="small"
+                  variant="outlined"
+                />
               ) : null}
             </Stack>
           ) : null}
         </Stack>
       </CardContent>
+
       <CardActions
         sx={{
           flexWrap: 'wrap',
@@ -156,12 +278,22 @@ export const JobCard = ({
         <Button
           aria-label={`${viewActionLabel} for ${job.title} at ${job.companyName}`}
           component={Link}
-          state={{ jobsPath: returnPath, jobsSearch: returnSearch, ...(match ? { recommendedJobId: job.id, resumeMatch: match } : {}) }}
-to={jobDetailsPath}
+          state={{
+            jobsPath: returnPath,
+            jobsSearch: returnSearch,
+            ...(match
+              ? {
+                  recommendedJobId: job.id,
+                  resumeMatch: match,
+                }
+              : {}),
+          }}
+          to={jobDetailsPath}
           variant="outlined"
         >
           {viewActionLabel}
         </Button>
+
         {secondaryAction}
         {additionalAction}
       </CardActions>
