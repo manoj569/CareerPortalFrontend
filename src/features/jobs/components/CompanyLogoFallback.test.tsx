@@ -53,6 +53,31 @@ const referral: PublicReferralJob = {
 };
 
 describe('shared company logos', () => {
+  it('keeps the original blue circle for null and failed logos', () => {
+    const { rerender } = render(<CompanyLogoFallback companyName="PwC" logoUrl={null} />);
+    const initial = screen.getByRole('img', { name: 'PwC initials' });
+    const fallbackStyle = window.getComputedStyle(initial);
+    const background = fallbackStyle.backgroundColor;
+    expect(background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(fallbackStyle.borderRadius).toBe('50%');
+    expect(fallbackStyle.color).toBe('rgb(255, 255, 255)');
+    expect(initial).toHaveTextContent('P');
+    rerender(<CompanyLogoFallback companyName="PwC" logoUrl="https://example.test/pwc.svg" />);
+    fireEvent.error(screen.getByRole('img', { name: 'PwC logo' }));
+    expect(screen.getByRole('img', { name: 'PwC initials' })).toHaveStyle({ backgroundColor: background, borderRadius: '50%' });
+  });
+
+  it.each(['svg', 'png', 'webp'])('contains wide %s logos without fallback background or circular clipping', (format) => {
+    render(<CompanyLogoFallback companyName="PwC" logoUrl={`https://example.test/pwc.${format}`}
+      variant="circular" sx={{ bgcolor: 'primary.main', borderRadius: '50%' }} />);
+    const image = screen.getByRole('img', { name: 'PwC logo' });
+    Object.defineProperty(image, 'naturalWidth', { value: 600 });
+    Object.defineProperty(image, 'naturalHeight', { value: 120 });
+    fireEvent.load(image);
+    expect(image.parentElement).not.toHaveClass('MuiAvatar-root');
+    expect(image.parentElement).toHaveStyle({ 'background-color': 'rgba(0, 0, 0, 0)', 'border-radius': '0', 'max-width': '100%', overflow: 'hidden', 'align-items': 'center', 'justify-content': 'center' });
+    expect(image).toHaveStyle({ objectFit: 'contain', objectPosition: 'center', maxWidth: '100%' });
+  });
   it.each(['not a URL', 'https://', 'javascript:alert(1)', 'data:image/svg+xml,test', 'https://user:secret@example.test/logo.png'])(
     'uses the existing initials for invalid or unsafe URL %s', (logoUrl) => {
       const { container } = render(<CompanyLogoFallback companyName="Kyndryl" logoUrl={logoUrl} />);
@@ -65,6 +90,7 @@ describe('shared company logos', () => {
     render(<MemoryRouter><JobCard job={job} /><JobCard job={{ ...job, id: 'job-2', title: 'Architect', slug: 'architect' }} /></MemoryRouter>);
     const images = screen.getAllByRole('img', { name: 'Deloitte logo' });
     expect(images).toHaveLength(2);
+    images.forEach((image) => expect(image.parentElement).toHaveStyle({ 'background-color': 'rgba(0, 0, 0, 0)', 'border-radius': '0' }));
     images.forEach((image) => expect(image).toHaveAttribute('src', job.companyLogoUrl));
     expect(screen.getAllByRole('article')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Architect' })).toBeVisible();

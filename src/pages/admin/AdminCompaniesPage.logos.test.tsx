@@ -183,6 +183,10 @@ describe('Admin company logo management', () => {
       },
     });
     expect(save).not.toHaveBeenCalled();
+    screen.getAllByRole('img', { name: 'LSEG logo' }).forEach((image) => {
+      fireEvent.load(image);
+      expect(image.parentElement).toHaveStyle({ 'background-color': 'rgba(0, 0, 0, 0)', 'border-radius': '0' });
+    });
     expect(onSaved).not.toHaveBeenCalled();
     expect(
       screen.getAllByRole('img', { name: 'LSEG logo' }).map((image) => image.getAttribute('src')),

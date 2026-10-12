@@ -251,6 +251,7 @@ it('keeps Browse Jobs card content and logo geometry at a 360px viewport', () =>
     const image = screen.getByRole('img', { name: 'Northstar Labs logo' });
     expect(image).toHaveAttribute('loading', 'lazy');
     expect(image.parentElement).toHaveStyle({ width: '52px', height: '52px', flexShrink: '0' });
+    expect(image.parentElement).toHaveStyle({ 'background-color': 'rgba(0, 0, 0, 0)', 'border-radius': '0', 'max-width': '100%' });
     expect(screen.getByRole('article')).toHaveStyle({ minWidth: '0', display: 'flex', flexDirection: 'column' });
     expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Apply manually' })).toBeVisible();

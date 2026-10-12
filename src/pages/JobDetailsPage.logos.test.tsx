@@ -36,6 +36,7 @@ describe('Job Details company logo', () => {
     images.forEach((image) => {
       expect(image).toHaveAttribute('src', logoUrl);
       expect(image).toHaveStyle({ objectFit: 'contain' });
+      expect(image.parentElement).toHaveStyle({ 'background-color': 'rgba(0, 0, 0, 0)', 'border-radius': '0' });
     });
     expect(images[0]?.parentElement).toHaveStyle({ width: '76px', height: '76px' });
     fireEvent.error(images[0]!);

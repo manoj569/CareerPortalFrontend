@@ -1,4 +1,4 @@
-import { Avatar, type AvatarProps } from '@mui/material';
+import { Avatar, Box, type AvatarProps } from '@mui/material';
 import { useState, type ReactNode } from 'react';
 
 type LogoStyles = NonNullable<AvatarProps['sx']>;
@@ -61,31 +61,38 @@ const CompanyLogoImage = ({
   const showImage = Boolean(logoUrl) && !failed;
   const styles = sx ?? [];
 
+  if (showImage) return (
+    <Box sx={[
+      { height: size, width: size, flexShrink: 0 },
+      ...(isStyleArray(styles) ? styles : [styles]),
+      // Caller avatar styles belong to initials, not the company's artwork.
+      { bgcolor: 'transparent', borderRadius: 0, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', overflow: 'hidden', maxWidth: '100%' },
+    ]}>
+      <img
+        src={logoUrl ?? undefined}
+        alt={`${name} logo`}
+        loading="lazy"
+        decoding="async"
+        width={size}
+        height={size}
+        style={{ width: '100%', height: '100%', maxWidth: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }}
+        onError={() => setFailed(true)}
+      />
+    </Box>
+  );
+
   return (
     <Avatar
       variant={variant}
-      role={showImage ? undefined : 'img'}
-      aria-label={showImage ? undefined : `${name} initials`}
+      role="img"
+      aria-label={`${name} initials`}
       sx={[
         { bgcolor: 'primary.main', fontWeight: 700, height: size, width: size },
         ...(isStyleArray(styles) ? styles : [styles]),
       ]}
     >
-      {/* Avatar's src preloads eagerly. A native image keeps loading truly lazy. */}
-      {showImage ? (
-        <img
-          src={logoUrl ?? undefined}
-          alt={`${name} logo`}
-          loading="lazy"
-          decoding="async"
-          width={size}
-          height={size}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        initials || fallback
-      )}
+      {initials || fallback}
     </Avatar>
   );
 };
