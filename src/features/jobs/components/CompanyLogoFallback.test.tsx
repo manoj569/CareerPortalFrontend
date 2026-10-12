@@ -53,6 +53,23 @@ const referral: PublicReferralJob = {
 };
 
 describe('shared company logos', () => {
+  it.each(['not a URL', 'https://', 'javascript:alert(1)', 'data:image/svg+xml,test', 'https://user:secret@example.test/logo.png'])(
+    'uses the existing initials for invalid or unsafe URL %s', (logoUrl) => {
+      const { container } = render(<CompanyLogoFallback companyName="Kyndryl" logoUrl={logoUrl} />);
+      expect(screen.getByRole('img', { name: 'Kyndryl initials' })).toHaveTextContent('K');
+      expect(container.querySelector('img')).toBeNull();
+    },
+  );
+
+  it('renders the same supplied logo for multiple jobs with one CompanyId', () => {
+    render(<MemoryRouter><JobCard job={job} /><JobCard job={{ ...job, id: 'job-2', title: 'Architect', slug: 'architect' }} /></MemoryRouter>);
+    const images = screen.getAllByRole('img', { name: 'Deloitte logo' });
+    expect(images).toHaveLength(2);
+    images.forEach((image) => expect(image).toHaveAttribute('src', job.companyLogoUrl));
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Architect' })).toBeVisible();
+  });
+
   it('contains a lazy image in a fixed slot without Avatar eager preloading', () => {
     const preload = vi.spyOn(window, 'Image');
     render(<CompanyLogoFallback companyName="Deloitte" logoUrl={job.companyLogoUrl} />);

@@ -24,6 +24,18 @@ interface CapturedRequest {
 describe('public jobs advanced search API', () => {
   beforeEach(() => mockRequest.mockReset());
 
+  it('passes the company logo through job detail responses without another request', async () => {
+    const store = createAppStore();
+    const data = { id: 'job-1', companyId: 'company-1', companyLogoUrl: '/company.png' };
+    mockRequest.mockResolvedValue({ data: { data } });
+    const subscription = store.dispatch(jobsApi.endpoints.getJobDetails.initiate('engineer'));
+    expect(await subscription.unwrap()).toEqual(data);
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+    expect(mockRequest.mock.calls[0]?.[0]).toMatchObject({ url: '/jobs/engineer' });
+    subscription.unsubscribe();
+    store.dispatch(jobsApi.util.resetApiState());
+  });
+
   it('keeps a 10,000-job catalogue server-paged and passes logos without company lookups', async () => {
     const store = createAppStore();
     const items = [

@@ -14,6 +14,20 @@ interface CompanyLogoFallbackProps {
   fallback?: ReactNode;
 }
 
+const safeLogoUrl = (value?: string | null): string | undefined => {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  // Preserve supplied HTTP(S) and root-relative assets; never resolve by company name.
+  if (!trimmed.startsWith('/') && !/^https?:\/\//i.test(trimmed)) return undefined;
+  try {
+    const url = new URL(trimmed, window.location.origin);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return undefined;
+    return trimmed;
+  } catch {
+    return undefined;
+  }
+};
+
 export const CompanyLogoFallback = ({
   companyName,
   logoUrl,
@@ -22,7 +36,7 @@ export const CompanyLogoFallback = ({
   <CompanyLogoImage
     key={JSON.stringify([companyName, logoUrl])}
     companyName={companyName}
-    logoUrl={logoUrl?.trim() || undefined}
+    logoUrl={safeLogoUrl(logoUrl)}
     {...props}
   />
 );

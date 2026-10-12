@@ -239,6 +239,29 @@ const renderPage = (initialEntry = '/dashboard/jobs') => {
   return { ...renderWithProviders(<RouterProvider router={router} />, { auth: candidateAuth }), router };
 };
 
+it('keeps Browse Jobs card content and logo geometry at a 360px viewport', () => {
+  const previousWidth = window.innerWidth;
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: 360 });
+  try {
+    mockSearchJobs.mockReturnValue(queryResult({
+      items: [{ ...job, companyLogoUrl: 'https://assets.example.test/northstar.png' }],
+      pageNumber: 1, pageSize: 10, totalCount: 1, totalPages: 1,
+    }) as ReturnType<typeof useSearchJobsQuery>);
+    renderPage();
+    const image = screen.getByRole('img', { name: 'Northstar Labs logo' });
+    expect(image).toHaveAttribute('loading', 'lazy');
+    expect(image.parentElement).toHaveStyle({ width: '52px', height: '52px', flexShrink: '0' });
+    expect(screen.getByRole('article')).toHaveStyle({ minWidth: '0', display: 'flex', flexDirection: 'column' });
+    expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Apply manually' })).toBeVisible();
+    fireEvent.error(image);
+    expect(screen.getByRole('img', { name: 'Northstar Labs initials' })).toHaveTextContent('NL');
+    expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+  } finally {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: previousWidth });
+  }
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockSearchJobs.mockReturnValue(
