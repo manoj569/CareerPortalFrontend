@@ -2,6 +2,8 @@ import { visuallyHidden } from '@mui/utils';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
+import { ROUTES } from '@/constants/routes';
+
 import { applyRouteMetadataPolicy } from '@/utils/documentMetadata';
 
 const focusPageContent = (): string => {
@@ -20,6 +22,8 @@ const focusPageContent = (): string => {
 export const RouteAccessibility = () => {
   const { pathname, search } = useLocation();
   const [announcement, setAnnouncement] = useState('');
+  // Browse Jobs query updates change results within the page, not the focus destination.
+  const focusLocation = pathname === ROUTES.DASHBOARD_JOBS ? pathname : pathname + search;
 
   useLayoutEffect(() => {
     applyRouteMetadataPolicy(pathname);
@@ -49,7 +53,7 @@ export const RouteAccessibility = () => {
       observer.disconnect();
       window.cancelAnimationFrame(animationFrame);
     };
-  }, [pathname, search]);
+  }, [focusLocation]);
 
   return (
     <>

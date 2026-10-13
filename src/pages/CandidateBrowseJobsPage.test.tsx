@@ -43,6 +43,7 @@ import { renderWithProviders } from '@/test/renderWithProviders';
 import { UserRole } from '@/types';
 import { JobCard } from '@/features/jobs/components/JobCard';
 import { CandidateBrowseJobsPage } from './CandidateBrowseJobsPage';
+import { RouteAccessibility } from '@/components/accessibility/RouteAccessibility';
 
 vi.mock('@/features/aiApply/components/AIApplyToJobButton', () => ({
   AIApplyToJobButton: () => <button type="button">AI Apply</button>,
@@ -223,19 +224,37 @@ const LocationProbe = () => {
   return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;
 };
 
-const renderPage = (initialEntry = '/dashboard/jobs') => {
+const renderPage = (initialEntry = '/dashboard/jobs', withRouteAccessibility = false) => {
+  const pageRoutes = [
+    {
+      path: '/dashboard/jobs',
+      element: (
+        <>
+          <CandidateBrowseJobsPage />
+          <LocationProbe />
+        </>
+      ),
+    },
+  ];
   const router = createMemoryRouter(
-    [
-      {
-        path: '/dashboard/jobs',
-        element: (
-          <>
-            <CandidateBrowseJobsPage />
-            <LocationProbe />
-          </>
-        ),
-      },
-    ],
+    withRouteAccessibility
+      ? [
+          {
+            element: <RouteAccessibility />,
+            children: [
+              { ...pageRoutes[0], element: <main>{pageRoutes[0]?.element}</main> },
+              {
+                path: '/focus-destination',
+                element: (
+                  <main>
+                    <h1>Destination page</h1>
+                  </main>
+                ),
+              },
+            ],
+          },
+        ]
+      : pageRoutes,
     { initialEntries: [initialEntry] },
   );
   return {
@@ -1370,5 +1389,169 @@ describe('Candidate Browse jobs', () => {
         expect(screen.getByTestId('location')).not.toHaveTextContent('q=');
       },
     );
+  });
+  describe('production route focus regression', () => {
+    const advance = async (ms: number) => {
+      await act(() => vi.advanceTimersByTimeAsync(ms));
+      // URL updates commit after the debounce; then the accessibility RAF runs.
+      await act(() => vi.advanceTimersByTimeAsync(20));
+    };
+    const getInput = () =>
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' });
+    const start = async () => {
+      vi.useFakeTimers();
+      const view = renderPage('/dashboard/jobs', true);
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      const input = getInput();
+      fireEvent.click(input);
+      input.focus();
+      return { ...view, input };
+    };
+    const expectStableFocus = (input: HTMLElement) => {
+      expect(getInput()).toBe(input);
+      expect(input).toHaveFocus();
+    };
+
+    it('keeps focus after each character of pwc and the final debounce', async () => {
+      const { input } = await start();
+      for (const value of ['p', 'pw', 'pwc']) {
+        fireEvent.change(input, { target: { value } });
+        expectStableFocus(input);
+        await act(() => vi.advanceTimersByTimeAsync(40));
+      }
+      await advance(400);
+      expectStableFocus(input);
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'pwc' });
+    });
+
+    it('reproduces P, wait, W, wait, C without clicking again', async () => {
+      const { input } = await start();
+      const user = userEvent.setup({ delay: null });
+      for (const [character, expected] of [
+        ['P', 'P'],
+        ['W', 'PW'],
+        ['C', 'PWC'],
+      ] as const) {
+        const typing = user.keyboard(character);
+        await act(() => vi.advanceTimersByTimeAsync(0));
+        await typing;
+        expect(input).toHaveValue(expected);
+        await advance(400);
+        expectStableFocus(input);
+        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: expected });
+      }
+    });
+
+    it.each(['software engineer', 'R', 'Go', 'C#', 'AI', '.NET'])(
+      'keeps the %s input mounted through fetching and results',
+      async (keyword) => {
+        const { input, router } = await start();
+        fireEvent.change(input, { target: { value: keyword } });
+        expectStableFocus(input);
+        await advance(400);
+        expectStableFocus(input);
+        mockSearchJobs.mockReturnValue(
+          queryResult(
+            { items: [job], totalCount: 1, totalPages: 1 },
+            { isFetching: true },
+          ) as ReturnType<typeof useSearchJobsQuery>,
+        );
+        await act(() =>
+          router.navigate(router.state.location.pathname + router.state.location.search, {
+            replace: true,
+          }),
+        );
+        expectStableFocus(input);
+        mockSearchJobs.mockReturnValue(
+          queryResult({
+            items: [{ ...job, title: 'Updated job results' }],
+            totalCount: 1,
+            totalPages: 1,
+          }) as ReturnType<typeof useSearchJobsQuery>,
+        );
+        await act(() =>
+          router.navigate(router.state.location.pathname + router.state.location.search, {
+            replace: true,
+          }),
+        );
+        expect(screen.getByText('Updated job results')).toBeVisible();
+        expectStableFocus(input);
+      },
+    );
+
+    it.each(['loading', 'empty', 'error'])(
+      'retains the input through the %s results state',
+      async (status) => {
+        const { input, router } = await start();
+        fireEvent.change(input, { target: { value: 'pwc' } });
+        await advance(400);
+        mockSearchJobs.mockReturnValue(
+          queryResult(
+            status === 'empty' ? { items: [], totalCount: 0, totalPages: 0 } : undefined,
+            { isLoading: status === 'loading', isError: status === 'error' },
+          ) as ReturnType<typeof useSearchJobsQuery>,
+        );
+        await act(() =>
+          router.navigate(router.state.location.pathname + router.state.location.search, {
+            replace: true,
+          }),
+        );
+        await act(() => vi.advanceTimersByTimeAsync(20));
+        expectStableFocus(input);
+      },
+    );
+
+    it('retains focus and DOM identity after Enter form submission', async () => {
+      const { input } = await start();
+      fireEvent.change(input, { target: { value: 'pwc' } });
+      fireEvent.submit(screen.getByRole('search'));
+      await advance(500);
+      expectStableFocus(input);
+    });
+
+    it('keeps the same input usable after clicking Search', async () => {
+      const { input } = await start();
+      fireEvent.change(input, { target: { value: 'pwc' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Search jobs' }));
+      await advance(500);
+      expectStableFocus(input);
+    });
+
+    it('preserves focus and input identity through filters, sort, tabs and pagination', async () => {
+      mockSearchJobs.mockReturnValue(
+        queryResult({ items: [job], totalCount: 222, totalPages: 23 }) as ReturnType<
+          typeof useSearchJobsQuery
+        >,
+      );
+      const { input } = await start();
+      fireEvent.click(screen.getByRole('radio', { name: 'Last 7 days (12)' }));
+      fireEvent.mouseDown(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByRole('option', { name: 'Latest published' }));
+      // A real control interaction may move focus; resume typing once, then verify URL effects.
+      input.focus();
+      fireEvent.click(screen.getByRole('tab', { name: 'Experienced' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      expectStableFocus(input);
+    });
+
+    it('retains the input on Back/Forward and focuses headings on real page navigation', async () => {
+      const { input, router } = await start();
+      fireEvent.change(input, { target: { value: 'react' } });
+      await advance(400);
+      fireEvent.change(input, { target: { value: 'python' } });
+      await advance(400);
+      await act(() => router.navigate(-1));
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      expect(input).toHaveValue('react');
+      expectStableFocus(input);
+      await act(() => router.navigate(1));
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      expect(input).toHaveValue('python');
+      expectStableFocus(input);
+      await act(() => router.navigate('/focus-destination'));
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      expect(screen.getByRole('heading', { name: 'Destination page' })).toHaveFocus();
+    });
   });
 });
