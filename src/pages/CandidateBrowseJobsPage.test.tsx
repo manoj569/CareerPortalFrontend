@@ -1024,14 +1024,13 @@ describe('Candidate Browse jobs', () => {
     expect(refetchJobs).not.toHaveBeenCalled();
   });
 
-  it('debounces both inputs and accepts explicit single-character search', async () => {
+  it('debounces both inputs including single-character searches', async () => {
     renderPage();
     vi.useFakeTimers();
     const keyword = screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' });
     fireEvent.change(keyword, { target: { value: 'R' } });
     await act(() => vi.advanceTimersByTimeAsync(400));
-    expect(screen.getByTestId('location')).not.toHaveTextContent('q=R');
-    fireEvent.click(screen.getByRole('button', { name: 'Search jobs' }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'R' });
     expect(screen.getByTestId('location')).toHaveTextContent('q=R');
     fireEvent.change(keyword, { target: { value: 'react' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Location' }), {
@@ -1192,5 +1191,184 @@ describe('Candidate Browse jobs', () => {
       freshnessDays: 7,
       pageNumber: 1,
     });
+  });
+  describe('draft keyword regression', () => {
+    const keywordInput = () =>
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' });
+
+    it('keeps every character of software and applies only the final settled keyword', async () => {
+      renderPage();
+      vi.useFakeTimers();
+      for (let length = 1; length <= 'software'.length; length += 1) {
+        const draft = 'software'.slice(0, length);
+        fireEvent.change(keywordInput(), { target: { value: draft } });
+        expect(keywordInput()).toHaveValue(draft);
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Search jobs');
+        expect(screen.getByText(job.title)).toBeVisible();
+        await act(() => vi.advanceTimersByTimeAsync(40));
+        expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).keyword).toBeUndefined();
+      }
+      await act(() => vi.advanceTimersByTimeAsync(309));
+      expect(screen.getByTestId('location')).not.toHaveTextContent('q=software');
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(keywordInput()).toHaveValue('software');
+      const keywords = mockSearchJobs.mock.calls
+        .map(([arg]) => (arg as PublicJobQuery).keyword)
+        .filter(Boolean);
+      expect(new Set(keywords)).toEqual(new Set(['software']));
+      expect(screen.getByTestId('location')).toHaveTextContent('q=software');
+    });
+
+    it.each(['C#', 'C++', 'R', 'Go', 'AI', 'QA'])(
+      'debounces the valid short search %s',
+      async (keyword) => {
+        renderPage();
+        vi.useFakeTimers();
+        fireEvent.change(keywordInput(), { target: { value: keyword } });
+        await act(() => vi.advanceTimersByTimeAsync(350));
+        expect(keywordInput()).toHaveValue(keyword);
+        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword, pageNumber: 1 });
+        expect(
+          new URLSearchParams(screen.getByTestId('location').textContent?.split('?')[1]).get('q'),
+        ).toBe(keyword);
+      },
+    );
+
+    it('keeps react applied and its results while python is still a draft', async () => {
+      renderPage('/dashboard/jobs?q=react');
+      vi.useFakeTimers();
+      fireEvent.change(keywordInput(), { target: { value: 'python' } });
+      await act(() => vi.advanceTimersByTimeAsync(349));
+      expect(keywordInput()).toHaveValue('python');
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'react' });
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Search jobs');
+      expect(screen.getByText(job.title)).toBeVisible();
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'python' });
+    });
+
+    it.each(['button', 'Enter'])(
+      'applies once immediately with %s and cancels pending debounce',
+      async (action) => {
+        const { router } = renderPage('/dashboard/jobs?q=react&page=3');
+        vi.useFakeTimers();
+        const navigations: string[] = [];
+        const unsubscribe = router.subscribe(({ location }) => {
+          navigations.push(location.key);
+        });
+        fireEvent.change(keywordInput(), { target: { value: 'python' } });
+        if (action === 'button') {
+          fireEvent.click(screen.getByRole('button', { name: 'Search jobs' }));
+        } else {
+          // Native Enter wiring is covered by the real-keyboard test above.
+          fireEvent.submit(screen.getByRole('search'));
+        }
+        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+          keyword: 'python',
+          pageNumber: 1,
+        });
+        const queryCalls = mockSearchJobs.mock.calls.length;
+        await act(() => vi.advanceTimersByTimeAsync(500));
+        expect(mockSearchJobs.mock.calls).toHaveLength(queryCalls);
+        expect(new Set(navigations).size).toBe(1);
+        expect(refetchJobs).not.toHaveBeenCalled();
+        unsubscribe();
+      },
+    );
+
+    it('hydrates Back and Forward but ignores internal URL canonicalization while typing', async () => {
+      const { router } = renderPage('/dashboard/jobs?q=react&locations=Pune');
+      vi.useFakeTimers();
+      fireEvent.change(keywordInput(), { target: { value: 'python' } });
+      // This unmarked replace triggers the same URL normalization path as legacy aliases.
+      await act(() => router.navigate('/dashboard/jobs?q=react&location=Pune', { replace: true }));
+      expect(keywordInput()).toHaveValue('python');
+      await act(() => vi.advanceTimersByTimeAsync(350));
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'python' });
+      await act(() => router.navigate(-1));
+      expect(keywordInput()).toHaveValue('react');
+      await act(() => router.navigate(1));
+      expect(keywordInput()).toHaveValue('python');
+    });
+
+    it.each(['', '   '])(
+      'clears only an intentionally empty/whitespace draft after debounce',
+      async (draft) => {
+        renderPage('/dashboard/jobs?q=react');
+        vi.useFakeTimers();
+        fireEvent.change(keywordInput(), { target: { value: draft } });
+        await act(() => vi.advanceTimersByTimeAsync(349));
+        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'react' });
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Search jobs');
+        await act(() => vi.advanceTimersByTimeAsync(1));
+        expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).keyword).toBeUndefined();
+        expect(screen.getByTestId('location')).not.toHaveTextContent('q=');
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+          'Find your next opportunity',
+        );
+        expect(keywordInput()).toHaveValue(draft);
+      },
+    );
+
+    it('preserves a draft across filter, pagination, sort and tab changes', async () => {
+      mockSearchJobs.mockReturnValue(
+        queryResult({ items: [job], totalCount: 222, totalPages: 23 }) as ReturnType<
+          typeof useSearchJobsQuery
+        >,
+      );
+      renderPage('/dashboard/jobs?q=react');
+      vi.useFakeTimers();
+      fireEvent.change(keywordInput(), { target: { value: 'python' } });
+      fireEvent.click(screen.getByRole('radio', { name: 'Last 7 days (12)' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+      fireEvent.mouseDown(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByRole('option', { name: 'Latest published' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Experienced' }));
+      expect(keywordInput()).toHaveValue('python');
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'react' });
+      await act(() => vi.advanceTimersByTimeAsync(350));
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+        keyword: 'python',
+        freshnessDays: 7,
+        sortBy: PublicJobSort.LatestPublished,
+        minExperienceYears: 2,
+        pageNumber: 1,
+      });
+    });
+
+    it('applies the pending keyword with a newly selected location filter', async () => {
+      renderPage('/dashboard/jobs?q=react');
+      vi.useFakeTimers();
+      fireEvent.change(keywordInput(), { target: { value: 'python' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Location' }));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Pune, 12 jobs' }));
+      expect(keywordInput()).toHaveValue('python');
+      await act(() => vi.advanceTimersByTimeAsync(350));
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+        keyword: 'python',
+        locations: ['Pune'],
+        pageNumber: 1,
+      });
+    });
+
+    it.each(['Search chip', 'Reset'])(
+      'intentionally clears both draft and applied search with %s',
+      async (action) => {
+        renderPage(
+          action === 'Reset' ? '/dashboard/jobs?q=react&freshness=7' : '/dashboard/jobs?q=react',
+        );
+        vi.useFakeTimers();
+        fireEvent.change(keywordInput(), { target: { value: 'python' } });
+        fireEvent.click(
+          action === 'Search chip'
+            ? screen.getByLabelText('Search: react. Remove filter')
+            : screen.getByRole('button', { name: 'Reset all' }),
+        );
+        expect(keywordInput()).toHaveValue('');
+        await act(() => vi.advanceTimersByTimeAsync(500));
+        expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).keyword).toBeUndefined();
+        expect(screen.getByTestId('location')).not.toHaveTextContent('q=');
+      },
+    );
   });
 });

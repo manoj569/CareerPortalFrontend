@@ -22,7 +22,7 @@ import {
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
-import { useSearchParams } from 'react-router-dom';
+import { NavigationType, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 
@@ -160,6 +160,9 @@ export const CandidateBrowseJobsPage = () => {
   );
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const previousLocationKeyRef = useRef(location.key);
 
   const requestedTab = readBrowseTab(searchParams.get('mode'));
 
@@ -173,7 +176,7 @@ export const CandidateBrowseJobsPage = () => {
 
   const query = useMemo(() => toCandidatePublicJobQuery(state), [state]);
 
-  const [keywordInput, setKeywordInput] = useState(state.keyword);
+  const [draftKeyword, setDraftKeyword] = useState(state.keyword);
 
   const [locationInput, setLocationInput] = useState(state.locations.join(', '));
 
@@ -408,7 +411,7 @@ export const CandidateBrowseJobsPage = () => {
   const clearFilters = useCallback(() => {
     const empty = emptyCandidateJobSearchState();
 
-    setKeywordInput('');
+    setDraftKeyword('');
 
     setLocationInput('');
 
@@ -418,32 +421,38 @@ export const CandidateBrowseJobsPage = () => {
     setState(empty, false, 'all');
   }, [cancelPendingSearch, setState]);
 
+  const appliedStateRef = useRef(state);
   const applyChangesRef = useRef(applyChanges);
   useEffect(() => {
+    appliedStateRef.current = state;
     applyChangesRef.current = applyChanges;
-  }, [applyChanges]);
+  }, [applyChanges, state]);
 
   // Automatic application must not erase typing that continued during navigation.
   // External navigation (including Back/Forward) restores inputs and cancels old typing.
   useEffect(() => {
+    const isHistoryNavigation =
+      navigationType === NavigationType.Pop && previousLocationKeyRef.current !== location.key;
+    previousLocationKeyRef.current = location.key;
     const internal = internalNavigationRef.current;
     internalNavigationRef.current = null;
+    if (isHistoryNavigation) preserveDraftsRef.current = false;
     if (preserveDraftsRef.current) {
       preserveDraftsRef.current = false;
       return;
     }
-    if (internal) {
-      if (internal.keyword || internal.locations) cancelPendingSearch();
-      if (internal.keyword) setKeywordInput(state.keyword);
+    if (internal && !isHistoryNavigation) {
       if (internal.locations) setLocationInput(state.locations.join(', '));
       setExperienceInput(state.minExperienceYears?.toString() ?? '');
       return;
     }
+    // Canonicalization and other internal URL updates must never hydrate active typing.
+    if (!isHistoryNavigation) return;
     cancelPendingSearch();
-    setKeywordInput(state.keyword);
+    setDraftKeyword(state.keyword);
     setLocationInput(state.locations.join(', '));
     setExperienceInput(state.minExperienceYears?.toString() ?? '');
-  }, [searchParams, cancelPendingSearch, state]);
+  }, [searchParams, cancelPendingSearch, state, location.key, navigationType]);
 
   useEffect(() => cancelPendingSearch, [cancelPendingSearch]);
 
@@ -462,16 +471,23 @@ export const CandidateBrowseJobsPage = () => {
   const scheduleSearch = (keyword: string, location: string) => {
     cancelPendingSearch();
     const next = normalizeSearch(keyword, location);
-    // Explicit submission still supports short technologies such as R.
-    if (next.keyword.length === 1 && next.keyword !== state.keyword) return;
     searchTimerRef.current = setTimeout(() => {
       searchTimerRef.current = null;
+      const current = appliedStateRef.current;
+      // A location filter selected during keyword typing wins over the old draft location.
+      const changes = {
+        ...next,
+        locations:
+          state.locations.join(', ') === current.locations.join(', ')
+            ? next.locations
+            : current.locations,
+      };
       if (
-        next.keyword !== state.keyword ||
-        next.locations.join(', ') !== state.locations.join(', ')
+        changes.keyword !== current.keyword ||
+        changes.locations.join(', ') !== current.locations.join(', ')
       ) {
         preserveDraftsRef.current = true;
-        applyChangesRef.current(next);
+        applyChangesRef.current(changes);
       }
     }, 350);
   };
@@ -490,7 +506,7 @@ export const CandidateBrowseJobsPage = () => {
 
   const searchJobs = () => {
     cancelPendingSearch();
-    const next = normalizeSearch(keywordInput, locationInput);
+    const next = normalizeSearch(draftKeyword, locationInput);
     if (
       next.keyword === state.keyword &&
       next.locations.join(', ') === state.locations.join(', ') &&
@@ -636,7 +652,9 @@ export const CandidateBrowseJobsPage = () => {
               lineHeight: 1.2,
             }}
           >
-            {presentation.title}
+            {activeTab === 'all' && (draftKeyword.trim() || state.keyword)
+              ? 'Search jobs'
+              : presentation.title}
           </Typography>
           <Typography
             color="text.secondary"
@@ -649,16 +667,16 @@ export const CandidateBrowseJobsPage = () => {
         {!isRecommended && !isReferralTab ? (
           <JobSearchBar
             experience={experienceInput}
-            keyword={keywordInput}
+            keyword={draftKeyword}
             location={locationInput}
             onExperienceChange={setExperienceInput}
             onKeywordChange={(value) => {
-              setKeywordInput(value);
+              setDraftKeyword(value);
               scheduleSearch(value, locationInput);
             }}
             onLocationChange={(value) => {
               setLocationInput(value);
-              scheduleSearch(keywordInput, value);
+              scheduleSearch(draftKeyword, value);
             }}
             onSearch={searchJobs}
           />
@@ -772,7 +790,8 @@ export const CandidateBrowseJobsPage = () => {
                       options={filterOptions.data}
                       onChange={applyChanges}
                       onKeywordClear={() => {
-                        setKeywordInput('');
+                        cancelPendingSearch();
+                        setDraftKeyword('');
                         applyChanges({ keyword: '' });
                       }}
                       state={state}
