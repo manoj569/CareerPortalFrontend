@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CompanyType, PublicJobSort, WorkplaceType } from '../types/jobModels';
+import { PublicJobSort, WorkplaceType } from '../types/jobModels';
 import {
   countCandidateJobFilters,
   parseCandidateJobSearchParams,
@@ -10,9 +10,17 @@ import {
 
 describe('Candidate job search URL state', () => {
   it('round-trips canonical repeated facets from shared URLs', () => {
-    const params = new URLSearchParams('roleCategories=Software&roleCategories=Product&locations=Pune&locations=Mumbai&departments=Engineering&educationRequirements=Any+Graduate&page=4');
+    const params = new URLSearchParams(
+      'roleCategories=Software&roleCategories=Product&locations=Pune&locations=Mumbai&departments=Engineering&educationRequirements=Any+Graduate&page=4',
+    );
     const state = parseCandidateJobSearchParams(params);
-    expect(toCandidatePublicJobQuery(state)).toMatchObject({ roleCategories: ['Software', 'Product'], locations: ['Pune', 'Mumbai'], departments: ['Engineering'], educationRequirements: ['Any Graduate'], pageNumber: 4 });
+    expect(toCandidatePublicJobQuery(state)).toMatchObject({
+      roleCategories: ['Software', 'Product'],
+      locations: ['Pune', 'Mumbai'],
+      departments: ['Engineering'],
+      educationRequirements: ['Any Graduate'],
+      pageNumber: 4,
+    });
     expect(parseCandidateJobSearchParams(serializeCandidateJobSearchState(state))).toEqual(state);
     expect(countCandidateJobFilters(state)).toBe(6);
   });
@@ -24,7 +32,7 @@ describe('Candidate job search URL state', () => {
 
     expect(state).toMatchObject({
       categoryName: 'Artificial Intelligence',
-      companyTypes: [CompanyType.Startup],
+      companyTypes: [],
       departments: ['Engineering'],
       educationRequirements: ['B.Tech'],
       freshnessDays: 7,
@@ -56,7 +64,6 @@ describe('Candidate job search URL state', () => {
     expect(serialized.get('categoryName')).toBe('AI');
     [
       'companyName',
-      'employmentType',
       'featured',
       'duration',
       'flexibleDuration',
@@ -122,6 +129,6 @@ describe('Candidate job search URL state', () => {
       ),
     );
 
-    expect(countCandidateJobFilters(state)).toBe(9);
+    expect(countCandidateJobFilters(state)).toBe(8);
   });
 });

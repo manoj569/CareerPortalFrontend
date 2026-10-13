@@ -6,13 +6,23 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 
-import { Alert, Box, Button, Drawer, Grid, IconButton, LinearProgress, Pagination, Paper, Stack, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  Drawer,
+  Grid,
+  IconButton,
+  LinearProgress,
+  Pagination,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
 import { useSearchParams } from 'react-router-dom';
-
-
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 
@@ -29,63 +39,40 @@ import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButt
 import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
 
 import {
-
   isDashboardApiError,
-
   useGetProfileQuery,
-
   useGetRecommendedJobsQuery,
-
   useGetResumeStatusQuery,
-
   useUploadResumeMutation,
-
   downloadCandidateResume,
-
 } from '@/features/dashboard/api/dashboardApi';
 
 import {
-
   ResumeExtractionStatus,
-
   type RecommendedJob,
-
 } from '@/features/dashboard/types/dashboardModels';
 
 import {
-
   sanitizeResumeFileName,
-
   validateResume,
-
 } from '@/features/dashboard/utils/resumeValidation';
 
 import {
-
   fetchJobApplicationUrl,
-
   useGetJobFilterOptionsQuery,
-
   useGetSupplementalJobFilterCountsQuery,
-
   useSearchJobsQuery,
-
 } from '@/features/jobs/api/jobsApi';
 
 import { CandidateJobFilters } from '@/features/jobs/components/CandidateJobFilters';
 
 import { JobCard } from '@/features/jobs/components/JobCard';
 
-
-
 import { ActiveFilterChips } from '@/features/jobs/components/candidateBrowse/ActiveFilterChips';
 
 import {
-
   JobModeTabs,
-
   type CandidateBrowseTab,
-
 } from '@/features/jobs/components/candidateBrowse/JobModeTabs';
 
 import { JobResultsHeader } from '@/features/jobs/components/candidateBrowse/JobResultsHeader';
@@ -97,28 +84,17 @@ import { ResumeRecommendationCard } from '@/features/jobs/components/candidateBr
 import { ReferralJobsSection } from '@/features/referrals/components/ReferralJobsSection';
 
 import {
-
   countCandidateJobFilters,
-
   emptyCandidateJobSearchState,
-
   parseCandidateJobSearchParams,
-
   serializeCandidateJobSearchState,
-
   toCandidatePublicJobQuery,
-
   type CandidateJobSearchState,
-
 } from '@/features/jobs/utils/candidateJobSearchParams';
-
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 
 import { EmploymentType, type PublicJobSummary } from '@/features/jobs/types/jobModels';
-
-
 
 const toJobSummary = (job: RecommendedJob): PublicJobSummary => ({
   ...job,
@@ -138,88 +114,50 @@ const toJobSummary = (job: RecommendedJob): PublicJobSummary => ({
 });
 
 const readBrowseTab = (value: string | null): CandidateBrowseTab =>
-
-  value === 'recommended' ||
-
-  value === 'internships' ||
-
-  value === 'fresher' ||
-
-  value === 'experienced' ||
-
-  value === 'referral'
-
+  value === 'internships' || value === 'fresher' || value === 'experienced' || value === 'referral'
     ? value
-
     : 'all';
 
-
-
 const applyTabFilters = (
-
   state: CandidateJobSearchState,
 
   tab: CandidateBrowseTab,
-
 ): CandidateJobSearchState => {
-
   if (tab === 'internships') {
-
     return { ...state, employmentTypes: [EmploymentType.Internship] };
-
   }
 
   if (tab === 'fresher') {
-
     return { ...state, maxExperienceYears: 1, minExperienceYears: 0 };
-
   }
 
   if (tab === 'experienced') {
-
     return { ...state, maxExperienceYears: undefined, minExperienceYears: 2 };
-
   }
 
   return state;
-
 };
 
-
-
 const removeTabFilters = (
-
   state: CandidateJobSearchState,
 
   tab: CandidateBrowseTab,
-
 ): CandidateJobSearchState => {
-
   if (tab === 'internships') return { ...state, employmentTypes: [] };
 
   if (tab === 'fresher' || tab === 'experienced') {
-
     return { ...state, maxExperienceYears: undefined, minExperienceYears: undefined };
-
   }
 
   return state;
-
 };
 
-
-
 export const CandidateBrowseJobsPage = () => {
-
   useDocumentMetadata(
-
     'Browse jobs | Career Portal',
 
     'Explore active jobs based on your Candidate career goals.',
-
   );
-
-
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -228,11 +166,9 @@ export const CandidateBrowseJobsPage = () => {
   const parsedState = useMemo(() => parseCandidateJobSearchParams(searchParams), [searchParams]);
 
   const state = useMemo(
-
     () => applyTabFilters(parsedState, requestedTab),
 
     [parsedState, requestedTab],
-
   );
 
   const query = useMemo(() => toCandidatePublicJobQuery(state), [state]);
@@ -241,7 +177,9 @@ export const CandidateBrowseJobsPage = () => {
 
   const [locationInput, setLocationInput] = useState(state.locations.join(', '));
 
-  const [experienceInput, setExperienceInput] = useState(state.minExperienceYears?.toString() ?? '');
+  const [experienceInput, setExperienceInput] = useState(
+    state.minExperienceYears?.toString() ?? '',
+  );
 
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
@@ -253,9 +191,13 @@ export const CandidateBrowseJobsPage = () => {
 
   const restoreFilterButtonFocusRef = useRef(false);
 
-  const debouncedKeyword = useDebouncedValue(keywordInput, 350);
-
-  const explicitSearchKeywordRef = useRef<string | null>(null);
+  const internalNavigationRef = useRef<{ keyword: boolean; locations: boolean } | null>(null);
+  const preserveDraftsRef = useRef(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingSearch = useCallback(() => {
+    if (searchTimerRef.current !== null) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = null;
+  }, []);
 
   const profile = useGetProfileQuery();
 
@@ -264,57 +206,47 @@ export const CandidateBrowseJobsPage = () => {
   const [pollingActive, setPollingActive] = useState(false);
 
   const resumeStatus = useGetResumeStatusQuery(undefined, {
-
     pollingInterval: pollingActive && pollAttempts < 12 ? 5000 : 0,
 
     skipPollingIfUnfocused: true,
-
   });
 
-  const isResumeReady =
-  resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Ready;
+  const isResumeReady = resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Ready;
 
-// Resume Matches page should be accessible even when the user
-// has not uploaded a resume yet.
-const isRecommended = requestedTab === 'recommended';
+  // Resume Matches is reserved for Phase 2; disabled URLs normalize to All jobs.
+  const isRecommended = requestedTab === 'recommended';
 
-// Never force Resume Matches back to All Jobs.
-// This allows the existing ResumeRecommendationCard to show
-// upload / processing / failed / ready states.
-const activeTab: CandidateBrowseTab = requestedTab;
+  const activeTab: CandidateBrowseTab = requestedTab;
 
-const isReferralTab = activeTab === 'referral';
+  const isReferralTab = activeTab === 'referral';
 
-// Normal job search should not run while viewing Resume Matches
-// or Referral Jobs.
-const jobs = useSearchJobsQuery(query, {
-  skip: isRecommended || isReferralTab,
-});
+  // Normal job search should not run while viewing Resume Matches
+  // or Referral Jobs.
+  const jobs = useSearchJobsQuery(query, {
+    refetchOnMountOrArgChange: true,
+    skip: isRecommended || isReferralTab,
+  });
 
-// Only fetch AI resume-matched jobs after resume extraction
-// has successfully completed.
-const recommended = useGetRecommendedJobsQuery(
-  {
-    pageNumber: state.page,
-    pageSize: 20,
-  },
-  {
-    skip: !isRecommended || !isResumeReady,
-  },
-);
+  // Only fetch AI resume-matched jobs after resume extraction
+  // has successfully completed.
+  const recommended = useGetRecommendedJobsQuery(
+    {
+      pageNumber: state.page,
+      pageSize: 20,
+    },
+    {
+      skip: !isRecommended || !isResumeReady,
+    },
+  );
 
   const filterOptions = useGetJobFilterOptionsQuery(
-
     { ...query, pageNumber: 1, pageSize: 1 },
 
     { skip: isRecommended || isReferralTab },
-
   );
 
   const supplementalCounts = useGetSupplementalJobFilterCountsQuery(query, {
-
     skip: isRecommended || isReferralTab,
-
   });
 
   const [uploadResume, uploadState] = useUploadResumeMutation();
@@ -329,38 +261,29 @@ const recommended = useGetRecommendedJobsQuery(
 
   const appliedCount = countCandidateJobFilters(state);
 
-
-
   const setState = useCallback(
-
     (nextState: CandidateJobSearchState, replace = false, nextTab = activeTab) => {
-
+      internalNavigationRef.current = {
+        keyword: nextState.keyword !== state.keyword,
+        locations: nextState.locations.join(', ') !== state.locations.join(', '),
+      };
       const next = serializeCandidateJobSearchState(nextState);
 
       next.set('mode', nextTab);
 
       setSearchParams(next, { replace });
-
     },
 
-    [activeTab, setSearchParams],
-
+    [activeTab, setSearchParams, state],
   );
 
-
-
   const setTab = (nextTab: CandidateBrowseTab) => {
-
     const compatibleState = removeTabFilters(state, activeTab);
 
     setState(applyTabFilters({ ...compatibleState, page: 1 }, nextTab), false, nextTab);
-
   };
 
-
-
   const handleResume = async (event: ChangeEvent<HTMLInputElement>) => {
-
     const file = event.target.files?.[0];
 
     event.target.value = '';
@@ -374,7 +297,6 @@ const recommended = useGetRecommendedJobsQuery(
     setResumeError(null);
 
     try {
-
       await uploadResume(file).unwrap();
 
       await profile.refetch();
@@ -384,33 +306,24 @@ const recommended = useGetRecommendedJobsQuery(
       setPollingActive(true);
 
       await resumeStatus.refetch();
-
     } catch (error: unknown) {
-
       setResumeError(
-
-        isDashboardApiError(error) ? error.message : 'Unable to upload your resume. Please try again.',
-
+        isDashboardApiError(error)
+          ? error.message
+          : 'Unable to upload your resume. Please try again.',
       );
-
     }
-
   };
 
-
-
   const downloadResume = async () => {
-
     if (downloadInProgressRef.current) return;
 
     const downloadFileName = sanitizeResumeFileName(profile.data?.resume?.fileName, '');
 
     if (!downloadFileName) {
-
       setResumeError('Your resume filename is unavailable. Refresh the page and try again.');
 
       return;
-
     }
 
     downloadInProgressRef.current = true;
@@ -418,7 +331,6 @@ const recommended = useGetRecommendedJobsQuery(
     setIsDownloadingResume(true);
 
     try {
-
       const blob = await downloadCandidateResume();
 
       const url = URL.createObjectURL(blob);
@@ -430,67 +342,41 @@ const recommended = useGetRecommendedJobsQuery(
       link.download = downloadFileName;
 
       try {
-
         link.click();
-
       } finally {
-
         URL.revokeObjectURL(url);
-
       }
-
     } catch {
-
       setResumeError('Your resume could not be downloaded. Please try again.');
-
     } finally {
-
       downloadInProgressRef.current = false;
 
       setIsDownloadingResume(false);
-
     }
-
   };
 
-
-
   useEffect(() => {
-
     if (!resumeStatus.fulfilledTimeStamp) return;
 
     if (resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Processing) {
-
       setPollingActive(true);
 
       setPollAttempts((attempts) => Math.min(12, attempts + 1));
-
     } else {
-
       setPollingActive(false);
-
     }
-
   }, [resumeStatus.data?.extractionStatus, resumeStatus.fulfilledTimeStamp]);
 
-
-
   const applyChanges = useCallback(
-
     (changes: Partial<CandidateJobSearchState>, replace = false) => {
-
       const changesExperience =
-
         Object.hasOwn(changes, 'minExperienceYears') ||
-
         Object.hasOwn(changes, 'maxExperienceYears');
 
       const changesEmploymentType = Object.hasOwn(changes, 'employmentTypes');
 
       const leavesMode =
-
         ((activeTab === 'fresher' || activeTab === 'experienced') && changesExperience) ||
-
         (activeTab === 'internships' && changesEmploymentType);
 
       const nextTab = leavesMode ? 'all' : activeTab;
@@ -498,17 +384,12 @@ const recommended = useGetRecommendedJobsQuery(
       const currentState = leavesMode ? removeTabFilters(state, activeTab) : state;
 
       setState({ ...currentState, ...changes, page: 1 }, replace, nextTab);
-
     },
 
     [activeTab, setState, state],
-
   );
 
-
-
   useEffect(() => {
-
     const normalized = serializeCandidateJobSearchState(state);
 
     normalized.set('mode', activeTab);
@@ -520,17 +401,11 @@ const recommended = useGetRecommendedJobsQuery(
     current.sort();
 
     if (normalized.toString() !== current.toString()) {
-
       setSearchParams(normalized, { replace: true });
-
     }
-
   }, [activeTab, searchParams, setSearchParams, state]);
 
-
-
   const clearFilters = useCallback(() => {
-
     const empty = emptyCandidateJobSearchState();
 
     setKeywordInput('');
@@ -539,279 +414,188 @@ const recommended = useGetRecommendedJobsQuery(
 
     setExperienceInput('');
 
-    setState({ ...empty, sort: state.sort });
+    cancelPendingSearch();
+    setState(empty, false, 'all');
+  }, [cancelPendingSearch, setState]);
 
-  }, [setState, state.sort]);
-
-
-
+  const applyChangesRef = useRef(applyChanges);
   useEffect(() => {
+    applyChangesRef.current = applyChanges;
+  }, [applyChanges]);
 
+  // Automatic application must not erase typing that continued during navigation.
+  // External navigation (including Back/Forward) restores inputs and cancels old typing.
+  useEffect(() => {
+    const internal = internalNavigationRef.current;
+    internalNavigationRef.current = null;
+    if (preserveDraftsRef.current) {
+      preserveDraftsRef.current = false;
+      return;
+    }
+    if (internal) {
+      if (internal.keyword || internal.locations) cancelPendingSearch();
+      if (internal.keyword) setKeywordInput(state.keyword);
+      if (internal.locations) setLocationInput(state.locations.join(', '));
+      setExperienceInput(state.minExperienceYears?.toString() ?? '');
+      return;
+    }
+    cancelPendingSearch();
     setKeywordInput(state.keyword);
-
     setLocationInput(state.locations.join(', '));
-
     setExperienceInput(state.minExperienceYears?.toString() ?? '');
+  }, [searchParams, cancelPendingSearch, state]);
 
-  }, [state.keyword, state.locations, state.minExperienceYears]);
+  useEffect(() => cancelPendingSearch, [cancelPendingSearch]);
 
+  const normalizeSearch = (keyword: string, location: string) => ({
+    keyword: keyword.trim().slice(0, 250),
+    locations: Array.from(
+      new Set(
+        location
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 25),
+  });
 
-
-useEffect(() => {
-  if (debouncedKeyword !== keywordInput) {
-    return;
-  }
-
-  const normalizedKeyword = debouncedKeyword.trim().slice(0, 250);
-
-  /*
-   * An explicit Search Jobs submission may have already committed this
-   * keyword before the debounce completed.
-   *
-   * Ignore that pending debounce once so it cannot overwrite or duplicate
-   * the explicit submission.
-   */
-  if (explicitSearchKeywordRef.current === normalizedKeyword) {
-    explicitSearchKeywordRef.current = null;
-    return;
-  }
-
-  if (normalizedKeyword === state.keyword) {
-    return;
-  }
-
-  applyChanges(
-    {
-      keyword: normalizedKeyword,
-    },
-    true,
-  );
-}, [
-  applyChanges,
-  debouncedKeyword,
-  keywordInput,
-  state.keyword,
-]);
-
+  const scheduleSearch = (keyword: string, location: string) => {
+    cancelPendingSearch();
+    const next = normalizeSearch(keyword, location);
+    // Explicit submission still supports short technologies such as R.
+    if (next.keyword.length === 1 && next.keyword !== state.keyword) return;
+    searchTimerRef.current = setTimeout(() => {
+      searchTimerRef.current = null;
+      if (
+        next.keyword !== state.keyword ||
+        next.locations.join(', ') !== state.locations.join(', ')
+      ) {
+        preserveDraftsRef.current = true;
+        applyChangesRef.current(next);
+      }
+    }, 350);
+  };
 
   useEffect(() => {
-
     if (isMobileFiltersOpen || !restoreFilterButtonFocusRef.current) return;
 
     restoreFilterButtonFocusRef.current = false;
 
     filterButtonRef.current?.focus();
-
   }, [isMobileFiltersOpen]);
 
-
-
   const closeMobileFilters = () => {
-
     setIsMobileFiltersOpen(false);
-
   };
 
-
-
-const searchJobs = () => {
-  const keyword = keywordInput.trim().slice(0, 250);
-
-  const locations = locationInput
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .slice(0, 25);
-
-  const parsedExperience =
-    experienceInput === ''
-      ? undefined
-      : Math.min(
-          45,
-          Math.max(0, Number(experienceInput)),
-        );
-
-  const minExperienceYears = Number.isFinite(parsedExperience)
-    ? parsedExperience
-    : undefined;
-
-  /*
-   * Mark the keyword as explicitly submitted so a pending debounce for
-   * the same value cannot immediately submit it again.
-   */
-  explicitSearchKeywordRef.current = keyword;
-
-  const normalizedCurrentLocations = state.locations
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  const locationsAreEqual =
-    normalizedCurrentLocations.length === locations.length &&
-    normalizedCurrentLocations.every(
-      (value, index) => value === locations[index],
-    );
-
-  const searchStateAlreadyApplied =
-    state.keyword === keyword &&
-    locationsAreEqual &&
-    state.minExperienceYears === minExperienceYears &&
-    state.page === 1;
-
-  /*
-   * If nothing changed, RTK Query would normally reuse the same query
-   * arguments/cache. An explicit Search Jobs action should refresh the
-   * current search.
-   */
-  if (searchStateAlreadyApplied) {
-    if (!isRecommended && !isReferralTab) {
-      void jobs.refetch();
+  const searchJobs = () => {
+    cancelPendingSearch();
+    const next = normalizeSearch(keywordInput, locationInput);
+    if (
+      next.keyword === state.keyword &&
+      next.locations.join(', ') === state.locations.join(', ') &&
+      state.page === 1
+    ) {
+      if (!isRecommended && !isReferralTab && !jobs.isFetching) void jobs.refetch();
+      return;
     }
-
-    return;
-  }
-
-  /*
-   * If anything changed, update search state.
-   * useSearchJobsQuery(query) will automatically execute using the new
-   * query arguments after React updates the state.
-   *
-   * Do NOT call jobs.refetch() here because it would still reference the
-   * previous query arguments during this event.
-   */
-  applyChanges({
-    keyword,
-    locations,
-    minExperienceYears,
-  });
-};
-
-
+    applyChanges(next);
+  };
 
   const refreshMatches = () => {
-
     if (resumeStatus.isFetching || recommended.isFetching) return;
 
     void resumeStatus.refetch();
 
     if (isRecommended) void recommended.refetch();
-
   };
 
-
-
   const sourceJobs = isRecommended
-  ? isResumeReady
-    ? recommended.data?.items.map(toJobSummary)
-    : undefined
-  : jobs.data?.items;
+    ? isResumeReady
+      ? recommended.data?.items.map(toJobSummary)
+      : undefined
+    : jobs.data?.items;
 
-const displayedJobs = sourceJobs?.filter(
-  (job) => !appliedJobIds.has(job.id),
-);
+  const displayedJobs = sourceJobs?.filter((job) => !appliedJobIds.has(job.id));
 
-const removedFromPage =
-  sourceJobs?.filter((job) => appliedJobIds.has(job.id)).length ?? 0;
+  const sourceTotal = isRecommended
+    ? isResumeReady
+      ? recommended.data?.totalCount
+      : undefined
+    : jobs.data?.totalCount;
 
-const sourceTotal = isRecommended
-  ? isResumeReady
-    ? recommended.data?.totalCount
-    : undefined
-  : jobs.data?.totalCount;
+  const displayedTotal = sourceTotal === undefined ? undefined : sourceTotal;
 
-const displayedTotal =
-  sourceTotal === undefined
-    ? undefined
-    : Math.max(0, sourceTotal - removedFromPage);
+  const displayedPages =
+    isRecommended && isResumeReady
+      ? recommended.data?.totalPages
+      : isRecommended
+        ? undefined
+        : jobs.data?.totalPages;
 
-const displayedPages =
-  isRecommended && isResumeReady
-    ? recommended.data?.totalPages
-    : isRecommended
-      ? undefined
-      : jobs.data?.totalPages;
+  const resultsLoading = isRecommended ? isResumeReady && recommended.isLoading : jobs.isLoading;
 
-const resultsLoading =
-  isRecommended
-    ? isResumeReady && recommended.isLoading
-    : jobs.isLoading;
+  const resultsError = isRecommended ? isResumeReady && recommended.isError : jobs.isError;
 
-const resultsError =
-  isRecommended
-    ? isResumeReady && recommended.isError
-    : jobs.isError;
-
-const refetchResults =
-  isRecommended
-    ? recommended.refetch
-    : jobs.refetch;
-
-
+  const refetchResults = isRecommended ? recommended.refetch : jobs.refetch;
 
   const renderFilterPanel = (onCollapse?: () => void) =>
-
-    filterOptions.isLoading && !filterOptions.data ? <PageLoadingIndicator compact label="Loading job filters" /> : !filterOptions.data ? (
-
+    filterOptions.isLoading && !filterOptions.data ? (
+      <PageLoadingIndicator compact label="Loading job filters" />
+    ) : !filterOptions.data ? (
       <Stack spacing={2}>
-
         <Alert severity="error">Unable to load filters</Alert>
 
         <Button
-
           onClick={() => {
-
             void filterOptions.refetch();
-
           }}
 
           variant="outlined"
-
         >
-
           Retry
-
         </Button>
-
       </Stack>
-
     ) : (
-
       <Stack spacing={1} aria-busy={filterOptions.isFetching}>
+        {filterOptions.isError ? (
+          <Alert
+            severity="warning"
+            action={<Button onClick={() => void filterOptions.refetch()}>Retry</Button>}
+          >
+            Unable to load filters
+          </Alert>
+        ) : null}
 
-      {filterOptions.isError ? <Alert severity="warning" action={<Button onClick={() => void filterOptions.refetch()}>Retry</Button>}>Unable to load filters</Alert> : null}
+        {filterOptions.isFetching ? (
+          <Typography role="status" variant="caption">
+            Updating filters…
+          </Typography>
+        ) : null}
 
-      {filterOptions.isFetching ? <Typography role="status" variant="caption">Updating filters…</Typography> : null}
+        <CandidateJobFilters
+          appliedCount={appliedCount}
 
-      <CandidateJobFilters
+          onChange={applyChanges}
 
-        appliedCount={appliedCount}
+          onClear={clearFilters}
 
-        onChange={applyChanges}
+          onCollapse={onCollapse}
 
-        onClear={clearFilters}
+          options={filterOptions.data}
 
-        onCollapse={onCollapse}
+          state={state}
 
-        options={filterOptions.data}
-
-        state={state}
-
-        supplementalCounts={supplementalCounts.data}
-
-      />
-
+          supplementalCounts={supplementalCounts.data}
+        />
       </Stack>
-
     );
 
-
-
-  const pagePresentation: Record<
-    CandidateBrowseTab,
-    { title: string; description: string }
-  > = {
+  const pagePresentation: Record<CandidateBrowseTab, { title: string; description: string }> = {
     all: {
       title: 'Find your next opportunity',
-      description: 'Explore jobs, internships and career opportunities from top companies across India.',
+      description:
+        'Explore jobs, internships and career opportunities from top companies across India.',
     },
     recommended: {
       title: 'Jobs that match your resume',
@@ -831,7 +615,8 @@ const refetchResults =
     },
     referral: {
       title: 'Find jobs through employee referrals',
-      description: 'Discover referral opportunities and connect with employees who can help you apply.',
+      description:
+        'Discover referral opportunities and connect with employees who can help you apply.',
     },
   };
 
@@ -867,16 +652,19 @@ const refetchResults =
             keyword={keywordInput}
             location={locationInput}
             onExperienceChange={setExperienceInput}
-            onKeywordChange={setKeywordInput}
-            onLocationChange={setLocationInput}
+            onKeywordChange={(value) => {
+              setKeywordInput(value);
+              scheduleSearch(value, locationInput);
+            }}
+            onLocationChange={(value) => {
+              setLocationInput(value);
+              scheduleSearch(keywordInput, value);
+            }}
             onSearch={searchJobs}
           />
         ) : null}
 
-     <JobModeTabs
-  mode={activeTab}
-  onChange={setTab}
-/>
+        <JobModeTabs mode={activeTab} onChange={setTab} />
 
         {isRecommended ? (
           <ResumeRecommendationCard
@@ -968,11 +756,11 @@ const refetchResults =
               </Button>
             ) : null}
 
-            <Box component="section" minWidth={0} sx={{ flex: 1 }}>
+            <Box component="section" aria-busy={jobs.isFetching} minWidth={0} sx={{ flex: 1 }}>
               <Stack spacing={1.5} sx={{ mb: 2 }}>
                 <JobResultsHeader
-                  count={displayedTotal}
-                  isLoading={resultsLoading}
+                  count={resultsError ? undefined : displayedTotal}
+                  isLoading={resultsLoading || jobs.isFetching}
                   isRecommended={isRecommended}
                   onSortChange={(sort) => applyChanges({ sort })}
                   sort={state.sort}
@@ -996,10 +784,13 @@ const refetchResults =
                 ) : null}
               </Stack>
 
-{isRecommended && !isResumeReady ? null : resultsLoading ? (
-                  <PageLoadingIndicator label="Loading Candidate jobs" />
+              {isRecommended && !isResumeReady ? null : resultsLoading ? (
+                <PageLoadingIndicator label="Loading Candidate jobs" />
               ) : resultsError ? (
-                <ErrorState onRetry={() => void refetchResults()} title="Jobs unavailable" />
+                <ErrorState
+                  onRetry={() => void refetchResults()}
+                  title="We couldn't load jobs. Try again."
+                />
               ) : displayedJobs?.length ? (
                 <Stack spacing={3}>
                   <Grid container spacing={2}>
@@ -1067,16 +858,13 @@ const refetchResults =
                     description={
                       isRecommended
                         ? "We couldn't find a strong match with your current resume."
-                        : 'Try a broader keyword or remove one or more filters.'
+                        : `No jobs found${state.keyword ? ` for '${state.keyword}'` : ''}${state.locations.length ? ` in ${state.locations.join(', ')}` : ''}. Try a broader keyword or remove filters.`
                     }
                     onAction={
                       isRecommended
                         ? () => setTab('all')
                         : appliedCount > 0 || state.keyword
-                          ? () => {
-                              setKeywordInput('');
-                              setState(emptyCandidateJobSearchState());
-                            }
+                          ? clearFilters
                           : undefined
                     }
                     title={isRecommended ? 'No matching jobs yet' : 'No jobs match your search'}
@@ -1112,7 +900,12 @@ const refetchResults =
             }}
             sx={{ display: { lg: 'none' } }}
           >
-            <Stack alignItems="center" direction="row" justifyContent="space-between" sx={{ mb: 2 }}>
+            <Stack
+              alignItems="center"
+              direction="row"
+              justifyContent="space-between"
+              sx={{ mb: 2 }}
+            >
               <Typography component="h2" variant="h3">
                 Filter jobs
               </Typography>
@@ -1137,7 +930,12 @@ const refetchResults =
                 position: 'sticky',
               }}
             >
-              <Button disabled={appliedCount === 0} fullWidth onClick={clearFilters} variant="outlined">
+              <Button
+                disabled={appliedCount === 0 && !state.keyword}
+                fullWidth
+                onClick={clearFilters}
+                variant="outlined"
+              >
                 Clear all
               </Button>
               <Button fullWidth onClick={closeMobileFilters} type="button" variant="contained">

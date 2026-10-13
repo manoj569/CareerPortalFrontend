@@ -45,9 +45,14 @@ describe('public jobs advanced search API', () => {
     mockRequest.mockResolvedValue({
       data: { data: { items, pageNumber: 2, pageSize: 20, totalCount: 10000, totalPages: 500 } },
     });
-    const subscription = store.dispatch(jobsApi.endpoints.searchJobs.initiate({
-      pageNumber: 2, pageSize: 20, sortBy: PublicJobSort.LatestPublished, sortDirection: 'desc',
-    }));
+    const subscription = store.dispatch(
+      jobsApi.endpoints.searchJobs.initiate({
+        pageNumber: 2,
+        pageSize: 20,
+        sortBy: PublicJobSort.LatestPublished,
+        sortDirection: 'desc',
+      }),
+    );
     const response = await subscription.unwrap();
     expect(response.items).toEqual(items);
     expect(response.totalCount).toBe(10000);
@@ -158,10 +163,16 @@ describe('public jobs advanced search API', () => {
 
     const request = mockRequest.mock.calls[0]?.[0] as CapturedRequest | undefined;
     expect(request?.url).toBe('/jobs/facets');
-    expect(request?.params?.getAll('roleCategories')).toEqual(['Software Development', 'Product Management - Technology']);
+    expect(request?.params?.getAll('roleCategories')).toEqual([
+      'Software Development',
+      'Product Management - Technology',
+    ]);
     expect(request?.params?.getAll('locations')).toEqual(['Pune', 'Mumbai']);
     expect(request?.params?.getAll('departments')).toEqual(['Engineering - Software & QA']);
-    expect(request?.params?.getAll('educationRequirements')).toEqual(['B.Tech / B.E.', 'Any Graduate']);
+    expect(request?.params?.getAll('educationRequirements')).toEqual([
+      'B.Tech / B.E.',
+      'Any Graduate',
+    ]);
     expect(request?.params?.getAll('workModes')).toEqual(['2']);
     expect(request?.params?.get('keyword')).toBe('design');
   });
@@ -203,5 +214,63 @@ describe('public jobs advanced search API', () => {
       '30',
     ]);
     expect(requests.at(-1)?.params?.get('featuredOnly')).toBe('true');
+  });
+  it('isolates out-of-order search responses and deduplicates identical query arguments', async () => {
+    const store = createAppStore();
+    let resolveOlder!: (value: unknown) => void;
+    mockRequest.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveOlder = resolve;
+        }),
+    );
+    mockRequest.mockResolvedValueOnce({
+      data: { data: { items: [{ id: 'react' }], totalCount: 222 } },
+    });
+    const older = store.dispatch(
+      jobsApi.endpoints.searchJobs.initiate({
+        keyword: 'rea',
+        pageNumber: 1,
+        pageSize: 10,
+        sortBy: PublicJobSort.Recommended,
+        sortDirection: 'desc',
+      }),
+    );
+    const newer = store.dispatch(
+      jobsApi.endpoints.searchJobs.initiate({
+        keyword: 'react',
+        pageNumber: 1,
+        pageSize: 10,
+        sortBy: PublicJobSort.Recommended,
+        sortDirection: 'desc',
+      }),
+    );
+    const duplicate = store.dispatch(
+      jobsApi.endpoints.searchJobs.initiate({
+        keyword: 'react',
+        pageNumber: 1,
+        pageSize: 10,
+        sortBy: PublicJobSort.Recommended,
+        sortDirection: 'desc',
+      }),
+    );
+    await newer.unwrap();
+    await duplicate.unwrap();
+    resolveOlder({ data: { data: { items: [{ id: 'rea' }], totalCount: 1 } } });
+    await older.unwrap();
+    expect(
+      jobsApi.endpoints.searchJobs.select({
+        keyword: 'react',
+        pageNumber: 1,
+        pageSize: 10,
+        sortBy: PublicJobSort.Recommended,
+        sortDirection: 'desc',
+      })(store.getState()).data,
+    ).toMatchObject({ items: [{ id: 'react' }], totalCount: 222 });
+    expect(mockRequest).toHaveBeenCalledTimes(2);
+    older.unsubscribe();
+    newer.unsubscribe();
+    duplicate.unsubscribe();
+    store.dispatch(jobsApi.util.resetApiState());
   });
 });

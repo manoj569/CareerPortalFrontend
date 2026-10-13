@@ -4,21 +4,14 @@ import { Paper, Tab, Tabs } from '@mui/material';
 export type CandidateBrowseMode = 'all' | 'recommended';
 
 export type CandidateBrowseTab =
-  | CandidateBrowseMode
-  | 'internships'
-  | 'fresher'
-  | 'experienced'
-  | 'referral';
+  CandidateBrowseMode | 'internships' | 'fresher' | 'experienced' | 'referral';
 
 interface JobModeTabsProps {
   mode: CandidateBrowseTab;
   onChange: (mode: CandidateBrowseTab) => void;
 }
 
-export const JobModeTabs = ({
-  mode,
-  onChange,
-}: JobModeTabsProps) => (
+export const JobModeTabs = ({ mode, onChange }: JobModeTabsProps) => (
   <Paper
     component="section"
     elevation={0}
@@ -80,10 +73,7 @@ export const JobModeTabs = ({
         value="referral"
       />
 
-      <Tab
-  label="Resume matches"
-  value="recommended"
-/>
+      <Tab disabled title="Phase 2 - coming soon" label="Resume matches" value="recommended" />
 
       <Tab label="Internships" value="internships" />
 
