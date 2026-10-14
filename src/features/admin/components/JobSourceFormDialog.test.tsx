@@ -88,6 +88,7 @@ it('creates without a logo, selects the returned company and preserves every sou
       atsIdentifier: 'razorpay-board',
       scanIntervalMinutes: 360,
       isActive: false,
+      autoPublishEnabled: true,
     }),
   );
 });

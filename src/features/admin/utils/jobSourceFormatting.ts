@@ -20,5 +20,6 @@ export const sourceRequest = (source: JobSource): SaveJobSourceRequest => ({
   atsType: source.atsType,
   atsIdentifier: source.atsIdentifier,
   isActive: source.isActive,
+  autoPublishEnabled: source.autoPublishEnabled ?? false,
   scanIntervalMinutes: source.scanIntervalMinutes,
 });

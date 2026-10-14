@@ -14,6 +14,7 @@ export interface SaveJobSourceRequest {
   atsType: AtsType;
   atsIdentifier: string | null;
   isActive: boolean;
+  autoPublishEnabled: boolean;
   scanIntervalMinutes: number;
 }
 

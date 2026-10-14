@@ -25,6 +25,7 @@ const source: JobSource = {
   atsType: AtsType.Greenhouse,
   atsIdentifier: 'togetherai',
   isActive: true,
+  autoPublishEnabled: true,
   scanIntervalMinutes: 720,
   lastRunAtUtc: null,
   lastSuccessfulRunAtUtc: null,
@@ -258,6 +259,7 @@ describe('job sources administrator workflow', () => {
             atsIdentifier: 'togetherai',
             scanIntervalMinutes: 720,
             isActive: false,
+            autoPublishEnabled: true,
           },
         }),
       ),
@@ -396,6 +398,7 @@ describe('job sources administrator workflow', () => {
             atsType: 1,
             atsIdentifier: 'togetherai',
             isActive: true,
+            autoPublishEnabled: true,
             scanIntervalMinutes: 720,
           },
         }),
@@ -421,6 +424,148 @@ describe('job sources administrator workflow', () => {
         expect.objectContaining({
           method: 'PUT',
           data: expect.objectContaining({ scanIntervalMinutes: 90 }) as unknown,
+        }),
+      ),
+    );
+  });
+  it.each([
+    [AtsType.Greenhouse, true],
+    [AtsType.Greenhouse, false],
+    [AtsType.Lever, true],
+    [AtsType.Ashby, true],
+    [AtsType.Workday, true],
+    [AtsType.SuccessFactors, true],
+    [AtsType.Custom, true],
+  ] as const)(
+    'creates ATS %s with explicit Auto Publish %s independently from Active',
+    async (atsType, autoPublishEnabled) => {
+      renderPage();
+      await screen.findByRole('table');
+      fireEvent.click(firstButton('+ Add Job Source'));
+      const dialog = within(await screen.findByRole('dialog'));
+      await waitFor(() =>
+        expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled(),
+      );
+      const autoPublish = dialog.getByRole('switch', { name: 'Auto Publish' });
+      expect(autoPublish).toBeChecked();
+      expect(autoPublish).toHaveAccessibleDescription(
+        'Automatically publish eligible jobs imported from this source.',
+      );
+      if (!autoPublishEnabled) fireEvent.click(autoPublish);
+      expect(dialog.getByRole('switch', { name: 'Active' })).toBeChecked();
+      fireEvent.change(dialog.getByRole('combobox', { name: /Company/ }), {
+        target: { value: 'Together' },
+      });
+      fireEvent.click(await screen.findByRole('option', { name: 'Together AI' }));
+      fireEvent.change(dialog.getByRole('textbox', { name: /Career Page URL/ }), {
+        target: { value: 'https://example.com/careers' },
+      });
+      fireEvent.mouseDown(dialog.getByRole('combobox', { name: 'ATS Type' }));
+      fireEvent.click(screen.getByRole('option', { name: AtsType[atsType] }));
+      fireEvent.change(dialog.getByRole('textbox', { name: /ATS Identifier/ }), {
+        target: { value: 'tenant/site' },
+      });
+      fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
+      await waitFor(() =>
+        expect(request).toHaveBeenCalledWith(
+          expect.objectContaining({
+            method: 'POST',
+            url: '/admin/job-sources',
+            data: expect.objectContaining({
+              atsType,
+              autoPublishEnabled,
+              isActive: true,
+            }) as unknown,
+          }),
+        ),
+      );
+    },
+  );
+
+  const returnSourceSetting = (autoPublishEnabled: boolean) => {
+    const handler = request.getMockImplementation()!;
+    request.mockImplementation((config) =>
+      config.method === 'GET' && config.url.endsWith('/source-1')
+        ? Promise.resolve({ data: { data: { ...source, autoPublishEnabled } } })
+        : handler(config),
+    );
+  };
+
+  it.each([true, false])(
+    'hydrates persisted Auto Publish %s and preserves it when Active/interval change',
+    async (autoPublishEnabled) => {
+      items = [{ ...source, autoPublishEnabled }];
+      returnSourceSetting(autoPublishEnabled);
+      renderPage();
+      await screen.findByRole('table');
+      expect(
+        screen.getAllByText(autoPublishEnabled ? 'Auto Publish: On' : 'Auto Publish: Off').length,
+      ).toBeGreaterThan(0);
+      fireEvent.click(firstButton('Edit'));
+      const dialog = within(await screen.findByRole('dialog'));
+      await waitFor(() =>
+        expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled(),
+      );
+      const autoPublish = dialog.getByRole('switch', { name: 'Auto Publish' });
+      expect(autoPublish).toHaveProperty('checked', autoPublishEnabled);
+      fireEvent.click(dialog.getByRole('switch', { name: 'Active' }));
+      expect(autoPublish).toHaveProperty('checked', autoPublishEnabled);
+      fireEvent.change(dialog.getByRole('spinbutton', { name: /Scan Interval/ }), {
+        target: { value: '360' },
+      });
+      expect(autoPublish).toHaveProperty('checked', autoPublishEnabled);
+      fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
+      await waitFor(() =>
+        expect(request).toHaveBeenCalledWith(
+          expect.objectContaining({
+            method: 'PUT',
+            url: '/admin/job-sources/source-1',
+            data: expect.objectContaining({
+              autoPublishEnabled,
+              isActive: false,
+              scanIntervalMinutes: 360,
+            }) as unknown,
+          }),
+        ),
+      );
+    },
+  );
+
+  it.each([true, false])(
+    'updates Auto Publish %s without changing Active',
+    async (autoPublishEnabled) => {
+      returnSourceSetting(!autoPublishEnabled);
+      renderPage();
+      await screen.findByRole('table');
+      fireEvent.click(firstButton('Edit'));
+      const dialog = within(await screen.findByRole('dialog'));
+      await waitFor(() =>
+        expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled(),
+      );
+      fireEvent.click(dialog.getByRole('switch', { name: 'Auto Publish' }));
+      expect(dialog.getByRole('switch', { name: 'Active' })).toBeChecked();
+      fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
+      await waitFor(() =>
+        expect(request).toHaveBeenCalledWith(
+          expect.objectContaining({
+            method: 'PUT',
+            data: expect.objectContaining({ autoPublishEnabled, isActive: true }) as unknown,
+          }),
+        ),
+      );
+    },
+  );
+
+  it('preserves current Auto Publish OFF when deactivating a stale ON row', async () => {
+    returnSourceSetting(false);
+    renderPage();
+    await screen.findByRole('table');
+    await confirm('Deactivate', 'Deactivate Job Source');
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'PUT',
+          data: expect.objectContaining({ autoPublishEnabled: false, isActive: false }) as unknown,
         }),
       ),
     );

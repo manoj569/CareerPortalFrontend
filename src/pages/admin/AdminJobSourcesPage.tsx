@@ -276,6 +276,11 @@ export const AdminJobSourcesPage = () => {
         label={source.isActive ? 'Active' : 'Inactive'}
         color={source.isActive ? 'success' : 'default'}
       />
+      <Chip
+        size="small"
+        label={source.autoPublishEnabled ? 'Auto Publish: On' : 'Auto Publish: Off'}
+        color={source.autoPublishEnabled ? 'info' : 'default'}
+      />
       {hasSourceError(source) && (
         <Chip size="small" label="Error" color="error" onClick={() => setErrorSource(source)} />
       )}

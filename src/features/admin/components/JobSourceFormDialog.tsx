@@ -63,6 +63,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
           atsType: AtsType.Greenhouse,
           atsIdentifier: '',
           isActive: true,
+          autoPublishEnabled: true,
           scanIntervalMinutes: 720,
         },
   });
@@ -315,6 +316,30 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                 />
               )}
             />
+            <Stack spacing={0.5}>
+              <Controller
+                control={control}
+                name="autoPublishEnabled"
+                render={({ field }) => (
+                  <FormControlLabel
+                    label="Auto Publish"
+                    control={
+                      <Switch
+                        checked={field.value}
+                        onChange={(_, checked) => field.onChange(checked)}
+                        disabled={busy}
+                        inputRef={field.ref}
+                        onBlur={field.onBlur}
+                        slotProps={{ input: { 'aria-describedby': 'auto-publish-help' } }}
+                      />
+                    }
+                  />
+                )}
+              />
+              <Typography id="auto-publish-help" variant="body2" color="text.secondary">
+                Automatically publish eligible jobs imported from this source.
+              </Typography>
+            </Stack>
             <Typography variant="body2">
               Category: {source?.categoryName ?? 'Not configured'}. Category mappings are managed by
               server configuration and cannot be edited here.

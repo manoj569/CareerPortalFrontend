@@ -52,6 +52,7 @@ export const jobSourceSchema: yup.ObjectSchema<SaveJobSourceRequest> = yup.objec
     }),
 
   isActive: yup.boolean().required(),
+  autoPublishEnabled: yup.boolean().required(),
 
   scanIntervalMinutes: yup
     .number()
