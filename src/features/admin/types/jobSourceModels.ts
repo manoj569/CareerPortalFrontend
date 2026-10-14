@@ -40,9 +40,27 @@ export interface JobSourceRunResult {
   failed: number;
   succeeded: boolean;
   error: string | null;
+  parsed?: number;
+  published?: number;
+  existing?: number;
+  rejected?: number;
+  reconciliationSafe?: boolean;
+  failureReasonCode?: string | null;
+  failureStage?: string | null;
+  stopReason?: string | null;
 }
 
-export type JobSourceRunStatus = 'Queued' | 'Running' | 'Interrupted' | 'Succeeded' | 'Failed';
+export const jobSourceRunStatuses = [
+  'Queued',
+  'Running',
+  'Interrupted',
+  'Paused',
+  'Succeeded',
+  'Failed',
+  'Unsafe',
+  'Cancelled',
+] as const;
+export type JobSourceRunStatus = (typeof jobSourceRunStatuses)[number];
 
 export interface DurableJobSourceRun extends JobSourceRunResult {
   runId: string;
@@ -51,9 +69,11 @@ export interface DurableJobSourceRun extends JobSourceRunResult {
   retryPending: boolean;
   completedAtUtc: string | null;
   attemptCount: number;
+  diagnostics?: Partial<JobSourceRunResult> | null;
 }
 
 export const isActiveJobSourceRun = (run: DurableJobSourceRun) =>
   run.status === 'Queued' ||
   run.status === 'Running' ||
+  run.status === 'Paused' ||
   (run.status === 'Interrupted' && run.retryPending);

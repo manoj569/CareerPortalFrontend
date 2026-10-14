@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
 import { selectCurrentUser } from '@/features/auth/store/authSlice';
 import { jobSourcesApi } from '../api/jobSourcesApi';
-import { isActiveJobSourceRun, type DurableJobSourceRun } from '../types/jobSourceModels';
+import {
+  isActiveJobSourceRun,
+  jobSourceRunStatuses,
+  type DurableJobSourceRun,
+} from '../types/jobSourceModels';
 
 interface Reference {
   sourceId: string;
@@ -21,7 +25,7 @@ interface Task {
 const valid = (run: DurableJobSourceRun, ref: Reference) =>
   run?.runId === ref.runId &&
   run.jobSourceId === ref.sourceId &&
-  ['Queued', 'Running', 'Interrupted', 'Succeeded', 'Failed'].includes(run.status) &&
+  jobSourceRunStatuses.includes(run.status) &&
   typeof run.retryPending === 'boolean';
 
 export const useJobSourceRuns = (onTerminal: (entry: TrackedSourceRun) => void) => {

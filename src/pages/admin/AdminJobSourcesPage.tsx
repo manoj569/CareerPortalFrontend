@@ -618,6 +618,9 @@ export const AdminJobSourcesPage = () => {
                 {[
                   ['Total Received', result.run.totalReceived],
                   ['Created', result.run.created],
+                  ['Existing', result.run.existing ?? result.run.matched],
+                  ['Published', result.run.published ?? 0],
+                  ['Rejected', result.run.rejected ?? result.run.skipped],
                   ['Matched', result.run.matched],
                   ['Skipped', result.run.skipped],
                   ['Failed', result.run.failed],
@@ -631,6 +634,14 @@ export const AdminJobSourcesPage = () => {
               </Grid>
             )}
             {result?.error && <Alert severity="error">{result.error}</Alert>}
+            {result?.run?.diagnostics?.failureReasonCode && (
+              <Alert severity="warning">
+                {result.run.diagnostics.failureReasonCode}
+                {result.run.diagnostics.failureStage
+                  ? ` (${result.run.diagnostics.failureStage})`
+                  : ''}
+              </Alert>
+            )}
             {result?.run?.error && (
               <Alert severity="error" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                 {result.run.error}

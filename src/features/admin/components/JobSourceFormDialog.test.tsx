@@ -5,7 +5,10 @@ import { renderWithProviders } from '@/test/renderWithProviders';
 import { JobSourceFormDialog } from './JobSourceFormDialog';
 
 const { request } = vi.hoisted(() => ({
-  request: vi.fn<(config: { method: string; url: string; data?: unknown }) => Promise<{ data: unknown }>>(),
+  request:
+    vi.fn<
+      (config: { method: string; url: string; data?: unknown }) => Promise<{ data: unknown }>
+    >(),
 }));
 vi.mock('@/api/apiClient', () => ({ apiClient: { request } }));
 const company = { id: 'new-company', name: 'Razorpay', slug: 'razorpay' };
@@ -48,6 +51,38 @@ const fill = () => {
   fireEvent.click(screen.getByRole('switch', { name: 'Active' }));
 };
 
+it.each([
+  [1, 'Greenhouse', 'https://job-boards.greenhouse.io/ExactCase'],
+  [2, 'Lever', 'https://jobs.lever.co/ExactCase'],
+  [3, 'Ashby', 'https://jobs.ashbyhq.com/ExactCase'],
+  [4, 'SuccessFactors', 'https://careers.example.com/go/Board/123'],
+  [5, 'Workday', 'https://tenant.wd504.myworkdayjobs.com/ExactCase'],
+] as const)(
+  'submits URL-derived identity for provider %s without inventing metadata',
+  async (atsType, name, careerPageUrl) => {
+    await open();
+    search('Deloitte');
+    fireEvent.click(await screen.findByRole('option', { name: 'Deloitte' }));
+    fireEvent.change(screen.getByRole('textbox', { name: /Career Page URL/ }), {
+      target: { value: careerPageUrl },
+    });
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS Type' }));
+    fireEvent.click(screen.getByRole('option', { name }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith({
+        companyId: 'existing',
+        careerPageUrl,
+        atsType,
+        atsIdentifier: null,
+        isActive: true,
+        autoPublishEnabled: true,
+        scanIntervalMinutes: 720,
+      }),
+    );
+  },
+);
+
 it('searches and selects existing companies without offering case-insensitive duplicates', async () => {
   await open();
   search('del');
@@ -76,7 +111,11 @@ it('creates without a logo, selects the returned company and preserves every sou
     expect.objectContaining({
       method: 'POST',
       url: '/admin/companies',
-      data: expect.objectContaining({ name: 'Razorpay', logoUrl: null, isVerified: false }) as unknown,
+      data: expect.objectContaining({
+        name: 'Razorpay',
+        logoUrl: null,
+        isVerified: false,
+      }) as unknown,
     }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));

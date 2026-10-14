@@ -7,13 +7,64 @@ const valid = {
   atsType: 1,
   atsIdentifier: 'board',
   isActive: true,
+  autoPublishEnabled: true,
   scanIntervalMinutes: 720,
 };
 describe('source validation and formatting', () => {
-  it('supports the exact ATS mapping and requires a SuccessFactors identifier', async () => {
-    expect(await jobSourceSchema.isValid({ ...valid, atsType: 4, atsIdentifier: '718244' })).toBe(true);
-    expect(await jobSourceSchema.isValid({ ...valid, atsType: 4, atsIdentifier: '' })).toBe(false);
+  it('validates the SuccessFactors board URL and derives its numeric identifier', async () => {
+    const board = {
+      ...valid,
+      atsType: 4,
+      careerPageUrl: 'https://careers.example.com/go/Example/718244',
+    };
+    expect(await jobSourceSchema.isValid({ ...board, atsIdentifier: '718244' })).toBe(true);
+    expect(await jobSourceSchema.isValid({ ...board, atsIdentifier: '' })).toBe(true);
+    expect(await jobSourceSchema.isValid({ ...board, atsIdentifier: 'other' })).toBe(false);
     expect(await jobSourceSchema.isValid({ ...valid, atsType: 5 })).toBe(false);
+  });
+  it.each([
+    [1, 'https://job-boards.greenhouse.io/ExactCase'],
+    [2, 'https://jobs.eu.lever.co/ExactCase'],
+    [3, 'https://jobs.ashbyhq.com/ExactCase'],
+    [4, 'https://careers.example.com/go/Example/123'],
+    [5, 'https://tenant.wd504.myworkdayjobs.com/en-US/ExactCase'],
+  ])('permits URL-derived metadata for provider %s', async (atsType, careerPageUrl) => {
+    expect(
+      await jobSourceSchema.isValid({ ...valid, atsType, careerPageUrl, atsIdentifier: null }),
+    ).toBe(true);
+    expect(
+      await jobSourceSchema.isValid({
+        ...valid,
+        atsType,
+        careerPageUrl,
+        atsIdentifier: 'conflict',
+      }),
+    ).toBe(false);
+  });
+  it.each(['tenant/ExactCase', 'tenant', 'ExactCase'])(
+    'accepts matching Workday input %s',
+    async (atsIdentifier) => {
+      expect(
+        await jobSourceSchema.isValid({
+          ...valid,
+          atsType: 5,
+          careerPageUrl: 'https://tenant.wd12.myworkdayjobs.com/ExactCase',
+          atsIdentifier,
+        }),
+      ).toBe(true);
+    },
+  );
+  it.each([1, 2, 3])('rejects identifier URLs and job paths for provider %s', async (atsType) => {
+    expect(
+      await jobSourceSchema.isValid({
+        ...valid,
+        atsType,
+        atsIdentifier: 'https://evil.test/board',
+      }),
+    ).toBe(false);
+    expect(await jobSourceSchema.isValid({ ...valid, atsType, atsIdentifier: 'board/job' })).toBe(
+      false,
+    );
   });
   it.each(['javascript:alert(1)', 'https://user:password@example.com', '/careers'])(
     'rejects unsupported URL %s',

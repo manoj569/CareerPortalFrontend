@@ -118,7 +118,14 @@ describe('job sources administrator workflow', () => {
       AtsType.Ashby,
       AtsType.SuccessFactors,
     ]).toEqual([0, 1, 2, 3, 4]);
-    items = [{ ...source, atsType: AtsType.SuccessFactors, atsIdentifier: '718244' }];
+    items = [
+      {
+        ...source,
+        atsType: AtsType.SuccessFactors,
+        atsIdentifier: '718244',
+        careerPageUrl: 'https://careers.example.com/go/Board/718244',
+      },
+    ];
     renderPage();
     const table = await screen.findByRole('table', { name: 'Job sources' });
     expect(within(table).getByText('SuccessFactors')).toBeVisible();
@@ -138,7 +145,14 @@ describe('job sources administrator workflow', () => {
         return Promise.resolve({ data: { data: { ...source, ...(data as object) } } });
       if (url.endsWith('/source-1'))
         return Promise.resolve({
-          data: { data: { ...source, atsType: 4, atsIdentifier: '718244' } },
+          data: {
+            data: {
+              ...source,
+              atsType: 4,
+              atsIdentifier: '718244',
+              careerPageUrl: 'https://careers.example.com/go/Board/718244',
+            },
+          },
         });
       return Promise.resolve({
         data: { data: { items, pageNumber: 1, pageSize: 100, totalCount: 1, totalPages: 1 } },
@@ -152,7 +166,7 @@ describe('job sources administrator workflow', () => {
       'SuccessFactors',
     );
     expect(within(dialog).getByLabelText(/ATS Identifier/)).toHaveValue('718244');
-    expect(within(dialog).getByText('Board / career-site identifier')).toBeVisible();
+    expect(within(dialog).getByText(/Numeric board ID from the HTTPS/)).toBeVisible();
     await waitFor(() => expect(within(dialog).getByRole('button', { name: /Save/ })).toBeEnabled());
     fireEvent.click(within(dialog).getByRole('button', { name: /Save/ }));
     await waitFor(() =>
@@ -458,12 +472,26 @@ describe('job sources administrator workflow', () => {
       });
       fireEvent.click(await screen.findByRole('option', { name: 'Together AI' }));
       fireEvent.change(dialog.getByRole('textbox', { name: /Career Page URL/ }), {
-        target: { value: 'https://example.com/careers' },
+        target: {
+          value:
+            atsType === AtsType.Workday
+              ? 'https://tenant.wd504.myworkdayjobs.com/site'
+              : atsType === AtsType.SuccessFactors
+                ? 'https://careers.example.com/go/Board/123'
+                : 'https://example.com/careers',
+        },
       });
       fireEvent.mouseDown(dialog.getByRole('combobox', { name: 'ATS Type' }));
       fireEvent.click(screen.getByRole('option', { name: AtsType[atsType] }));
       fireEvent.change(dialog.getByRole('textbox', { name: /ATS Identifier/ }), {
-        target: { value: 'tenant/site' },
+        target: {
+          value:
+            atsType === AtsType.Workday
+              ? 'tenant/site'
+              : atsType === AtsType.SuccessFactors
+                ? '123'
+                : 'board',
+        },
       });
       fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
       await waitFor(() =>

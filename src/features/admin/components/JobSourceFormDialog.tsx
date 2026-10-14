@@ -27,6 +27,7 @@ import type { AdminOption } from '../types/adminModels';
 import { AtsType, type JobSource, type SaveJobSourceRequest } from '../types/jobSourceModels';
 import { sourceRequest } from '../utils/jobSourceFormatting';
 import { jobSourceSchema } from '../validation/jobSourceSchema';
+import { sourceIdentifierHelp } from '../validation/jobSourceConfiguration';
 
 interface Props {
   source?: JobSource;
@@ -230,18 +231,18 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   disabled={busy}
                   onChange={(event) => field.onChange(Number(event.target.value))}
                 >
-             {[
-  AtsType.Greenhouse,
-  AtsType.Lever,
-  AtsType.Ashby,
-  AtsType.Custom,
-  AtsType.SuccessFactors,
-  AtsType.Workday,
-].map((type) => (
-  <MenuItem key={type} value={type}>
-    {AtsType[type]}
-  </MenuItem>
-))}
+                  {[
+                    AtsType.Greenhouse,
+                    AtsType.Lever,
+                    AtsType.Ashby,
+                    AtsType.Custom,
+                    AtsType.SuccessFactors,
+                    AtsType.Workday,
+                  ].map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {AtsType[type]}
+                    </MenuItem>
+                  ))}
                 </TextField>
               )}
             />
@@ -254,20 +255,9 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
             <TextField
               {...register('atsIdentifier')}
               label="ATS Identifier"
-              required={atsType !== AtsType.Custom}
               disabled={busy}
               error={Boolean(errors.atsIdentifier)}
-              helperText={
-                errors.atsIdentifier?.message ??
-         {
-  0: 'Optional for Custom.',
-  1: 'Board token',
-  2: 'Site/company token',
-  3: 'Job board name',
-  4: 'Board / career-site identifier',
-  5: 'Tenant/site identifier, e.g. accenture/AccentureCareers',
-}[atsType]
-              }
+              helperText={errors.atsIdentifier?.message ?? sourceIdentifierHelp[atsType]}
             />
             <Controller
               control={control}

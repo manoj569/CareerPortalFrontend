@@ -101,7 +101,7 @@ describe('durable job-source monitoring', () => {
     h.unmount();
     h.store.dispatch(jobSourcesApi.util.resetApiState());
   });
-  it.each(['Failed', 'Interrupted'] as const)(
+  it.each(['Failed', 'Interrupted', 'Unsafe', 'Cancelled'] as const)(
     'stops for terminal %s without reporting success',
     async (status) => {
       request.mockResolvedValue(wrapped({ ...queued, status, retryPending: false }));
@@ -117,6 +117,22 @@ describe('durable job-source monitoring', () => {
       h.store.dispatch(jobSourcesApi.util.resetApiState());
     },
   );
+  it('keeps Paused active until a Workday continuation completes', async () => {
+    request
+      .mockResolvedValueOnce(wrapped({ ...queued, status: 'Paused', retryPending: true }))
+      .mockResolvedValueOnce(wrapped({ ...queued, status: 'Succeeded', succeeded: true }));
+    const h = setup();
+    act(() => h.result.current.track('Company', queued));
+    await tick();
+    expect(h.result.current.active('source-1')).toBe(true);
+    expect(h.terminal).not.toHaveBeenCalled();
+    expect(h.result.current.entries['source-1']?.run?.status).toBe('Paused');
+    await tick(2000);
+    expect(h.result.current.active('source-1')).toBe(false);
+    expect(h.terminal).toHaveBeenCalledTimes(1);
+    h.unmount();
+    h.store.dispatch(jobSourcesApi.util.resetApiState());
+  });
   it('keeps Interrupted retryPending active until the worker resumes', async () => {
     request
       .mockResolvedValueOnce(wrapped({ ...queued, status: 'Interrupted', retryPending: true }))
