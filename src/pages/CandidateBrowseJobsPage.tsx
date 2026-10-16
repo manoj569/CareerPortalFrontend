@@ -114,7 +114,11 @@ const toJobSummary = (job: RecommendedJob): PublicJobSummary => ({
 });
 
 const readBrowseTab = (value: string | null): CandidateBrowseTab =>
-  value === 'internships' || value === 'fresher' || value === 'experienced' || value === 'referral'
+  value === 'recommended' ||
+  value === 'internships' ||
+  value === 'fresher' ||
+  value === 'experienced' ||
+  value === 'referral'
     ? value
     : 'all';
 
@@ -216,7 +220,6 @@ export const CandidateBrowseJobsPage = () => {
 
   const isResumeReady = resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Ready;
 
-  // Resume Matches is reserved for Phase 2; disabled URLs normalize to All jobs.
   const isRecommended = requestedTab === 'recommended';
 
   const activeTab: CandidateBrowseTab = requestedTab;
@@ -518,13 +521,15 @@ export const CandidateBrowseJobsPage = () => {
     applyChanges(next);
   };
 
-  const refreshMatches = () => {
-    if (resumeStatus.isFetching || recommended.isFetching) return;
+ const refreshMatches = () => {
+  if (resumeStatus.isFetching || recommended.isFetching) return;
 
-    void resumeStatus.refetch();
+  void resumeStatus.refetch();
 
-    if (isRecommended) void recommended.refetch();
-  };
+  if (isRecommended && isResumeReady) {
+    void recommended.refetch();
+  }
+};
 
   const sourceJobs = isRecommended
     ? isResumeReady

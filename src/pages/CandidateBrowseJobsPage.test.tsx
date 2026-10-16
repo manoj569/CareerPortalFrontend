@@ -938,7 +938,7 @@ describe('Candidate Browse jobs', () => {
       'Experienced',
     ]);
     expect(screen.getByRole('tab', { name: 'All jobs' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Resume matches' })).toBeDisabled();
+expect(screen.getByRole('tab', { name: 'Resume matches' })).toBeEnabled();
     expect(screen.queryByRole('tab', { name: 'Recommended for you' })).toBeNull();
     expect(screen.queryByText(/Your resume helps us suggest roles/i)).toBeNull();
     expect(
@@ -1087,12 +1087,24 @@ describe('Candidate Browse jobs', () => {
     });
   });
 
-  it('normalizes disabled Resume Matches URLs to All jobs', () => {
-    renderPage('/dashboard/jobs?mode=recommended&q=react');
-    expect(screen.getByRole('tab', { name: 'Resume matches' })).toBeDisabled();
-    expect(screen.getByTestId('location')).toHaveTextContent('mode=all');
-    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'react' });
-  });
+  it('preserves Resume Matches URLs and waits for a ready resume', () => {
+  renderPage('/dashboard/jobs?mode=recommended&q=react');
+
+  expect(screen.getByRole('tab', { name: 'Resume matches' }))
+    .toHaveAttribute('aria-selected', 'true');
+
+  expect(screen.getByTestId('location'))
+    .toHaveTextContent('mode=recommended');
+
+  expect(screen.getByRole('heading', { name: 'Jobs that match your resume' }))
+    .toBeVisible();
+
+  expect(mockSearchJobs.mock.calls.at(-1)?.[1])
+    .toMatchObject({ skip: true });
+
+  expect(mockRecommended.mock.calls.at(-1)?.[1])
+    .toMatchObject({ skip: true });
+});
   it('Enter submits immediately and chip removal clears the input and query', async () => {
     renderPage('/dashboard/jobs?page=3');
     const input = screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' });

@@ -73,8 +73,7 @@ export const JobModeTabs = ({ mode, onChange }: JobModeTabsProps) => (
         value="referral"
       />
 
-      <Tab disabled title="Phase 2 - coming soon" label="Resume matches" value="recommended" />
-
+<Tab label="Resume matches" value="recommended" />
       <Tab label="Internships" value="internships" />
 
       <Tab label="Fresher" value="fresher" />
