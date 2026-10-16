@@ -275,6 +275,48 @@ describe('InterviewInsightsPage', () => {
     expect(screen.getByRole('button', { name: 'Helped me' })).toBeEnabled();
   });
 
+  it('refreshes the helpful count after successful feedback and hides self-ineligible feedback', async () => {
+    installHandlers({
+      cards: [{ ...card }],
+      detailValue: { ...detail, canGiveFeedback: true, canReadFull: true },
+      schedules: [{ id: 'schedule-id', companyId: company.id, companyName: 'HARMAN',
+        interviewAtUtc: '2026-07-01T12:00:00Z', feedbackAvailable: true, status: 'InterviewCompleted' }],
+    });
+    const initial = requestMock.getMockImplementation()!;
+    let count = 3;
+    requestMock.mockImplementation((config) => {
+      if (!config) return response([]);
+      if (config.url?.endsWith('/feedback')) {
+        count = 4;
+        return response({ helpfulConfirmedCount: count });
+      }
+      if (config.url === '/candidate/interview-insights' && config.method === 'GET')
+        return response(page([{ ...card, helpfulConfirmedCount: count }]));
+      return initial(config);
+    });
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Read insight' }));
+    await user.click(await screen.findByRole('button', { name: 'Helped me' }));
+    const feedback = await screen.findByRole('dialog', { name: 'Did this insight help you?' });
+    await user.click(within(feedback).getByRole('combobox', { name: 'Helpfulness' }));
+    await user.click(screen.getByRole('option', { name: 'Helped' }));
+    await user.click(within(feedback).getByRole('combobox', { name: 'Interview match' }));
+    await user.click(screen.getByRole('option', { name: 'Matched' }));
+    await user.click(within(feedback).getByRole('button', { name: 'Submit feedback' }));
+    await screen.findByText('Thanks. Your feedback helps keep insights useful.');
+    await user.click(within(feedback).getByRole('button', { name: 'Close' }));
+    expect(await screen.findByText(/Helped 4 candidates/)).toBeVisible();
+  }, 30_000);
+
+  it('does not offer helpful feedback when the backend marks the viewer ineligible', async () => {
+    installHandlers({ detailValue: { ...detail, canReadFull: true, canGiveFeedback: false } });
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Read insight' }));
+    await screen.findByText('Interview process');
+    expect(screen.queryByRole('button', { name: 'Helped me' })).not.toBeInTheDocument();
+  });
+
   it('sends canonical schedule metadata while keeping the date private to schedules', async () => {
     installHandlers();
     renderPage(
@@ -324,6 +366,7 @@ describe('InterviewInsightsPage', () => {
       contributions: {
         badges: [],
         candidatesHelped: 7,
+        careerHarborPoints: 120,
         contributionScore: 18,
         insightsPublished: 1,
         needsChanges: 1,
@@ -349,6 +392,8 @@ describe('InterviewInsightsPage', () => {
     renderPage(`${ROUTES.INTERVIEW_INSIGHTS}?view=contributions`);
     expect((await screen.findAllByText('Needs changes')).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Reviewer request: Please remove confidential details.')).toBeVisible();
+    expect(screen.getByText('CareerHarbor Points')).toBeVisible();
+    expect(screen.getByText('120')).toBeVisible();
     expect(document.body).not.toHaveTextContent('private@example.com');
     expect(document.body).not.toHaveTextContent('2026-07-01T10:00:00Z');
   });

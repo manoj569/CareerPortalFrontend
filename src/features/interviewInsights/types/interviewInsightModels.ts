@@ -246,6 +246,7 @@ export interface MyInterviewContributionCardResponse {
   reviewerChangeRequest: string | null;
 }
 export interface MyInterviewContributionsResponse {
+  careerHarborPoints?: number;
   insightsPublished: number;
   candidatesHelped: number;
   contributionScore: number;

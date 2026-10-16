@@ -4018,6 +4018,10 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
+                  { label: 'CareerHarbor Points', value: contributions.data.careerHarborPoints ?? 0 },
+
+
+
                   { label: 'Pending review', value: contributions.data.pendingReview },
 
 
@@ -4030,7 +4034,7 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
-                  <Grid key={metric.label} size={{ xs: 12, sm: 6, lg: 2.4 }}>
+                  <Grid key={metric.label} size={{ xs: 12, sm: 6, lg: 2 }}>
 
 
 
@@ -4098,7 +4102,7 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
-                  How points work
+                  How contribution scores work
 
 
 
@@ -4106,7 +4110,7 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
-                <Typography color="text.secondary" sx={{ mt: 1 }}>Points are earned only after eligible candidates confirm an insight was useful.</Typography>
+                <Typography color="text.secondary" sx={{ mt: 1 }}>Each eligible helpful response earns the author 10 CareerHarbor Points while the insight is published. Contribution scores below track feedback quality separately.</Typography>
 
 
 
@@ -4114,7 +4118,7 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
-                  {[['Someone confirms “Helped me”', '+3 points'], ['Someone confirms “Partly helped”', '+1 point'], ['“Not accurate”', '0 points']].map(([label, points]) => (
+                  {[['Someone confirms “Helped me”', '+3 score'], ['Someone confirms “Partly helped”', '+1 score'], ['“Not accurate”', '0 score']].map(([label, points]) => (
 
 
 

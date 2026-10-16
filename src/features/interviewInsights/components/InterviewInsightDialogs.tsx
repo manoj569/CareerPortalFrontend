@@ -83,7 +83,7 @@ Switch,
 
 } from '@mui/material';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 
 
@@ -1668,6 +1668,8 @@ export const InsightFeedbackDialog = ({
 
   const [submitFeedback, state] = useAddInsightFeedbackMutation();
 
+  const feedbackPending = useRef(false);
+
   useEffect(() => {
 
     if (open) {
@@ -1690,9 +1692,15 @@ export const InsightFeedbackDialog = ({
 
   const submit = async () => {
 
+    if (feedbackPending.current || success) return;
+
     if (!scheduleId || !helpfulness || !match)
 
       return setError('Select your interview, helpfulness, and interview match.');
+
+    feedbackPending.current = true;
+
+    setError(null);
 
     try {
 
@@ -1719,6 +1727,10 @@ export const InsightFeedbackDialog = ({
     } catch (requestError) {
 
       setError(safeError(requestError));
+
+    } finally {
+
+      feedbackPending.current = false;
 
     }
 
