@@ -275,17 +275,49 @@ describe('public jobs advanced search API', () => {
   });
 });
 
-it('loads the complete popular-company logo collection with a single existing API request', async () => {
+it('unwraps all candidate-company logos from ApiResponse in one cached request', async () => {
   mockRequest.mockReset();
   const store = createAppStore();
-  const companies = Array.from({ length: 24 }, (_, index) => ({
-    id: `company-${index}`, name: `API Employer ${index}`, logoUrl: `/logo-${index}.svg`, activeJobCount: 2,
+  const companies = Array.from({ length: 300 }, (_, index) => ({
+    companyId: `company-${index}`, name: `API Employer ${index}`, logoUrl: `/logo-${index}.svg`,
   }));
-  mockRequest.mockResolvedValue({ data: { data: companies } });
-  const subscription = store.dispatch(jobsApi.endpoints.getPopularCompanies.initiate({ limit: 24 }));
-  expect(await subscription.unwrap()).toEqual(companies);
+  mockRequest.mockResolvedValue({ data: { data: companies, message: null } });
+  const first = store.dispatch(jobsApi.endpoints.getCompanyLogos.initiate());
+  expect(await first.unwrap()).toEqual(companies);
+  const second = store.dispatch(jobsApi.endpoints.getCompanyLogos.initiate());
+  expect(await second.unwrap()).toEqual(companies);
   expect(mockRequest).toHaveBeenCalledTimes(1);
-  expect(mockRequest.mock.calls[0]?.[0]).toMatchObject({ url: '/jobs/companies/popular', params: { limit: 24 } });
-  subscription.unsubscribe();
+  expect(mockRequest.mock.calls[0]?.[0]).toMatchObject({ url: '/jobs/companies' });
+  expect((mockRequest.mock.calls[0]?.[0] as CapturedRequest).params).toBeUndefined();
+  first.unsubscribe();
+  second.unsubscribe();
+  store.dispatch(jobsApi.util.resetApiState());
+});
+
+it('keeps company-logo cache independent of job page, sort and filter requests', async () => {
+  mockRequest.mockReset();
+  const store = createAppStore();
+  const companies = [{ companyId: 'catalogue', name: 'Catalogue Company', logoUrl: '/catalogue.svg' }];
+  mockRequest.mockImplementation((request: CapturedRequest) => Promise.resolve({ data: { data:
+    request.url === '/jobs/companies' ? companies : { items: [], totalCount: 0, totalPages: 0 },
+  } }));
+  const logos = store.dispatch(jobsApi.endpoints.getCompanyLogos.initiate());
+  expect(await logos.unwrap()).toEqual(companies);
+  for (const pageNumber of [1, 2]) {
+    const jobs = store.dispatch(jobsApi.endpoints.searchJobs.initiate({
+      pageNumber, pageSize: 10, keyword: `filter-${pageNumber}`, locations: ['Pune'],
+      sortBy: pageNumber === 1 ? PublicJobSort.Recommended : PublicJobSort.LatestPublished,
+      sortDirection: 'desc',
+    }));
+    await jobs.unwrap();
+    jobs.unsubscribe();
+    expect(jobsApi.endpoints.getCompanyLogos.select()(store.getState()).data).toEqual(companies);
+  }
+  const again = store.dispatch(jobsApi.endpoints.getCompanyLogos.initiate());
+  expect(await again.unwrap()).toEqual(companies);
+  expect(mockRequest.mock.calls.filter(([request]) => (request as CapturedRequest).url === '/jobs/companies')).toHaveLength(1);
+  expect(mockRequest).toHaveBeenCalledTimes(3);
+  logos.unsubscribe();
+  again.unsubscribe();
   store.dispatch(jobsApi.util.resetApiState());
 });

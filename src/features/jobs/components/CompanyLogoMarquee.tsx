@@ -1,11 +1,15 @@
 import { Box, Paper, Typography } from '@mui/material';
 import { useId, useMemo, useState } from 'react';
 
-import type { PopularCompany } from '../types/jobModels';
+import type { CandidateCompanyLogo } from '../types/jobModels';
 import { selectCompanyLogos } from '../utils/companyLogoSelection';
 import './CompanyLogoMarquee.css';
 
-export const CompanyLogoMarquee = ({ companies }: { companies: readonly PopularCompany[] }) => {
+export const CompanyLogoMarquee = ({
+  companies,
+}: {
+  companies: readonly CandidateCompanyLogo[];
+}) => {
   const headingId = useId();
   const logos = useMemo(() => selectCompanyLogos(companies), [companies]);
   const [failedUrls, setFailedUrls] = useState<ReadonlySet<string>>(() => new Set());
@@ -47,8 +51,17 @@ export const CompanyLogoMarquee = ({ companies }: { companies: readonly PopularC
       <Typography color="text.secondary" sx={{ fontSize: '0.85rem', mt: 0.25, mb: 1.5 }}>
         Real opportunities from leading companies.
       </Typography>
-      <Box className="company-logo-marquee" data-static={visible.length === 1 || undefined}>
-        <div className="company-logo-marquee__track">
+      <Box
+        className="company-logo-marquee"
+        role="group"
+        aria-label="Company logos"
+        tabIndex={0}
+        data-static={visible.length === 1 || undefined}
+      >
+        <div
+          className="company-logo-marquee__track"
+          style={{ animationDuration: `${Math.max(32, visible.length * 3)}s` }}
+        >
           <ul className="company-logo-marquee__group" aria-label="Companies with active jobs">
             {renderLogos(false)}
           </ul>

@@ -173,6 +173,13 @@ export interface PublicJobDetails extends PublicJobSummary {
   companyWebsiteUrl: string | null;
 }
 
+// Candidate-safe collection of all companies with visible jobs and stored logos.
+export interface CandidateCompanyLogo {
+  companyId: string;
+  name: string;
+  logoUrl: string;
+}
+
 export interface PopularCompany {
   id: string;
   name: string;

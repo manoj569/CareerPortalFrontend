@@ -1,7 +1,5 @@
-import type { PopularCompany } from '../types/jobModels';
+import type { CandidateCompanyLogo } from '../types/jobModels';
 import { safeCompanyLogoUrl } from './companyLogoUrl';
-
-export const COMPANY_LOGO_LIMIT = 24;
 
 interface CompanyLogo {
   key: string;
@@ -9,29 +7,17 @@ interface CompanyLogo {
   logoUrl: string;
 }
 
-export const selectCompanyLogos = (companies: readonly PopularCompany[]): CompanyLogo[] => {
+export const selectCompanyLogos = (companies: readonly CandidateCompanyLogo[]): CompanyLogo[] => {
   const ids = new Set<string>();
-  const names = new Set<string>();
   const result: CompanyLogo[] = [];
   for (const company of companies) {
     if (!company || typeof company !== 'object') continue;
     const name = typeof company.name === 'string' ? company.name.trim().replace(/\s+/g, ' ') : '';
-    const id = typeof company.id === 'string' ? company.id.trim().toLowerCase() : '';
+    const id = typeof company.companyId === 'string' ? company.companyId.trim().toLowerCase() : '';
     const logoUrl = safeCompanyLogoUrl(company.logoUrl);
-    const normalizedName = name.toLowerCase();
-    if (
-      !name ||
-      !logoUrl ||
-      !Number.isFinite(company.activeJobCount) ||
-      company.activeJobCount <= 0
-    )
-      continue;
-    if ((id && ids.has(id)) || names.has(normalizedName)) continue;
-    if (id) ids.add(id);
-    names.add(normalizedName);
-    result.push({ key: id || normalizedName, name, logoUrl });
-    if (result.length === COMPANY_LOGO_LIMIT) break;
+    if (!id || !name || !logoUrl || ids.has(id)) continue;
+    ids.add(id);
+    result.push({ key: id, name, logoUrl });
   }
   return result;
 };
-

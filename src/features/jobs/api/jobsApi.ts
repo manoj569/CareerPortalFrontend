@@ -4,6 +4,7 @@ import { apiClient } from '@/api/apiClient';
 import { axiosBaseQuery, type AxiosBaseQueryError } from '@/api/axiosBaseQuery';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import type {
+  CandidateCompanyLogo,
   ApplicationAccessResponse,
   BackendApiResponse,
   PagedResponse,
@@ -136,6 +137,10 @@ export const jobsApi = createApi({
       transformResponse: (response: BackendApiResponse<PagedResponse<PublicJobSummary>>) =>
         response.data,
     }),
+    getCompanyLogos: builder.query<CandidateCompanyLogo[], void>({
+      query: () => ({ url: API_ENDPOINTS.JOBS.COMPANIES }),
+      transformResponse: (response: BackendApiResponse<CandidateCompanyLogo[]>) => response.data,
+    }),
     getPopularCompanies: builder.query<PopularCompany[], { limit: number }>({
       query: ({ limit }) => ({
         params: { limit },
@@ -172,6 +177,7 @@ export const {
   useGetJobDetailsQuery,
   useGetLatestJobsQuery,
   useGetNewestJobsQuery,
+  useGetCompanyLogosQuery,
   useGetPopularCompaniesQuery,
   useGetRelatedJobsQuery,
   useSearchJobsQuery,

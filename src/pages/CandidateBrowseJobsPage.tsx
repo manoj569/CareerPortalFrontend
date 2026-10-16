@@ -1,5 +1,4 @@
 import { CompanyLogoMarquee } from '@/features/jobs/components/CompanyLogoMarquee';
-import { COMPANY_LOGO_LIMIT } from '@/features/jobs/utils/companyLogoSelection';
 
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 
@@ -61,7 +60,7 @@ import {
 } from '@/features/dashboard/utils/resumeValidation';
 
 import {
-  useGetPopularCompaniesQuery,
+  useGetCompanyLogosQuery,
   fetchJobApplicationUrl,
   useGetJobFilterOptionsQuery,
   useGetSupplementalJobFilterCountsQuery,
@@ -210,7 +209,7 @@ export const CandidateBrowseJobsPage = () => {
     searchTimerRef.current = null;
   }, []);
 
-  const companies = useGetPopularCompaniesQuery({ limit: COMPANY_LOGO_LIMIT });
+  const companies = useGetCompanyLogosQuery();
 
   const profile = useGetProfileQuery();
 

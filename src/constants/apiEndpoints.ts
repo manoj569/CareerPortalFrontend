@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
     NEWEST: '/jobs/newest',
     FEATURED: '/jobs/featured',
     POPULAR_COMPANIES: '/jobs/companies/popular',
+    COMPANIES: '/jobs/companies',
     DETAILS: (slug: string) => `/jobs/${encodeURIComponent(slug)}`,
     RELATED: (slug: string) => `/jobs/${encodeURIComponent(slug)}/related`,
   },

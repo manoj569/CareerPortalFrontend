@@ -20,7 +20,7 @@ import {
 } from '@/features/dashboard/api/dashboardApi';
 import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
 import {
-  useGetPopularCompaniesQuery,
+  useGetCompanyLogosQuery,
   fetchJobApplicationUrl,
   useGetJobFilterOptionsQuery,
   useGetSupplementalJobFilterCountsQuery,
@@ -54,7 +54,7 @@ vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
   const actual = await importOriginal<typeof JobsApiModule>();
   return {
     ...actual,
-    useGetPopularCompaniesQuery: vi.fn(),
+    useGetCompanyLogosQuery: vi.fn(),
     fetchJobApplicationUrl: vi.fn(),
     useGetJobFilterOptionsQuery: vi.fn(),
     useGetSupplementalJobFilterCountsQuery: vi.fn(),
@@ -304,7 +304,7 @@ it('keeps Browse Jobs card content and logo geometry at a 360px viewport', () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(useGetPopularCompaniesQuery).mockReturnValue(queryResult([]) as ReturnType<typeof useGetPopularCompaniesQuery>);
+  vi.mocked(useGetCompanyLogosQuery).mockReturnValue(queryResult([]) as ReturnType<typeof useGetCompanyLogosQuery>);
   mockSearchJobs.mockReturnValue(
     queryResult(
       { items: [job], pageNumber: 1, pageSize: 10, totalCount: 1, totalPages: 1 },
@@ -391,9 +391,9 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 it('places API company logos between search controls and tabs without changing job results', () => {
-  vi.mocked(useGetPopularCompaniesQuery).mockReturnValue(queryResult([{
-    id: 'actual-company', name: 'API Employer', logoUrl: '/api-employer.svg', activeJobCount: 3,
-  }]) as ReturnType<typeof useGetPopularCompaniesQuery>);
+  vi.mocked(useGetCompanyLogosQuery).mockReturnValue(queryResult([{
+    companyId: 'actual-company', name: 'API Employer', logoUrl: '/api-employer.svg',
+  }]) as ReturnType<typeof useGetCompanyLogosQuery>);
   renderPage();
   const section = screen.getByRole('region', { name: 'Jobs from top companies' });
   expect(within(section).getByRole('img', { name: 'API Employer logo' })).toHaveAttribute('src', '/api-employer.svg');
@@ -402,9 +402,37 @@ it('places API company logos between search controls and tabs without changing j
   expect(screen.getByRole('tab', { name: 'All jobs' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByRole('textbox', { name: /keyword/i }).compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(section.compareDocumentPosition(screen.getByRole('tablist')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(useGetPopularCompaniesQuery).toHaveBeenCalledWith({ limit: 24 });
+  expect(useGetCompanyLogosQuery).toHaveBeenCalledWith();
 });
 
+it('company-logo collection remains complete across job pagination and filter changes', async () => {
+  const companies = Array.from({ length: 75 }, (_, index) => ({
+    companyId: `company-${index}`, name: `Catalogue Employer ${index}`, logoUrl: `/company-${index}.svg`,
+  }));
+  vi.mocked(useGetCompanyLogosQuery).mockReturnValue(queryResult(companies) as ReturnType<typeof useGetCompanyLogosQuery>);
+  const { router } = renderPage('/dashboard/jobs?mode=all');
+  const checkCompanies = () => {
+    const section = screen.getByRole('region', { name: 'Jobs from top companies' });
+    expect(within(section).getAllByRole('img')).toHaveLength(75);
+    expect(within(section).getByRole('img', { name: 'Catalogue Employer 74 logo' })).toBeInTheDocument();
+  };
+  checkCompanies();
+  mockSearchJobs.mockReturnValue(queryResult({ items: [], pageNumber: 2, totalCount: 0, totalPages: 0 }) as ReturnType<typeof useSearchJobsQuery>);
+  await act(() => router.navigate('/dashboard/jobs?mode=all&page=2&locations=Pune&q=engineer'));
+  checkCompanies();
+  expect(vi.mocked(useGetCompanyLogosQuery).mock.calls.every((args) => args.length === 0)).toBe(true);
+  expect(mockSearchJobs.mock.calls.some(([query]) => typeof query === 'object' && query.pageNumber === 2 && query.keyword === 'engineer' && query.locations?.includes('Pune'))).toBe(true);
+});
+
+it.each(['empty', 'loading', 'error'] as const)('company-logo %s response does not block Browse Jobs', (status) => {
+  vi.mocked(useGetCompanyLogosQuery).mockReturnValue(queryResult(status === 'empty' ? [] : undefined, {
+    isLoading: status === 'loading', isError: status === 'error',
+  }) as ReturnType<typeof useGetCompanyLogosQuery>);
+  renderPage('/dashboard/jobs?mode=all');
+  expect(screen.queryByRole('region', { name: 'Jobs from top companies' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+  expect(screen.getByRole('tab', { name: 'All jobs' })).toHaveAttribute('aria-selected', 'true');
+});
 describe('Candidate Browse jobs', () => {
   it('restores cross-facet selections from shared URLs and synchronizes chips, back and forward', async () => {
     const { router } = renderPage(

@@ -38,7 +38,8 @@
   height: 100%;
   object-fit: contain;
 }
-.company-logo-marquee:hover .company-logo-marquee__track {
+.company-logo-marquee:hover .company-logo-marquee__track,
+.company-logo-marquee:focus-within .company-logo-marquee__track {
   animation-play-state: paused;
 }
 @keyframes company-logo-slide {
