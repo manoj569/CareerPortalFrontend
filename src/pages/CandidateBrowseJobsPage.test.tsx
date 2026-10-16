@@ -20,6 +20,7 @@ import {
 } from '@/features/dashboard/api/dashboardApi';
 import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
 import {
+  useGetPopularCompaniesQuery,
   fetchJobApplicationUrl,
   useGetJobFilterOptionsQuery,
   useGetSupplementalJobFilterCountsQuery,
@@ -53,6 +54,7 @@ vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
   const actual = await importOriginal<typeof JobsApiModule>();
   return {
     ...actual,
+    useGetPopularCompaniesQuery: vi.fn(),
     fetchJobApplicationUrl: vi.fn(),
     useGetJobFilterOptionsQuery: vi.fn(),
     useGetSupplementalJobFilterCountsQuery: vi.fn(),
@@ -302,6 +304,7 @@ it('keeps Browse Jobs card content and logo geometry at a 360px viewport', () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(useGetPopularCompaniesQuery).mockReturnValue(queryResult([]) as ReturnType<typeof useGetPopularCompaniesQuery>);
   mockSearchJobs.mockReturnValue(
     queryResult(
       { items: [job], pageNumber: 1, pageSize: 10, totalCount: 1, totalPages: 1 },
@@ -386,6 +389,21 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.useRealTimers());
+
+it('places API company logos between search controls and tabs without changing job results', () => {
+  vi.mocked(useGetPopularCompaniesQuery).mockReturnValue(queryResult([{
+    id: 'actual-company', name: 'API Employer', logoUrl: '/api-employer.svg', activeJobCount: 3,
+  }]) as ReturnType<typeof useGetPopularCompaniesQuery>);
+  renderPage();
+  const section = screen.getByRole('region', { name: 'Jobs from top companies' });
+  expect(within(section).getByRole('img', { name: 'API Employer logo' })).toHaveAttribute('src', '/api-employer.svg');
+  expect(screen.getByRole('heading', { name: 'Find your next opportunity' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+  expect(screen.getByRole('tab', { name: 'All jobs' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('textbox', { name: /keyword/i }).compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(section.compareDocumentPosition(screen.getByRole('tablist')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(useGetPopularCompaniesQuery).toHaveBeenCalledWith({ limit: 24 });
+});
 
 describe('Candidate Browse jobs', () => {
   it('restores cross-facet selections from shared URLs and synchronizes chips, back and forward', async () => {

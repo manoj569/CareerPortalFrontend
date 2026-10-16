@@ -1,3 +1,6 @@
+import { CompanyLogoMarquee } from '@/features/jobs/components/CompanyLogoMarquee';
+import { COMPANY_LOGO_LIMIT } from '@/features/jobs/utils/companyLogoSelection';
+
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 
 import CloseIcon from '@mui/icons-material/Close';
@@ -58,6 +61,7 @@ import {
 } from '@/features/dashboard/utils/resumeValidation';
 
 import {
+  useGetPopularCompaniesQuery,
   fetchJobApplicationUrl,
   useGetJobFilterOptionsQuery,
   useGetSupplementalJobFilterCountsQuery,
@@ -205,6 +209,8 @@ export const CandidateBrowseJobsPage = () => {
     if (searchTimerRef.current !== null) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = null;
   }, []);
+
+  const companies = useGetPopularCompaniesQuery({ limit: COMPANY_LOGO_LIMIT });
 
   const profile = useGetProfileQuery();
 
@@ -686,6 +692,8 @@ export const CandidateBrowseJobsPage = () => {
             onSearch={searchJobs}
           />
         ) : null}
+
+        {companies.data && !companies.isError ? <CompanyLogoMarquee companies={companies.data} /> : null}
 
         <JobModeTabs mode={activeTab} onChange={setTab} />
 

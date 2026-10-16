@@ -274,3 +274,18 @@ describe('public jobs advanced search API', () => {
     store.dispatch(jobsApi.util.resetApiState());
   });
 });
+
+it('loads the complete popular-company logo collection with a single existing API request', async () => {
+  mockRequest.mockReset();
+  const store = createAppStore();
+  const companies = Array.from({ length: 24 }, (_, index) => ({
+    id: `company-${index}`, name: `API Employer ${index}`, logoUrl: `/logo-${index}.svg`, activeJobCount: 2,
+  }));
+  mockRequest.mockResolvedValue({ data: { data: companies } });
+  const subscription = store.dispatch(jobsApi.endpoints.getPopularCompanies.initiate({ limit: 24 }));
+  expect(await subscription.unwrap()).toEqual(companies);
+  expect(mockRequest).toHaveBeenCalledTimes(1);
+  expect(mockRequest.mock.calls[0]?.[0]).toMatchObject({ url: '/jobs/companies/popular', params: { limit: 24 } });
+  subscription.unsubscribe();
+  store.dispatch(jobsApi.util.resetApiState());
+});
