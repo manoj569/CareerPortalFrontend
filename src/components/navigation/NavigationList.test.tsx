@@ -32,6 +32,21 @@ describe('navigation feature visibility', () => {
   );
 });
 
+it('opens Coming soon information from Career Guidance without navigating', async () => {
+  const onAction = vi.fn();
+  renderWithProviders(
+    <MemoryRouter initialEntries={['/dashboard/interview-insights']}>
+      <NavigationList items={candidateNavigationItems} onAction={onAction} />
+      <LocationProbe />
+    </MemoryRouter>,
+  );
+  const guidance = screen.getByRole('button', { name: 'Career Guidance, Coming soon' });
+  expect(guidance).toBeVisible();
+  await userEvent.click(guidance);
+  expect(onAction).toHaveBeenCalledWith('career-guidance-coming-soon');
+  expect(screen.getByLabelText('location')).toHaveTextContent('/dashboard/interview-insights');
+});
+
 const LocationProbe = () => {
   const location = useLocation();
   return (
@@ -81,7 +96,7 @@ describe('Referrals group navigation', () => {
     'auto-expands and highlights %s at %s',
     (label, path) => {
       renderWithProviders(
-        <MemoryRouter initialEntries={[path]}>
+        <MemoryRouter initialEntries={[path ?? '/dashboard']}>
           <NavigationList items={candidateNavigationItems} />
         </MemoryRouter>,
       );

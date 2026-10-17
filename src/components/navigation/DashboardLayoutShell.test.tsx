@@ -10,9 +10,19 @@ import { candidateNavigationItems } from '@/layouts/candidateNavigation';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { UserRole } from '@/types';
 import { DashboardLayoutShell } from './DashboardLayoutShell';
-const { apiRequestMock } = vi.hoisted(() => ({ apiRequestMock: vi.fn() }));
+const { apiRequestMock, pointsQueryMock } = vi.hoisted(() => ({
+  apiRequestMock: vi.fn(),
+  pointsQueryMock: vi.fn(),
+}));
 
 vi.mock('@/api/apiClient', () => ({ apiClient: { request: apiRequestMock } }));
+vi.mock('@/features/interviewInsights/api/interviewInsightsApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/interviewInsights/api/interviewInsightsApi')>();
+  return {
+    ...actual,
+    useGetMyInterviewContributionsQuery: pointsQueryMock,
+  };
+});
 
 const candidateAuth: AuthState = {
   accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
@@ -97,12 +107,81 @@ const renderShell = (notificationCount: number) => {
 
 describe('Candidate workspace shell', () => {
   beforeEach(() => {
+    pointsQueryMock.mockReset().mockReturnValue({ data: undefined, isError: true, error: { message: 'unavailable' } });
     apiRequestMock.mockReset().mockRejectedValue(new Error('No profile photo configured.'));
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn().mockReturnValue('blob:header-photo'),
     });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+  });
+
+  it('intercepts direct Career Guidance workflow URLs with the Coming soon page', () => {
+    const router = createMemoryRouter(
+      [{
+        element: <DashboardLayoutShell areaLabel="Candidate workspace" accountMenuProfilePath={ROUTES.PORTFOLIO} navigationItems={candidateNavigationItems} />,
+        children: [{ path: '/career-guidance/bookings/:id', element: <p>Live booking workflow</p> }],
+      }],
+      { initialEntries: ['/career-guidance/bookings/booking-1'] },
+    );
+    renderWithProviders(<RouterProvider router={router} />, { auth: candidateAuth });
+    expect(screen.getByRole('heading', { name: 'Career Guidance' })).toBeVisible();
+    expect(screen.getAllByText('Coming soon', { exact: true }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Live booking workflow')).not.toBeInTheDocument();
+  });
+
+  it('shows shared mentor progress on Jobs I’ve Shared while referral actions remain usable', async () => {
+    pointsQueryMock.mockReturnValue({
+      data: {
+        pointsBalance: {
+          totalPoints: 1320,
+          mentorEligibilityThreshold: 3000,
+          remainingPoints: 1680,
+          isPointsEligibleForMentor: false,
+          interviewInsightPublishedPoints: 5,
+          interviewInsightHelpfulPoints: 400,
+          referralOpportunitySharedPoints: 15,
+          referralCandidateConfirmedPoints: 900,
+          isPaidEligibilityAvailable: false,
+          isPaidEligibleForMentor: false,
+        },
+      },
+    });
+    const action = vi.fn();
+    const router = createMemoryRouter(
+      [{
+        element: <DashboardLayoutShell areaLabel="Candidate workspace" accountMenuProfilePath={ROUTES.PORTFOLIO} navigationItems={candidateNavigationItems} />,
+        children: [{ path: ROUTES.REFERRALS, element: <button onClick={action}>Manage referrals</button> }],
+      }],
+      { initialEntries: [ROUTES.REFERRALS] },
+    );
+    renderWithProviders(<RouterProvider router={router} />, { auth: candidateAuth });
+    expect(screen.getAllByText('1,320 / 3,000 points').length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Manage referrals' }));
+    expect(action).toHaveBeenCalledOnce();
+  });
+
+  it('shows compact points status in the mobile drawer and keeps it out of the header', async () => {
+    pointsQueryMock.mockReturnValue({
+      data: {
+        pointsBalance: {
+          totalPoints: 1320,
+          mentorEligibilityThreshold: 3000,
+          remainingPoints: 1680,
+          isPointsEligibleForMentor: false,
+          interviewInsightPublishedPoints: 5,
+          interviewInsightHelpfulPoints: 400,
+          referralOpportunitySharedPoints: 15,
+          referralCandidateConfirmedPoints: 900,
+          isPaidEligibilityAvailable: false,
+          isPaidEligibleForMentor: false,
+        },
+      },
+    });
+    renderShell(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Open candidate workspace navigation' }));
+    const drawer = screen.getByLabelText('Candidate workspace navigation drawer');
+    expect(within(drawer).getByText('1,320 / 3,000 points')).toBeVisible();
   });
 
   it('refreshes the private account-menu avatar after a profile photo change', async () => {
@@ -156,6 +235,7 @@ describe('Candidate workspace shell', () => {
     const openButton = screen.getByRole('button', { name: 'Open candidate workspace navigation' });
     await userEvent.click(openButton);
     const drawer = screen.getByLabelText('Candidate workspace navigation drawer');
+    expect(within(drawer).getByText('Follow CareerHarbor')).toBeVisible();
     expect(
       within(drawer).queryByRole('link', { name: /Resume maker|Resume Checker/i }),
     ).not.toBeInTheDocument();

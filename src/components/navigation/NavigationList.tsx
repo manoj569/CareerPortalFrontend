@@ -22,6 +22,7 @@ interface NavigationListProps {
   ariaLabel?: string;
   items: NavigationItem[];
   onNavigate?: () => void;
+  onAction?: (action: string) => void;
   compact?: boolean;
 }
 // NavLink's pathname-only active class would also highlight ordinary jobs in referral mode.
@@ -36,6 +37,7 @@ const visible = (item: NavigationItem) =>
   (SHOW_RESUME_CHECKER_NAVIGATION || item.label.trim().toLowerCase() !== 'resume checker') &&
   (SHOW_RESUME_MAKER_NAVIGATION || item.path !== ROUTES.RESUME_MAKER);
 const isActive = (item: NavigationItem, pathname: string, search: string): boolean => {
+  if (!item.path) return false;
   const [path, query] = item.path.split('?');
   if (item.activePaths?.some((pattern) => matchPath({ path: pattern, end: true }, pathname)))
     return true;
@@ -63,10 +65,12 @@ const itemSx = (compact: boolean) => ({
 const NavigationEntry = ({
   item,
   onNavigate,
+  onAction,
   compact = false,
 }: {
   item: NavigationItem;
   onNavigate?: () => void;
+  onAction?: (action: string) => void;
   compact?: boolean;
 }) => {
   const location = useLocation();
@@ -90,7 +94,12 @@ const NavigationEntry = ({
         </ListItemIcon>
       )}
       {!compact && (
-        <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 600 }} />
+        <ListItemText
+          primary={item.label}
+          primaryTypographyProps={{ fontWeight: 600 }}
+          secondary={item.secondaryLabel}
+          secondaryTypographyProps={{ variant: 'caption' }}
+        />
       )}
       {!compact && item.badge && (
         <Chip
@@ -124,6 +133,19 @@ const NavigationEntry = ({
           >
             {content}
           </ListItemButton>
+        ) : item.action ? (
+          <ListItemButton
+            aria-label={item.secondaryLabel ? `${item.label}, ${item.secondaryLabel}` : item.label}
+            component="button"
+            onClick={() => {
+              onAction?.(item.action!);
+              onNavigate?.();
+            }}
+            sx={{ ...itemSx(compact), color: 'text.secondary', width: '100%' }}
+            type="button"
+          >
+            {content}
+          </ListItemButton>
         ) : (
           <ListItemButton
             aria-label={compact ? item.label : undefined}
@@ -138,7 +160,7 @@ const NavigationEntry = ({
                 ? { from: `${location.pathname}${location.search}${location.hash}` }
                 : undefined
             }
-            to={item.path}
+            to={item.path ?? '#'}
           >
             {content}
           </ListItemButton>
@@ -157,6 +179,7 @@ const NavigationEntry = ({
                 key={child.path}
                 item={child}
                 onNavigate={onNavigate}
+                onAction={onAction}
                 compact={compact}
               />
             ))}
@@ -170,11 +193,12 @@ export const NavigationList = ({
   ariaLabel = 'Primary navigation',
   items,
   onNavigate,
+  onAction,
   compact = false,
 }: NavigationListProps) => (
   <List component="nav" aria-label={ariaLabel} sx={{ px: compact ? 0.75 : 1 }}>
     {items.filter(visible).map((item) => (
-      <NavigationEntry key={item.path} item={item} onNavigate={onNavigate} compact={compact} />
+      <NavigationEntry key={item.path ?? item.action ?? item.label} item={item} onNavigate={onNavigate} onAction={onAction} compact={compact} />
     ))}
   </List>
 );

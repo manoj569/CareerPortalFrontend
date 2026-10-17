@@ -1,10 +1,6 @@
 import { SHOW_HOME_CAREER_GUIDANCE } from '@/constants/homeVisibility';
 import { SupportButton } from '@/features/support/SupportButton';
-import FacebookIcon from '@mui/icons-material/Facebook';
-import InstagramIcon from '@mui/icons-material/Instagram';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import MenuIcon from '@mui/icons-material/Menu';
-import YouTubeIcon from '@mui/icons-material/YouTube';
 import {
   AppBar,
   Box,
@@ -22,6 +18,7 @@ import { useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { AppBrand } from '@/components/navigation/AppBrand';
+import { CareerHarborSocialLinks } from '@/components/navigation/CareerHarborSocialLinks';
 import { NavigationList } from '@/components/navigation/NavigationList';
 import type { NavigationItem } from '@/components/navigation/navigationTypes';
 import { ROUTES } from '@/constants/routes';
@@ -30,29 +27,6 @@ import { selectCurrentUser, selectIsAuthenticated } from '@/features/auth/store/
 import { CookieSettingsButton } from '@/features/cookieConsent/CookieSettingsButton';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { UserRole } from '@/types';
-
-const socialLinks = [
-  {
-    icon: <LinkedInIcon fontSize="medium" />,
-    label: 'Career Harbor on LinkedIn',
-    url: 'https://www.linkedin.com/company/career-harbor-jobs',
-  },
-  {
-    icon: <FacebookIcon fontSize="medium" />,
-    label: 'Career Harbor on Facebook',
-    url: 'https://www.facebook.com/CareerHarbor',
-  },
-  {
-    icon: <InstagramIcon fontSize="medium" />,
-    label: 'Career Harbor on Instagram',
-    url: 'https://www.instagram.com/career.harbor',
-  },
-  {
-    icon: <YouTubeIcon fontSize="medium" />,
-    label: 'Career Harbor on YouTube',
-    url: 'https://www.youtube.com/@CareerHarborOfficial',
-  },
-] as const;
 
 export const PublicLayout = () => {
   const location = useLocation();
@@ -317,30 +291,7 @@ export const PublicLayout = () => {
             <Typography sx={{ color: 'rgba(255,255,255,.58)' }} variant="body2">
               © {new Date().getFullYear()} Career Harbor. All rights reserved.
             </Typography>
-            <Stack direction="row" spacing={1.5}>
-              {socialLinks.map((social) => (
-                <IconButton
-                  aria-label={social.label}
-                  component="a"
-                  href={social.url}
-                  key={social.label}
-                  rel="noopener noreferrer"
-                  size="medium"
-                  sx={{
-                    '&:hover': {
-                      bgcolor: 'rgba(255,255,255,0.1)',
-                      transform: 'scale(1.1)',
-                      color: 'common.white',
-                    },
-                    color: 'rgba(255,255,255,.58)',
-                    transition: 'all 0.2s ease-in-out',
-                  }}
-                  target="_blank"
-                >
-                  {social.icon}
-                </IconButton>
-              ))}
-            </Stack>
+            <CareerHarborSocialLinks footer />
           </Stack>
         </Container>
       </Box>

@@ -247,6 +247,7 @@ export interface MyInterviewContributionCardResponse {
 }
 export interface MyInterviewContributionsResponse {
   careerHarborPoints?: number;
+  pointsBalance?: CareerHarborPointsBalance | null;
   insightsPublished: number;
   candidatesHelped: number;
   contributionScore: number;
@@ -254,6 +255,19 @@ export interface MyInterviewContributionsResponse {
   pendingReview: number;
   needsChanges: number;
   items: MyInterviewContributionCardResponse[];
+}
+
+export interface CareerHarborPointsBalance {
+  totalPoints: number;
+  mentorEligibilityThreshold: number;
+  remainingPoints: number;
+  isPointsEligibleForMentor: boolean;
+  interviewInsightPublishedPoints: number;
+  interviewInsightHelpfulPoints: number;
+  referralOpportunitySharedPoints: number;
+  referralCandidateConfirmedPoints: number;
+  isPaidEligibilityAvailable: boolean;
+  isPaidEligibleForMentor: boolean;
 }
 export interface CompanyInterviewInsightSummaryResponse {
   companyId: string;

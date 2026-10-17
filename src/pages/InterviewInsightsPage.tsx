@@ -193,6 +193,7 @@ import {
 
 
 } from '@/features/interviewInsights/api/interviewInsightsApi';
+import { CareerHarborPointsCard } from '@/features/interviewInsights/components/CareerHarborPointsCard';
 
 
 
@@ -3346,6 +3347,8 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
+
+
               <Grid container spacing={2}>
 
 
@@ -3998,6 +4001,8 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
+              {contributions.data.pointsBalance ? <CareerHarborPointsCard balance={contributions.data.pointsBalance} /> : null}
+
               <Grid container spacing={2}>
 
 
@@ -4018,7 +4023,9 @@ timeZoneId: cancelTarget.timeZoneId,
 
 
 
-                  { label: 'CareerHarbor Points', value: contributions.data.careerHarborPoints ?? 0 },
+                  ...(!contributions.data.pointsBalance && contributions.data.careerHarborPoints !== undefined
+                    ? [{ label: 'CareerHarbor Points', value: contributions.data.careerHarborPoints }]
+                    : []),
 
 
 

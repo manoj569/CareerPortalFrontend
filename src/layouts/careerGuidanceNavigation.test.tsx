@@ -15,22 +15,20 @@ describe('Career Guidance dashboard navigation', () => {
     expect(labels).toEqual([
       'Dashboard',
       'Browse jobs',
-      'Refer a job',
-      'Portfolio',
       'Saved jobs',
       'Applied jobs',
+      'Referrals',
       'Interview insights',
       'Career Guidance',
+      'Portfolio',
       'Membership',
-      'Payments',
+      'Resume maker',
       'Settings',
     ]);
 
-    expect(
-      candidateNavigationItems.find(
-        (item) => item.label === 'Career Guidance',
-      )?.path,
-    ).toBe(ROUTES.CAREER_GUIDANCE);
+    const guidance = candidateNavigationItems.find((item) => item.label === 'Career Guidance');
+    expect(guidance).toMatchObject({ action: 'career-guidance-coming-soon', secondaryLabel: 'Coming soon' });
+    expect(guidance?.path).toBeUndefined();
   });
 
   it('places the admin entry after Users and before Applications', () => {
@@ -50,18 +48,17 @@ describe('Career Guidance dashboard navigation', () => {
     ).toBe(ROUTES.ADMIN_CAREER_GUIDANCE);
   });
 
-  it('keeps candidate Career Guidance active for nested routes', () => {
+  it('shows Career Guidance as a Coming soon action without linking to a workflow', () => {
     render(
-      <MemoryRouter
-        initialEntries={['/career-guidance/bookings/booking-1']}
-      >
+      <MemoryRouter initialEntries={['/dashboard']}>
         <NavigationList items={candidateNavigationItems} />
       </MemoryRouter>,
     );
 
     expect(
-      screen.getByRole('link', { name: 'Career Guidance' }),
-    ).toHaveClass('active');
+      screen.getByRole('button', { name: 'Career Guidance, Coming soon' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Career Guidance' })).not.toBeInTheDocument();
   });
 
   it('keeps admin Career Guidance active for nested routes', () => {

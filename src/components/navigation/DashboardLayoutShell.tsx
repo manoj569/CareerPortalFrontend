@@ -23,11 +23,16 @@ import { useRef, useState, type ReactNode } from 'react';
 import { Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
+import { CareerGuidanceComingSoonPage } from '@/features/careerGuidance/components/CareerGuidanceComingSoonPage';
+import { useGetMyInterviewContributionsQuery } from '@/features/interviewInsights/api/interviewInsightsApi';
+import { CareerGuidanceComingSoonDialog, CareerHarborPointsIndicator } from '@/features/interviewInsights/components/CareerHarborPointsActions';
+import { CareerHarborPointsCard } from '@/features/interviewInsights/components/CareerHarborPointsCard';
 import { logout, selectCurrentUser } from '@/features/auth/store/authSlice';
 import { CookieSettingsButton } from '@/features/cookieConsent/CookieSettingsButton';
 import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
 import { AppBrand } from './AppBrand';
 import { CandidateAccountMenu } from './CandidateAccountMenu';
+import { CareerHarborSocialLinks } from './CareerHarborSocialLinks';
 import { NavigationList } from './NavigationList';
 import type { NavigationItem } from './navigationTypes';
 
@@ -56,9 +61,13 @@ export const DashboardLayoutShell = ({
   notificationBell,
 }: DashboardLayoutShellProps) => {
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [careerGuidanceDialogOpen, setCareerGuidanceDialogOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
+  const pointsQuery = useGetMyInterviewContributionsQuery(undefined, {
+    skip: areaLabel !== 'Candidate workspace',
+  });
   const navigate = useNavigate();
   const theme = useTheme();
 
@@ -159,7 +168,7 @@ const isFullWidthPage =
     }
   };
 
-  const renderDrawerContent = (compact = false) => (
+  const renderDrawerContent = (compact = false, mobile = false) => (
     <Stack flex={1} minHeight={0}>
       <Box
         sx={{
@@ -202,8 +211,25 @@ const isFullWidthPage =
           compact={compact}
           items={navigationItems}
           onNavigate={() => closeMobileDrawer(false)}
+          onAction={(action) => {
+            if (action === 'career-guidance-coming-soon') setCareerGuidanceDialogOpen(true);
+          }}
         />
       </Box>
+
+      <Divider />
+
+      {!compact && mobile && pointsQuery.data?.pointsBalance ? (
+        <Box sx={{ px: 2, pt: 1.5 }}>
+          <CareerHarborPointsCard balance={pointsQuery.data.pointsBalance} compact />
+        </Box>
+      ) : null}
+
+      {!compact ? (
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <CareerHarborSocialLinks mobile={mobile} />
+        </Box>
+      ) : null}
 
       <Divider />
 
@@ -313,6 +339,8 @@ const isFullWidthPage =
             </IconButton>
           ) : null)}
 
+          <CareerHarborPointsIndicator balance={pointsQuery.data?.pointsBalance} />
+
           {accountMenuProfilePath ? (
             <CandidateAccountMenu
               email={currentUser?.email}
@@ -361,7 +389,7 @@ const isFullWidthPage =
           variant="temporary"
           sx={{ display: { xs: 'block', md: 'none' } }}
         >
-          {renderDrawerContent(false)}
+          {renderDrawerContent(false, true)}
         </Drawer>
 
         <Drawer
@@ -415,6 +443,12 @@ const isFullWidthPage =
         </Drawer>
       </Box>
 
+      <CareerGuidanceComingSoonDialog
+        balance={pointsQuery.data?.pointsBalance}
+        onClose={() => setCareerGuidanceDialogOpen(false)}
+        open={careerGuidanceDialogOpen}
+      />
+
       <Box
         component="main"
         id="main-content"
@@ -434,7 +468,16 @@ const isFullWidthPage =
         }
   }
 >
-          <Outlet />
+          {referralLocation.pathname === ROUTES.REFERRALS && pointsQuery.data?.pointsBalance ? (
+            <Box sx={{ mb: 2 }}>
+              <CareerHarborPointsCard balance={pointsQuery.data.pointsBalance} compact />
+            </Box>
+          ) : null}
+          {referralLocation.pathname.startsWith('/career-guidance') ? (
+            <CareerGuidanceComingSoonPage balance={pointsQuery.data?.pointsBalance} />
+          ) : (
+            <Outlet />
+          )}
         </Container>
       </Box>
     </Box>

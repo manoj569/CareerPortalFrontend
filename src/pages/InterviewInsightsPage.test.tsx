@@ -366,7 +366,19 @@ describe('InterviewInsightsPage', () => {
       contributions: {
         badges: [],
         candidatesHelped: 7,
-        careerHarborPoints: 120,
+        careerHarborPoints: 1320,
+        pointsBalance: {
+          totalPoints: 1320,
+          mentorEligibilityThreshold: 3000,
+          remainingPoints: 1680,
+          isPointsEligibleForMentor: false,
+          interviewInsightPublishedPoints: 5,
+          interviewInsightHelpfulPoints: 400,
+          referralOpportunitySharedPoints: 15,
+          referralCandidateConfirmedPoints: 900,
+          isPaidEligibilityAvailable: false,
+          isPaidEligibleForMentor: false,
+        },
         contributionScore: 18,
         insightsPublished: 1,
         needsChanges: 1,
@@ -393,7 +405,8 @@ describe('InterviewInsightsPage', () => {
     expect((await screen.findAllByText('Needs changes')).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Reviewer request: Please remove confidential details.')).toBeVisible();
     expect(screen.getByText('CareerHarbor Points')).toBeVisible();
-    expect(screen.getByText('120')).toBeVisible();
+    expect(screen.getByText('1,320 / 3,000 points')).toBeVisible();
+    expect(screen.getByText('1,680 points to Mentor eligibility')).toBeVisible();
     expect(document.body).not.toHaveTextContent('private@example.com');
     expect(document.body).not.toHaveTextContent('2026-07-01T10:00:00Z');
   });

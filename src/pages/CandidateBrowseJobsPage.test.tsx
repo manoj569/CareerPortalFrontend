@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-do
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
+import type * as InterviewInsightsApiModule from '@/features/interviewInsights/api/interviewInsightsApi';
 import {
   useGetApplicationQuotaQuery,
   useGetProfileQuery,
@@ -78,6 +79,14 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
     useSubmitApplicationMutation: vi.fn(),
     useUploadResumeMutation: vi.fn(),
     downloadCandidateResume: vi.fn(),
+  };
+});
+
+vi.mock('@/features/interviewInsights/api/interviewInsightsApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof InterviewInsightsApiModule>();
+  return {
+    ...actual,
+    useGetMyInterviewContributionsQuery: vi.fn(() => ({ data: undefined, isError: true })),
   };
 });
 
@@ -358,11 +367,13 @@ beforeEach(() => {
   mockMemberships.mockReturnValue(queryResult([]) as ReturnType<typeof useGetMembershipsQuery>);
   mockNotifications.mockReturnValue(
     queryResult({
-      items: [],
-      pageNumber: 1,
-      pageSize: 1,
-      totalCount: 0,
-      totalPages: 0,
+      page: {
+        items: [],
+        pageNumber: 1,
+        pageSize: 5,
+        totalCount: 0,
+        totalPages: 0,
+      },
       unreadCount: 0,
     }) as ReturnType<typeof useGetNotificationsQuery>,
   );
@@ -950,7 +961,7 @@ describe('Candidate Browse jobs', () => {
     expect(screen.getAllByRole('link', { name: 'Applied jobs' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Resume' })).toBeNull();
     expect(mockNotifications).toHaveBeenCalledWith(
-      { pageNumber: 1, pageSize: 1 },
+      { pageNumber: 1, pageSize: 5 },
       { pollingInterval: 60000, refetchOnMountOrArgChange: true },
     );
     candidateView.unmount();

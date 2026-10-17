@@ -1,6 +1,7 @@
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
@@ -70,6 +71,12 @@ export const candidateNavigationItems: NavigationItem[] = [
     path: ROUTES.INTERVIEW_INSIGHTS,
     icon: QuestionAnswerOutlinedIcon,
     preserveCurrentLocation: true,
+  },
+  {
+    label: 'Career Guidance',
+    icon: SchoolOutlinedIcon,
+    action: 'career-guidance-coming-soon',
+    secondaryLabel: 'Coming soon',
   },
   {
     label: 'Portfolio',
