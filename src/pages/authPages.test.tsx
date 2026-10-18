@@ -84,7 +84,6 @@ const fillRegistration = async () => {
   await user.type(screen.getByLabelText(/email address/i), 'candidate@example.com');
   await user.type(screen.getByLabelText(/^password/i), 'abc 12!');
   await user.type(screen.getByLabelText(/mobile number/i), '9876543210');
-  await user.click(screen.getByRole('checkbox', { name: /terms of use/i }));
   return user;
 };
 
@@ -130,32 +129,32 @@ describe('mobile authentication pages', () => {
     expect(await screen.findByText('Enter a valid email address.')).toBeInTheDocument();
   });
 
-  it('links separately to both legal pages without toggling consent', () => {
+  it('links separately to both legal pages', () => {
     renderAuthRoute(ROUTES.REGISTER, <RegisterPage />);
-    const checkbox = screen.getByRole('checkbox', { name: /terms of use/i });
-    const termsLink = screen.getByRole('link', { name: 'Terms of Use' });
-    const privacyLink = screen.getByRole('link', { name: 'Privacy Policy' });
+    const termsLinks = screen.getAllByRole('link', { name: 'Terms of Use' });
+    const privacyLinks = screen.getAllByRole('link', { name: 'Privacy Policy' });
 
-    expect(termsLink).toHaveAttribute('href', ROUTES.TERMS_OF_USE);
-    expect(privacyLink).toHaveAttribute('href', ROUTES.PRIVACY_POLICY);
-    expect(termsLink).not.toHaveAttribute('target');
-    expect(privacyLink).not.toHaveAttribute('target');
-    termsLink.addEventListener('click', (event) => event.preventDefault());
-    privacyLink.addEventListener('click', (event) => event.preventDefault());
-    fireEvent.click(termsLink);
-    fireEvent.click(privacyLink);
-    expect(checkbox).not.toBeChecked();
+    expect(termsLinks).toHaveLength(2);
+    expect(privacyLinks).toHaveLength(2);
+    [...termsLinks, ...privacyLinks].forEach((link) => {
+      expect(link).not.toHaveAttribute('target');
+    });
+    termsLinks.forEach((link) => expect(link).toHaveAttribute('href', ROUTES.TERMS_OF_USE));
+    privacyLinks.forEach((link) => expect(link).toHaveAttribute('href', ROUTES.PRIVACY_POLICY));
   });
 
-  it('submits the exact registration contract and goes to mobile verification without a session', async () => {
+  it('submits the registration contract and shows success without opening verification instructions', async () => {
     mockedAuthService.register.mockResolvedValue({
-      challengeId,
-      expiresAtUtc: '2099-01-01T00:05:00Z',
-      message: 'If registration can proceed, a mobile OTP has been sent.',
+      message: 'Registration successful. Please log in.',
     });
     const { store } = renderAuthRoute(ROUTES.REGISTER, <RegisterPage />);
-    const user = await fillRegistration();
-    await user.click(screen.getByRole('button', { name: /create account/i }));
+    await fillRegistration();
+    vi.useFakeTimers();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /create account/i }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
     expect(mockedAuthService.register.mock.calls[0]?.[0]).toEqual({
       email: 'candidate@example.com',
@@ -164,17 +163,20 @@ describe('mobile authentication pages', () => {
       password: 'abc 12!',
       phoneNumber: '9876543210',
     });
-    expect(await screen.findByRole('heading', { name: 'Verify your mobile number' })).toBeVisible();
-    expect(screen.getByText(/\+91 ••••••3210/)).toBeVisible();
+    expect(screen.getByText('Registration successful. Redirecting to login...')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Create your account' })).toBeVisible();
+    expect(
+      screen.queryByRole('heading', { name: /check your email to verify/i }),
+    ).not.toBeInTheDocument();
     expect(store.getState().auth.status).toBe('unauthenticated');
     expect(store.getState().auth.user).toBeNull();
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
+    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
   });
 
   it('forwards a validated return destination from registration to Login without creating a session', async () => {
     mockedAuthService.register.mockResolvedValue({
-      challengeId,
-      expiresAtUtc: '2099-01-01T00:05:00Z',
-      message: 'If registration can proceed, a mobile OTP has been sent.',
+      message: 'Registration successful. Please log in.',
     });
     const { router, store } = renderAuthRoute(ROUTES.REGISTER, <RegisterPage />, {
       pathname: ROUTES.REGISTER,
@@ -299,6 +301,68 @@ describe('mobile authentication pages', () => {
       expect(await screen.findByText('Candidate dashboard')).toBeVisible();
     },
   );
+
+  it('sends only one password login while a slow response is pending', async () => {
+    let finishLogin!: (value: AuthenticationResponse) => void;
+    mockedAuthService.login.mockReturnValue(
+      new Promise((resolve) => {
+        finishLogin = resolve;
+      }),
+    );
+    renderAuthRoute(ROUTES.LOGIN, <LoginPage />);
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByLabelText(/email address or mobile number/i),
+      'candidate@example.com',
+    );
+    await user.type(screen.getByLabelText(/^password/i), 'abc123');
+    const form = screen.getByRole('button', { name: /^log in$/i }).closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+    await waitFor(() => expect(mockedAuthService.login).toHaveBeenCalledTimes(1));
+    fireEvent.submit(form!);
+    expect(mockedAuthService.login).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /logging in/i })).toBeDisabled();
+    await act(async () => finishLogin(authenticationResponse(UserRole.Candidate)));
+    expect(await screen.findByText('Candidate dashboard')).toBeVisible();
+  });
+
+  it('restores the login controls and shows a concise timeout error after failure', async () => {
+    mockedAuthService.login.mockRejectedValue(
+      new ApiRequestError({ code: 'request_timeout', message: 'timeout' }),
+    );
+    renderAuthRoute(ROUTES.LOGIN, <LoginPage />);
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByLabelText(/email address or mobile number/i),
+      'candidate@example.com',
+    );
+    await user.type(screen.getByLabelText(/^password/i), 'abc123');
+    await user.click(screen.getByRole('button', { name: /^log in$/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The request timed out. Please try again.',
+    );
+    expect(screen.getByRole('button', { name: /^log in$/i })).toBeEnabled();
+    expect(screen.getByLabelText(/^password/i)).toBeEnabled();
+  });
+
+  it('shows the invalid credentials message returned for a 401', async () => {
+    mockedAuthService.login.mockRejectedValue(
+      new ApiRequestError({ status: 401, message: 'unauthorized' }),
+    );
+    renderAuthRoute(ROUTES.LOGIN, <LoginPage />);
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByLabelText(/email address or mobile number/i),
+      'candidate@example.com',
+    );
+    await user.type(screen.getByLabelText(/^password/i), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: /^log in$/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The identifier or password is incorrect.',
+    );
+    expect(screen.getByRole('button', { name: /^log in$/i })).toBeEnabled();
+  });
 
   it('retains Administrator password login routing', async () => {
     mockedAuthService.login.mockResolvedValue(authenticationResponse(UserRole.Administrator));

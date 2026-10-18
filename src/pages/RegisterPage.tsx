@@ -18,7 +18,7 @@ import {
   Typography,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -176,9 +176,16 @@ export const RegisterPage = () => {
   const [googleAccountConflict, setGoogleAccountConflict] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [isRegistrationRedirecting, setIsRegistrationRedirecting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const registrationRedirectStarted = useRef(false);
+  const registrationRedirectTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (registrationRedirectTimer.current !== null) {
+      window.clearTimeout(registrationRedirectTimer.current);
+    }
+  }, []);
 
   const {
     formState: { errors, isSubmitting },
@@ -205,9 +212,9 @@ export const RegisterPage = () => {
   );
 
   const submitRegistration = async (values: RegistrationFormValues) => {
+    if (registrationRedirectStarted.current) return;
     setServerError(null);
     setHasValidationErrors(false);
-    setIsSuccess(false);
     setGoogleAccountConflict(false);
 
     try {
@@ -219,8 +226,16 @@ export const RegisterPage = () => {
         phoneNumber: values.phoneNumber,
       });
 
-      setRegisteredEmail(values.email.trim());
-      setIsSuccess(true);
+      if (registrationRedirectStarted.current) return;
+      registrationRedirectStarted.current = true;
+      setIsRegistrationRedirecting(true);
+      enqueueSnackbar('Registration successful. Redirecting to login...', { variant: 'success' });
+      registrationRedirectTimer.current = window.setTimeout(() => {
+        void navigate(ROUTES.LOGIN, {
+          replace: true,
+          state: safeReturnLocation ? { from: safeReturnLocation } : undefined,
+        });
+      }, 2_000);
     } catch (error: unknown) {
       const registrationError = toApiRequestError(error);
       if (registrationError.status === 409 && registrationError.code === 'ACCOUNT_EXISTS_GOOGLE') {
@@ -281,7 +296,7 @@ export const RegisterPage = () => {
   };
 
   const submitGoogleRegistration = async (code: string) => {
-    if (isSubmitting || isGoogleSubmitting || isSuccess) return;
+    if (isSubmitting || isGoogleSubmitting || registrationRedirectStarted.current) return;
     setServerError(null);
     setIsGoogleSubmitting(true);
     try {
@@ -311,7 +326,7 @@ export const RegisterPage = () => {
 
   const googleButton = (
     <GoogleAuthorizationCodeButton
-      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+      disabled={isSubmitting || isRegistrationRedirecting || isGoogleSubmitting}
       onCode={(code) => {
         void submitGoogleRegistration(code);
       }}
@@ -329,41 +344,6 @@ export const RegisterPage = () => {
         <Grid order={{ xs: 1, md: 2 }} size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: { xs: 2, sm: 4 } }}>
             <Stack spacing={3}>
-              {isSuccess ? (
-                <Stack
-                  alignItems="center"
-                  aria-live="polite"
-                  spacing={2.5}
-                  sx={controlSx}
-                  textAlign="center"
-                >
-                  <Typography component="h1" variant="h2">
-                    Check your email to verify your account
-                  </Typography>
-
-                  <Alert severity="success" sx={{ width: '100%' }}>
-                    Your CareerHarbor account has been created successfully.
-                  </Alert>
-
-                  <Typography color="text.secondary">
-                    We sent a verification link to <strong>{registeredEmail}</strong>. Open the link
-                    to verify your email address, then log in to your account.
-                  </Typography>
-
-                  <Typography color="text.secondary" variant="body2">
-                    Can't find the email? Check your spam or junk folder.
-                  </Typography>
-                  <Button
-                    component={Link}
-                    state={safeReturnLocation ? { from: safeReturnLocation } : undefined}
-                    to={ROUTES.LOGIN}
-                    variant="outlined"
-                  >
-                    Go to log in
-                  </Button>
-                </Stack>
-              ) : (
-                <>
                   <AuthPageHeader title="Create your account" />
                   {hasValidationErrors ? (
                     <Alert aria-live="assertive" severity="error">
@@ -393,7 +373,7 @@ export const RegisterPage = () => {
                   >
                     <TextField
                       autoComplete="name"
-                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      disabled={isSubmitting || isRegistrationRedirecting || isGoogleSubmitting}
                       error={Boolean(errors.fullName)}
                       helperText={errors.fullName?.message}
                       inputRef={fullNameField.ref}
@@ -413,7 +393,7 @@ export const RegisterPage = () => {
                     />
                     <TextField
                       autoComplete="email"
-                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      disabled={isSubmitting || isRegistrationRedirecting || isGoogleSubmitting}
                       error={Boolean(errors.email)}
                       helperText={errors.email?.message}
                       label="Email address"
@@ -424,7 +404,7 @@ export const RegisterPage = () => {
                     />
                     <PasswordField
                       autoComplete="new-password"
-                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      disabled={isSubmitting || isRegistrationRedirecting || isGoogleSubmitting}
                       errorMessage={errors.password?.message}
                       label="Password"
                       placeholder="Minimum 6 characters"
@@ -432,7 +412,7 @@ export const RegisterPage = () => {
                     />
                     <TextField
                       autoComplete="tel-national"
-                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      disabled={isSubmitting || isRegistrationRedirecting || isGoogleSubmitting}
                       error={Boolean(errors.phoneNumber)}
                       helperText={errors.phoneNumber?.message}
                       inputRef={mobileField.ref}
@@ -475,7 +455,7 @@ export const RegisterPage = () => {
                       .
                     </Typography>
                     <Button
-                      disabled={isSubmitting || isSuccess || isGoogleSubmitting}
+                      disabled={isSubmitting || isRegistrationRedirecting || isGoogleSubmitting}
                       fullWidth
                       size="large"
                       type="submit"
@@ -499,8 +479,6 @@ export const RegisterPage = () => {
                     <Typography color="text.secondary" variant="body2">Having trouble creating your account?</Typography>
                     <SupportButton initialCategory="Registration" />
                   </Stack>
-                </>
-              )}
             </Stack>
           </Paper>
         </Grid>

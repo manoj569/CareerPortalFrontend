@@ -1,10 +1,10 @@
 import { ApiRequestError } from '@/api/apiError';
 import { ROUTES } from '@/constants/routes';
 import { renderWithProviders } from '@/test/renderWithProviders';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoginPage } from './LoginPage';
 import { RegisterPage } from './RegisterPage';
 import { VerifyEmailPage } from './VerifyEmailPage';
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   googleAuthenticateWithCode: vi.fn(),
   login: vi.fn(),
   register: vi.fn(),
+  resendRegistrationOtp: vi.fn(),
   verifyEmail: vi.fn(),
 }));
 
@@ -63,35 +64,65 @@ describe('email verification flow', () => {
     mocks.login.mockReset();
   });
 
-  it('shows email-verification instructions after successful registration without creating a session', async () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows registration success and redirects once after two seconds without verification instructions', async () => {
     mocks.register.mockResolvedValue({
       message: 'Registration successful. Please log in.',
     });
 
     const { router, store } = renderFlow(ROUTES.REGISTER);
-    const user = await fillRegistration();
+    await fillRegistration();
+    vi.useFakeTimers();
 
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
+    expect(mocks.register).toHaveBeenCalledTimes(1);
+    expect(mocks.verifyEmail).not.toHaveBeenCalled();
+    expect(mocks.resendRegistrationOtp).not.toHaveBeenCalled();
+    expect(screen.getByText('Registration successful. Redirecting to login...')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Create your account' })).toBeVisible();
+    expect(screen.getByRole('textbox', { name: /Email address/i })).toBeDisabled();
+    expect(screen.queryByText(/Check your email to verify your account/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/We sent a verification link/i)).not.toBeInTheDocument();
     expect(
-      await screen.findByRole('heading', {
-        name: /check your email to verify your account/i,
-      }),
-    ).toBeVisible();
-
-    expect(
-      screen.getByText(/Your CareerHarbor account has been created successfully/i),
-    ).toBeVisible();
-
-    expect(screen.getByText(/candidate@example\.com/i)).toBeVisible();
-
-    expect(
-      screen.getByText(/Open the link to verify your email address, then log in/i),
-    ).toBeVisible();
-
+      screen.queryByText(/Can't find the email\?|spam or junk|Go to log in/i),
+    ).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe(ROUTES.REGISTER);
     expect(store.getState().auth.user).toBeNull();
     expect(store.getState().auth.status).not.toBe('authenticated');
+
+    await act(async () => vi.advanceTimersByTimeAsync(1_999));
+    expect(router.state.location.pathname).toBe(ROUTES.REGISTER);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(router.state.location.pathname).toBe(ROUTES.LOGIN);
+    expect(mocks.login).not.toHaveBeenCalled();
+  });
+
+  it('keeps registration errors on the form without showing success or redirecting', async () => {
+    mocks.register.mockRejectedValue(
+      new ApiRequestError({ code: 'data_conflict', message: 'Conflict details.', status: 409 }),
+    );
+    const { router } = renderFlow(ROUTES.REGISTER);
+    await fillRegistration();
+    vi.useFakeTimers();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not complete your request/i);
+    expect(screen.queryByText(/Registration successful/)).not.toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTimeAsync(2_500));
+    expect(router.state.location.pathname).toBe(ROUTES.REGISTER);
   });
 
   it('shows an email field error when the email is already registered', async () => {
