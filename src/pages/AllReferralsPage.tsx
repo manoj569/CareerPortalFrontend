@@ -1,4 +1,5 @@
 import { dateLabel } from '@/features/referrals/types/marketplaceModels';
+import { ReferralContactEditor } from '@/features/referrals/components/ReferralContactEditor';
 import { PendingRequestActions } from '@/features/referrals/components/PendingRequestActions';
 import { OpportunityCapacity } from '@/features/referrals/components/OpportunityCapacity';
 import { useState } from 'react';
@@ -208,6 +209,9 @@ export const AllReferralsPage = () => {
                     ? 'View Requests'
                     : 'View details →'}
                 </Button>
+              </Box>
+              <Box mt={2}>
+                <ReferralContactEditor job={job} />
               </Box>
             </ReferralCard>
           );

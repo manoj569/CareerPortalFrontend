@@ -124,6 +124,9 @@ describe('referral submission JSON contract', () => {
       showEmail: false,
       showPhone: false,
       referralSlots: 5,
+      linkedInUrl: 'https://www.linkedin.com/in/owner',
+      contactEmail: null,
+      contactPhone: null,
     };
     await store.dispatch(referralsApi.endpoints.submitJobReferral.initiate(body)).unwrap();
     const config = request.mock.calls[0]?.[0] as { data: unknown };
@@ -140,6 +143,61 @@ describe('referral submission JSON contract', () => {
         },
       },
     });
+    store.dispatch(referralsApi.util.resetApiState());
+  });
+});
+
+describe('owner contact preferences JSON contract', () => {
+  it('updates an existing referral using PUT and restores the owner response', async () => {
+    request.mockReset();
+    const body = {
+      showLinkedIn: true,
+      showEmail: true,
+      showPhone: true,
+      linkedInUrl: 'https://www.linkedin.com/in/owner',
+      contactEmail: 'owner@example.com',
+      contactPhone: '+91 9876543210',
+    };
+    request.mockResolvedValue({ data: { data: { id: 'existing-id', ...body } } });
+    const store = createAppStore();
+    const result = await store
+      .dispatch(referralsApi.endpoints.updateReferralContact.initiate({ id: 'existing-id', body }))
+      .unwrap();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0]?.[0]).toMatchObject({
+      method: 'put',
+      url: '/referrals/existing-id/contact-preferences',
+      data: body,
+    });
+    expect(result).toEqual({ id: 'existing-id', ...body });
+    store.dispatch(referralsApi.util.resetApiState());
+  });
+
+  it('drops contact values from the public response mapping', async () => {
+    request.mockReset();
+    request.mockResolvedValue({
+      data: {
+        data: {
+          items: [
+            {
+              jobId: 'job',
+              jobTitle: 'Engineer',
+              linkedInUrl: 'private-link',
+              contactEmail: 'private-email',
+              contactPhone: 'private-phone',
+            },
+          ],
+          totalCount: 1,
+        },
+      },
+    });
+    const store = createAppStore();
+    const subscription = store.dispatch(
+      referralsApi.endpoints.getPublicReferralJobs.initiate({ pageNumber: 1, pageSize: 10 }),
+    );
+    const result = await subscription.unwrap();
+    expect(JSON.stringify(result)).not.toContain('private-');
+    subscription.unsubscribe();
     store.dispatch(referralsApi.util.resetApiState());
   });
 });

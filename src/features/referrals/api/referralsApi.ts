@@ -10,6 +10,7 @@ import type {
   ReferralUnlockResult,
   SubmitJobReferralRequest,
   ReferralCategoryOption,
+  UpdateReferralContactRequest,
 } from '../types/referralModels';
 
 export const referralsApi = createApi({
@@ -17,6 +18,18 @@ export const referralsApi = createApi({
   baseQuery: axiosBaseQuery(),
   tagTypes: ['MyReferrals', 'Marketplace', 'PublicReferrals'],
   endpoints: (builder) => ({
+    updateReferralContact: builder.mutation<
+      JobReferralSubmission,
+      { id: string; body: UpdateReferralContactRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/referrals/${encodeURIComponent(id)}/contact-preferences`,
+        method: 'put',
+        data: body,
+      }),
+      transformResponse: (response: BackendApiResponse<JobReferralSubmission>) => response.data,
+      invalidatesTags: ['MyReferrals', 'Marketplace', 'PublicReferrals'],
+    }),
     getPublicReferralJobs: builder.query<
       PagedResponse<PublicReferralJob>,
       { pageNumber: number; pageSize: number }
@@ -133,6 +146,7 @@ export const referralsApi = createApi({
 });
 
 export const {
+  useUpdateReferralContactMutation,
   useGetPublicReferralJobsQuery,
   useGetReferralCategoryOptionsQuery,
   useExtractJobFromUrlMutation,

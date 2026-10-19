@@ -41,6 +41,10 @@ export interface ReferralCategoryOption {
 export type JobReferralApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface JobReferralSubmission {
+  // Owner response only; absent/null values support legacy submissions.
+  linkedInUrl?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
   referralSlots: number;
   acceptedReferralCount: number;
   remainingReferralSlots: number;
@@ -139,6 +143,9 @@ export interface ComposeJobDraft {
 }
 
 export interface SubmitJobReferralRequest {
+  linkedInUrl?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
   jobDetails: {
     job: ComposeJobDraft;
     company: ComposeRelation<InlineCompany>;
@@ -149,4 +156,13 @@ export interface SubmitJobReferralRequest {
   showEmail: boolean;
   showPhone: boolean;
   referralSlots: number;
+}
+
+export interface UpdateReferralContactRequest {
+  showLinkedIn: boolean;
+  showEmail: boolean;
+  showPhone: boolean;
+  linkedInUrl: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
 }

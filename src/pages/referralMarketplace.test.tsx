@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   reject: vi.fn(),
   mark: vi.fn(),
   submit: vi.fn(),
+  updateContact: vi.fn(),
   candidate: vi.fn(),
   contact: vi.fn(),
   refetch: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock('@/features/referrals/api/marketplaceApi', () => ({
 }));
 vi.mock('@/features/referrals/api/referralsApi', () => ({
   useSubmitJobReferralMutation: () => mutation(mocks.submit),
+  useUpdateReferralContactMutation: () => mutation(mocks.updateContact),
   useExtractJobFromUrlMutation: () => mutation(mocks.extract),
   useGetReferralCategoryOptionsQuery: () => ({
     data: [{ id: 'cat-1', name: 'Software Development' }],
@@ -108,6 +110,13 @@ const fillJobDetails = async () => {
   await userEvent.type(screen.getByRole('textbox', { name: /Skills/ }), 'React{Enter}SQL{Enter}');
   await userEvent.click(screen.getByRole('combobox', { name: /Category/ }));
   await userEvent.click(screen.getByRole('option', { name: 'Software Development' }));
+};
+
+const continueWithContact = async () => {
+  const input = screen.queryByRole('textbox', { name: /LinkedIn profile/ });
+  if (input && !(input as HTMLInputElement).disabled)
+    fireEvent.change(input, { target: { value: 'https://www.linkedin.com/in/referrer' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
 };
 
 describe('referrer screens', () => {
@@ -269,7 +278,7 @@ describe('referrer screens', () => {
 describe('creation and protected contact', () => {
   it('validates required details inline before advancing', async () => {
     show(<ReferAJobPage />, '/dashboard/refer-a-job');
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await continueWithContact();
     expect(screen.getByRole('heading', { name: /Step 1 of 3/ })).toBeVisible();
     expect(screen.getByLabelText(/Job title/)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getAllByText('This field is required.')).toHaveLength(4);
@@ -285,13 +294,13 @@ describe('creation and protected contact', () => {
         });
       show(<ReferAJobPage />, '/dashboard/refer-a-job');
       await fillJobDetails();
-      await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await continueWithContact();
       expect(screen.getByRole('heading', { name: /Step 2 of 3/ })).toHaveFocus();
       expect(mocks.submit).not.toHaveBeenCalled();
       fireEvent.change(screen.getByRole('spinbutton', { name: 'Referral slots' }), {
         target: { value: '1001' },
       });
-      await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await continueWithContact();
       expect(screen.getByText('Enter 1–1000 whole slots')).toBeVisible();
       expect(screen.getByRole('heading', { name: /Step 2 of 3/ })).toBeVisible();
       fireEvent.change(screen.getByRole('spinbutton', { name: 'Referral slots' }), {
@@ -301,8 +310,8 @@ describe('creation and protected contact', () => {
       expect(screen.getByLabelText(/Job title/)).toHaveValue('Engineer');
       expect(screen.getByRole('button', { name: 'Remove skill React' })).toBeVisible();
       expect(screen.getByRole('button', { name: 'Remove skill SQL' })).toBeVisible();
-      await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
-      await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await continueWithContact();
+      await continueWithContact();
       expect(screen.getByRole('heading', { name: /Step 3 of 3/ })).toHaveFocus();
       expect(screen.getByText('React, SQL')).toBeVisible();
       expect(screen.getByText('0–3 years')).toBeVisible();
@@ -339,7 +348,10 @@ describe('creation and protected contact', () => {
       kind === 'shared' ? <AllReferralsPage /> : <ReferralRequestsPage />,
       kind === 'shared' ? '/dashboard/referrals' : '/dashboard/referral-requests',
     );
-    expect(screen.getByRole('link', { name: 'View referral notifications' })).toHaveAttribute('href', '/dashboard/notifications');
+    expect(screen.getByRole('link', { name: 'View referral notifications' })).toHaveAttribute(
+      'href',
+      '/dashboard/notifications',
+    );
     expect(
       screen.getByText(
         kind === 'shared'
@@ -436,8 +448,8 @@ describe('Phase 2 referral regressions', () => {
     });
     show(<ReferAJobPage />, '/dashboard/refer-a-job');
     await fillJobDetails();
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await continueWithContact();
+    await continueWithContact();
     const submit = screen.getByRole('button', { name: 'Submit for Approval' });
     await userEvent.dblClick(submit);
     expect(mocks.submit).toHaveBeenCalledTimes(1);
@@ -468,7 +480,7 @@ describe('Phase 2 referral regressions', () => {
     expect(screen.getByLabelText(/Job title/)).toHaveValue('Imported job');
     expect(screen.getByLabelText(/Application URL/)).toHaveValue('https://example.test/job');
     fireEvent.change(screen.getByLabelText(/Maximum experience/), { target: { value: '1' } });
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await continueWithContact();
     expect(
       screen.getByText('Maximum experience cannot be less than minimum experience.'),
     ).toBeVisible();
@@ -522,13 +534,16 @@ it('supports keyboard Continue and preference validation without losing values',
   await userEvent.keyboard('{Enter}');
   expect(screen.getByRole('heading', { name: /Step 2 of 3/ })).toHaveFocus();
   await userEvent.click(screen.getByLabelText('LinkedIn'));
-  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await continueWithContact();
   expect(
     screen.getByText('Select at least one contact method for accepted candidates.'),
   ).toBeVisible();
   expect(mocks.submit).not.toHaveBeenCalled();
   await userEvent.click(screen.getByLabelText('Email'));
-  await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  fireEvent.change(screen.getByLabelText(/Email address/), {
+    target: { value: 'owner@example.com' },
+  });
+  await continueWithContact();
   expect(screen.getByText('Email')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: 'Edit Preferences' }));
   expect(screen.getByLabelText('Email')).toBeChecked();
@@ -558,8 +573,8 @@ describe('referral hotfix request contract', () => {
     await fillJobDetails();
     await userEvent.click(screen.getByRole('combobox', { name: /Employment type/ }));
     await userEvent.click(screen.getByRole('option', { name: String(label) }));
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await continueWithContact();
+    await continueWithContact();
     expect(screen.getByText(String(label))).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Submit for Approval' }));
     expect(JSON.parse(JSON.stringify(mocks.submit.mock.calls[0]?.[0]))).toEqual({
@@ -581,6 +596,9 @@ describe('referral hotfix request contract', () => {
       showLinkedIn: true,
       showEmail: false,
       showPhone: false,
+      linkedInUrl: 'https://www.linkedin.com/in/referrer',
+      contactEmail: null,
+      contactPhone: null,
       referralSlots: 5,
     });
   });
@@ -602,8 +620,8 @@ describe('referral hotfix request contract', () => {
     });
     show(<ReferAJobPage />, '/dashboard/refer-a-job');
     await fillJobDetails();
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await continueWithContact();
+    await continueWithContact();
     await userEvent.click(screen.getByRole('button', { name: 'Submit for Approval' }));
     expect(
       await screen.findByText(
@@ -618,8 +636,182 @@ describe('referral hotfix request contract', () => {
     show(<ReferAJobPage />, '/dashboard/refer-a-job');
     await fillJobDetails();
     fireEvent.change(screen.getByLabelText(/Minimum experience/), { target: { value: '1.5' } });
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await continueWithContact();
     expect(screen.getByText('Enter a whole number between 0 and 50 years.')).toBeVisible();
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
+});
+
+describe('referral contact values flow', () => {
+  const next = () => userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  const enterPreferences = async () => {
+    show(<ReferAJobPage />, '/dashboard/refer-a-job');
+    await fillJobDetails();
+    await next();
+  };
+  it.each([
+    ['LinkedIn', 'LinkedIn profile', 'Enter a valid HTTPS LinkedIn profile URL.'],
+    ['Email', 'Email address', 'Enter a valid contact email address.'],
+    ['Phone', 'Phone number', 'Enter a valid international contact phone number (7 to 15 digits).'],
+  ])('requires selected %s and rejects invalid input inline', async (name, label, message) => {
+    await enterPreferences();
+    if (name !== 'LinkedIn') {
+      await userEvent.click(screen.getByRole('checkbox', { name: 'LinkedIn' }));
+      await userEvent.click(screen.getByRole('checkbox', { name }));
+    }
+    await next();
+    const input = screen.getByLabelText(new RegExp(label));
+    expect(input).toHaveAccessibleDescription(message);
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: 'invalid' } });
+    await next();
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('heading', { name: /Step 2/ })).toBeVisible();
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
+
+  it('preserves all values through review and Back, keeps preview private, and submits exact values', async () => {
+    await enterPreferences();
+    fireEvent.change(screen.getByLabelText(/LinkedIn profile/), {
+      target: { value: 'https://www.linkedin.com/in/owner' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Email' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Phone' }));
+    fireEvent.change(screen.getByLabelText(/Email address/), {
+      target: { value: 'owner@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/Phone number/), {
+      target: { value: '+91 9876543210' },
+    });
+    await next();
+    expect(screen.getByText('owner@example.com')).toBeVisible();
+    expect(screen.getByText('https://www.linkedin.com/in/owner')).toBeVisible();
+    expect(screen.getByText('+91 9876543210')).toBeVisible();
+    const preview = screen.getByText('Candidate view preview').closest('.MuiPaper-root')!;
+    expect(preview).not.toHaveTextContent('owner@example.com');
+    expect(preview).not.toHaveTextContent('https://www.linkedin.com/in/owner');
+    expect(preview).not.toHaveTextContent('+91 9876543210');
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByLabelText(/LinkedIn profile/)).toHaveValue(
+      'https://www.linkedin.com/in/owner',
+    );
+    expect(screen.getByLabelText(/Email address/)).toHaveValue('owner@example.com');
+    expect(screen.getByLabelText(/Phone number/)).toHaveValue('+91 9876543210');
+    await next();
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for Approval' }));
+    expect(mocks.submit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showLinkedIn: true,
+        showEmail: true,
+        showPhone: true,
+        linkedInUrl: 'https://www.linkedin.com/in/owner',
+        contactEmail: 'owner@example.com',
+        contactPhone: '+91 9876543210',
+      }),
+    );
+  });
+
+  it('omits stale unselected values from review and sends null without validating them', async () => {
+    await enterPreferences();
+    fireEvent.change(screen.getByLabelText(/LinkedIn profile/), {
+      target: { value: 'stale-invalid-secret' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'LinkedIn' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Email' }));
+    fireEvent.change(screen.getByLabelText(/Email address/), {
+      target: { value: 'owner@example.com' },
+    });
+    await next();
+    expect(screen.queryByText('stale-invalid-secret')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for Approval' }));
+    expect(mocks.submit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        showLinkedIn: false,
+        linkedInUrl: null,
+        showEmail: true,
+        contactEmail: 'owner@example.com',
+        showPhone: false,
+        contactPhone: null,
+      }),
+    );
+  });
+
+  it('restores owner values and updates the existing referral without creating another', async () => {
+    const owned = {
+      ...opportunity,
+      showLinkedIn: true,
+      showEmail: true,
+      showPhone: true,
+      linkedInUrl: 'https://linkedin.com/in/owner',
+      contactEmail: 'owner@example.com',
+      contactPhone: '+91 9876543210',
+    };
+    mocks.owned.mockReturnValue({ currentData: [owned], refetch: mocks.refetch });
+    mocks.updateContact.mockReturnValue({ unwrap: () => Promise.resolve(owned) });
+    show(<AllReferralsPage />, '/dashboard/referrals');
+    await userEvent.click(screen.getByRole('button', { name: 'Edit contact preferences' }));
+    expect(screen.getByLabelText(/LinkedIn profile/)).toHaveValue(owned.linkedInUrl);
+    expect(screen.getByLabelText(/Email address/)).toHaveValue(owned.contactEmail);
+    expect(screen.getByLabelText(/Phone number/)).toHaveValue(owned.contactPhone);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+    expect(screen.getByRole('checkbox', { name: 'Phone' })).toBeChecked();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'LinkedIn' }));
+    fireEvent.change(screen.getByLabelText(/Email address/), {
+      target: { value: 'updated@example.com' },
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Save contact preferences' }));
+    expect(mocks.updateContact).toHaveBeenCalledWith({
+      id: opportunity.id,
+      body: {
+        showLinkedIn: false,
+        showEmail: true,
+        showPhone: true,
+        linkedInUrl: null,
+        contactEmail: 'updated@example.com',
+        contactPhone: '+91 9876543210',
+      },
+    });
+    expect(await screen.findByText('Contact preferences saved.')).toHaveAttribute('role', 'status');
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
+
+  it('opens legacy owner records with null values and allows correction', async () => {
+    mocks.owned.mockReturnValue({
+      currentData: [
+        {
+          ...opportunity,
+          showLinkedIn: true,
+          linkedInUrl: null,
+          contactEmail: null,
+          contactPhone: null,
+        },
+      ],
+      refetch: mocks.refetch,
+    });
+    show(<AllReferralsPage />, '/dashboard/referrals');
+    await userEvent.click(screen.getByRole('button', { name: 'Edit contact preferences' }));
+    expect(screen.getByLabelText(/LinkedIn profile/)).toHaveValue('');
+    expect(screen.getByLabelText(/Email address/)).toHaveValue('');
+    expect(screen.getByLabelText(/Phone number/)).toHaveValue('');
+    await userEvent.click(screen.getByRole('button', { name: 'Save contact preferences' }));
+    expect(await screen.findByText('Enter a valid HTTPS LinkedIn profile URL.')).toBeVisible();
+    expect(mocks.updateContact).not.toHaveBeenCalled();
+  });
+
+  it('keeps entered owner values when the backend denies an update', async () => {
+    mocks.updateContact.mockReturnValue({
+      unwrap: () =>
+        Promise.reject(new ApiRequestError({ status: 403, message: 'Contact update denied.' })),
+    });
+    show(<AllReferralsPage />, '/dashboard/referrals');
+    await userEvent.click(screen.getByRole('button', { name: 'Edit contact preferences' }));
+    fireEvent.change(screen.getByLabelText(/LinkedIn profile/), {
+      target: { value: 'https://linkedin.com/in/owner' },
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Save contact preferences' }));
+    expect(await screen.findByText('Contact update denied.')).toBeVisible();
+    expect(screen.getByLabelText(/LinkedIn profile/)).toHaveValue('https://linkedin.com/in/owner');
+    expect(screen.queryByText('Contact preferences saved.')).not.toBeInTheDocument();
     expect(mocks.submit).not.toHaveBeenCalled();
   });
 });

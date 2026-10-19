@@ -6,18 +6,7 @@ import { ReferralUnsavedChanges } from '@/features/referrals/components/Referral
 import { ReferralStepper } from '@/features/referrals/components/ReferralStepper';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  Chip,
-  FormControlLabel,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -36,7 +25,16 @@ import {
   ReferralTips,
 } from '@/features/referrals/components/MarketplaceUI';
 import { referralError, validSlots } from '@/features/referrals/types/marketplaceModels';
-import { ROUTES } from '@/constants/routes';
+import {
+  contactMethods,
+  initialContacts,
+  ReferralContactFields,
+} from '@/features/referrals/components/ReferralContactFields';
+import {
+  contactPayload,
+  hasContactMethod,
+  validateContacts,
+} from '@/features/referrals/utils/referralContacts';
 const initial = {
   title: '',
   companyName: '',
@@ -68,21 +66,22 @@ export const ReferAJobPage = () => {
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const [source, setSource] = useState('');
   const [slots, setSlots] = useState(5);
-  const [sharing, setSharing] = useState({
-    showLinkedIn: true,
-    showEmail: false,
-    showPhone: false,
-  });
+  const [contacts, setContacts] = useState(initialContacts);
+  const sharing = contactPayload(contacts);
+  const contactsDirty = JSON.stringify(contacts) !== JSON.stringify(initialContacts);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (!allowLeave.current && (dirty || Boolean(source) || slots !== 5 || step > 0)) {
+      if (
+        !allowLeave.current &&
+        (dirty || contactsDirty || Boolean(source) || slots !== 5 || step > 0)
+      ) {
         event.preventDefault();
         event.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, source, slots, step]);
+  }, [dirty, contactsDirty, source, slots, step]);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const guard = useRef(false);
@@ -175,10 +174,15 @@ export const ReferAJobPage = () => {
     }
     if (!employmentTypeOptions.some((option) => option.value === form.employmentType))
       errors.employmentType = 'Select an employment type.';
+    const contactErrors = step > 0 ? validateContacts(contacts) : {};
+    Object.assign(errors, contactErrors);
     setValidation(errors);
     if (Object.keys(errors).length) {
-      if (step === 2) setStep(0);
-      setError('Please correct the highlighted job details.');
+      if (step === 2)
+        setStep(
+          Object.keys(errors).some((key) => !['linkedin', 'email', 'phone'].includes(key)) ? 0 : 1,
+        );
+      setError('Please correct the highlighted details.');
       return;
     }
     if (step === 0) {
@@ -199,7 +203,7 @@ export const ReferAJobPage = () => {
       setError('Add at least one skill.');
       return;
     }
-    if (!Object.values(sharing).some(Boolean)) {
+    if (!hasContactMethod(contacts)) {
       setError('Select at least one contact method for accepted candidates.');
       return;
     }
@@ -280,6 +284,7 @@ export const ReferAJobPage = () => {
           dirty ||
           Boolean(source) ||
           slots !== 5 ||
+          contactsDirty ||
           !sharing.showLinkedIn ||
           sharing.showEmail ||
           sharing.showPhone
@@ -503,30 +508,24 @@ export const ReferAJobPage = () => {
                   <Typography fontSize={12} color="text.secondary">
                     Select how accepted candidates can contact you.
                   </Typography>
-                  {(['showLinkedIn', 'showEmail', 'showPhone'] as const).map((key, i) => (
-                    <FormControlLabel
-                      sx={{ display: 'flex' }}
-                      key={key}
-                      label={['LinkedIn', 'Email', 'Phone'][i]}
-                      control={
-                        <Checkbox
-                          size="small"
-                          checked={sharing[key]}
-                          onChange={(e) => setSharing((s) => ({ ...s, [key]: e.target.checked }))}
-                        />
-                      }
-                    />
-                  ))}
-                  <Typography fontSize={12} color="text.secondary">
-                    Contact methods use your profile details.{' '}
-                    <Button size="small" onClick={() => void navigate(ROUTES.PORTFOLIO)}>
-                      Review your profile
-                    </Button>
-                  </Typography>
+                  <ReferralContactFields
+                    value={contacts}
+                    errors={validation}
+                    disabled={busy}
+                    onChange={(value) => {
+                      setContacts(value);
+                      setValidation((current) => ({
+                        ...current,
+                        linkedin: '',
+                        email: '',
+                        phone: '',
+                      }));
+                    }}
+                  />
                 </Box>
               </Box>
               <Typography fontSize={12} color="text.secondary" mt={2}>
-                Your contact details remain private until you accept a candidate’s referral request.
+                Your contact details remain private until you accept a candidate's referral request.
               </Typography>
             </ReferralCard>
           )}
@@ -572,6 +571,11 @@ export const ReferAJobPage = () => {
                       )
                       .join(', '),
                   ],
+                  ...contactMethods.flatMap((method) =>
+                    contacts[method.key].selected
+                      ? [[method.label, contacts[method.key].value.trim()]]
+                      : [],
+                  ),
                 ].map(([label, value]) => (
                   <Box key={label}>
                     <Typography component="dt">{label}</Typography>
