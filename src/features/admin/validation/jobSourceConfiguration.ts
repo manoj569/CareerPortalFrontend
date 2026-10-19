@@ -14,6 +14,73 @@ const publicHttps = (url: URL) =>
   !/^\d+(?:\.\d+){3}$/.test(url.hostname) &&
   !url.hostname.startsWith('[');
 
+export interface WorkdaySiteRoot {
+  host: string;
+  tenant: string;
+  shard: string;
+  locale: string | null;
+  site: string;
+  canonicalUrl: string;
+  canonicalIdentifier: string;
+  cxsJobsUrl: string;
+}
+
+const workdayHostPattern =
+  /^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\.(wd([0-9]+))\.myworkdayjobs\.com$/i;
+const workdayPathPattern =
+  /^\/(?:([A-Za-z]{2,3}-(?:[A-Za-z]{2}|[0-9]{3})|)\/)?([A-Za-z0-9][A-Za-z0-9_-]{0,127})\/?$/;
+
+/** Parses the public HTTPS Workday site-root contract used by the backend. */
+export const parseWorkdaySiteRoot = (value: string): WorkdaySiteRoot | null => {
+  const text = value.trim();
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return null;
+  }
+
+  const hostMatch = workdayHostPattern.exec(url.hostname);
+  const pathStart = text.indexOf('/', text.indexOf('://') + 3);
+  const path = pathStart < 0 ? '' : text.slice(pathStart);
+  const pathMatch = workdayPathPattern.exec(path);
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.port ||
+    url.search ||
+    url.hash ||
+    text.includes('?') ||
+    text.includes('#') ||
+    text.includes('\\') ||
+    path.includes('%') ||
+    !hostMatch ||
+    !hostMatch[3] ||
+    !/[1-9]/.test(hostMatch[3]) ||
+    !pathMatch
+  )
+    return null;
+
+  const host = url.hostname.toLowerCase();
+  const tenant = hostMatch[1]!.toLowerCase();
+  const shard = hostMatch[2]!.toLowerCase();
+  const locale = pathMatch[1] || null;
+  const site = pathMatch[2]!;
+  if (['job', 'search'].includes(site.toLowerCase())) return null;
+  const canonicalUrl = `https://${host}/${locale ? `${locale}/` : ''}${site}`;
+  return {
+    host,
+    tenant,
+    shard,
+    locale,
+    site,
+    canonicalUrl,
+    canonicalIdentifier: `${tenant}/${site}`,
+    cxsJobsUrl: `https://${host}/wday/cxs/${tenant}/${encodeURIComponent(site)}/jobs`,
+  };
+};
+
 // The server remains authoritative and persists any identity derived from a board root.
 export const sourceConfigurationError = (
   type: AtsType,
@@ -21,30 +88,30 @@ export const sourceConfigurationError = (
   identifier: string | null,
 ): string | null => {
   if (type === AtsType.Custom) return null;
+  const token = identifier?.trim() || '';
+  if (type === AtsType.Workday) {
+    const root = parseWorkdaySiteRoot(value);
+    if (!root)
+      return 'Use a public HTTPS Workday site root, optionally with a locale, on tenant.wd<number>.myworkdayjobs.com.';
+    if (!token) return null;
+    const identifierRoot = parseWorkdaySiteRoot(token);
+    if (identifierRoot) {
+      return identifierRoot.host === root.host && identifierRoot.site === root.site
+        ? null
+        : 'Workday identifier URL must match the career-page host and site.';
+    }
+    if (token.includes('://')) return 'Enter a valid public Workday career-site root.';
+    if (![root.tenant, root.site, root.canonicalIdentifier].some((part) => part.toLowerCase() === token.toLowerCase()))
+      return 'Workday identifier must match the URL tenant/site, tenant or career site. Leave it blank to derive it.';
+    return null;
+  }
   let url: URL;
   try {
     url = new URL(value.trim());
   } catch {
     return null;
   }
-  const token = identifier?.trim() || '';
   const path = rawPath(value);
-  if (type === AtsType.Workday) {
-    const host = /^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)\.wd[0-9]+\.myworkdayjobs\.com$/i.exec(
-      url.hostname,
-    );
-    const site = /^\/(?:[a-z]{2}-[a-z]{2}\/)?([A-Za-z0-9][A-Za-z0-9_-]{0,127})\/?$/i.exec(path);
-    if (!publicHttps(url) || url.search || !host || !site || value.includes('\\'))
-      return 'Use a public HTTPS Workday site root, optionally with a locale, on tenant.wd<number>.myworkdayjobs.com.';
-    if (
-      token &&
-      ![host[1]!, site[1]!, `${host[1]}/${site[1]}`].some(
-        (part) => part.toLowerCase() === token.toLowerCase(),
-      )
-    )
-      return 'Workday identifier must match the URL tenant/site, tenant or career site. Leave it blank to derive it.';
-    return null;
-  }
   if (type === AtsType.SuccessFactors) {
     const board = /^\/go\/[A-Za-z0-9_-]+\/([0-9]+)\/?$/.exec(path);
     if (!publicHttps(url) || url.search || !board || value.includes('\\'))
@@ -90,5 +157,5 @@ export const sourceIdentifierHelp: Record<AtsType, string> = {
   [AtsType.SuccessFactors]:
     'Numeric board ID from the HTTPS /go/board/id URL. Leave blank to derive it.',
   [AtsType.Workday]:
-    'Tenant/site from the Workday URL, preserving site case. Leave blank to derive it; matching tenant or site shorthand is also accepted.',
+    'Paste the public Workday career-site root, for example: https://company.wd5.myworkdayjobs.com/External. CareerHarbor derives the tenant, site, and CXS endpoint.',
 };

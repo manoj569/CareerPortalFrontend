@@ -25,9 +25,9 @@ import {
 } from '../api/adminApi';
 import type { AdminOption } from '../types/adminModels';
 import { AtsType, type JobSource, type SaveJobSourceRequest } from '../types/jobSourceModels';
-import { sourceRequest } from '../utils/jobSourceFormatting';
+import { EMPLOYER_DIRECT_ATS_IDENTIFIER, isEmployerDirectSource, sourceRequest } from '../utils/jobSourceFormatting';
 import { jobSourceSchema } from '../validation/jobSourceSchema';
-import { sourceIdentifierHelp } from '../validation/jobSourceConfiguration';
+import { parseWorkdaySiteRoot, sourceIdentifierHelp } from '../validation/jobSourceConfiguration';
 
 interface Props {
   source?: JobSource;
@@ -70,6 +70,8 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
   });
   const busy = isSaving || isSubmitting || isCreating;
   const atsType = watch('atsType');
+  const atsIdentifier = watch('atsIdentifier');
+  const isEmployerDirect = isEmployerDirectSource({ atsType, atsIdentifier });
   const interval = watch('scanIntervalMinutes');
   const options = [
     ...(companies.data ?? []),
@@ -133,9 +135,24 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
             event.preventDefault();
             return;
           }
-          void handleSubmit((request) =>
-            onSave({ ...request, atsIdentifier: request.atsIdentifier?.trim() || null }),
-          )(event);
+          void handleSubmit((request) => {
+            const identifier = request.atsIdentifier?.trim() || '';
+            const workdayRoot =
+              request.atsType === AtsType.Workday
+                ? parseWorkdaySiteRoot(request.careerPageUrl)
+                : null;
+            const identifierRoot =
+              request.atsType === AtsType.Workday && identifier
+                ? parseWorkdaySiteRoot(identifier)
+                : null;
+            return onSave({
+              ...request,
+              careerPageUrl: workdayRoot?.canonicalUrl ?? request.careerPageUrl.trim(),
+              atsIdentifier: isEmployerDirect
+                ? EMPLOYER_DIRECT_ATS_IDENTIFIER
+                : identifierRoot?.canonicalIdentifier ?? (identifier || null),
+            });
+          })(event);
         }}
         noValidate
       >
@@ -229,7 +246,16 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   select
                   label="ATS Type"
                   disabled={busy}
-                  onChange={(event) => field.onChange(Number(event.target.value))}
+                  onChange={(event) => {
+                    const nextType = Number(event.target.value) as AtsType;
+                    field.onChange(nextType);
+                    if (nextType === AtsType.Custom) {
+                      setValue('atsIdentifier', EMPLOYER_DIRECT_ATS_IDENTIFIER, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
                 >
                   {[
                     AtsType.Greenhouse,
@@ -240,13 +266,15 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                     AtsType.Workday,
                   ].map((type) => (
                     <MenuItem key={type} value={type}>
-                      {AtsType[type]}
+                      {type === AtsType.Custom && (!source || isEmployerDirect)
+                        ? 'Any Career Website'
+                        : AtsType[type]}
                     </MenuItem>
                   ))}
                 </TextField>
               )}
             />
-            {atsType === AtsType.Custom && (
+            {atsType === AtsType.Custom && !isEmployerDirect && (
               <Alert severity="warning">
                 Custom configurations can be saved, but the current backend has no Custom
                 aggregation provider.
@@ -255,9 +283,9 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
             <TextField
               {...register('atsIdentifier')}
               label="ATS Identifier"
-              disabled={busy}
+              disabled={busy || isEmployerDirect}
               error={Boolean(errors.atsIdentifier)}
-              helperText={errors.atsIdentifier?.message ?? sourceIdentifierHelp[atsType]}
+              helperText={isEmployerDirect ? 'Automatically set for Any Career Website.' : errors.atsIdentifier?.message ?? sourceIdentifierHelp[atsType]}
             />
             <Controller
               control={control}

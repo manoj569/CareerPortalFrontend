@@ -1,5 +1,16 @@
 import { formatAdminDate } from './adminFormatting';
 import type { JobSource, SaveJobSourceRequest } from '../types/jobSourceModels';
+import { AtsType } from '../types/jobSourceModels';
+
+export const EMPLOYER_DIRECT_ATS_IDENTIFIER = 'employer-direct';
+export const isEmployerDirectSource = (source: Pick<JobSource, 'atsType' | 'atsIdentifier'>) =>
+  source.atsType === AtsType.Custom && source.atsIdentifier === EMPLOYER_DIRECT_ATS_IDENTIFIER;
+export const atsTypeLabel = (type: AtsType, identifier?: string | null) =>
+  type === AtsType.Custom && identifier === EMPLOYER_DIRECT_ATS_IDENTIFIER
+    ? 'Any Career Website'
+    : type === AtsType.Custom
+      ? 'Custom'
+      : AtsType[type];
 
 export const hasSourceError = (source: JobSource) =>
   Boolean(source.lastError) || source.consecutiveFailures > 0;

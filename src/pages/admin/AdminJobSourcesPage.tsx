@@ -53,6 +53,8 @@ import {
   formatScanInterval,
   formatSourceDate,
   hasSourceError,
+  atsTypeLabel,
+  isEmployerDirectSource,
   sourceRequest,
 } from '@/features/admin/utils/jobSourceFormatting';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
@@ -119,9 +121,16 @@ export const AdminJobSourcesPage = () => {
     const matches = `${source.companyName} ${source.atsIdentifier ?? ''}`
       .toLowerCase()
       .includes(search.trim().toLowerCase());
+    const matchesAts =
+      ats === 'all' ||
+      (ats === 'employer-direct'
+        ? isEmployerDirectSource(source)
+        : ats === 'legacy-custom'
+          ? source.atsType === AtsType.Custom && !isEmployerDirectSource(source)
+          : String(source.atsType) === ats);
     return (
       matches &&
-      (ats === 'all' || String(source.atsType) === ats) &&
+      matchesAts &&
       (status === 'all' ||
         (status === 'active' && source.isActive) ||
         (status === 'inactive' && !source.isActive) ||
@@ -234,7 +243,7 @@ export const AdminJobSourcesPage = () => {
           runs.active(source.id) ||
           sources.isFetching ||
           !source.isActive ||
-          source.atsType === AtsType.Custom
+          (source.atsType === AtsType.Custom && !isEmployerDirectSource(source))
         }
         onClick={() => openAction('run', source)}
         startIcon={busy === source.id ? <CircularProgress size={14} /> : undefined}
@@ -403,11 +412,13 @@ export const AdminJobSourcesPage = () => {
                 sx={{ minWidth: 160 }}
               >
                 <MenuItem value="all">All ATS</MenuItem>
-                {[1, 2, 3, 0, 4].map((value) => (
+                {[1, 2, 3, 4, 5].map((value) => (
                   <MenuItem key={value} value={String(value)}>
                     {AtsType[value]}
                   </MenuItem>
                 ))}
+                <MenuItem value="employer-direct">Any Career Website</MenuItem>
+                <MenuItem value="legacy-custom">Custom</MenuItem>
               </TextField>
               <Button
                 disabled={sources.isFetching || Boolean(busy)}
@@ -456,7 +467,7 @@ export const AdminJobSourcesPage = () => {
                       <TableRow key={source.id}>
                         <TableCell>{source.companyName}</TableCell>
                         <TableCell>
-                          <Chip label={AtsType[source.atsType]} size="small" variant="outlined" />
+                          <Chip label={atsTypeLabel(source.atsType, source.atsIdentifier)} size="small" variant="outlined" />
                         </TableCell>
                         <TableCell sx={{ overflowWrap: 'anywhere' }}>
                           {source.atsIdentifier ?? '—'}
@@ -481,7 +492,7 @@ export const AdminJobSourcesPage = () => {
                         <Typography variant="h3">{source.companyName}</Typography>
                         {badges(source)}
                         <Typography sx={{ overflowWrap: 'anywhere' }}>
-                          {AtsType[source.atsType]} · {source.atsIdentifier ?? 'No identifier'}
+                          {atsTypeLabel(source.atsType, source.atsIdentifier)} · {source.atsIdentifier ?? 'No identifier'}
                         </Typography>
                         <Typography>Category: {source.categoryName ?? 'Not configured'}</Typography>
                         <Typography>{formatScanInterval(source.scanIntervalMinutes)}</Typography>

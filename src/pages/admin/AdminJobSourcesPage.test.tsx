@@ -110,6 +110,58 @@ describe('job sources administrator workflow', () => {
     );
   });
 
+  it('shows Any Career Website and permits its Run Now action', async () => {
+    items = [{ ...source, atsType: AtsType.Custom, atsIdentifier: 'employer-direct' }];
+    renderPage();
+    await screen.findByRole('table', { name: 'Job sources' });
+    expect(screen.getAllByText('Any Career Website').length).toBeGreaterThan(0);
+    expect(firstButton('Run Now')).toBeEnabled();
+    await confirm('Run Now', 'Run Now');
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'POST',
+          url: `/admin/job-sources/${source.id}/run`,
+        }),
+      ),
+    );
+  });
+
+  it('filters employer-direct and legacy Custom sources separately', async () => {
+    items = [
+      {
+        ...source,
+        id: 'employer-source',
+        companyName: 'Employer Direct Co',
+        atsType: AtsType.Custom,
+        atsIdentifier: 'employer-direct',
+      },
+      {
+        ...source,
+        id: 'legacy-source',
+        companyName: 'Legacy Custom Co',
+        atsType: AtsType.Custom,
+        atsIdentifier: 'legacy-board-key',
+      },
+    ];
+    renderPage();
+    const table = await screen.findByRole('table', { name: 'Job sources' });
+    expect(within(table).getByText('Employer Direct Co')).toBeVisible();
+    expect(within(table).getByText('Legacy Custom Co')).toBeVisible();
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Any Career Website' }));
+    expect(within(table).getByText('Employer Direct Co')).toBeVisible();
+    expect(within(table).queryByText('Legacy Custom Co')).not.toBeInTheDocument();
+    expect(within(table).getByText('Any Career Website')).toBeVisible();
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    expect(within(table).getByText('Legacy Custom Co')).toBeVisible();
+    expect(within(table).queryByText('Employer Direct Co')).not.toBeInTheDocument();
+    expect(within(table).getByText('Custom')).toBeVisible();
+  });
+
   it('displays and filters SuccessFactors while retaining existing provider mappings', async () => {
     expect([
       AtsType.Custom,
@@ -192,7 +244,7 @@ describe('job sources administrator workflow', () => {
       target: { value: 'https://southasiacareers.deloitte.com/go/Deloitte-India/718244' },
     });
     fireEvent.mouseDown(dialog.getByRole('combobox', { name: 'ATS Type' }));
-    for (const name of ['Greenhouse', 'Lever', 'Ashby', 'Custom', 'SuccessFactors'])
+    for (const name of ['Greenhouse', 'Lever', 'Ashby', 'Any Career Website', 'SuccessFactors'])
       expect(screen.getByRole('option', { name })).toBeVisible();
     fireEvent.click(screen.getByRole('option', { name: 'SuccessFactors' }));
     fireEvent.change(dialog.getByRole('textbox', { name: /ATS Identifier/ }), {
@@ -482,17 +534,23 @@ describe('job sources administrator workflow', () => {
         },
       });
       fireEvent.mouseDown(dialog.getByRole('combobox', { name: 'ATS Type' }));
-      fireEvent.click(screen.getByRole('option', { name: AtsType[atsType] }));
-      fireEvent.change(dialog.getByRole('textbox', { name: /ATS Identifier/ }), {
-        target: {
-          value:
-            atsType === AtsType.Workday
-              ? 'tenant/site'
-              : atsType === AtsType.SuccessFactors
-                ? '123'
-                : 'board',
-        },
-      });
+      fireEvent.click(
+        screen.getByRole('option', {
+          name: atsType === AtsType.Custom ? 'Any Career Website' : AtsType[atsType],
+        }),
+      );
+      if (atsType !== AtsType.Custom) {
+        fireEvent.change(dialog.getByRole('textbox', { name: /ATS Identifier/ }), {
+          target: {
+            value:
+              atsType === AtsType.Workday
+                ? 'tenant/site'
+                : atsType === AtsType.SuccessFactors
+                  ? '123'
+                  : 'board',
+          },
+        });
+      }
       fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
       await waitFor(() =>
         expect(request).toHaveBeenCalledWith(

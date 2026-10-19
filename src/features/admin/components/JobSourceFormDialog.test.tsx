@@ -3,6 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { ApiRequestError } from '@/api/apiError';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { JobSourceFormDialog } from './JobSourceFormDialog';
+import { AtsType, type JobSource } from '../types/jobSourceModels';
 
 const { request } = vi.hoisted(() => ({
   request:
@@ -82,6 +83,119 @@ it.each([
     );
   },
 );
+
+it('accepts and canonicalizes a pasted Workday root after switching from Greenhouse', async () => {
+  await open();
+  search('Deloitte');
+  fireEvent.click(await screen.findByRole('option', { name: 'Deloitte' }));
+  fireEvent.change(screen.getByRole('textbox', { name: /Career Page URL/ }), {
+    target: { value: 'https://spgi.wd5.myworkdayjobs.com/en-US/SPGI_Careers/' },
+  });
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS Type' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Workday' }));
+  const identifier = screen.getByRole('textbox', { name: /ATS Identifier/ });
+  expect(identifier).toHaveAccessibleDescription(
+    /Paste the public Workday career-site root.*company\.wd5\.myworkdayjobs\.com\/External/,
+  );
+  fireEvent.change(identifier, {
+    target: { value: 'https://spgi.wd5.myworkdayjobs.com/SPGI_Careers' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+
+  await waitFor(() =>
+    expect(onSave).toHaveBeenCalledWith({
+      companyId: 'existing',
+      careerPageUrl: 'https://spgi.wd5.myworkdayjobs.com/en-US/SPGI_Careers',
+      atsType: 5,
+      atsIdentifier: 'spgi/SPGI_Careers',
+      isActive: true,
+      autoPublishEnabled: true,
+      scanIntervalMinutes: 720,
+    }),
+  );
+});
+
+it('creates Any Career Website as Custom with the automatic employer-direct identifier', async () => {
+  await open();
+  search('Deloitte');
+  fireEvent.click(await screen.findByRole('option', { name: 'Deloitte' }));
+  fireEvent.change(screen.getByRole('textbox', { name: /Career Page URL/ }), {
+    target: { value: 'https://employer.example/careers' },
+  });
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS Type' }));
+  expect(screen.getByRole('option', { name: 'Any Career Website' })).toBeVisible();
+  expect(screen.queryByRole('option', { name: 'Custom' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('option', { name: 'Any Career Website' }));
+
+  const identifier = screen.getByRole('textbox', { name: /ATS Identifier/ });
+  expect(identifier).toHaveValue('employer-direct');
+  expect(identifier).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith({
+    companyId: 'existing',
+    careerPageUrl: 'https://employer.example/careers',
+    atsType: AtsType.Custom,
+    atsIdentifier: 'employer-direct',
+    isActive: true,
+    autoPublishEnabled: true,
+    scanIntervalMinutes: 720,
+  }));
+});
+
+it('recognizes an employer-direct Custom source in edit mode and preserves operational settings', async () => {
+  const existing: JobSource = {
+    id: 'source-1', companyId: 'existing', companyName: 'Deloitte',
+    careerPageUrl: 'https://employer.example/careers', atsType: AtsType.Custom,
+    atsIdentifier: 'employer-direct', isActive: false, autoPublishEnabled: false,
+    scanIntervalMinutes: 360, lastRunAtUtc: null, lastSuccessfulRunAtUtc: null,
+    lastError: null, consecutiveFailures: 0, categoryId: null, categoryName: null,
+    createdAtUtc: '2026-10-01T00:00:00Z', updatedAtUtc: null,
+  };
+  renderWithProviders(
+    <JobSourceFormDialog source={existing} isSaving={false} error={null} onClose={vi.fn()} onSave={onSave} />,
+  );
+  await waitFor(() => expect(screen.getByRole('combobox', { name: /Company/ })).toBeEnabled());
+  expect(screen.getByRole('combobox', { name: 'ATS Type' })).toHaveTextContent('Any Career Website');
+  expect(screen.getByRole('textbox', { name: /ATS Identifier/ })).toHaveValue('employer-direct');
+  expect(screen.getByRole('textbox', { name: /ATS Identifier/ })).toBeDisabled();
+  expect(screen.getByRole('switch', { name: 'Active' })).not.toBeChecked();
+  expect(screen.getByRole('switch', { name: 'Auto Publish' })).not.toBeChecked();
+  expect(screen.getByRole('spinbutton', { name: /Scan Interval/ })).toHaveValue(360);
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith({
+    companyId: 'existing',
+    careerPageUrl: 'https://employer.example/careers',
+    atsType: AtsType.Custom,
+    atsIdentifier: 'employer-direct',
+    isActive: false,
+    autoPublishEnabled: false,
+    scanIntervalMinutes: 360,
+  }));
+});
+
+it('keeps an existing non-generic Custom source editable with its original identifier', async () => {
+  const existing: JobSource = {
+    id: 'source-legacy', companyId: 'existing', companyName: 'Deloitte',
+    careerPageUrl: 'https://legacy.example/careers', atsType: AtsType.Custom,
+    atsIdentifier: 'legacy-board-key', isActive: true, autoPublishEnabled: true,
+    scanIntervalMinutes: 720, lastRunAtUtc: null, lastSuccessfulRunAtUtc: null,
+    lastError: null, consecutiveFailures: 0, categoryId: null, categoryName: null,
+    createdAtUtc: '2026-10-01T00:00:00Z', updatedAtUtc: null,
+  };
+  renderWithProviders(
+    <JobSourceFormDialog source={existing} isSaving={false} error={null} onClose={vi.fn()} onSave={onSave} />,
+  );
+  await waitFor(() => expect(screen.getByRole('combobox', { name: /Company/ })).toBeEnabled());
+  expect(screen.getByRole('combobox', { name: 'ATS Type' })).toHaveTextContent('Custom');
+  expect(screen.getByRole('textbox', { name: /ATS Identifier/ })).toHaveValue('legacy-board-key');
+  expect(screen.getByRole('textbox', { name: /ATS Identifier/ })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+    atsType: AtsType.Custom,
+    atsIdentifier: 'legacy-board-key',
+  })));
+});
 
 it('searches and selects existing companies without offering case-insensitive duplicates', async () => {
   await open();

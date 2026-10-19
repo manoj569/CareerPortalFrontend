@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { jobSourceSchema } from './jobSourceSchema';
+import { parseWorkdaySiteRoot } from './jobSourceConfiguration';
 import { formatScanInterval, formatSourceDate } from '../utils/jobSourceFormatting';
 const valid = {
   companyId: 'company',
@@ -54,6 +55,63 @@ describe('source validation and formatting', () => {
       ).toBe(true);
     },
   );
+  it.each([
+    'https://company.wd1.myworkdayjobs.com/External',
+    'https://company.wd3.myworkdayjobs.com/en-US/External',
+    'https://spgi.wd5.myworkdayjobs.com/SPGI_Careers',
+    'https://spgi.wd5.myworkdayjobs.com/en-US/SPGI_Careers',
+    'https://company.wd12.myworkdayjobs.com/External_Rockwell_Automation/',
+    'https://company.wd504.myworkdayjobs.com/External-Rockwell-Automation-Early-Careers',
+    'https://company.wd98765.myworkdayjobs.com/Site123',
+    'https://browserstack.wd3.myworkdayjobs.com/External',
+  ])('accepts structural Workday site root %s and a URL identifier', async (url) => {
+    expect(
+      await jobSourceSchema.isValid({ ...valid, atsType: 5, careerPageUrl: url, atsIdentifier: url }),
+    ).toBe(true);
+    expect(parseWorkdaySiteRoot(url)).not.toBeNull();
+  });
+  it.each([
+    'http://company.wd5.myworkdayjobs.com/External',
+    'https://company.wd5.myworkdayjobs.com.evil.com/External',
+    'https://evilmyworkdayjobs.com/External',
+    'https://localhost/External',
+    'https://127.0.0.1/External',
+    'https://10.0.0.1/External',
+    'https://user:password@company.wd5.myworkdayjobs.com/External',
+    'https://company.wd5.myworkdayjobs.com:8443/External',
+    'https://company.wd5.myworkdayjobs.com/External?redirect=https://evil.test',
+    'https://company.wd5.myworkdayjobs.com/External?',
+    'https://company.wd5.myworkdayjobs.com/External#fragment',
+    'https://company.wd5.myworkdayjobs.com/External#',
+    'https://company.wd5.myworkdayjobs.com/External/job/Some-Job/123',
+    'https://company.wd5.myworkdayjobs.com/search',
+    'https://company.wd5.myworkdayjobs.com/',
+    'https://company.wd5.myworkdayjobs.com/External/../Other',
+    'https://company.wd5.myworkdayjobs.com/%2e%2e/External',
+    'https://company.wd5.myworkdayjobs.com/External%2fjob',
+    'https://company.wd0.myworkdayjobs.com/External',
+  ])('rejects unsafe Workday URL %s', async (careerPageUrl) => {
+    expect(parseWorkdaySiteRoot(careerPageUrl)).toBeNull();
+    expect(
+      await jobSourceSchema.isValid({ ...valid, atsType: 5, careerPageUrl, atsIdentifier: null }),
+    ).toBe(false);
+  });
+  it('uses Workday validation immediately after switching from Greenhouse', async () => {
+    const workdayUrl = 'https://spgi.wd5.myworkdayjobs.com/SPGI_Careers';
+    const input = { ...valid, careerPageUrl: workdayUrl, atsIdentifier: workdayUrl };
+    expect(await jobSourceSchema.isValid({ ...input, atsType: 1 })).toBe(false);
+    expect(await jobSourceSchema.isValid({ ...input, atsType: 5 })).toBe(true);
+  });
+  it('derives the exact S&P Global and BrowserStack CXS endpoints', () => {
+    expect(parseWorkdaySiteRoot('https://spgi.wd5.myworkdayjobs.com/en-US/SPGI_Careers')).toMatchObject({
+      tenant: 'spgi', shard: 'wd5', locale: 'en-US', site: 'SPGI_Careers',
+      cxsJobsUrl: 'https://spgi.wd5.myworkdayjobs.com/wday/cxs/spgi/SPGI_Careers/jobs',
+    });
+    expect(parseWorkdaySiteRoot('https://browserstack.wd3.myworkdayjobs.com/External')).toMatchObject({
+      tenant: 'browserstack', shard: 'wd3', locale: null, site: 'External',
+      cxsJobsUrl: 'https://browserstack.wd3.myworkdayjobs.com/wday/cxs/browserstack/External/jobs',
+    });
+  });
   it.each([1, 2, 3])('rejects identifier URLs and job paths for provider %s', async (atsType) => {
     expect(
       await jobSourceSchema.isValid({
