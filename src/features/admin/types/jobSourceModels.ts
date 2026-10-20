@@ -72,8 +72,10 @@ export interface DurableJobSourceRun extends JobSourceRunResult {
   diagnostics?: Partial<JobSourceRunResult> | null;
 }
 
+// retryPending describes backend recovery eligibility, not a live execution.
+// Interrupted monitoring ends; an explicit Run Now can safely reattach via POST.
+// Paused remains active for the existing Workday continuation workflow.
 export const isActiveJobSourceRun = (run: DurableJobSourceRun) =>
   run.status === 'Queued' ||
   run.status === 'Running' ||
-  run.status === 'Paused' ||
-  (run.status === 'Interrupted' && run.retryPending);
+  run.status === 'Paused';

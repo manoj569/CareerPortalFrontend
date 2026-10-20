@@ -239,9 +239,8 @@ export const AdminJobSourcesPage = () => {
       <Button
         size="small"
         disabled={
-          Boolean(busy) ||
+          busy === source.id ||
           runs.active(source.id) ||
-          sources.isFetching ||
           !source.isActive ||
           (source.atsType === AtsType.Custom && !isEmployerDirectSource(source))
         }

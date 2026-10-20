@@ -110,12 +110,13 @@ describe('job sources administrator workflow', () => {
     );
   });
 
-  it('shows Any Career Website and permits its Run Now action', async () => {
-    items = [{ ...source, atsType: AtsType.Custom, atsIdentifier: 'employer-direct' }];
+  it.each(['employer-direct', 'employer-direct:auto-v1'])('permits manual Run Now for a new %s source with Never dates', async (atsIdentifier) => {
+    items = [{ ...source, atsType: AtsType.Custom, atsIdentifier }];
     renderPage();
     await screen.findByRole('table', { name: 'Job sources' });
     expect(screen.getAllByText('Any Career Website').length).toBeGreaterThan(0);
     expect(firstButton('Run Now')).toBeEnabled();
+    expect(request.mock.calls.some(([config]) => config.method === 'POST')).toBe(false);
     await confirm('Run Now', 'Run Now');
     await waitFor(() =>
       expect(request).toHaveBeenCalledWith(
@@ -125,6 +126,34 @@ describe('job sources administrator workflow', () => {
         }),
       ),
     );
+  });
+  it.each([AtsType.Workday, AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.SuccessFactors])(
+    'keeps active ATS %s manually runnable', async (atsType) => {
+      items = [{ ...source, atsType }];
+      renderPage();
+      await screen.findByRole('table');
+      expect(firstButton('Run Now')).toBeEnabled();
+    },
+  );
+  it.each(['Running', 'Interrupted'] as const)('%s source A does not disable generic source B', async (status) => {
+    items = [
+      { ...source, atsType: AtsType.Custom, atsIdentifier: 'employer-direct:auto-v1' },
+      { ...source, id: 'source-2', companyName: 'Autodesk', atsType: AtsType.Custom,
+        atsIdentifier: 'employer-direct:auto-v1' },
+    ];
+    runResponse = { ...runResult, status, retryPending: true, completedAtUtc: null, succeeded: false };
+    const view = renderPage();
+    const table = await screen.findByRole('table');
+    await confirm('Run Now', 'Run Now');
+    const dialog = await screen.findByRole('dialog', { name: `Aggregation ${status}` });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    const row = within(table).getByText('Autodesk').closest('tr')!;
+    await waitFor(() => expect(within(row).getByRole('button', { name: 'Run Now' })).toBeEnabled());
+    if (status === 'Interrupted') {
+      const firstRow = within(table).getByText(source.companyName).closest('tr')!;
+      expect(within(firstRow).getByRole('button', { name: 'Run Now' })).toBeEnabled();
+    }
+    view.unmount();
   });
 
   it('filters employer-direct and legacy Custom sources separately', async () => {

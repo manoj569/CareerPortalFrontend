@@ -133,17 +133,58 @@ describe('durable job-source monitoring', () => {
     h.unmount();
     h.store.dispatch(jobSourcesApi.util.resetApiState());
   });
-  it('keeps Interrupted retryPending active until the worker resumes', async () => {
+  it('stops Interrupted retryPending polling, clears persistence and permits manual retry', async () => {
     request
       .mockResolvedValueOnce(wrapped({ ...queued, status: 'Interrupted', retryPending: true }))
       .mockResolvedValue(wrapped({ ...queued, status: 'Running' }));
     const h = setup();
     act(() => h.result.current.track('Company', queued));
     await tick();
+    expect(h.result.current.active('source-1')).toBe(false);
+    expect(h.terminal).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(sessionStorage.getItem(key)!)).toEqual([]);
+    await tick(120000);
+    expect(request).toHaveBeenCalledTimes(1);
+    act(() => h.result.current.track('Company', queued));
+    await tick();
+    expect(h.result.current.entries['source-1']?.run?.status).toBe('Running');
+    h.unmount();
+    h.store.dispatch(jobSourcesApi.util.resetApiState());
+  });
+  it('restores the old AMD reference, stops on Interrupted and never locks another source', async () => {
+    const sourceId = '87d11d70-fa95-4095-bf63-120ad1881273';
+    const runId = '580e53bb-0a40-4cac-bb2d-188d39869a3c';
+    sessionStorage.setItem(key, JSON.stringify([{ sourceId, runId, company: 'AMD' }]));
+    request.mockResolvedValue(wrapped({ ...queued, jobSourceId: sourceId, runId,
+      status: 'Interrupted', retryPending: true }));
+    const h = setup();
+    expect(h.result.current.active('autodesk')).toBe(false);
+    await tick();
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({
+      url: `/admin/job-sources/${sourceId}/runs/${runId}`,
+    }));
+    expect(h.result.current.active(sourceId)).toBe(false);
+    expect(h.result.current.active('autodesk')).toBe(false);
+    await tick(180000);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(sessionStorage.getItem(key)!)).toEqual([]);
+    h.unmount();
+    h.store.dispatch(jobSourcesApi.util.resetApiState());
+  });
+  it('ignores an old run response after a replacement run for the same source', async () => {
+    let resolveOld!: (value: unknown) => void;
+    request.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValue(wrapped({ ...queued, runId: 'run-2', status: 'Running' }));
+    const h = setup();
+    act(() => h.result.current.track('Company', queued));
+    await tick();
+    act(() => h.result.current.track('Company', { ...queued, runId: 'run-2' }));
+    await tick();
+    resolveOld(wrapped({ ...queued, status: 'Succeeded' }));
+    await tick();
+    expect(h.result.current.entries['source-1']?.run?.runId).toBe('run-2');
     expect(h.result.current.active('source-1')).toBe(true);
     expect(h.terminal).not.toHaveBeenCalled();
-    await tick(2000);
-    expect(h.result.current.entries['source-1']?.run?.status).toBe('Running');
     h.unmount();
     h.store.dispatch(jobSourcesApi.util.resetApiState());
   });

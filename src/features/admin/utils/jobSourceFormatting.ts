@@ -3,10 +3,13 @@ import type { JobSource, SaveJobSourceRequest } from '../types/jobSourceModels';
 import { AtsType } from '../types/jobSourceModels';
 
 export const EMPLOYER_DIRECT_ATS_IDENTIFIER = 'employer-direct';
+export const GENERIC_EMPLOYER_ATS_IDENTIFIER = 'employer-direct:auto-v1';
+const isEmployerDirectIdentifier = (identifier?: string | null) =>
+  identifier === EMPLOYER_DIRECT_ATS_IDENTIFIER || identifier === GENERIC_EMPLOYER_ATS_IDENTIFIER;
 export const isEmployerDirectSource = (source: Pick<JobSource, 'atsType' | 'atsIdentifier'>) =>
-  source.atsType === AtsType.Custom && source.atsIdentifier === EMPLOYER_DIRECT_ATS_IDENTIFIER;
+  source.atsType === AtsType.Custom && isEmployerDirectIdentifier(source.atsIdentifier);
 export const atsTypeLabel = (type: AtsType, identifier?: string | null) =>
-  type === AtsType.Custom && identifier === EMPLOYER_DIRECT_ATS_IDENTIFIER
+  type === AtsType.Custom && isEmployerDirectIdentifier(identifier)
     ? 'Any Career Website'
     : type === AtsType.Custom
       ? 'Custom'

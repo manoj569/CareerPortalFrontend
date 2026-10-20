@@ -65,6 +65,7 @@ export const useJobSourceRuns = (onTerminal: (entry: TrackedSourceRun) => void) 
       }));
       let errors = 0;
       const poll = async () => {
+        if (task.cancelled || tasks.current.get(reference.sourceId) !== task) return;
         const query = dispatch(
           jobSourcesApi.endpoints.getJobSourceRun.initiate(
             { sourceId: reference.sourceId, runId: reference.runId },
@@ -74,7 +75,7 @@ export const useJobSourceRuns = (onTerminal: (entry: TrackedSourceRun) => void) 
         task.abort = () => query.abort();
         try {
           const run = await query.unwrap();
-          if (task.cancelled) return;
+          if (task.cancelled || tasks.current.get(reference.sourceId) !== task) return;
           if (!valid(run, reference)) throw new Error('Invalid run status response.');
           errors = 0;
           const entry = { ...reference, run };
@@ -90,7 +91,7 @@ export const useJobSourceRuns = (onTerminal: (entry: TrackedSourceRun) => void) 
           }
           task.timer = setTimeout(() => void poll(), 2000);
         } catch (error) {
-          if (task.cancelled) return;
+          if (task.cancelled || tasks.current.get(reference.sourceId) !== task) return;
           const failure = error as { status?: number; message?: string };
           errors++;
           const stop =
