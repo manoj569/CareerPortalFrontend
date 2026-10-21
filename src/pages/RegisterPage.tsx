@@ -45,6 +45,7 @@ import {
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
 import { useAppDispatch } from '@/hooks/reduxHooks';
 import { UserRole } from '@/types';
+import { careerSnapshotDestination } from '@/features/auth/utils/careerSnapshotRouting';
 
 const benefits = [
   'Discover verified internships and jobs',
@@ -218,7 +219,7 @@ export const RegisterPage = () => {
     setGoogleAccountConflict(false);
 
     try {
-      await authService.register({
+      const response = await authService.register({
         email: values.email.trim(),
         fullName: values.fullName.trim(),
         hasAcceptedTermsAndPrivacy: values.termsAccepted,
@@ -229,6 +230,18 @@ export const RegisterPage = () => {
       if (registrationRedirectStarted.current) return;
       registrationRedirectStarted.current = true;
       setIsRegistrationRedirecting(true);
+      if (response.authentication) {
+        dispatch(sessionRefreshed(response.authentication));
+        enqueueSnackbar('Account created successfully.', { variant: 'success' });
+        const destination = response.authentication.user.role === UserRole.Candidate
+          ? `${safeReturnLocation?.pathname ?? ROUTES.DASHBOARD}${safeReturnLocation?.search ?? ''}${safeReturnLocation?.hash ?? ''}`
+          : ROUTES.ADMIN;
+        await navigate(careerSnapshotDestination(response.authentication.user, destination), {
+          replace: true,
+          state: safeReturnLocation ? { from: safeReturnLocation } : undefined,
+        });
+        return;
+      }
       enqueueSnackbar('Registration successful. Redirecting to login...', { variant: 'success' });
       registrationRedirectTimer.current = window.setTimeout(() => {
         void navigate(ROUTES.LOGIN, {
@@ -314,7 +327,7 @@ export const RegisterPage = () => {
         response.user.role === UserRole.Candidate
           ? `${safeReturnLocation?.pathname ?? ROUTES.DASHBOARD}${safeReturnLocation?.search ?? ''}${safeReturnLocation?.hash ?? ''}`
           : ROUTES.ADMIN;
-      await navigate(destination, { replace: true });
+      await navigate(careerSnapshotDestination(response.user, destination), { replace: true, state: safeReturnLocation ? { from: safeReturnLocation } : undefined });
     } catch (error: unknown) {
       setServerError(
         getGoogleAuthenticationErrorMessage(error, googleAccountConflict ? 'Login' : 'Register'),

@@ -126,6 +126,10 @@ const authSlice = createSlice({
       state.user.firstName = action.payload.firstName;
       state.user.lastName = action.payload.lastName;
     },
+    careerSnapshotConfirmed: (state, action: PayloadAction<{ userId: string; careerSnapshotRequired: boolean }>) => {
+      if (state.user?.id === action.payload.userId)
+        state.user.careerSnapshotRequired = action.payload.careerSnapshotRequired;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -166,9 +170,10 @@ const authSlice = createSlice({
         state.isSubmitting = true;
         state.error = null;
       })
-      .addCase(register.fulfilled, (state) => {
+      .addCase(register.fulfilled, (state, action) => {
         state.isSubmitting = false;
         state.error = null;
+        if (action.payload.authentication) applyAuthentication(state, action.payload.authentication);
       })
       .addCase(register.rejected, (state, action) => {
         state.isSubmitting = false;
@@ -189,7 +194,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearAuthError, profileUpdated, sessionExpired, sessionRefreshed } =
+export const { clearAuthError, profileUpdated, sessionExpired, sessionRefreshed, careerSnapshotConfirmed } =
   authSlice.actions;
 export const authReducer = authSlice.reducer;
 

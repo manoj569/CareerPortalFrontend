@@ -11,6 +11,7 @@ import type {
   ApplicationsPage,
   ApplicationsQuery,
   CandidateOnboarding,
+  UpdateCareerSnapshotRequest,
   CandidateProfileCompletion,
   CandidateAboutResponse,
   CandidateBasicDetails,
@@ -107,7 +108,7 @@ export const dashboardApi = createApi({
     updateCandidateCareerPreferences: builder.mutation<CandidateCareerPreferences, UpdateCandidateCareerPreferencesRequest>({
       query: (data) => ({ data, method: 'PUT', url: API_ENDPOINTS.CANDIDATE.PROFILE_CAREER_PREFERENCES }),
       transformResponse: (response: ApiResponse<CandidateCareerPreferences>) => response.data,
-      invalidatesTags: ['CareerPreferences', 'ProfileCompletion'],
+      invalidatesTags: ['CareerPreferences', 'Profile', 'ProfileCompletion'],
     }),
     uploadProfilePhoto: builder.mutation<ProfilePhotoMetadata, File>({
       query: (file) => { const data = new FormData(); data.append('file', file); return { data, method: 'PUT', url: API_ENDPOINTS.CANDIDATE.PROFILE_PHOTO }; },
@@ -166,6 +167,12 @@ export const dashboardApi = createApi({
       query: () => ({ url: API_ENDPOINTS.CANDIDATE.ONBOARDING }),
       transformResponse: (response: ApiResponse<CandidateOnboarding>) => response.data,
       providesTags: ['Onboarding'],
+    }),
+
+    updateCareerSnapshot: builder.mutation<UserProfile, UpdateCareerSnapshotRequest>({
+      query: (data) => ({ data, method: 'PUT', url: API_ENDPOINTS.CANDIDATE.CAREER_SNAPSHOT }),
+      transformResponse: (response: ApiResponse<UserProfile>) => response.data,
+      invalidatesTags: ['Profile', 'ProfileBasicDetails', 'ProfileSkills', 'CareerPreferences', 'ProfileCompletion', 'Onboarding'],
     }),
 
     updateOnboarding: builder.mutation<CandidateOnboarding, UpdateCandidateOnboardingRequest>({
@@ -340,6 +347,7 @@ export const {
   useGetCandidateCareerPreferencesQuery,
   useGetMembershipsQuery,
   useGetOnboardingQuery,
+  useUpdateCareerSnapshotMutation,
   useGetNotificationsQuery,
   useGetProfileQuery,
   useGetProfileCompletionQuery,

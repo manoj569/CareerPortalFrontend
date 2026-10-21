@@ -59,6 +59,11 @@ export interface RecommendedJobsResponse {
 }
 
 export interface CandidateProfile {
+  careerSnapshotRequired?: boolean;
+  primaryRole?: string | null;
+  careerStage?: CareerStage | null;
+  yearsOfExperience?: number | null;
+  workPreferences?: WorkPreference[] | null;
   id: string;
   email: string;
   firstName: string;
@@ -197,6 +202,15 @@ export interface UpdateCandidateOnboardingRequest {
   degree: string | null;
   graduationYear: number | null;
   yearsOfExperience: number | null;
+}
+
+export interface UpdateCareerSnapshotRequest {
+  careerStage: CareerStage;
+  primaryRole: string;
+  skills: string[];
+  workPreferences: WorkPreference[];
+  yearsOfExperience: number | null;
+  city: string | null;
 }
 
 export interface DashboardQuery {

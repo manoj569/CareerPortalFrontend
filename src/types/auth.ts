@@ -12,6 +12,8 @@ export enum UserRole {
 }
 
 export interface AuthenticatedUser {
+  /** The server supplies this flag; absent legacy session data never requires setup. */
+  careerSnapshotRequired?: boolean;
   id: string;
   email: string;
   firstName: string;

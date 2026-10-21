@@ -286,6 +286,11 @@ export const appRoutes: RouteObject[] = [
 
               },
 
+              {
+                path: ROUTES.CAREER_SNAPSHOT,
+                element: lazyPage(() => import('@/pages/CareerSnapshotPage'), 'CareerSnapshotPage'),
+              },
+
             ],
 
           },

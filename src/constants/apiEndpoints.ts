@@ -200,6 +200,7 @@ export const API_ENDPOINTS = {
     PORTFOLIO_CUSTOM_ITEM: (sectionId: string, itemId: string) =>
       `/candidate/portfolio/custom-sections/${encodeURIComponent(sectionId)}/items/${encodeURIComponent(itemId)}`,
     ONBOARDING: '/candidate/onboarding',
+    CAREER_SNAPSHOT: '/candidate/profile/career-snapshot',
     RESUME: '/candidate/resume',
     RESUME_STATUS: '/candidate/resume/status',
     RECOMMENDED_JOBS: '/candidate/jobs/recommended',

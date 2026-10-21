@@ -19,6 +19,7 @@ export const ROUTES = {
   PRICING: '/membership',
   UNAUTHORIZED: '/unauthorized',
   ONBOARDING: '/onboarding',
+  CAREER_SNAPSHOT: '/career-snapshot',
   DASHBOARD: '/dashboard',
   DASHBOARD_JOBS: '/dashboard/jobs',
   DASHBOARD_JOB_DETAILS: '/dashboard/jobs/:slug',

@@ -1,4 +1,5 @@
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+import { CandidateCareerSnapshotSummary } from '@/features/dashboard/components/CandidateCareerSnapshotSummary';
 
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 
@@ -255,6 +256,7 @@ export const CandidateProfileContent = ({
       </Box>
 
       <CareerPreferencesCard preferences={preferences} />
+      <CandidateCareerSnapshotSummary profile={candidate} />
 
       <Box id="candidate-profile-education">
 

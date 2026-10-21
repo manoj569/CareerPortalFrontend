@@ -9,6 +9,7 @@ import {
 } from '@/features/auth/store/authSlice';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { UserRole } from '@/types';
+import { careerSnapshotDestination } from '@/features/auth/utils/careerSnapshotRouting';
 
 export const GuestRoute = () => {
   const status = useAppSelector(selectAuthStatus);
@@ -20,7 +21,7 @@ export const GuestRoute = () => {
   return isAuthenticated ? (
     <Navigate
       replace
-      to={user?.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD}
+      to={user ? careerSnapshotDestination(user, user.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD) : ROUTES.LOGIN}
     />
   ) : (
     <Outlet />

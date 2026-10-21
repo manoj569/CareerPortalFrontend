@@ -1,4 +1,5 @@
 import { SupportButton } from '@/features/support/SupportButton';
+import { careerSnapshotDestination } from '@/features/auth/utils/careerSnapshotRouting';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
   Alert,
@@ -75,7 +76,7 @@ export const LoginPage = () => {
         response.user.role === UserRole.Candidate ? requestedPath ?? defaultPath : defaultPath;
 
       enqueueSnackbar('Welcome back.', { variant: 'success' });
-      await navigate(destination, { replace: true });
+      await navigate(careerSnapshotDestination(response.user, destination), { replace: true, state: { from: locationState?.from } });
     } catch (error: unknown) {
       setServerError(typeof error === 'string' ? error : 'Unable to log in. Please try again.');
     }
@@ -91,7 +92,7 @@ export const LoginPage = () => {
       const requestedPath = getSafeRedirectPath(locationState?.from);
       const defaultPath = response.user.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD;
       enqueueSnackbar('Welcome back.', { variant: 'success' });
-      await navigate(response.user.role === UserRole.Candidate ? requestedPath ?? defaultPath : defaultPath, { replace: true });
+      await navigate(careerSnapshotDestination(response.user, response.user.role === UserRole.Candidate ? requestedPath ?? defaultPath : defaultPath), { replace: true, state: { from: locationState?.from } });
     } catch (error: unknown) {
       setServerError(getGoogleAuthenticationErrorMessage(error, 'Login'));
     } finally { setIsGoogleSubmitting(false); }

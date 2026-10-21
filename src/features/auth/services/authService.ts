@@ -68,6 +68,12 @@ export const authService = {
       request,
       { signal },
     );
+    if (signal?.aborted) throw new DOMException('Registration was cancelled.', 'AbortError');
+    if (response.data.authentication) {
+      if (!isAuthenticationResponse(response.data.authentication))
+        throw new Error('Registration returned an invalid session. Please try signing in.');
+      storeAuthentication(response.data.authentication);
+    }
     return response.data;
   },
 

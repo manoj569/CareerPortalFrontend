@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 import { FullPageLoader } from '@/components/feedback/FullPageLoader';
 import { ROUTES } from '@/constants/routes';
@@ -9,6 +9,7 @@ import {
 } from '@/features/auth/store/authSlice';
 import { useAppSelector } from '@/hooks/reduxHooks';
 import { UserRole } from '@/types';
+import { CareerSnapshotGuard } from './CareerSnapshotGuard';
 
 export const CandidateRoute = () => {
   const location = useLocation();
@@ -22,7 +23,7 @@ export const CandidateRoute = () => {
   }
 
   return user?.role === UserRole.Candidate ? (
-    <Outlet />
+    <CareerSnapshotGuard />
   ) : (
     <Navigate replace to={ROUTES.UNAUTHORIZED} />
   );

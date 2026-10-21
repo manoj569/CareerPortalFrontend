@@ -1,3 +1,5 @@
+import type { AuthenticationResponse } from '@/types';
+
 export interface RegisterRequest {
   fullName: string;
   email: string;
@@ -13,6 +15,7 @@ export interface RegistrationChallengeResponse {
 }
 
 export interface RegistrationResponse extends MessageResponse {
+  authentication?: AuthenticationResponse | null;
   challengeId?: string;
   expiresAtUtc?: string;
 }
