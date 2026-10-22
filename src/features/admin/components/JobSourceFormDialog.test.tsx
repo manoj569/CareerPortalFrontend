@@ -52,6 +52,34 @@ const fill = () => {
   fireEvent.click(screen.getByRole('switch', { name: 'Active' }));
 };
 
+it('creates a public SmartRecruiters source using numeric type 7', async () => {
+  await open();
+  search('Deloitte');
+  fireEvent.click(await screen.findByRole('option', { name: 'Deloitte' }));
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS Type' }));
+  fireEvent.click(screen.getByRole('option', { name: 'SmartRecruiters' }));
+  expect(screen.getByRole('textbox', { name: /ATS Identifier/ })).toHaveAccessibleDescription(/SmartRecruiters Company Identifier/);
+  fireEvent.change(screen.getByRole('textbox', { name: /Career Page URL/ }), { target: { value: 'https://careers.smartrecruiters.com/ExampleCompany' } });
+  fireEvent.change(screen.getByRole('textbox', { name: /ATS Identifier/ }), { target: { value: 'ExampleCompany' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith({ companyId: 'existing', careerPageUrl: 'https://careers.smartrecruiters.com/ExampleCompany', atsType: 7, atsIdentifier: 'ExampleCompany', isActive: true, autoPublishEnabled: true, scanIntervalMinutes: 720 }));
+});
+
+it('edits SmartRecruiters while preserving identity and Auto Publish and changing activation', async () => {
+  request.mockImplementation(({ url }) => Promise.resolve({ data: { data: url.endsWith('/companies/existing') ? { websiteUrl: 'https://example.com', logoUrl: 'https://example.com/logo.png' } : [{ id: 'existing', name: 'Example Company', slug: 'example-company' }] } }));
+  const source = { id: 'smart-source', companyId: 'existing', companyName: 'Example Company', careerPageUrl: 'https://careers.smartrecruiters.com/ExampleCompany', atsType: AtsType.SmartRecruiters, atsIdentifier: 'ExampleCompany', isActive: true, autoPublishEnabled: false, scanIntervalMinutes: 360 } as JobSource;
+  renderWithProviders(<JobSourceFormDialog source={source} isSaving={false} error={null} onClose={vi.fn()} onSave={onSave} />);
+  await waitFor(() => expect(screen.getByRole('combobox', { name: /Company/ })).toBeEnabled());
+  expect(screen.getByRole('combobox', { name: 'ATS Type' })).toHaveTextContent('SmartRecruiters');
+  expect(screen.getByRole('textbox', { name: /ATS Identifier/ })).toHaveValue('ExampleCompany');
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Company Website' })).toHaveValue('https://example.com'));
+  expect(screen.getByRole('textbox', { name: 'Logo URL' })).toHaveValue('https://example.com/logo.png');
+  expect(screen.getByRole('textbox', { name: 'Company Website' })).toHaveAttribute('readonly');
+  fireEvent.click(screen.getByRole('switch', { name: 'Active' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ atsType: 7, atsIdentifier: 'ExampleCompany', isActive: false, autoPublishEnabled: false })));
+});
+
 it.each([
   [1, 'Greenhouse', 'https://job-boards.greenhouse.io/ExactCase'],
   [2, 'Lever', 'https://jobs.lever.co/ExactCase'],

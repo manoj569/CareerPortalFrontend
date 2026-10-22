@@ -411,7 +411,7 @@ export const AdminJobSourcesPage = () => {
                 sx={{ minWidth: 160 }}
               >
                 <MenuItem value="all">All ATS</MenuItem>
-                {[1, 2, 3, 4, 5].map((value) => (
+                {[1, 2, 3, 4, 5, 7].map((value) => (
                   <MenuItem key={value} value={String(value)}>
                     {AtsType[value]}
                   </MenuItem>

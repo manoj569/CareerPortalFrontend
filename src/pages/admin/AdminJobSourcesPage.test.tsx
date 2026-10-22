@@ -127,7 +127,7 @@ describe('job sources administrator workflow', () => {
       ),
     );
   });
-  it.each([AtsType.Workday, AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.SuccessFactors])(
+  it.each([AtsType.Workday, AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.SuccessFactors, AtsType.SmartRecruiters])(
     'keeps active ATS %s manually runnable', async (atsType) => {
       items = [{ ...source, atsType }];
       renderPage();
@@ -213,6 +213,16 @@ describe('job sources administrator workflow', () => {
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS' }));
     fireEvent.click(screen.getByRole('option', { name: 'SuccessFactors' }));
     expect(within(table).getByText('718244')).toBeVisible();
+  });
+
+  it('displays and filters SmartRecruiters with enum value 7', async () => {
+    items = [{ ...source, atsType: AtsType.SmartRecruiters, atsIdentifier: 'ExampleCompany' }];
+    renderPage();
+    const table = await screen.findByRole('table');
+    expect(within(table).getByText('SmartRecruiters')).toBeVisible();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS' }));
+    fireEvent.click(screen.getByRole('option', { name: 'SmartRecruiters' }));
+    expect(within(table).getByText('SmartRecruiters')).toBeVisible();
   });
 
   it('loads SuccessFactors in edit and sends its numeric type and unchanged identifier', async () => {

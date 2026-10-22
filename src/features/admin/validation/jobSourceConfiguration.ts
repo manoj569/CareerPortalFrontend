@@ -89,6 +89,19 @@ export const sourceConfigurationError = (
 ): string | null => {
   if (type === AtsType.Custom) return null;
   const token = identifier?.trim() || '';
+  if (type === AtsType.SmartRecruiters) {
+    if (!token) return 'Enter the SmartRecruiters company identifier.';
+    if (
+      token.includes('://') ||
+      /[/\\?#]/.test(token) ||
+      Array.from(identifier ?? '').some((character) => {
+        const code = character.charCodeAt(0);
+        return code <= 31 || (code >= 127 && code <= 159);
+      })
+    )
+      return 'Enter a company identifier, not a URL or path, without query, fragment or control characters.';
+    return null;
+  }
   if (type === AtsType.Workday) {
     const root = parseWorkdaySiteRoot(value);
     if (!root)
@@ -147,6 +160,8 @@ export const sourceConfigurationError = (
 };
 
 export const sourceIdentifierHelp: Record<AtsType, string> = {
+  [AtsType.SmartRecruiters]:
+    'SmartRecruiters Company Identifier: enter the company identifier from the SmartRecruiters career URL. For https://careers.smartrecruiters.com/ExampleCompany, enter ExampleCompany. Public postings do not require credentials.',
   [AtsType.Custom]: 'Optional for Custom; ingestion is unsupported.',
   [AtsType.Greenhouse]:
     'Exact board token. Leave blank with a boards.greenhouse.io or job-boards.greenhouse.io board root.',

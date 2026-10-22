@@ -29,6 +29,7 @@ export const jobSourceSchema: yup.ObjectSchema<SaveJobSourceRequest> = yup.objec
       AtsType.Ashby,
       AtsType.SuccessFactors,
       AtsType.Workday,
+      AtsType.SmartRecruiters,
     ])
     .required(),
 
@@ -43,7 +44,9 @@ export const jobSourceSchema: yup.ObjectSchema<SaveJobSourceRequest> = yup.objec
       const message = sourceConfigurationError(
         request.atsType,
         request.careerPageUrl,
-        identifier ?? null,
+        request.atsType === AtsType.SmartRecruiters && typeof this.originalValue === 'string'
+          ? this.originalValue
+          : identifier ?? null,
       );
       return message ? this.createError({ message }) : true;
     }),

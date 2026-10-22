@@ -6,6 +6,7 @@ export enum AtsType {
   Ashby = 3,
   SuccessFactors = 4,
   Workday = 5,
+  SmartRecruiters = 7,
 }
 
 export interface SaveJobSourceRequest {

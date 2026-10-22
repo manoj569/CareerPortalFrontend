@@ -22,6 +22,7 @@ import {
   isAdminApiError,
   useCreateAdminCompanyMutation,
   useGetAdminCompanyOptionsQuery,
+  useGetAdminCompanyQuery,
 } from '../api/adminApi';
 import type { AdminOption } from '../types/adminModels';
 import { AtsType, type JobSource, type SaveJobSourceRequest } from '../types/jobSourceModels';
@@ -40,6 +41,17 @@ interface Props {
 type CompanyOption = AdminOption & { create?: boolean };
 const filterCompanies = createFilterOptions<CompanyOption>();
 const normalizeName = (name: string) => name.trim().toLowerCase();
+
+const SourceCompanyMetadata = ({ companyId }: { companyId: string }) => {
+  const company = useGetAdminCompanyQuery(companyId, { skip: !companyId });
+  return (
+    <Stack spacing={2}>
+      {company.isError && <Alert severity="error">Company details could not be loaded.</Alert>}
+      <TextField label="Company Website" value={company.data?.websiteUrl ?? ''} slotProps={{ input: { readOnly: true } }} helperText={company.isLoading ? 'Loading company details…' : 'Managed in company administration.'} />
+      <TextField label="Logo URL" value={company.data?.logoUrl ?? ''} slotProps={{ input: { readOnly: true } }} helperText="Managed in company administration. A logo is optional." />
+    </Stack>
+  );
+};
 
 export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }: Props) => {
   const companies = useGetAdminCompanyOptionsQuery();
@@ -70,6 +82,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
   });
   const busy = isSaving || isSubmitting || isCreating;
   const atsType = watch('atsType');
+  const companyId = watch('companyId');
   const atsIdentifier = watch('atsIdentifier');
   const isEmployerDirect = isEmployerDirectSource({ atsType, atsIdentifier });
   const interval = watch('scanIntervalMinutes');
@@ -247,9 +260,9 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   label="ATS Type"
                   disabled={busy}
                   onChange={(event) => {
-                    const nextType = Number(event.target.value) as AtsType;
+                    const nextType = Number(event.target.value);
                     field.onChange(nextType);
-                    if (nextType === AtsType.Custom) {
+                    if (nextType === Number(AtsType.Custom)) {
                       setValue('atsIdentifier', EMPLOYER_DIRECT_ATS_IDENTIFIER, {
                         shouldDirty: true,
                         shouldValidate: true,
@@ -264,6 +277,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                     AtsType.Custom,
                     AtsType.SuccessFactors,
                     AtsType.Workday,
+                    AtsType.SmartRecruiters,
                   ].map((type) => (
                     <MenuItem key={type} value={type}>
                       {type === AtsType.Custom && (!source || isEmployerDirect)
@@ -287,6 +301,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
               error={Boolean(errors.atsIdentifier)}
               helperText={isEmployerDirect ? 'Automatically set for Any Career Website.' : errors.atsIdentifier?.message ?? sourceIdentifierHelp[atsType]}
             />
+            {atsType === AtsType.SmartRecruiters && <SourceCompanyMetadata companyId={companyId} />}
             <Controller
               control={control}
               name="scanIntervalMinutes"

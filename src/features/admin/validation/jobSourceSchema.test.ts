@@ -12,6 +12,14 @@ const valid = {
   scanIntervalMinutes: 720,
 };
 describe('source validation and formatting', () => {
+  it('accepts SmartRecruiters numeric type 7 with a company identifier and normal URL validation', async () => {
+    expect(await jobSourceSchema.validate({ ...valid, atsType: 7, atsIdentifier: 'ExampleCompany', careerPageUrl: 'https://careers.smartrecruiters.com/ExampleCompany' })).toMatchObject({ atsType: 7, atsIdentifier: 'ExampleCompany' });
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 7, careerPageUrl: 'invalid' })).toBe(false);
+  });
+
+  it.each([null, '', 'https://example.com', 'company/jobs', 'company\\jobs', 'company?query', 'company#fragment', 'company\u0000', 'company\n', 'company\u007f'])('rejects malformed SmartRecruiters identifier %s', async (atsIdentifier) => {
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 7, atsIdentifier })).toBe(false);
+  });
   it('validates the SuccessFactors board URL and derives its numeric identifier', async () => {
     const board = {
       ...valid,

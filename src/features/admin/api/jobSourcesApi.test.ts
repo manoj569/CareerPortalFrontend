@@ -12,6 +12,7 @@ describe('source collection pagination', () => {
     AtsType.Ashby,
     AtsType.Workday,
     AtsType.SuccessFactors,
+    AtsType.SmartRecruiters,
   ])('sends the exact create/update DTO for provider %s', async (atsType) => {
     request.mockReset();
     const dto = {
