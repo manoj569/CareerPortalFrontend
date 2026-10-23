@@ -19,6 +19,9 @@ export interface HiringDrive {
   locationText: string | null;
   experienceText: string | null;
   isSponsored: boolean;
+  description?: string | null;
+  startAtUtc?: string | null;
+  endAtUtc?: string | null;
   destination: HiringDriveDestinationDto;
 }
 export type HiringDestination =
@@ -41,6 +44,7 @@ export interface HiringDriveAdminCampaign {
   displayOrder?: number;
   isActive?: boolean;
   isSponsored?: boolean;
+  showOnHome: boolean;
 }
 export interface AdminHiringDrive {
   id: string;

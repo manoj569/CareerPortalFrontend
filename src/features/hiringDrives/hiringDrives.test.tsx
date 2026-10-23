@@ -64,7 +64,7 @@ describe('hiring drives', () => {
     expect(screen.getAllByLabelText('Loading hiring opportunity')).toHaveLength(4);
   });
   it('renders API companies, logos, badges and sponsorship', async () => {
-    vi.spyOn(apiClient, 'request').mockResolvedValue({ data: { data: [drive] } });
+    const request = vi.spyOn(apiClient, 'request').mockResolvedValue({ data: { data: [drive] } });
     mount();
     expect(await screen.findByText(drive.title)).toBeInTheDocument();
     expect(screen.getByAltText('Example Company logo')).toHaveAttribute(
@@ -73,6 +73,10 @@ describe('hiring drives', () => {
     );
     expect(screen.getByText('Hiring Now')).toBeInTheDocument();
     expect(screen.getByText('Sponsored')).toBeInTheDocument();
+    expect(request.mock.calls.some(([config]) => config.url === '/public/hiring-drives')).toBe(true);
+    expect(
+      request.mock.calls.some(([config]) => config.url === '/public/hiring-drives/home'),
+    ).toBe(false);
   });
   it('hides the section for an empty response', async () => {
     vi.spyOn(apiClient, 'request').mockResolvedValue({ data: { data: [] } });
@@ -266,6 +270,7 @@ describe('admin campaign validation', () => {
     jobId: 'job',
     isActive: true,
     isSponsored: false,
+    showOnHome: false,
     displayOrder: 0,
     startAtUtc: '2026-01-01T00:00:00Z',
     endAtUtc: '2026-12-31T00:00:00Z',

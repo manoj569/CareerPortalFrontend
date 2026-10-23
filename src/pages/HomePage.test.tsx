@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { apiClient } from '@/api/apiClient';
 
 import { useGetPublicReferralJobsQuery } from '@/features/referrals/api/referralsApi';
 import type * as ReferralsApiModule from '@/features/referrals/api/referralsApi';
@@ -95,7 +96,10 @@ const result = <T,>(data: T) =>
   ({ data, isError: false, isLoading: false, refetch: vi.fn() }) as never;
 
 describe('premium public homepage', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
+    vi.spyOn(apiClient, 'request').mockResolvedValue({ data: { data: [] } });
     vi.mocked(useGetPublicReferralJobsQuery).mockReturnValue(result({ items: [] }));
     vi.mocked(useGetFeaturedJobsQuery).mockReturnValue(
       result({ items: [job], pageNumber: 1, pageSize: 6, totalCount: 1, totalPages: 1 }),
@@ -116,6 +120,23 @@ describe('premium public homepage', () => {
           slug: 'northstar-labs',
         },
       ]),
+    );
+  });
+
+  it('uses the anonymous Hiring Drive home ads endpoint', async () => {
+    const request = vi.spyOn(apiClient, 'request');
+    const router = createMemoryRouter([{ path: '/', element: <HomePage /> }], {
+      initialEntries: ['/'],
+    });
+    renderWithProviders(<RouterProvider router={router} />);
+
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(([config]) => config.url === '/public/hiring-drives/home'),
+      ).toBe(true),
+    );
+    expect(request.mock.calls.some(([config]) => config.url === '/public/hiring-drives')).toBe(
+      false,
     );
   });
 

@@ -22,9 +22,12 @@ Each public item has exactly these JSON keys (nullable values serialize as JSON 
 | `locationText` | string or null | |
 | `experienceText` | string or null | |
 | `isSponsored` | boolean | |
+| `description` | string or null | Returned by the current public response DTO |
+| `startAtUtc` | date-time | Campaign start |
+| `endAtUtc` | date-time or null | Campaign end |
 | `destination` | object | Internal `{ type, jobId }` or external `{ type, url }` |
 
-Not returned: description, companyId as a separate property, ApplyUrl as a separate property, start/end dates, display order, analytics counts, active flag, or audit fields. A company ID is nested under `company.id`. Internal jobs take precedence when both JobId and ApplyUrl are set.
+Not returned: companyId as a separate property, ApplyUrl as a separate property, display order, analytics counts, active flag, or audit fields. A company ID is nested under `company.id`. Internal jobs take precedence when both JobId and ApplyUrl are set.
 
 Example matching the controller, DTOs and serializer:
 
@@ -46,6 +49,9 @@ Example matching the controller, DTOs and serializer:
       "locationText": "Bengaluru",
       "experienceText": "0-1 year",
       "isSponsored": false,
+      "description": "Verified campaign details.",
+      "startAtUtc": "2026-10-22T00:00:00Z",
+      "endAtUtc": null,
       "destination": {
         "type": "internalJob",
         "jobId": "e9c22e8a-0abd-49dc-95ca-2f31ac4cb523"
@@ -56,6 +62,12 @@ Example matching the controller, DTOs and serializer:
 ```
 
 The values above illustrate shape only; no such campaign is seeded. Empty result is `{"data":[]}`.
+
+## Homepage list
+
+`GET /api/public/hiring-drives/home`
+
+Anonymous. Uses the same public DTO and `ApiResponse` envelope as the public list. It applies the same active, start-date, end-date, and linked-job eligibility checks, and additionally returns only campaigns with `showOnHome: true`. Ordering is the same as the public list. An empty result is `{"data":[]}`.
 
 ## Click tracking
 
@@ -128,7 +140,8 @@ Requires an authenticated user with role `Administrator`. Query fields are optio
           "endAtUtc": null,
           "displayOrder": 0,
           "isActive": false,
-          "isSponsored": false
+          "isSponsored": false,
+          "showOnHome": true
         },
         "impressionCount": 0,
         "clickCount": 0,
@@ -189,6 +202,7 @@ Create and update use `SaveHiringDriveRequest`; JSON property names are camelCas
 | `displayOrder` | integer | Optional; defaults 0 | Must be >= 0 |
 | `isActive` | boolean | Optional; defaults false | Public list requires true |
 | `isSponsored` | boolean | Optional; defaults false | |
+| `showOnHome` | boolean | Optional; defaults false | Includes the campaign in the anonymous homepage Hiring Drives endpoint |
 
 At least one of `jobId` or `applyUrl` must be present. Both may be present. Client should supply all editable properties on PUT. Admin response wraps these request properties under `campaign` and adds `id`, analytics, and audit fields.
 
@@ -302,6 +316,9 @@ export interface HiringDrivePublicDto {
   locationText: string | null;
   experienceText: string | null;
   isSponsored: boolean;
+  description: string | null;
+  startAtUtc: string;
+  endAtUtc: string | null;
   destination: HiringDriveDestinationDto;
 }
 
@@ -332,6 +349,7 @@ export interface HiringDriveAdminCampaign {
   displayOrder?: number;
   isActive?: boolean;
   isSponsored?: boolean;
+  showOnHome?: boolean;
 }
 
 export type CreateHiringDriveRequest = HiringDriveAdminCampaign;

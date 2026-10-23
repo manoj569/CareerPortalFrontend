@@ -29,6 +29,7 @@ import {
 } from '@/features/dashboard/api/dashboardApi';
 import { DashboardFeatureCarousel } from '@/features/dashboard/components/DashboardFeatureCarousel';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
+import { HiringDriveAdsSection } from '@/features/hiringDrives/HiringDriveAdsSection';
 import type { ProfileCompletionStep } from '@/features/dashboard/types/dashboardModels';
 import { formatDashboardDate } from '@/features/dashboard/utils/dashboardFormatting';
 import {
@@ -215,6 +216,8 @@ export const DashboardPage = () => {
       ) : null}
 
       <DashboardFeatureCarousel />
+
+      <HiringDriveAdsSection placement="dashboard" />
 
       <Box component="section">
   <Stack spacing={2}>

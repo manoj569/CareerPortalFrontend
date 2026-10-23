@@ -50,7 +50,8 @@ import { UserRole } from '@/types';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { apiClient } from '@/api/apiClient';
 import { ApplicationsPage } from './ApplicationsPage';
 import { ApplicationDetailsPage } from './ApplicationDetailsPage';
 import { DashboardPage } from './DashboardPage';
@@ -262,6 +263,7 @@ const renderApplicationDetails = () =>
 
 beforeEach(() => {
   refetch.mockReset();
+  vi.spyOn(apiClient, 'request').mockResolvedValue({ data: { data: [] } });
   mockProfile.mockReturnValue(queryResult({ data: profile }));
   mockCompletion.mockReturnValue(
     queryResult({
@@ -352,6 +354,8 @@ beforeEach(() => {
   );
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe('candidate dashboard pages', () => {
   it('renders a live overview from dashboard endpoints', () => {
     mockSavedJobs.mockReturnValue(
@@ -391,6 +395,41 @@ describe('candidate dashboard pages', () => {
     expect(screen.getByRole('link', { name: 'Edit profile' })).toHaveAttribute(
       'href',
       '/dashboard/portfolio',
+    );
+  });
+
+  it('places Hiring Opportunities between the feature banner and Explore Career Harbor', async () => {
+    const drive = {
+      id: 'dashboard-ad',
+      title: 'Candidate hiring drive',
+      subtitle: null,
+      badgeText: null,
+      badgeType: null,
+      company: { id: 'company-1', name: 'Example Company', logoUrl: null },
+      imageUrl: null,
+      locationText: 'Remote',
+      experienceText: null,
+      isSponsored: false,
+      destination: { type: 'external', url: 'https://careers.example.test/apply' },
+    };
+    const request = vi.spyOn(apiClient, 'request');
+    request.mockResolvedValue({ data: { data: [drive] } });
+    renderPage(<DashboardPage />);
+
+    const banner = screen.getByRole('region', { name: 'Career Harbor features' });
+    const hiring = await screen.findByRole('region', { name: 'Hiring Opportunities' });
+    const explore = screen.getByRole('heading', { name: 'Explore Career Harbor' });
+    const profileProgress = screen.getByRole('heading', { name: 'Profile progress' });
+    expect(banner.compareDocumentPosition(hiring) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(hiring.compareDocumentPosition(explore) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(explore.compareDocumentPosition(profileProgress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(([config]) => config.url === '/public/hiring-drives/home'),
+      ).toBe(true),
+    );
+    expect(request.mock.calls.some(([config]) => config.url === '/public/hiring-drives')).toBe(
+      false,
     );
   });
 

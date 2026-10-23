@@ -1,4 +1,4 @@
-import { HiringDrivesSection } from '@/features/hiringDrives/HiringDrivesSection';
+import { HiringDriveAdsSection } from '@/features/hiringDrives/HiringDriveAdsSection';
 import { SHOW_HOME_CAREER_GUIDANCE } from '@/constants/homeVisibility';
 import {
   LandingFeatures,
@@ -195,7 +195,7 @@ export const HomePage = () => {
           <LandingHeroVisual company={companies.data?.at(0)?.name} />
         </div>
       </section>
-      <HiringDrivesSection />
+      <HiringDriveAdsSection placement="home" />
       <div className="landing-container">
         <CompanyMarquee companies={companies} />
       </div>

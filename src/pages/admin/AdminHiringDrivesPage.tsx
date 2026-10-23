@@ -19,6 +19,7 @@ import {
   TableRow,
   Paper,
   TextField,
+  Typography,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
@@ -34,6 +35,7 @@ import {
 } from '@/features/hiringDrives/api';
 import type { AdminHiringDrive, HiringDriveInput } from '@/features/hiringDrives/types';
 import { validateHiringDrive } from '@/features/hiringDrives/validation';
+import { parseHiringDriveQuickFill, type QuickFillField, type QuickFillResult } from '@/features/hiringDrives/quickFill';
 const blank: HiringDriveInput = {
   companyId: '',
   title: '',
@@ -45,6 +47,7 @@ const blank: HiringDriveInput = {
   locationText: '',
   imageUrl: '',
   isSponsored: false,
+  showOnHome: false,
   jobId: null,
   applyUrl: '',
   isActive: false,
@@ -69,8 +72,16 @@ export const AdminHiringDrivesPage = () => {
   const [form, setForm] = useState<HiringDriveInput | null>(null);
   const [id, setId] = useState<string>();
   const [error, setError] = useState('');
-  const change = <K extends keyof HiringDriveInput>(key: K, value: HiringDriveInput[K]) =>
+  const [quickFillText, setQuickFillText] = useState('');
+  const [quickFillResult, setQuickFillResult] = useState<QuickFillResult>({ values: {}, errors: {} });
+  const change = <K extends keyof HiringDriveInput>(key: K, value: HiringDriveInput[K]) => {
     setForm((old) => (old ? { ...old, [key]: value } : old));
+    setQuickFillResult((old) => {
+      const errors = { ...old.errors };
+      delete errors[key as QuickFillField];
+      return { ...old, errors, unresolvedCompany: key === 'companyId' ? undefined : old.unresolvedCompany };
+    });
+  };
   const removeDrive = async (driveId: string) => {
     try {
       await remove(driveId).unwrap();
@@ -81,6 +92,10 @@ export const AdminHiringDrivesPage = () => {
   };
   const submit = async () => {
     if (!form || state.isLoading) return;
+    if (Object.keys(quickFillResult.errors).length) {
+      setError('Correct the Quick Fill fields before saving.');
+      return;
+    }
     const validation = validateHiringDrive(form);
     if (validation) {
       setError(validation);
@@ -119,6 +134,8 @@ export const AdminHiringDrivesPage = () => {
           setId(undefined);
           setForm({ ...blank });
           setError('');
+          setQuickFillText('');
+          setQuickFillResult({ values: {}, errors: {} });
         }}
       >
         Create campaign
@@ -126,7 +143,7 @@ export const AdminHiringDrivesPage = () => {
       {list.isLoading && <PageLoadingIndicator />}
       {list.isError && (
         <Alert severity="error" action={<Button onClick={() => void list.refetch()}>Retry</Button>}>
-          Unable to load hiring drives.
+          Hiring Drives could not be loaded. Please retry.
         </Alert>
       )}
       {list.data?.items.length === 0 && <Alert severity="info">No hiring campaigns yet.</Alert>}
@@ -145,7 +162,10 @@ export const AdminHiringDrivesPage = () => {
             {list.data?.items.map((drive) => (
               <TableRow key={drive.id}>
                 <TableCell>{drive.campaign.title}</TableCell>
-                <TableCell>{drive.campaign.companyId ?? '�'}</TableCell>
+                <TableCell>
+                  {companies.data?.find((company) => company.id === drive.campaign.companyId)?.name ??
+                    drive.campaign.companyId ?? '—'}
+                </TableCell>
                 <TableCell>{drive.campaign.isActive ? 'Active' : 'Inactive'}</TableCell>
                 <TableCell>{drive.impressionCount}</TableCell>
                 <TableCell>{drive.clickCount}</TableCell>
@@ -156,6 +176,8 @@ export const AdminHiringDrivesPage = () => {
                       setId(drive.id);
                       setForm(toInput(drive));
                       setError('');
+                      setQuickFillText('');
+                      setQuickFillResult({ values: {}, errors: {} });
                     }}
                   >
                     Edit
@@ -179,7 +201,7 @@ export const AdminHiringDrivesPage = () => {
           if (!state.isLoading) setForm(null);
         }}
         fullWidth
-        maxWidth="sm"
+        maxWidth="md"
       >
         <DialogTitle>{id ? 'Edit campaign' : 'Create campaign'}</DialogTitle>
         <DialogContent>
@@ -187,11 +209,39 @@ export const AdminHiringDrivesPage = () => {
             {error && <Alert severity="error">{error}</Alert>}
             {form && (
               <>
+                <Typography component="h3" variant="h6">Quick Fill Campaign</Typography>
+                <TextField
+                  label="Paste campaign data"
+                  placeholder={'JSON or key/value text, for example:\nCompany: Infosys\nTitle: Systems Engineer\nShow on Home: Yes'}
+                  multiline
+                  minRows={5}
+                  value={quickFillText}
+                  onChange={(event) => setQuickFillText(event.target.value)}
+                  error={Boolean(quickFillResult.errors.input)}
+                  helperText={quickFillResult.errors.input ?? 'Supports JSON and one field per line in Name: Value format.'}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    const result = parseHiringDriveQuickFill(quickFillText, companies.data ?? []);
+                    setQuickFillResult(result);
+                    setForm((old) => old ? { ...old, ...result.values } : old);
+                    setError('');
+                  }}
+                >Auto Fill</Button>
+                {quickFillResult.unresolvedCompany && (
+                  <Alert severity="warning">
+                    Company &quot;{quickFillResult.unresolvedCompany}&quot; was not found. Please
+                    select a company manually.
+                  </Alert>
+                )}
+                <Typography component="h3" variant="h6">Campaign</Typography>
                 <TextField
                   select
                   label="Company"
                   value={form.companyId}
                   onChange={(e) => change('companyId', e.target.value)}
+                  error={Boolean(quickFillResult.errors.companyId || quickFillResult.unresolvedCompany)}
                 >
                   {companies.data?.map((company) => (
                     <MenuItem key={company.id} value={company.id}>
@@ -199,40 +249,56 @@ export const AdminHiringDrivesPage = () => {
                     </MenuItem>
                   ))}
                 </TextField>
+                {quickFillResult.errors.companyId && <Typography color="error" variant="caption">{quickFillResult.errors.companyId}</Typography>}
                 {companies.isError && <Alert severity="error">Unable to load companies.</Alert>}
+                {(['title', 'subtitle', 'description'] as const).map((key) => (
+                  <TextField
+                    key={key}
+                    label={{ title: 'Title', subtitle: 'Subtitle', description: 'Description' }[key]}
+                    required={key === 'title'}
+                    error={Boolean(quickFillResult.errors[key])}
+                    helperText={quickFillResult.errors[key]}
+                    multiline={key === 'description'}
+                    minRows={key === 'description' ? 3 : undefined}
+                    value={form[key] ?? ''}
+                    onChange={(e) => change(key, e.target.value)}
+                  />
+                ))}
+                <Typography component="h3" variant="h6">Candidate targeting</Typography>
                 {(
                   [
-                    'title',
-                    'subtitle',
-                    'description',
                     'badgeText',
                     'experienceText',
                     'locationText',
-                    'imageUrl',
                   ] as const
                 ).map((key) => (
                   <TextField
                     key={key}
                     label={
                       {
-                        title: 'Title',
-                        subtitle: 'Subtitle',
-                        description: 'Description',
                         badgeText: 'Badge',
                         experienceText: 'Experience',
                         locationText: 'Location',
-                        imageUrl: 'Campaign image URL',
                       }[key]
                     }
-                    required={key === 'title'}
                     value={form[key] ?? ''}
                     onChange={(e) => change(key, e.target.value)}
                   />
                 ))}
+                <Typography component="h3" variant="h6">Creative</Typography>
+                <TextField
+                  label="Campaign image URL"
+                  error={Boolean(quickFillResult.errors.imageUrl)}
+                  helperText={quickFillResult.errors.imageUrl}
+                  value={form.imageUrl ?? ''}
+                  onChange={(e) => change('imageUrl', e.target.value || null)}
+                />
                 <TextField
                   select
                   label="Badge type"
                   value={form.badgeType ?? ''}
+                  error={Boolean(quickFillResult.errors.badgeType)}
+                  helperText={quickFillResult.errors.badgeType}
                   onChange={(e) =>
                     change('badgeType', (e.target.value || null) as HiringDriveInput['badgeType'])
                   }
@@ -252,15 +318,19 @@ export const AdminHiringDrivesPage = () => {
                   }}
                   onChange={(_, job) => change('jobId', job?.id ?? null)}
                   renderInput={(params) => (
-                    <TextField {...params} label="CareerHarbor job (optional)" />
+                    <TextField {...params} label="CareerHarbor job (optional)" error={Boolean(quickFillResult.errors.jobId)} helperText={quickFillResult.errors.jobId} />
                   )}
                 />
                 {jobs.isError && <Alert severity="error">Unable to load jobs.</Alert>}
+                <Typography component="h3" variant="h6">Destination</Typography>
                 <TextField
                   label="External apply URL (HTTPS)"
+                  error={Boolean(quickFillResult.errors.applyUrl)}
+                  helperText={quickFillResult.errors.applyUrl}
                   value={form.applyUrl ?? ''}
                   onChange={(e) => change('applyUrl', e.target.value || null)}
                 />
+                <Typography component="h3" variant="h6">Schedule</Typography>
                 {(['startAtUtc', 'endAtUtc'] as const).map((key) => (
                   <TextField
                     key={key}
@@ -271,6 +341,8 @@ export const AdminHiringDrivesPage = () => {
                         : 'End date (optional, local time)'
                     }
                     type="datetime-local"
+                    error={Boolean(quickFillResult.errors[key])}
+                    helperText={quickFillResult.errors[key]}
                     slotProps={{ inputLabel: { shrink: true } }}
                     value={dateValue(form[key])}
                     onChange={(e) =>
@@ -281,6 +353,8 @@ export const AdminHiringDrivesPage = () => {
                 <TextField
                   label="Display order"
                   type="number"
+                  error={Boolean(quickFillResult.errors.displayOrder)}
+                  helperText={quickFillResult.errors.displayOrder}
                   value={form.displayOrder}
                   onChange={(e) => change('displayOrder', Number(e.target.value))}
                 />
@@ -293,6 +367,8 @@ export const AdminHiringDrivesPage = () => {
                     />
                   }
                 />
+                {quickFillResult.errors.isActive && <Typography color="error" variant="caption">{quickFillResult.errors.isActive}</Typography>}
+                <Typography component="h3" variant="h6">Placement</Typography>
                 <FormControlLabel
                   label="Sponsored"
                   control={
@@ -302,6 +378,25 @@ export const AdminHiringDrivesPage = () => {
                     />
                   }
                 />
+                {quickFillResult.errors.isSponsored && <Typography color="error" variant="caption">{quickFillResult.errors.isSponsored}</Typography>}
+                <FormControlLabel
+                  label={
+                    <Stack spacing={0.25}>
+                      <span>Show on Home</span>
+                      <Typography color="text.secondary" variant="caption">
+                        Display this hiring drive in homepage and candidate dashboard Hiring
+                        Opportunities.
+                      </Typography>
+                    </Stack>
+                  }
+                  control={
+                    <Checkbox
+                      checked={form.showOnHome}
+                      onChange={(_, checked) => change('showOnHome', checked)}
+                    />
+                  }
+                />
+                {quickFillResult.errors.showOnHome && <Typography color="error" variant="caption">{quickFillResult.errors.showOnHome}</Typography>}
               </>
             )}
           </Stack>
