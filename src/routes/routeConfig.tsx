@@ -84,6 +84,10 @@ export const appRoutes: RouteObject[] = [
 
           {
 
+            path: '/hiring-drives',
+            element: lazyPage(() => import('@/pages/HiringDrivesPage'), 'HiringDrivesPage'),
+          },
+          {
             path: ROUTES.JOBS,
 
             element: lazyPage(() => import('@/pages/JobsPage'), 'JobsPage'),
@@ -1048,6 +1052,10 @@ export const appRoutes: RouteObject[] = [
               {
                 path: ROUTES.ADMIN_NOTIFICATIONS,
                 element: lazyPage(() => import('@/pages/NotificationsPage'), 'NotificationsPage'),
+              },
+              {
+                path: '/admin/hiring-drives',
+                element: lazyPage(() => import('@/pages/admin/AdminHiringDrivesPage'), 'AdminHiringDrivesPage'),
               },
               {
                 path: ROUTES.ADMIN_COMPANIES,

@@ -51,12 +51,16 @@ export const initializeAuth = createAsyncThunk<AuthenticationResponse, void, Aut
 
 export const login = createAsyncThunk<AuthenticationResponse, LoginRequest, AuthThunkConfig>(
   'auth/login',
-  async (request, { rejectWithValue }) => {
+  async (request, { rejectWithValue, signal }) => {
     try {
-      return await authService.login(request);
+      return await authService.login(request, signal);
     } catch (error: unknown) {
       return rejectWithValue(getAuthenticationErrorMessage(error));
     }
+  },
+  {
+    // Keep login single-flight even when callers bypass the form's local lock.
+    condition: (_, { getState }) => !getState().auth.isSubmitting,
   },
 );
 
@@ -152,7 +156,9 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.isSubmitting = false;
-        state.error = action.payload ?? 'Unable to log in.';
+        state.error = action.meta.aborted
+          ? 'Sign-in was cancelled. You can try again.'
+          : action.payload ?? 'Unable to log in.';
       })
       .addCase(loginWithOtp.pending, (state) => {
         state.isSubmitting = true;

@@ -10,6 +10,7 @@ describe('adminNavigationItems', () => {
     expect(labels).toEqual([
       'Dashboard',
       'Jobs',
+      'Hiring Drives',
       'Job Sources',
       'Users',
       'Career Guidance',

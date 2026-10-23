@@ -11,7 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -45,6 +45,7 @@ export const LoginPage = () => {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const loginInFlight = useRef(false);
   const locationState = location.state as LoginLocationState | null;
   const {
     formState: { errors, isSubmitting },
@@ -64,6 +65,8 @@ export const LoginPage = () => {
   }, [reset]);
 
   const submitLogin = async (values: LoginFormValues) => {
+    if (loginInFlight.current || isGoogleSubmitting) return;
+    loginInFlight.current = true;
     setServerError(null);
     try {
       const response = await dispatch(
@@ -78,7 +81,17 @@ export const LoginPage = () => {
       enqueueSnackbar('Welcome back.', { variant: 'success' });
       await navigate(careerSnapshotDestination(response.user, destination), { replace: true, state: { from: locationState?.from } });
     } catch (error: unknown) {
-      setServerError(typeof error === 'string' ? error : 'Unable to log in. Please try again.');
+      const wasCancelled =
+        typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';
+      setServerError(
+        wasCancelled
+          ? 'Sign-in was cancelled. You can try again.'
+          : typeof error === 'string'
+            ? error
+            : 'Unable to log in. Please try again.',
+      );
+    } finally {
+      loginInFlight.current = false;
     }
   };
 

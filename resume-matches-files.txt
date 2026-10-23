@@ -1,0 +1,2826 @@
+﻿========== .\package.json ==========
+{
+  "name": "career-portal-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "analyze": "node scripts/report-bundle.mjs",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "vercel-build": "pnpm install --frozen-lockfile && pnpm run build",
+    "build:analyze": "npm run build && npm run analyze",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@hookform/resolvers": "^5.2.1",
+    "@microsoft/signalr": "^10.0.11",
+    "@mui/icons-material": "^7.3.1",
+    "@mui/material": "^7.3.1",
+    "@reduxjs/toolkit": "^2.8.2",
+    "axios": "^1.11.0",
+    "dayjs": "^1.11.13",
+    "notistack": "^3.0.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.62.0",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.8.2",
+    "yup": "^1.7.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@mui/utils": "^9.2.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.2",
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.6.2",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.41.0",
+    "vite": "^7.1.3",
+    "vitest": "^3.2.4"
+  }
+}
+
+========== .\src\pages\CandidateBrowseJobsPage.tsx ==========
+import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
+
+import CloseIcon from '@mui/icons-material/Close';
+
+import FilterListIcon from '@mui/icons-material/FilterList';
+
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
+
+import {
+  Alert,
+  Box,
+  Button,
+  Drawer,
+  Grid,
+  IconButton,
+  LinearProgress,
+  Pagination,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
+
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+
+import { NavigationType, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
+
+import { EmptyState } from '@/components/feedback/EmptyState';
+
+import { ErrorState } from '@/components/feedback/ErrorState';
+
+import { ROUTES } from '@/constants/routes';
+
+import { ApplicationQuotaIndicator } from '@/features/dashboard/components/ApplicationQuotaIndicator';
+
+import { ApplyToJobButton } from '@/features/dashboard/components/ApplyToJobButton';
+
+// import { AIApplyToJobButton } from '@/features/aiApply/components/AIApplyToJobButton';
+
+import { SaveJobButton } from '@/features/dashboard/components/SaveJobButton';
+
+import {
+  isDashboardApiError,
+  useGetProfileQuery,
+  useGetRecommendedJobsQuery,
+  useGetResumeStatusQuery,
+  useUploadResumeMutation,
+  downloadCandidateResume,
+} from '@/features/dashboard/api/dashboardApi';
+
+import {
+  ResumeExtractionStatus,
+  type RecommendedJob,
+} from '@/features/dashboard/types/dashboardModels';
+
+import {
+  sanitizeResumeFileName,
+  validateResume,
+} from '@/features/dashboard/utils/resumeValidation';
+
+import {
+  fetchJobApplicationUrl,
+  useGetJobFilterOptionsQuery,
+  useGetSupplementalJobFilterCountsQuery,
+  useSearchJobsQuery,
+} from '@/features/jobs/api/jobsApi';
+
+import { CandidateJobFilters } from '@/features/jobs/components/CandidateJobFilters';
+
+import { JobCard } from '@/features/jobs/components/JobCard';
+
+import { ActiveFilterChips } from '@/features/jobs/components/candidateBrowse/ActiveFilterChips';
+
+import {
+  JobModeTabs,
+  type CandidateBrowseTab,
+} from '@/features/jobs/components/candidateBrowse/JobModeTabs';
+
+import { JobResultsHeader } from '@/features/jobs/components/candidateBrowse/JobResultsHeader';
+
+import { JobSearchBar } from '@/features/jobs/components/candidateBrowse/JobSearchBar';
+
+import { ResumeRecommendationCard } from '@/features/jobs/components/candidateBrowse/ResumeRecommendationCard';
+
+import { ReferralJobsSection } from '@/features/referrals/components/ReferralJobsSection';
+
+import {
+  countCandidateJobFilters,
+  emptyCandidateJobSearchState,
+  parseCandidateJobSearchParams,
+  serializeCandidateJobSearchState,
+  toCandidatePublicJobQuery,
+  type CandidateJobSearchState,
+} from '@/features/jobs/utils/candidateJobSearchParams';
+
+import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+
+import { EmploymentType, type PublicJobSummary } from '@/features/jobs/types/jobModels';
+
+const toJobSummary = (job: RecommendedJob): PublicJobSummary => ({
+  ...job,
+  companyType: null,
+  currencyCode: 'INR',
+  department: null,
+  educationRequirement: null,
+  industry: null,
+  internshipDurationMonths: null,
+  isFlexibleDuration: false,
+  maximumExperienceYears: null,
+  maximumSalary: null,
+  minimumExperienceYears: null,
+  minimumSalary: null,
+  postedByType: null,
+  roleCategory: null,
+});
+
+const readBrowseTab = (value: string | null): CandidateBrowseTab =>
+  value === 'internships' || value === 'fresher' || value === 'experienced' || value === 'referral'
+    ? value
+    : 'all';
+
+const applyTabFilters = (
+  state: CandidateJobSearchState,
+
+  tab: CandidateBrowseTab,
+): CandidateJobSearchState => {
+  if (tab === 'internships') {
+    return { ...state, employmentTypes: [EmploymentType.Internship] };
+  }
+
+  if (tab === 'fresher') {
+    return { ...state, maxExperienceYears: 1, minExperienceYears: 0 };
+  }
+
+  if (tab === 'experienced') {
+    return { ...state, maxExperienceYears: undefined, minExperienceYears: 2 };
+  }
+
+  return state;
+};
+
+const removeTabFilters = (
+  state: CandidateJobSearchState,
+
+  tab: CandidateBrowseTab,
+): CandidateJobSearchState => {
+  if (tab === 'internships') return { ...state, employmentTypes: [] };
+
+  if (tab === 'fresher' || tab === 'experienced') {
+    return { ...state, maxExperienceYears: undefined, minExperienceYears: undefined };
+  }
+
+  return state;
+};
+
+export const CandidateBrowseJobsPage = () => {
+  useDocumentMetadata(
+    'Browse jobs | Career Portal',
+
+    'Explore active jobs based on your Candidate career goals.',
+  );
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const previousLocationKeyRef = useRef(location.key);
+
+  const requestedTab = readBrowseTab(searchParams.get('mode'));
+
+  const parsedState = useMemo(() => parseCandidateJobSearchParams(searchParams), [searchParams]);
+
+  const state = useMemo(
+    () => applyTabFilters(parsedState, requestedTab),
+
+    [parsedState, requestedTab],
+  );
+
+  const query = useMemo(() => toCandidatePublicJobQuery(state), [state]);
+
+  const [draftKeyword, setDraftKeyword] = useState(state.keyword);
+
+  const [locationInput, setLocationInput] = useState(state.locations.join(', '));
+
+  const [experienceInput, setExperienceInput] = useState(
+    state.minExperienceYears?.toString() ?? '',
+  );
+
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  const [isDesktopFiltersOpen, setIsDesktopFiltersOpen] = useState(true);
+
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(() => new Set());
+
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+
+  const restoreFilterButtonFocusRef = useRef(false);
+
+  const internalNavigationRef = useRef<{ keyword: boolean; locations: boolean } | null>(null);
+  const preserveDraftsRef = useRef(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingSearch = useCallback(() => {
+    if (searchTimerRef.current !== null) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = null;
+  }, []);
+
+  const profile = useGetProfileQuery();
+
+  const [pollAttempts, setPollAttempts] = useState(0);
+
+  const [pollingActive, setPollingActive] = useState(false);
+
+  const resumeStatus = useGetResumeStatusQuery(undefined, {
+    pollingInterval: pollingActive && pollAttempts < 12 ? 5000 : 0,
+
+    skipPollingIfUnfocused: true,
+  });
+
+  const isResumeReady = resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Ready;
+
+  // Resume Matches is reserved for Phase 2; disabled URLs normalize to All jobs.
+  const isRecommended = requestedTab === 'recommended';
+
+  const activeTab: CandidateBrowseTab = requestedTab;
+
+  const isReferralTab = activeTab === 'referral';
+
+  // Normal job search should not run while viewing Resume Matches
+  // or Referral Jobs.
+  const jobs = useSearchJobsQuery(query, {
+    refetchOnMountOrArgChange: true,
+    skip: isRecommended || isReferralTab,
+  });
+
+  // Only fetch AI resume-matched jobs after resume extraction
+  // has successfully completed.
+  const recommended = useGetRecommendedJobsQuery(
+    {
+      pageNumber: state.page,
+      pageSize: 20,
+    },
+    {
+      skip: !isRecommended || !isResumeReady,
+    },
+  );
+
+  const filterOptions = useGetJobFilterOptionsQuery(
+    { ...query, pageNumber: 1, pageSize: 1 },
+
+    { skip: isRecommended || isReferralTab },
+  );
+
+  const supplementalCounts = useGetSupplementalJobFilterCountsQuery(query, {
+    skip: isRecommended || isReferralTab,
+  });
+
+  const [uploadResume, uploadState] = useUploadResumeMutation();
+
+  const [resumeError, setResumeError] = useState<string | null>(null);
+
+  const [isDownloadingResume, setIsDownloadingResume] = useState(false);
+
+  const downloadInProgressRef = useRef(false);
+
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const appliedCount = countCandidateJobFilters(state);
+
+  const setState = useCallback(
+    (nextState: CandidateJobSearchState, replace = false, nextTab = activeTab) => {
+      internalNavigationRef.current = {
+        keyword: nextState.keyword !== state.keyword,
+        locations: nextState.locations.join(', ') !== state.locations.join(', '),
+      };
+      const next = serializeCandidateJobSearchState(nextState);
+
+      next.set('mode', nextTab);
+
+      setSearchParams(next, { replace });
+    },
+
+    [activeTab, setSearchParams, state],
+  );
+
+  const setTab = (nextTab: CandidateBrowseTab) => {
+    const compatibleState = removeTabFilters(state, activeTab);
+
+    setState(applyTabFilters({ ...compatibleState, page: 1 }, nextTab), false, nextTab);
+  };
+
+  const handleResume = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    event.target.value = '';
+
+    if (!file) return;
+
+    const validationError = validateResume(file);
+
+    if (validationError) return setResumeError(validationError);
+
+    setResumeError(null);
+
+    try {
+      await uploadResume(file).unwrap();
+
+      await profile.refetch();
+
+      setPollAttempts(0);
+
+      setPollingActive(true);
+
+      await resumeStatus.refetch();
+    } catch (error: unknown) {
+      setResumeError(
+        isDashboardApiError(error)
+          ? error.message
+          : 'Unable to upload your resume. Please try again.',
+      );
+    }
+  };
+
+  const downloadResume = async () => {
+    if (downloadInProgressRef.current) return;
+
+    const downloadFileName = sanitizeResumeFileName(profile.data?.resume?.fileName, '');
+
+    if (!downloadFileName) {
+      setResumeError('Your resume filename is unavailable. Refresh the page and try again.');
+
+      return;
+    }
+
+    downloadInProgressRef.current = true;
+
+    setIsDownloadingResume(true);
+
+    try {
+      const blob = await downloadCandidateResume();
+
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+
+      link.href = url;
+
+      link.download = downloadFileName;
+
+      try {
+        link.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      setResumeError('Your resume could not be downloaded. Please try again.');
+    } finally {
+      downloadInProgressRef.current = false;
+
+      setIsDownloadingResume(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!resumeStatus.fulfilledTimeStamp) return;
+
+    if (resumeStatus.data?.extractionStatus === ResumeExtractionStatus.Processing) {
+      setPollingActive(true);
+
+      setPollAttempts((attempts) => Math.min(12, attempts + 1));
+    } else {
+      setPollingActive(false);
+    }
+  }, [resumeStatus.data?.extractionStatus, resumeStatus.fulfilledTimeStamp]);
+
+  const applyChanges = useCallback(
+    (changes: Partial<CandidateJobSearchState>, replace = false) => {
+      const changesExperience =
+        Object.hasOwn(changes, 'minExperienceYears') ||
+        Object.hasOwn(changes, 'maxExperienceYears');
+
+      const changesEmploymentType = Object.hasOwn(changes, 'employmentTypes');
+
+      const leavesMode =
+        ((activeTab === 'fresher' || activeTab === 'experienced') && changesExperience) ||
+        (activeTab === 'internships' && changesEmploymentType);
+
+      const nextTab = leavesMode ? 'all' : activeTab;
+
+      const currentState = leavesMode ? removeTabFilters(state, activeTab) : state;
+
+      setState({ ...currentState, ...changes, page: 1 }, replace, nextTab);
+    },
+
+    [activeTab, setState, state],
+  );
+
+  useEffect(() => {
+    const normalized = serializeCandidateJobSearchState(state);
+
+    normalized.set('mode', activeTab);
+
+    const current = new URLSearchParams(searchParams);
+
+    normalized.sort();
+
+    current.sort();
+
+    if (normalized.toString() !== current.toString()) {
+      setSearchParams(normalized, { replace: true });
+    }
+  }, [activeTab, searchParams, setSearchParams, state]);
+
+  const clearFilters = useCallback(() => {
+    const empty = emptyCandidateJobSearchState();
+
+    setDraftKeyword('');
+
+    setLocationInput('');
+
+    setExperienceInput('');
+
+    cancelPendingSearch();
+    setState(empty, false, 'all');
+  }, [cancelPendingSearch, setState]);
+
+  const appliedStateRef = useRef(state);
+  const applyChangesRef = useRef(applyChanges);
+  useEffect(() => {
+    appliedStateRef.current = state;
+    applyChangesRef.current = applyChanges;
+  }, [applyChanges, state]);
+
+  // Automatic application must not erase typing that continued during navigation.
+  // External navigation (including Back/Forward) restores inputs and cancels old typing.
+  useEffect(() => {
+    const isHistoryNavigation =
+      navigationType === NavigationType.Pop && previousLocationKeyRef.current !== location.key;
+    previousLocationKeyRef.current = location.key;
+    const internal = internalNavigationRef.current;
+    internalNavigationRef.current = null;
+    if (isHistoryNavigation) preserveDraftsRef.current = false;
+    if (preserveDraftsRef.current) {
+      preserveDraftsRef.current = false;
+      return;
+    }
+    if (internal && !isHistoryNavigation) {
+      if (internal.locations) setLocationInput(state.locations.join(', '));
+      setExperienceInput(state.minExperienceYears?.toString() ?? '');
+      return;
+    }
+    // Canonicalization and other internal URL updates must never hydrate active typing.
+    if (!isHistoryNavigation) return;
+    cancelPendingSearch();
+    setDraftKeyword(state.keyword);
+    setLocationInput(state.locations.join(', '));
+    setExperienceInput(state.minExperienceYears?.toString() ?? '');
+  }, [searchParams, cancelPendingSearch, state, location.key, navigationType]);
+
+  useEffect(() => cancelPendingSearch, [cancelPendingSearch]);
+
+  const normalizeSearch = (keyword: string, location: string) => ({
+    keyword: keyword.trim().slice(0, 250),
+    locations: Array.from(
+      new Set(
+        location
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 25),
+  });
+
+  const scheduleSearch = (keyword: string, location: string) => {
+    cancelPendingSearch();
+    const next = normalizeSearch(keyword, location);
+    searchTimerRef.current = setTimeout(() => {
+      searchTimerRef.current = null;
+      const current = appliedStateRef.current;
+      // A location filter selected during keyword typing wins over the old draft location.
+      const changes = {
+        ...next,
+        locations:
+          state.locations.join(', ') === current.locations.join(', ')
+            ? next.locations
+            : current.locations,
+      };
+      if (
+        changes.keyword !== current.keyword ||
+        changes.locations.join(', ') !== current.locations.join(', ')
+      ) {
+        preserveDraftsRef.current = true;
+        applyChangesRef.current(changes);
+      }
+    }, 350);
+  };
+
+  useEffect(() => {
+    if (isMobileFiltersOpen || !restoreFilterButtonFocusRef.current) return;
+
+    restoreFilterButtonFocusRef.current = false;
+
+    filterButtonRef.current?.focus();
+  }, [isMobileFiltersOpen]);
+
+  const closeMobileFilters = () => {
+    setIsMobileFiltersOpen(false);
+  };
+
+  const searchJobs = () => {
+    cancelPendingSearch();
+    const next = normalizeSearch(draftKeyword, locationInput);
+    if (
+      next.keyword === state.keyword &&
+      next.locations.join(', ') === state.locations.join(', ') &&
+      state.page === 1
+    ) {
+      if (!isRecommended && !isReferralTab && !jobs.isFetching) void jobs.refetch();
+      return;
+    }
+    applyChanges(next);
+  };
+
+  const refreshMatches = () => {
+    if (resumeStatus.isFetching || recommended.isFetching) return;
+
+    void resumeStatus.refetch();
+
+    if (isRecommended) void recommended.refetch();
+  };
+
+  const sourceJobs = isRecommended
+    ? isResumeReady
+      ? recommended.data?.items.map(toJobSummary)
+      : undefined
+    : jobs.data?.items;
+
+  const displayedJobs = sourceJobs?.filter((job) => !appliedJobIds.has(job.id));
+
+  const sourceTotal = isRecommended
+    ? isResumeReady
+      ? recommended.data?.totalCount
+      : undefined
+    : jobs.data?.totalCount;
+
+  const displayedTotal = sourceTotal === undefined ? undefined : sourceTotal;
+
+  const displayedPages =
+    isRecommended && isResumeReady
+      ? recommended.data?.totalPages
+      : isRecommended
+        ? undefined
+        : jobs.data?.totalPages;
+
+  const resultsLoading = isRecommended ? isResumeReady && recommended.isLoading : jobs.isLoading;
+
+  const resultsError = isRecommended ? isResumeReady && recommended.isError : jobs.isError;
+
+  const refetchResults = isRecommended ? recommended.refetch : jobs.refetch;
+
+  const renderFilterPanel = (onCollapse?: () => void) =>
+    filterOptions.isLoading && !filterOptions.data ? (
+      <PageLoadingIndicator compact label="Loading job filters" />
+    ) : !filterOptions.data ? (
+      <Stack spacing={2}>
+        <Alert severity="error">Unable to load filters</Alert>
+
+        <Button
+          onClick={() => {
+            void filterOptions.refetch();
+          }}
+
+          variant="outlined"
+        >
+          Retry
+        </Button>
+      </Stack>
+    ) : (
+      <Stack spacing={1} aria-busy={filterOptions.isFetching}>
+        {filterOptions.isError ? (
+          <Alert
+            severity="warning"
+            action={<Button onClick={() => void filterOptions.refetch()}>Retry</Button>}
+          >
+            Unable to load filters
+          </Alert>
+        ) : null}
+
+        {filterOptions.isFetching ? (
+          <Typography role="status" variant="caption">
+            Updating filtersâ€¦
+          </Typography>
+        ) : null}
+
+        <CandidateJobFilters
+          appliedCount={appliedCount}
+
+          onChange={applyChanges}
+
+          onClear={clearFilters}
+
+          onCollapse={onCollapse}
+
+          options={filterOptions.data}
+
+          state={state}
+
+          supplementalCounts={supplementalCounts.data}
+        />
+      </Stack>
+    );
+
+  const pagePresentation: Record<CandidateBrowseTab, { title: string; description: string }> = {
+    all: {
+      title: 'Find your next opportunity',
+      description:
+        'Explore jobs, internships and career opportunities from top companies across India.',
+    },
+    recommended: {
+      title: 'Jobs that match your resume',
+      description: 'AI-powered job matching based on your skills, experience and preferences.',
+    },
+    internships: {
+      title: 'Find the right internship for your career',
+      description: 'Kickstart your career with internships from companies across India.',
+    },
+    fresher: {
+      title: 'Start your career with the right opportunity',
+      description: 'Discover entry-level jobs and opportunities designed for freshers.',
+    },
+    experienced: {
+      title: 'Take the next step in your career',
+      description: 'Explore opportunities that match your experience and career goals.',
+    },
+    referral: {
+      title: 'Find jobs through employee referrals',
+      description:
+        'Discover referral opportunities and connect with employees who can help you apply.',
+    },
+  };
+
+  const presentation = pagePresentation[activeTab];
+
+  return (
+    <Box sx={{ mx: 'auto', width: '100%' }}>
+      <Stack spacing={{ xs: 2, md: 2.5 }}>
+        <Box>
+          <Typography
+            component="h1"
+            sx={{
+              color: 'text.primary',
+              fontSize: { xs: '1.65rem', md: '2rem' },
+              fontWeight: 800,
+              letterSpacing: '-0.03em',
+              lineHeight: 1.2,
+            }}
+          >
+            {activeTab === 'all' && (draftKeyword.trim() || state.keyword)
+              ? 'Search jobs'
+              : presentation.title}
+          </Typography>
+          <Typography
+            color="text.secondary"
+            sx={{ fontSize: { xs: '0.9rem', md: '0.96rem' }, mt: 0.65 }}
+          >
+            {presentation.description}
+          </Typography>
+        </Box>
+
+        {!isRecommended && !isReferralTab ? (
+          <JobSearchBar
+            experience={experienceInput}
+            keyword={draftKeyword}
+            location={locationInput}
+            onExperienceChange={setExperienceInput}
+            onKeywordChange={(value) => {
+              setDraftKeyword(value);
+              scheduleSearch(value, locationInput);
+            }}
+            onLocationChange={(value) => {
+              setLocationInput(value);
+              scheduleSearch(draftKeyword, value);
+            }}
+            onSearch={searchJobs}
+          />
+        ) : null}
+
+        <JobModeTabs mode={activeTab} onChange={setTab} />
+
+        {isRecommended ? (
+          <ResumeRecommendationCard
+            error={resumeError}
+            fileInputRef={fileInput}
+            fileName={profile.data?.resume?.fileName}
+            hasResume={resumeStatus.data?.hasResume ?? false}
+            isDownloading={isDownloadingResume}
+            isRefreshing={resumeStatus.isFetching || recommended.isFetching}
+            isUploading={uploadState.isLoading}
+            lastUpdatedUtc={profile.data?.resume?.uploadedAtUtc}
+            onDownload={() => void downloadResume()}
+            onFileChange={(event) => void handleResume(event)}
+            onRefresh={refreshMatches}
+            onUpload={() => fileInput.current?.click()}
+            status={resumeStatus.data?.extractionStatus}
+          />
+        ) : null}
+
+        {!isRecommended && !isReferralTab ? (
+          <Button
+            aria-controls="candidate-mobile-job-filters"
+            aria-expanded={isMobileFiltersOpen}
+            onClick={() => {
+              restoreFilterButtonFocusRef.current = true;
+              setIsMobileFiltersOpen(true);
+            }}
+            ref={filterButtonRef}
+            startIcon={<FilterListIcon />}
+            sx={{
+              alignSelf: 'flex-start',
+              display: { lg: 'none' },
+              borderRadius: 1.5,
+              textTransform: 'none',
+            }}
+            variant="outlined"
+          >
+            Filters{appliedCount ? ` (${appliedCount})` : ''}
+          </Button>
+        ) : null}
+
+        {!isReferralTab ? <ApplicationQuotaIndicator /> : null}
+
+        {!isReferralTab &&
+        (isRecommended
+          ? recommended.isFetching && !recommended.isLoading
+          : jobs.isFetching && !jobs.isLoading) ? (
+          <LinearProgress aria-label="Updating job results" />
+        ) : null}
+
+        {isReferralTab ? (
+          <ReferralJobsSection />
+        ) : (
+          <Stack alignItems="flex-start" direction="row" spacing={{ lg: 2.5 }}>
+            {!isRecommended && isDesktopFiltersOpen ? (
+              <Paper
+                component="aside"
+                elevation={0}
+                sx={{
+                  alignSelf: 'flex-start',
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  display: { xs: 'none', lg: 'block' },
+                  overflow: 'hidden',
+                  p: 2,
+                  position: 'sticky',
+                  top: 88,
+                  width: 272,
+                }}
+              >
+                {renderFilterPanel(() => setIsDesktopFiltersOpen(false))}
+              </Paper>
+            ) : !isRecommended ? (
+              <Button
+                aria-label="Expand job filters"
+                onClick={() => setIsDesktopFiltersOpen(true)}
+                startIcon={<TuneOutlinedIcon />}
+                sx={{
+                  display: { xs: 'none', lg: 'inline-flex' },
+                  position: 'sticky',
+                  top: 88,
+                  textTransform: 'none',
+                }}
+                variant="outlined"
+              >
+                Filters{appliedCount ? ` (${appliedCount})` : ''}
+              </Button>
+            ) : null}
+
+            <Box component="section" aria-busy={jobs.isFetching} minWidth={0} sx={{ flex: 1 }}>
+              <Stack spacing={1.5} sx={{ mb: 2 }}>
+                <JobResultsHeader
+                  count={resultsError ? undefined : displayedTotal}
+                  isLoading={resultsLoading || jobs.isFetching}
+                  isRecommended={isRecommended}
+                  onSortChange={(sort) => applyChanges({ sort })}
+                  sort={state.sort}
+                />
+
+                {!isRecommended && (appliedCount > 0 || state.keyword) ? (
+                  <Stack alignItems="flex-start" spacing={1}>
+                    <ActiveFilterChips
+                      options={filterOptions.data}
+                      onChange={applyChanges}
+                      onKeywordClear={() => {
+                        cancelPendingSearch();
+                        setDraftKeyword('');
+                        applyChanges({ keyword: '' });
+                      }}
+                      state={state}
+                    />
+                    <Button onClick={clearFilters} size="small" sx={{ textTransform: 'none' }}>
+                      Clear all filters
+                    </Button>
+                  </Stack>
+                ) : null}
+              </Stack>
+
+              {isRecommended && !isResumeReady ? null : resultsLoading ? (
+                <PageLoadingIndicator label="Loading Candidate jobs" />
+              ) : resultsError ? (
+                <ErrorState
+                  onRetry={() => void refetchResults()}
+                  title="We couldn't load jobs. Try again."
+                />
+              ) : displayedJobs?.length ? (
+                <Stack spacing={3}>
+                  <Grid container spacing={2}>
+                    {displayedJobs.map((job) => {
+                      const recommendation = isRecommended
+                        ? recommended.data?.items.find((item) => item.id === job.id)
+                        : undefined;
+
+                      return (
+                        <Grid key={job.id} size={{ xs: 12 }}>
+                          <JobCard
+                            match={recommendation}
+                            secondaryAction={
+                              <>
+                                <SaveJobButton jobId={job.id} jobTitle={job.title} />
+                                <ApplyToJobButton
+                                  applicationUrl={null}
+                                  companyName={job.companyName}
+                                  jobId={job.id}
+                                  jobSlug={job.slug}
+                                  jobTitle={job.title}
+                                  label="Apply manually"
+                                  loadApplicationUrl={() => fetchJobApplicationUrl(job.slug)}
+                                  onApplied={(jobId) =>
+                                    setAppliedJobIds((current) => new Set(current).add(jobId))
+                                  }
+                                  size="medium"
+                                />
+                              </>
+                            }
+                            job={job}
+                            returnPath={ROUTES.DASHBOARD_JOBS}
+                            returnSearch={searchParams.toString()}
+                            compact
+                            showExtendedDetails
+                            viewActionLabel="View details"
+                          />
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+
+                  {(displayedPages ?? 0) > 1 ? (
+                    <Pagination
+                      aria-label="Candidate jobs pagination"
+                      count={displayedPages}
+                      onChange={(_, page) => setState({ ...state, page })}
+                      page={state.page}
+                      showFirstButton
+                      showLastButton
+                      sx={{ alignSelf: 'center' }}
+                    />
+                  ) : null}
+                </Stack>
+              ) : (
+                <Stack spacing={1}>
+                  <EmptyState
+                    actionLabel={
+                      isRecommended
+                        ? 'Browse all jobs'
+                        : appliedCount > 0 || state.keyword
+                          ? 'Clear search and filters'
+                          : undefined
+                    }
+                    description={
+                      isRecommended
+                        ? "We couldn't find a strong match with your current resume."
+                        : `No jobs found${state.keyword ? ` for '${state.keyword}'` : ''}${state.locations.length ? ` in ${state.locations.join(', ')}` : ''}. Try a broader keyword or remove filters.`
+                    }
+                    onAction={
+                      isRecommended
+                        ? () => setTab('all')
+                        : appliedCount > 0 || state.keyword
+                          ? clearFilters
+                          : undefined
+                    }
+                    title={isRecommended ? 'No matching jobs yet' : 'No jobs match your search'}
+                  />
+                  {isRecommended ? (
+                    <Button onClick={() => fileInput.current?.click()} sx={{ alignSelf: 'center' }}>
+                      Update resume
+                    </Button>
+                  ) : null}
+                </Stack>
+              )}
+            </Box>
+          </Stack>
+        )}
+
+        {!isRecommended && !isReferralTab ? (
+          <Drawer
+            anchor="bottom"
+            id="candidate-mobile-job-filters"
+            onClose={closeMobileFilters}
+            open={isMobileFiltersOpen}
+            slotProps={{
+              paper: {
+                'aria-label': 'Candidate job filters',
+                sx: {
+                  borderRadius: '20px 20px 0 0',
+                  maxHeight: 'min(85dvh, 720px)',
+                  overflowY: 'auto',
+                  p: { xs: 2, sm: 2.5 },
+                  width: '100%',
+                },
+              },
+            }}
+            sx={{ display: { lg: 'none' } }}
+          >
+            <Stack
+              alignItems="center"
+              direction="row"
+              justifyContent="space-between"
+              sx={{ mb: 2 }}
+            >
+              <Typography component="h2" variant="h3">
+                Filter jobs
+              </Typography>
+              <IconButton aria-label="Close job filters" onClick={closeMobileFilters}>
+                <CloseIcon />
+              </IconButton>
+            </Stack>
+
+            {renderFilterPanel()}
+
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                bgcolor: 'background.paper',
+                bottom: 0,
+                borderTop: 1,
+                borderColor: 'divider',
+                mt: 2,
+                pb: 0.5,
+                pt: 1.5,
+                position: 'sticky',
+              }}
+            >
+              <Button
+                disabled={appliedCount === 0 && !state.keyword}
+                fullWidth
+                onClick={clearFilters}
+                variant="outlined"
+              >
+                Clear all
+              </Button>
+              <Button fullWidth onClick={closeMobileFilters} type="button" variant="contained">
+                Show jobs
+              </Button>
+            </Stack>
+          </Drawer>
+        ) : null}
+      </Stack>
+    </Box>
+  );
+};
+
+========== .\src\pages\CandidateBrowseJobsPage.test.tsx ==========
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
+import {
+  useGetApplicationQuotaQuery,
+  useGetProfileQuery,
+  useGetRecommendedJobsQuery,
+  useGetResumeStatusQuery,
+  useGetMembershipsQuery,
+  useGetNotificationsQuery,
+  useGetSavedJobsQuery,
+  useRemoveSavedJobMutation,
+  useSaveJobMutation,
+  useSubmitApplicationMutation,
+  useUploadResumeMutation,
+  downloadCandidateResume,
+} from '@/features/dashboard/api/dashboardApi';
+import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
+import {
+  fetchJobApplicationUrl,
+  useGetJobFilterOptionsQuery,
+  useGetSupplementalJobFilterCountsQuery,
+  useSearchJobsQuery,
+} from '@/features/jobs/api/jobsApi';
+import {
+  CompanyType,
+  EmploymentType,
+  ExperienceLevel,
+  PostedByType,
+  PublicJobSort,
+  WorkplaceType,
+  type PublicJobFilterOptions,
+  type PublicJobQuery,
+  type PublicJobSummary,
+} from '@/features/jobs/types/jobModels';
+import type { AuthState } from '@/features/auth/store/authSlice';
+import { AdminDashboardLayout } from '@/layouts/AdminDashboardLayout';
+import { UserDashboardLayout } from '@/layouts/UserDashboardLayout';
+import { renderWithProviders } from '@/test/renderWithProviders';
+import { UserRole } from '@/types';
+import { JobCard } from '@/features/jobs/components/JobCard';
+import { CandidateBrowseJobsPage } from './CandidateBrowseJobsPage';
+import { RouteAccessibility } from '@/components/accessibility/RouteAccessibility';
+
+vi.mock('@/features/aiApply/components/AIApplyToJobButton', () => ({
+  AIApplyToJobButton: () => <button type="button">AI Apply</button>,
+}));
+
+vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof JobsApiModule>();
+  return {
+    ...actual,
+    fetchJobApplicationUrl: vi.fn(),
+    useGetJobFilterOptionsQuery: vi.fn(),
+    useGetSupplementalJobFilterCountsQuery: vi.fn(),
+    useSearchJobsQuery: vi.fn(),
+  };
+});
+
+vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof DashboardApiModule>();
+  return {
+    ...actual,
+    useGetApplicationQuotaQuery: vi.fn(),
+    useGetProfileQuery: vi.fn(),
+    useGetRecommendedJobsQuery: vi.fn(),
+    useGetResumeStatusQuery: vi.fn(),
+    useGetMembershipsQuery: vi.fn(),
+    useGetNotificationsQuery: vi.fn(),
+    useGetSavedJobsQuery: vi.fn(),
+    useRemoveSavedJobMutation: vi.fn(),
+    useSaveJobMutation: vi.fn(),
+    useSubmitApplicationMutation: vi.fn(),
+    useUploadResumeMutation: vi.fn(),
+    downloadCandidateResume: vi.fn(),
+  };
+});
+
+const mockSearchJobs = vi.mocked(useSearchJobsQuery);
+const mockFetchJobApplicationUrl = vi.mocked(fetchJobApplicationUrl);
+const mockFilterOptions = vi.mocked(useGetJobFilterOptionsQuery);
+const mockSupplementalCounts = vi.mocked(useGetSupplementalJobFilterCountsQuery);
+const mockQuota = vi.mocked(useGetApplicationQuotaQuery);
+const mockProfile = vi.mocked(useGetProfileQuery);
+const mockRecommended = vi.mocked(useGetRecommendedJobsQuery);
+const mockResumeStatus = vi.mocked(useGetResumeStatusQuery);
+const mockUploadResume = vi.mocked(useUploadResumeMutation);
+const mockMemberships = vi.mocked(useGetMembershipsQuery);
+const mockNotifications = vi.mocked(useGetNotificationsQuery);
+const mockSavedJobs = vi.mocked(useGetSavedJobsQuery);
+const mockSaveJob = vi.mocked(useSaveJobMutation);
+const mockRemoveSavedJob = vi.mocked(useRemoveSavedJobMutation);
+const mockSubmitApplication = vi.mocked(useSubmitApplicationMutation);
+const mockDownloadResume = vi.mocked(downloadCandidateResume);
+const refetchJobs = vi.fn();
+const refetchFilters = vi.fn();
+
+const candidateAuth: AuthState = {
+  accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
+  error: null,
+  isSubmitting: false,
+  status: 'authenticated',
+  user: {
+    email: 'candidate@example.com',
+    firstName: 'Avery',
+    id: 'candidate-id',
+    lastName: 'Patel',
+    role: UserRole.Candidate,
+  },
+};
+
+const job: PublicJobSummary = {
+  categoryId: '22222222-2222-4222-8222-222222222222',
+  categoryName: 'Engineering',
+  companyId: '11111111-1111-4111-8111-111111111111',
+  companyLogoUrl: null,
+  companyName: 'Northstar Labs',
+  companySlug: 'northstar-labs',
+  companyType: CompanyType.Startup,
+  currencyCode: 'INR',
+  department: 'Engineering',
+  educationRequirement: 'B.Tech',
+  employmentType: EmploymentType.FullTime,
+  experienceLevel: ExperienceLevel.Mid,
+  expiresAtUtc: '2099-12-31T00:00:00Z',
+  id: '33333333-3333-4333-8333-333333333333',
+  industry: 'Technology',
+  internshipDurationMonths: null,
+  isFeatured: true,
+  isFlexibleDuration: false,
+  location: 'Pune',
+  maximumExperienceYears: 5,
+  maximumSalary: 2_500_000,
+  minimumExperienceYears: 2,
+  minimumSalary: 1_800_000,
+  postedByType: PostedByType.Company,
+  publishedAtUtc: '2026-07-20T00:00:00Z',
+  referenceNumber: 'JOB-1001',
+  roleCategory: 'Software Development',
+  slug: 'senior-react-engineer',
+  title: 'Senior React Engineer',
+  workplaceType: WorkplaceType.Remote,
+};
+
+const options: PublicJobFilterOptions = {
+  companies: [{ count: 9, id: job.companyId, name: job.companyName }],
+  companyTypes: [
+    { count: 9, value: CompanyType.Startup },
+    { count: 8, value: CompanyType.Corporate },
+    { count: 7, value: CompanyType.IndianMnc },
+    { count: 6, value: CompanyType.ForeignMnc },
+    { count: 5, value: CompanyType.Consultant },
+  ],
+  departments: [
+    { count: 12, value: 'Engineering' },
+    { count: 8, value: 'Design' },
+    { count: 7, value: 'Product' },
+    { count: 6, value: 'Sales' },
+    { count: 5, value: 'Operations' },
+    { count: 4, value: 'Marketing' },
+    { count: 2, value: 'Support' },
+    { count: 1, value: 'Security' },
+  ].map((option) => ({ ...option, label: option.value })),
+  educationRequirements: [
+    { count: 9, value: 'MBA/PGDM' },
+    { count: 8, value: 'Any Postgraduate' },
+    { count: 7, value: 'M.Tech' },
+    { count: 6, value: 'MCA' },
+    { count: 5, value: 'B.Tech', label: 'B.Tech / B.E.' },
+    { count: 4, value: 'Any Graduate' },
+  ].map((option) => ({ ...option, label: option.label ?? option.value })),
+  employmentTypes: [
+    { count: 15, value: EmploymentType.FullTime },
+    { count: 5, value: EmploymentType.Internship },
+  ],
+  experienceRange: { count: 18, maximum: 8, minimum: 0 },
+  industries: [{ count: 10, value: 'Technology' }],
+  internshipDurations: [{ count: 5, isFlexible: false, label: '3 months', months: 3 }],
+  locations: [
+    { count: 12, value: 'Pune' },
+    { count: 11, value: 'bengaluru', label: 'Bengaluru' },
+    { count: 10, value: 'Hyderabad' },
+    { count: 9, value: 'Chennai' },
+    { count: 8, value: 'Delhi / NCR' },
+    { count: 7, value: 'Mumbai (All Areas)' },
+    { count: 3, value: ' pune ' },
+  ].map((option) => ({ ...option, label: option.label ?? option.value })),
+  postedByTypes: [{ count: 16, value: PostedByType.Company }],
+  roleCategories: [
+    { count: 11, value: 'software', label: 'Software Development' },
+    { count: 4, value: 'product', label: 'Product Management - Technology' },
+  ],
+  salaryRange: { count: 16, maximum: 3_000_000, minimum: 100_000 },
+  workModes: [
+    { count: 14, value: WorkplaceType.Remote },
+    { count: 7, value: WorkplaceType.Hybrid },
+    { count: 0, value: WorkplaceType.OnSite },
+  ],
+};
+
+const queryResult = <T,>(data: T | undefined, overrides: Record<string, unknown> = {}) =>
+  ({
+    data,
+    currentData: data,
+    error: undefined,
+    isError: false,
+    isFetching: false,
+    isLoading: false,
+    refetch: vi.fn(),
+    ...overrides,
+  }) as unknown;
+
+const mutationResult = () => {
+  const unwrap = vi.fn().mockResolvedValue(undefined);
+  const trigger = vi.fn(() => ({ unwrap }));
+  return [trigger, { isLoading: false }] as const;
+};
+
+const LocationProbe = () => {
+  const location = useLocation();
+  return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;
+};
+
+const renderPage = (initialEntry = '/dashboard/jobs', withRouteAccessibility = false) => {
+  const pageRoutes = [
+    {
+      path: '/dashboard/jobs',
+      element: (
+        <>
+          <CandidateBrowseJobsPage />
+          <LocationProbe />
+        </>
+      ),
+    },
+  ];
+  const router = createMemoryRouter(
+    withRouteAccessibility
+      ? [
+          {
+            element: <RouteAccessibility />,
+            children: [
+              { ...pageRoutes[0], element: <main>{pageRoutes[0]?.element}</main> },
+              {
+                path: '/focus-destination',
+                element: (
+                  <main>
+                    <h1>Destination page</h1>
+                  </main>
+                ),
+              },
+            ],
+          },
+        ]
+      : pageRoutes,
+    { initialEntries: [initialEntry] },
+  );
+  return {
+    ...renderWithProviders(<RouterProvider router={router} />, { auth: candidateAuth }),
+    router,
+  };
+};
+
+it('keeps Browse Jobs card content and logo geometry at a 360px viewport', () => {
+  const previousWidth = window.innerWidth;
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: 360 });
+  try {
+    mockSearchJobs.mockReturnValue(
+      queryResult({
+        items: [{ ...job, companyLogoUrl: 'https://assets.example.test/northstar.png' }],
+        pageNumber: 1,
+        pageSize: 10,
+        totalCount: 1,
+        totalPages: 1,
+      }) as ReturnType<typeof useSearchJobsQuery>,
+    );
+    renderPage();
+    const image = screen.getByRole('img', { name: 'Northstar Labs logo' });
+    expect(image).toHaveAttribute('loading', 'lazy');
+    expect(image.parentElement).toHaveStyle({ width: '52px', height: '52px', flexShrink: '0' });
+    expect(image.parentElement).toHaveStyle({
+      'background-color': 'rgba(0, 0, 0, 0)',
+      'border-radius': '0',
+      'max-width': '100%',
+    });
+    expect(screen.getByRole('article')).toHaveStyle({
+      minWidth: '0',
+      display: 'flex',
+      flexDirection: 'column',
+    });
+    expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Apply manually' })).toBeVisible();
+    fireEvent.error(image);
+    expect(screen.getByRole('img', { name: 'Northstar Labs initials' })).toHaveTextContent('NL');
+    expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+  } finally {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: previousWidth });
+  }
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockSearchJobs.mockReturnValue(
+    queryResult(
+      { items: [job], pageNumber: 1, pageSize: 10, totalCount: 1, totalPages: 1 },
+      { refetch: refetchJobs },
+    ) as ReturnType<typeof useSearchJobsQuery>,
+  );
+  mockFilterOptions.mockReturnValue(
+    queryResult(options, { refetch: refetchFilters }) as ReturnType<
+      typeof useGetJobFilterOptionsQuery
+    >,
+  );
+  mockSupplementalCounts.mockReturnValue(
+    queryResult({
+      featured: 6,
+      freshness: { 1: 3, 3: 7, 7: 12, 15: 16, 30: 20 },
+    }) as ReturnType<typeof useGetSupplementalJobFilterCountsQuery>,
+  );
+  mockQuota.mockReturnValue(
+    queryResult({
+      isPremium: false,
+      limit: 10,
+      plan: 'Free',
+      remainingApplications: 7,
+      resetsAtUtc: '2026-08-31T00:00:00Z',
+      usedApplications: 3,
+    }) as ReturnType<typeof useGetApplicationQuotaQuery>,
+  );
+  mockProfile.mockReturnValue(
+    queryResult({ resume: null }) as ReturnType<typeof useGetProfileQuery>,
+  );
+  mockResumeStatus.mockReturnValue(
+    queryResult(
+      { extractedAtUtc: null, extractionStatus: 0, hasResume: false, message: 'Upload a resume.' },
+      { fulfilledTimeStamp: Date.now() },
+    ) as ReturnType<typeof useGetResumeStatusQuery>,
+  );
+  mockRecommended.mockReturnValue(
+    queryResult({
+      extractionStatus: 2,
+      items: [],
+      message: '',
+      pageNumber: 1,
+      pageSize: 20,
+      totalCount: 0,
+      totalPages: 0,
+    }) as ReturnType<typeof useGetRecommendedJobsQuery>,
+  );
+  mockUploadResume.mockReturnValue(
+    mutationResult() as unknown as ReturnType<typeof useUploadResumeMutation>,
+  );
+  mockMemberships.mockReturnValue(queryResult([]) as ReturnType<typeof useGetMembershipsQuery>);
+  mockNotifications.mockReturnValue(
+    queryResult({
+      items: [],
+      pageNumber: 1,
+      pageSize: 1,
+      totalCount: 0,
+      totalPages: 0,
+      unreadCount: 0,
+    }) as ReturnType<typeof useGetNotificationsQuery>,
+  );
+  mockDownloadResume.mockResolvedValue(new Blob(['resume'], { type: 'application/pdf' }));
+  mockSavedJobs.mockReturnValue(
+    queryResult({
+      items: [],
+      pageNumber: 1,
+      pageSize: 100,
+      totalCount: 0,
+      totalPages: 0,
+    }) as ReturnType<typeof useGetSavedJobsQuery>,
+  );
+  mockSaveJob.mockReturnValue(mutationResult() as unknown as ReturnType<typeof useSaveJobMutation>);
+  mockRemoveSavedJob.mockReturnValue(
+    mutationResult() as unknown as ReturnType<typeof useRemoveSavedJobMutation>,
+  );
+  mockFetchJobApplicationUrl.mockResolvedValue(
+    'https://careers.example.com/jobs/senior-react-engineer',
+  );
+  mockSubmitApplication.mockReturnValue(
+    mutationResult() as unknown as ReturnType<typeof useSubmitApplicationMutation>,
+  );
+});
+
+afterEach(() => vi.useRealTimers());
+
+describe('Candidate Browse jobs', () => {
+  it('restores cross-facet selections from shared URLs and synchronizes chips, back and forward', async () => {
+    const { router } = renderPage(
+      '/dashboard/jobs?roleCategories=software&locations=Pune&departments=Engineering&educationRequirements=B.Tech&page=3',
+    );
+    for (const name of [
+      'Software Development, 11 jobs',
+      'Pune, 12 jobs',
+      'Engineering, 12 jobs',
+      'B.Tech / B.E., 5 jobs',
+    ]) {
+      expect(screen.getByRole('checkbox', { name })).toBeChecked();
+    }
+    expect(mockFilterOptions.mock.calls.at(-1)?.[0]).toMatchObject({
+      roleCategories: ['software'],
+      locations: ['Pune'],
+      departments: ['Engineering'],
+      educationRequirements: ['B.Tech'],
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Hyderabad, 10 jobs' }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      locations: ['Pune', 'Hyderabad'],
+      roleCategories: ['software'],
+      pageNumber: 1,
+    });
+    const params = new URLSearchParams(router.state.location.search);
+    expect(params.getAll('locations')).toEqual(['Pune', 'Hyderabad']);
+    expect(params.has('page')).toBe(false);
+    await userEvent.click(screen.getByLabelText('Software Development. Remove filter'));
+    expect(
+      screen.getByRole('checkbox', { name: 'Software Development, 11 jobs' }),
+    ).not.toBeChecked();
+    expect(
+      (mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).roleCategories,
+    ).toBeUndefined();
+    await act(() => router.navigate(-1));
+    expect(screen.getByRole('checkbox', { name: 'Software Development, 11 jobs' })).toBeChecked();
+    await act(() => router.navigate(1));
+    expect(
+      screen.getByRole('checkbox', { name: 'Software Development, 11 jobs' }),
+    ).not.toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(router.state.location.search).toBe('?mode=all');
+    expect(screen.queryByLabelText('Active filters')).not.toBeInTheDocument();
+  });
+
+  it('preserves existing facets while refetching and does not depend on supplemental counts', () => {
+    mockFilterOptions.mockReturnValue(
+      queryResult(options, { isFetching: true }) as ReturnType<typeof useGetJobFilterOptionsQuery>,
+    );
+    mockSupplementalCounts.mockReturnValue(
+      queryResult(undefined, { isError: true }) as ReturnType<
+        typeof useGetSupplementalJobFilterCountsQuery
+      >,
+    );
+    renderPage();
+    expect(screen.getByText('Updating filtersâ€¦')).toBeVisible();
+    expect(screen.getByRole('checkbox', { name: 'Pune, 12 jobs' })).toBeEnabled();
+    expect(screen.getByText('Pune')).toBeVisible();
+    expect(screen.getByRole('radio', { name: 'Last 24 hours' })).toBeEnabled();
+    expect(screen.getByText('Last 24 hours')).toBeVisible();
+    expect(screen.queryByLabelText('Loading job filters')).not.toBeInTheDocument();
+    expect(screen.getByText(job.title)).toBeVisible();
+  });
+
+  it('hides empty string facets without hiding job results', () => {
+    mockFilterOptions.mockReturnValue(
+      queryResult({
+        ...options,
+        roleCategories: [],
+        locations: [],
+        departments: [],
+        educationRequirements: [],
+      }) as ReturnType<typeof useGetJobFilterOptionsQuery>,
+    );
+    renderPage();
+    for (const name of ['Role category', 'Location', 'Department', 'Education'])
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    expect(screen.queryByText('No options available.')).not.toBeInTheDocument();
+    expect(screen.getByText(job.title)).toBeVisible();
+  });
+
+  it('keeps date filtering contextual and resets pagination', async () => {
+    renderPage('/dashboard/jobs?roleCategories=software&page=4');
+    await userEvent.click(screen.getByRole('radio', { name: 'Last 24 hours (3)' }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      freshnessDays: 1,
+      roleCategories: ['software'],
+      pageNumber: 1,
+    });
+    expect(mockFilterOptions.mock.calls.at(-1)?.[0]).toMatchObject({
+      freshnessDays: 1,
+      roleCategories: ['software'],
+    });
+  });
+  it.each([
+    { score: 92, color: 'Success' },
+    { score: 74, color: 'Info' },
+    { score: 58, color: 'Warning' },
+  ])('shows one $score% badge without inventing empty match reasons', ({ score, color }) => {
+    renderWithProviders(
+      <RouterProvider
+        router={createMemoryRouter([
+          {
+            path: '/',
+            element: <JobCard compact job={job} match={{ matchScore: score, matchReasons: [] }} />,
+          },
+        ])}
+      />,
+    );
+    expect(screen.getAllByText(`${score}% Match`)).toHaveLength(1);
+    expect(screen.getByText(`${score}% Match`).closest('.MuiChip-root')).toHaveClass(
+      `MuiChip-color${color}`,
+    );
+    expect(
+      screen.queryByRole('list', { name: 'Why this job matches you' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: job.title })).toBeVisible();
+  });
+
+  it('keeps selected facets in the URL and renders exact backend counts', async () => {
+    renderPage('/dashboard/jobs?workMode=remote&page=2');
+
+    expect(screen.getByRole('checkbox', { name: 'Remote, 14 jobs' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Last 24 hours (3)' })).toBeInTheDocument();
+    expect(screen.getByText('Applied (1)')).toBeVisible();
+    expect(screen.queryByText(/applications:.*used/)).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Pune, 12 jobs' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Security, 1 jobs' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'View more department' })).toBeVisible();
+    expect(mockSearchJobs.mock.calls[0]?.[0]).toMatchObject({
+      pageNumber: 2,
+      workModes: [WorkplaceType.Remote],
+    });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Hybrid, 7 jobs' }));
+    await waitFor(() => {
+      const location = screen.getByTestId('location').textContent ?? '';
+      expect(location).toContain('workMode=remote');
+      expect(location).toContain('workMode=hybrid');
+      expect(location).not.toContain('page=2');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(await screen.findByTestId('location')).toHaveTextContent('/dashboard/jobs?mode=all');
+  });
+
+  it('debounces keyword search into shareable URL state', async () => {
+    renderPage();
+    vi.useFakeTimers();
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' }),
+      {
+        target: { value: 'react' },
+      },
+    );
+    await act(() => vi.advanceTimersByTimeAsync(400));
+    vi.useRealTimers();
+    expect(screen.getByTestId('location')).toHaveTextContent('q=react');
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      keyword: 'react',
+      pageNumber: 1,
+    });
+  });
+
+  it('uses one shared 54px height for every search-row control', () => {
+    renderPage();
+
+    ['job-search-keyword', 'job-search-location', 'job-search-submit'].forEach((testId) => {
+      expect(screen.getByTestId(testId)).toHaveAttribute('data-control-height', '54');
+    });
+  });
+
+  it('uses backend role values for multi-select and removes stale company-name state', async () => {
+    renderPage('/dashboard/jobs?page=3&companyName=HARMAN');
+    expect(screen.queryByRole('checkbox', { name: /Northstar Labs/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Company' })).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).not.toHaveTextContent('companyName=HARMAN'),
+    );
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Software Development, 11 jobs' }));
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: 'Product Management - Technology, 4 jobs' }),
+    );
+    await waitFor(
+      () => {
+        const location = screen.getByTestId('location').textContent ?? '';
+        expect(location).toContain('roleCategories=software');
+        expect(location).toContain('roleCategories=product');
+        expect(location).not.toContain('page=3');
+      },
+      { timeout: 4_000 },
+    );
+    expect(screen.getByLabelText('Software Development. Remove filter')).toBeVisible();
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      roleCategories: ['software', 'product'],
+      pageNumber: 1,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters (2)' }));
+    const mobileFilters = screen.getByLabelText('Candidate job filters');
+    expect(
+      within(mobileFilters).getByRole('checkbox', { name: 'Software Development, 11 jobs' }),
+    ).toBeChecked();
+    expect(within(mobileFilters).queryByRole('textbox', { name: 'Company name' })).toBeNull();
+  });
+
+  it('opens and closes the responsive filter drawer', async () => {
+    renderPage();
+    const filterTrigger = screen.getByRole('button', { name: 'Filters' });
+    await userEvent.click(filterTrigger);
+    const drawer = screen.getByLabelText('Candidate job filters');
+    expect(drawer).toBeVisible();
+    expect(drawer.querySelectorAll('[data-filter-group]')).toHaveLength(9);
+    expect(screen.getByRole('button', { name: 'Show jobs' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Show jobs' }));
+    expect(screen.getByRole('button', { hidden: true, name: 'Filters' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    await waitFor(() => expect(filterTrigger).toHaveFocus());
+  });
+
+  it('renders the redesigned filter groups and supports individual removal and Clear all', async () => {
+    renderPage('/dashboard/jobs?workMode=remote&department=Engineering');
+
+    const panel = screen.getByTestId('candidate-job-filter-groups');
+    expect(
+      Array.from(panel.querySelectorAll('[data-filter-group]')).map((group) =>
+        group.getAttribute('data-filter-group'),
+      ),
+    ).toEqual([
+      'Date posted',
+      'Experience',
+      'Work mode',
+      'Salary',
+      'Company type',
+      'Role category',
+      'Location',
+      'Department',
+      'Education',
+    ]);
+    ['Date posted', 'Experience', 'Work mode', 'Salary'].forEach((name) =>
+      expect(within(panel).getByRole('button', { name })).toHaveAttribute('aria-expanded', 'true'),
+    );
+    [
+      'Company',
+      'Job type',
+      'Featured',
+      'Internship duration',
+      'Category',
+      'Posted by',
+      'Industry',
+    ].forEach((name) => expect(within(panel).queryByRole('button', { name })).toBeNull());
+
+    await userEvent.click(screen.getByLabelText('Remote. Remove filter'));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).not.toHaveTextContent('workMode=remote'),
+    );
+    expect(screen.getByTestId('location')).toHaveTextContent('departments=Engineering');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).not.toHaveTextContent('departments=Engineering'),
+    );
+  });
+
+  it('commits accessible experience and annual-salary sliders using backend units', async () => {
+    renderPage('/dashboard/jobs?page=3');
+    const maximumExperience = screen.getByRole('slider', { name: 'Maximum experience' });
+    const minimumSalary = screen.getByRole('slider', { name: 'Minimum annual salary' });
+
+    expect(maximumExperience).toHaveAttribute('aria-valuemax', '45');
+    expect(maximumExperience).toHaveAttribute('aria-valuetext', '45+ years');
+    expect(minimumSalary).toHaveAttribute('aria-valuemin', '0');
+    expect(screen.getByText('â‚¹50+ LPA')).toBeVisible();
+
+    const experienceSlider = maximumExperience.closest('.MuiSlider-root');
+    expect(experienceSlider).not.toBeNull();
+    vi.spyOn(experienceSlider!, 'getBoundingClientRect').mockReturnValue({
+      bottom: 20,
+      height: 20,
+      left: 0,
+      right: 100,
+      top: 0,
+      width: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent.mouseDown(experienceSlider!, { button: 0, clientX: 80 });
+    expect(
+      (mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).maxExperienceYears,
+    ).toBeUndefined();
+    fireEvent.mouseUp(document, { clientX: 80 });
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('maxExperience=36'),
+    );
+    expect(screen.getByTestId('location')).not.toHaveTextContent('page=3');
+
+    const salarySlider = minimumSalary.closest('.MuiSlider-root');
+    expect(salarySlider).not.toBeNull();
+    vi.spyOn(salarySlider!, 'getBoundingClientRect').mockReturnValue({
+      bottom: 20,
+      height: 20,
+      left: 0,
+      right: 100,
+      top: 0,
+      width: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent.mouseDown(salarySlider!, { button: 0, clientX: 10 });
+    expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).minAmount).toBeUndefined();
+    fireEvent.mouseUp(document, { clientX: 10 });
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('minAmount=500000'),
+    );
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ minAmount: 500_000 });
+    expect(screen.getByLabelText('Salary: â‚¹5â€“â‚¹50+ LPA. Remove filter')).toBeVisible();
+  });
+
+  it('treats the experience and salary UI upper endpoints as unbounded', async () => {
+    renderPage('/dashboard/jobs?maxExperience=45&maxAmount=5000000');
+
+    await waitFor(() => {
+      const location = screen.getByTestId('location').textContent ?? '';
+      expect(location).not.toContain('maxExperience');
+      expect(location).not.toContain('maxAmount');
+    });
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      maxAmount: undefined,
+      maxExperienceYears: undefined,
+    });
+  });
+
+  it('uses temporary View more selections and applies them once', async () => {
+    renderPage();
+    const viewMore = screen.getByRole('button', { name: 'View more department' });
+
+    await userEvent.click(viewMore);
+    let dialog = screen.getByRole('dialog', { name: 'Select departments' });
+    await userEvent.type(
+      within(dialog).getByRole('textbox', { name: 'Search departments' }),
+      'Marketing',
+    );
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Marketing, 4 jobs' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByTestId('location')).not.toHaveTextContent('departments=Marketing');
+
+    await userEvent.click(viewMore);
+    dialog = screen.getByRole('dialog', { name: 'Select departments' });
+    await userEvent.type(
+      within(dialog).getByRole('textbox', { name: 'Search departments' }),
+      'Marketing',
+    );
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Marketing, 4 jobs' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Apply' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('departments=Marketing'),
+    );
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ departments: ['Marketing'] });
+    await waitFor(() => expect(viewMore).toHaveFocus());
+  });
+
+  it('renders backend location and education labels without changing query values or summing counts', async () => {
+    renderPage();
+    const locationGroup = screen.getByRole('button', { name: 'Location' });
+    expect(locationGroup).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('checkbox', { name: 'Bengaluru, 11 jobs' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Pune, 12 jobs' })).toBeInTheDocument();
+
+    const educationGroup = screen.getByRole('button', { name: 'Education' });
+    expect(educationGroup).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('checkbox', { name: 'B.Tech / B.E., 5 jobs' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'B.Tech / B.E., 5 jobs' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('educationRequirements=B.Tech'),
+    );
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      educationRequirements: ['B.Tech'],
+    });
+  });
+
+  it('cleans every removed filter parameter without reintroducing removed chips', async () => {
+    renderPage(
+      '/dashboard/jobs?companyName=HARMAN&employmentType=internship&featured=true&duration=3&flexibleDuration=true&roleCategory=Software&postedBy=company&industry=Technology',
+    );
+
+    await waitFor(() => {
+      const location = screen.getByTestId('location').textContent ?? '';
+      [
+        'companyName',
+        'featured',
+        'duration',
+        'flexibleDuration',
+        'roleCategory',
+        'postedBy',
+        'industry',
+      ].forEach((name) => expect(location).not.toContain(name));
+    });
+    expect(screen.queryByLabelText(/Company: HARMAN.*Remove filter/)).toBeNull();
+    expect(screen.queryByLabelText(/Featured.*Remove filter/)).toBeNull();
+  });
+
+  it('renders loading, retryable error, and empty result states', async () => {
+    mockSearchJobs.mockReturnValue(
+      queryResult(undefined, { isLoading: true }) as ReturnType<typeof useSearchJobsQuery>,
+    );
+    const loading = renderPage();
+    expect(screen.getByLabelText('Loading Candidate jobs')).toBeVisible();
+    loading.unmount();
+
+    mockSearchJobs.mockReturnValue(
+      queryResult(undefined, { isError: true, refetch: refetchJobs }) as ReturnType<
+        typeof useSearchJobsQuery
+      >,
+    );
+    const failed = renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(refetchJobs).toHaveBeenCalledOnce();
+    failed.unmount();
+
+    mockSearchJobs.mockReturnValue(
+      queryResult({
+        items: [],
+        pageNumber: 1,
+        pageSize: 10,
+        totalCount: 0,
+        totalPages: 0,
+      }) as ReturnType<typeof useSearchJobsQuery>,
+    );
+    renderPage('/dashboard/jobs?q=missing');
+    expect(screen.getByText('No jobs match your search')).toBeVisible();
+  });
+
+  it('keeps results usable while facet loading and errors are handled separately', async () => {
+    mockFilterOptions.mockReturnValue(
+      queryResult(undefined, { isLoading: true }) as ReturnType<typeof useGetJobFilterOptionsQuery>,
+    );
+    const loading = renderPage();
+    expect(screen.getByLabelText('Loading job filters')).toBeVisible();
+    expect(screen.getByText(job.title)).toBeVisible();
+    loading.unmount();
+
+    mockFilterOptions.mockReturnValue(
+      queryResult(undefined, { isError: true, refetch: refetchFilters }) as ReturnType<
+        typeof useGetJobFilterOptionsQuery
+      >,
+    );
+    renderPage();
+    expect(screen.getByText(job.title)).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(refetchFilters).toHaveBeenCalledOnce();
+  });
+
+  it('hides the optional quota indicator when the quota endpoint is unavailable', () => {
+    mockQuota.mockReturnValue(
+      queryResult(undefined, { isError: true }) as ReturnType<typeof useGetApplicationQuotaQuery>,
+    );
+
+    renderPage();
+
+    expect(screen.getByText(job.title)).toBeVisible();
+    expect(screen.queryByText(/applications:.*used/i)).toBeNull();
+    expect(screen.queryByText(/quota is unavailable/i)).toBeNull();
+  });
+
+  it('uses the real saved-job and application actions', async () => {
+    const saveMutation = mutationResult();
+    const applicationMutation = mutationResult();
+    mockSaveJob.mockReturnValue(saveMutation as unknown as ReturnType<typeof useSaveJobMutation>);
+    mockSubmitApplication.mockReturnValue(
+      applicationMutation as unknown as ReturnType<typeof useSubmitApplicationMutation>,
+    );
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderPage();
+
+    await userEvent.click(screen.getByRole('button', { name: `Save ${job.title}` }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply manually' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to company website' }));
+    expect(saveMutation[0]).toHaveBeenCalledWith(job.id);
+    expect(mockFetchJobApplicationUrl).toHaveBeenCalledWith(job.slug);
+    await waitFor(() =>
+      expect(applicationMutation[0]).toHaveBeenCalledWith({
+        applicationMethod: 'External',
+        jobId: job.id,
+      }),
+    );
+    await waitFor(() => expect(screen.queryByText(job.title)).not.toBeInTheDocument());
+    expect(open).toHaveBeenCalledWith(
+      'https://careers.example.com/jobs/senior-react-engineer',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    open.mockRestore();
+  });
+
+  it('shows Browse jobs only in the Candidate dashboard navigation', () => {
+    const candidateRouter = createMemoryRouter(
+      [
+        {
+          path: '/dashboard',
+          element: <UserDashboardLayout />,
+          children: [{ index: true, element: <p>Dashboard</p> }],
+        },
+      ],
+      { initialEntries: ['/dashboard'] },
+    );
+    const candidateView = renderWithProviders(<RouterProvider router={candidateRouter} />, {
+      auth: candidateAuth,
+    });
+    expect(screen.getAllByRole('link', { name: 'Browse jobs' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Applied jobs' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: 'Resume' })).toBeNull();
+    expect(mockNotifications).toHaveBeenCalledWith(
+      { pageNumber: 1, pageSize: 1 },
+      { pollingInterval: 60000, refetchOnMountOrArgChange: true },
+    );
+    candidateView.unmount();
+
+    const adminRouter = createMemoryRouter(
+      [
+        {
+          path: '/admin',
+          element: <AdminDashboardLayout />,
+          children: [{ index: true, element: <p>Admin</p> }],
+        },
+      ],
+      { initialEntries: ['/admin'] },
+    );
+    renderWithProviders(<RouterProvider router={adminRouter} />, {
+      auth: { ...candidateAuth, user: { ...candidateAuth.user!, role: UserRole.Administrator } },
+    });
+    expect(screen.queryByRole('link', { name: 'Browse jobs' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Applied jobs' })).toBeNull();
+  });
+
+  it('renders all five modes in order and maps them to backend query fields', async () => {
+    renderPage('/dashboard/jobs?page=3');
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'All jobs',
+      'Referral jobs',
+      'Resume matches',
+      'Internships',
+      'Fresher',
+      'Experienced',
+    ]);
+    expect(screen.getByRole('tab', { name: 'All jobs' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Resume matches' })).toBeDisabled();
+    expect(screen.queryByRole('tab', { name: 'Recommended for you' })).toBeNull();
+    expect(screen.queryByText(/Your resume helps us suggest roles/i)).toBeNull();
+    expect(
+      screen.queryByText(
+        'Search and filters apply to All jobs. Recommended jobs are ranked from your resume.',
+      ),
+    ).toBeNull();
+    expect(
+      screen.getByRole('link', { name: `View details for ${job.title} at ${job.companyName}` }),
+    ).toBeVisible();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Internships' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('mode=internships'),
+    );
+    expect(screen.getByTestId('location')).not.toHaveTextContent('page=3');
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      employmentTypes: [EmploymentType.Internship],
+      pageNumber: 1,
+    });
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Fresher' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('mode=fresher'));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      maxExperienceYears: 1,
+      minExperienceYears: 0,
+      pageNumber: 1,
+    });
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Experienced' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('mode=experienced'),
+    );
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      minExperienceYears: 2,
+      pageNumber: 1,
+    });
+    expect(
+      (mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).maxExperienceYears,
+    ).toBeUndefined();
+  });
+
+  it('restores Fresher and Experienced query mappings from URL mode state', () => {
+    const fresher = renderPage('/dashboard/jobs?mode=fresher');
+    expect(screen.getByRole('tab', { name: 'Fresher' })).toHaveAttribute('aria-selected', 'true');
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      maxExperienceYears: 1,
+      minExperienceYears: 0,
+    });
+    fresher.unmount();
+
+    renderPage('/dashboard/jobs?mode=experienced');
+    expect(screen.getByRole('tab', { name: 'Experienced' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ minExperienceYears: 2 });
+  });
+
+  it('collapses and restores the desktop filters without clearing selected values', async () => {
+    renderPage('/dashboard/jobs?workMode=remote');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Collapse job filters' }));
+    const expand = screen.getByRole('button', { name: 'Expand job filters' });
+    expect(expand).toHaveTextContent('Filters (1)');
+    expect(screen.getByText(job.title)).toBeVisible();
+
+    await userEvent.click(expand);
+    expect(screen.getByRole('checkbox', { name: 'Remote, 14 jobs' })).toBeChecked();
+  });
+
+  it('does not announce a zero result count while jobs are loading', () => {
+    mockSearchJobs.mockReturnValue(
+      queryResult(undefined, { isLoading: true }) as ReturnType<typeof useSearchJobsQuery>,
+    );
+
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: 'Finding jobsâ€¦' })).toBeVisible();
+    expect(screen.queryByText(/0 (active )?jobs/i)).toBeNull();
+  });
+  it('submits keyword and location immediately, preserves Experienced mode and cancels debounce', async () => {
+    renderPage('/dashboard/jobs?mode=experienced&page=3');
+    vi.useFakeTimers();
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' }),
+      { target: { value: 'pwc' } },
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Location' }), {
+      target: { value: 'Pune' },
+    });
+    fireEvent.submit(screen.getByRole('search'));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      keyword: 'pwc',
+      locations: ['Pune'],
+      minExperienceYears: 2,
+      pageNumber: 1,
+    });
+    const url = screen.getByTestId('location').textContent;
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    expect(screen.getByTestId('location').textContent).toBe(url);
+    expect(refetchJobs).not.toHaveBeenCalled();
+  });
+
+  it('debounces both inputs including single-character searches', async () => {
+    renderPage();
+    vi.useFakeTimers();
+    const keyword = screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' });
+    fireEvent.change(keyword, { target: { value: 'R' } });
+    await act(() => vi.advanceTimersByTimeAsync(400));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'R' });
+    expect(screen.getByTestId('location')).toHaveTextContent('q=R');
+    fireEvent.change(keyword, { target: { value: 'react' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Location' }), {
+      target: { value: 'Pune' },
+    });
+    await act(() => vi.advanceTimersByTimeAsync(349));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'R' });
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      keyword: 'react',
+      locations: ['Pune'],
+    });
+  });
+
+  it('restores search drafts on Back and cancels typing started before navigation', async () => {
+    const { router } = renderPage('/dashboard/jobs?q=pwc&locations=Pune');
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' }),
+      { target: { value: 'react' } },
+    );
+    fireEvent.submit(screen.getByRole('search'));
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Location' }), {
+      target: { value: 'Mumbai' },
+    });
+    await act(() => router.navigate(-1));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    expect(
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' }),
+    ).toHaveValue('pwc');
+    expect(screen.getByRole('textbox', { name: 'Location' })).toHaveValue('Pune');
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      keyword: 'pwc',
+      locations: ['Pune'],
+    });
+  });
+
+  it('normalizes disabled Resume Matches URLs to All jobs', () => {
+    renderPage('/dashboard/jobs?mode=recommended&q=react');
+    expect(screen.getByRole('tab', { name: 'Resume matches' })).toBeDisabled();
+    expect(screen.getByTestId('location')).toHaveTextContent('mode=all');
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'react' });
+  });
+  it('Enter submits immediately and chip removal clears the input and query', async () => {
+    renderPage('/dashboard/jobs?page=3');
+    const input = screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' });
+    fireEvent.change(input, { target: { value: 'pwc' } });
+    input.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'pwc', pageNumber: 1 });
+    fireEvent.click(screen.getByLabelText('Search: pwc. Remove filter'));
+    expect(input).toHaveValue('');
+    expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).keyword).toBeUndefined();
+  });
+
+  it('keeps server counts and search filters while paging', async () => {
+    mockSearchJobs.mockReturnValue(
+      queryResult({ items: [job], totalCount: 222, totalPages: 23 }) as ReturnType<
+        typeof useSearchJobsQuery
+      >,
+    );
+    renderPage('/dashboard/jobs?q=react&locations=Pune&freshness=7');
+    expect(screen.getByRole('heading', { name: '222 jobs found' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      keyword: 'react',
+      locations: ['Pune'],
+      freshnessDays: 7,
+      pageNumber: 2,
+    });
+  });
+
+  it('shows searching instead of a stale count during refetch', () => {
+    mockSearchJobs.mockReturnValue(
+      queryResult(
+        { items: [job], totalCount: 222, totalPages: 23 },
+        { isFetching: true },
+      ) as ReturnType<typeof useSearchJobsQuery>,
+    );
+    renderPage('/dashboard/jobs?q=react');
+    expect(screen.getByRole('heading', { name: 'Finding jobsâ€¦' })).toBeVisible();
+    expect(screen.queryByText('222 jobs found')).toBeNull();
+    expect(screen.getByText(job.title)).toBeVisible();
+  });
+  it('applies date and sort immediately, resetting page and preserving search', () => {
+    renderPage('/dashboard/jobs?q=react&locations=Pune&page=3');
+    fireEvent.click(screen.getByRole('radio', { name: 'Last 7 days (12)' }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      keyword: 'react',
+      locations: ['Pune'],
+      freshnessDays: 7,
+      pageNumber: 1,
+    });
+    fireEvent.mouseDown(screen.getByRole('combobox'));
+    fireEvent.click(screen.getByRole('option', { name: 'Latest published' }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      freshnessDays: 7,
+      sortBy: PublicJobSort.LatestPublished,
+      pageNumber: 1,
+    });
+    expect(screen.getByTestId('location')).toHaveTextContent('sort=latest');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/dashboard/jobs?mode=all');
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      sortBy: PublicJobSort.Recommended,
+      pageNumber: 1,
+    });
+  });
+  it.each([
+    ['Work mode', 'Remote, 14 jobs', { workModes: [WorkplaceType.Remote] }, 'workMode=remote'],
+    ['Location', 'Pune, 12 jobs', { locations: ['Pune'] }, 'locations=Pune'],
+    [
+      'Role category',
+      'Software Development, 11 jobs',
+      { roleCategories: ['software'] },
+      'roleCategories=software',
+    ],
+    [
+      'Department',
+      'Engineering, 12 jobs',
+      { departments: ['Engineering'] },
+      'departments=Engineering',
+    ],
+    [
+      'Education',
+      'B.Tech / B.E., 5 jobs',
+      { educationRequirements: ['B.Tech'] },
+      'educationRequirements=B.Tech',
+    ],
+  ])('applies the %s server filter immediately', (group, label, query, url) => {
+    renderPage('/dashboard/jobs?q=react&page=3');
+    fireEvent.click(screen.getByRole('button', { name: group }));
+    fireEvent.click(screen.getByRole('checkbox', { name: label }));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      ...(query as object),
+      keyword: 'react',
+      pageNumber: 1,
+    });
+    expect(screen.getByTestId('location')).toHaveTextContent(url);
+    expect(screen.getByTestId('location')).not.toHaveTextContent('page=3');
+  });
+  it('preserves pending drafts when a date filter applies before debounce', async () => {
+    renderPage();
+    vi.useFakeTimers();
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' }),
+      { target: { value: 'react' } },
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Location' }), {
+      target: { value: 'Pune' },
+    });
+    fireEvent.click(screen.getByRole('radio', { name: 'Last 7 days (12)' }));
+    expect(screen.getByRole('textbox', { name: 'Location' })).toHaveValue('Pune');
+    await act(() => vi.advanceTimersByTimeAsync(350));
+    expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+      keyword: 'react',
+      locations: ['Pune'],
+      freshnessDays: 7,
+      pageNumber: 1,
+    });
+  });
+  describe('draft keyword regression', () => {
+    const keywordInput = () =>
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' });
+
+    it('keeps every character of software and applies only the final settled keyword', async () => {
+      renderPage();
+      vi.useFakeTimers();
+      for (let length = 1; length <= 'software'.length; length += 1) {
+        const draft = 'software'.slice(0, length);
+        fireEvent.change(keywordInput(), { target: { value: draft } });
+        expect(keywordInput()).toHaveValue(draft);
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Search jobs');
+        expect(screen.getByText(job.title)).toBeVisible();
+        await act(() => vi.advanceTimersByTimeAsync(40));
+        expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).keyword).toBeUndefined();
+      }
+      await act(() => vi.advanceTimersByTimeAsync(309));
+      expect(screen.getByTestId('location')).not.toHaveTextContent('q=software');
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(keywordInput()).toHaveValue('software');
+      const keywords = mockSearchJobs.mock.calls
+        .map(([arg]) => (arg as PublicJobQuery).keyword)
+        .filter(Boolean);
+      expect(new Set(keywords)).toEqual(new Set(['software']));
+      expect(screen.getByTestId('location')).toHaveTextContent('q=software');
+    });
+
+    it.each(['C#', 'C++', 'R', 'Go', 'AI', 'QA'])(
+      'debounces the valid short search %s',
+      async (keyword) => {
+        renderPage();
+        vi.useFakeTimers();
+        fireEvent.change(keywordInput(), { target: { value: keyword } });
+        await act(() => vi.advanceTimersByTimeAsync(350));
+        expect(keywordInput()).toHaveValue(keyword);
+        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword, pageNumber: 1 });
+        expect(
+          new URLSearchParams(screen.getByTestId('location').textContent?.split('?')[1]).get('q'),
+        ).toBe(keyword);
+      },
+    );
+
+    it('keeps react applied and its results while python is still a draft', async () => {
+      renderPage('/dashboard/jobs?q=react');
+      vi.useFakeTimers();
+      fireEvent.change(keywordInput(), { target: { value: 'python' } });
+      await act(() => vi.advanceTimersByTimeAsync(349));
+      expect(keywordInput()).toHaveValue('python');
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'react' });
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Search jobs');
+      expect(screen.getByText(job.title)).toBeVisible();
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'python' });
+    });
+
+    it.each(['button', 'Enter'])(
+      'applies once immediately with %s and cancels pending debounce',
+      async (action) => {
+        const { router } = renderPage('/dashboard/jobs?q=react&page=3');
+        vi.useFakeTimers();
+        const navigations: string[] = [];
+        const unsubscribe = router.subscribe(({ location }) => {
+          navigations.push(location.key);
+        });
+        fireEvent.change(keywordInput(), { target: { value: 'python' } });
+        if (action === 'button') {
+          fireEvent.click(screen.getByRole('button', { name: 'Search jobs' }));
+        } else {
+          // Native Enter wiring is covered by the real-keyboard test above.
+          fireEvent.submit(screen.getByRole('search'));
+        }
+        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+          keyword: 'python',
+          pageNumber: 1,
+        });
+        const queryCalls = mockSearchJobs.mock.calls.length;
+        await act(() => vi.advanceTimersByTimeAsync(500));
+        expect(mockSearchJobs.mock.calls).toHaveLength(queryCalls);
+        expect(new Set(navigations).size).toBe(1);
+        expect(refetchJobs).not.toHaveBeenCalled();
+        unsubscribe();
+      },
+    );
+
+    it('hydrates Back and Forward but ignores internal URL canonicalization while typing', async () => {
+      const { router } = renderPage('/dashboard/jobs?q=react&locations=Pune');
+      vi.useFakeTimers();
+      fireEvent.change(keywordInput(), { target: { value: 'python' } });
+      // This unmarked replace triggers the same URL normalization path as legacy aliases.
+      await act(() => router.navigate('/dashboard/jobs?q=react&location=Pune', { replace: true }));
+      expect(keywordInput()).toHaveValue('python');
+      await act(() => vi.advanceTimersByTimeAsync(350));
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'python' });
+      await act(() => router.navigate(-1));
+      expect(keywordInput()).toHaveValue('react');
+      await act(() => router.navigate(1));
+      expect(keywordInput()).toHaveValue('python');
+    });
+
+    it.each(['', '   '])(
+      'clears only an intentionally empty/whitespace draft after debounce',
+      async (draft) => {
+        renderPage('/dashboard/jobs?q=react');
+        vi.useFakeTimers();
+        fireEvent.change(keywordInput(), { target: { value: draft } });
+        await act(() => vi.advanceTimersByTimeAsync(349));
+        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'react' });
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Search jobs');
+        await act(() => vi.advanceTimersByTimeAsync(1));
+        expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).keyword).toBeUndefined();
+        expect(screen.getByTestId('location')).not.toHaveTextContent('q=');
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+          'Find your next opportunity',
+        );
+        expect(keywordInput()).toHaveValue(draft);
+      },
+    );
+
+    it('preserves a draft across filter, pagination, sort and tab changes', async () => {
+      mockSearchJobs.mockReturnValue(
+        queryResult({ items: [job], totalCount: 222, totalPages: 23 }) as ReturnType<
+          typeof useSearchJobsQuery
+        >,
+      );
+      renderPage('/dashboard/jobs?q=react');
+      vi.useFakeTimers();
+      fireEvent.change(keywordInput(), { target: { value: 'python' } });
+      fireEvent.click(screen.getByRole('radio', { name: 'Last 7 days (12)' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+      fireEvent.mouseDown(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByRole('option', { name: 'Latest published' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Experienced' }));
+      expect(keywordInput()).toHaveValue('python');
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'react' });
+      await act(() => vi.advanceTimersByTimeAsync(350));
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+        keyword: 'python',
+        freshnessDays: 7,
+        sortBy: PublicJobSort.LatestPublished,
+        minExperienceYears: 2,
+        pageNumber: 1,
+      });
+    });
+
+    it('applies the pending keyword with a newly selected location filter', async () => {
+      renderPage('/dashboard/jobs?q=react');
+      vi.useFakeTimers();
+      fireEvent.change(keywordInput(), { target: { value: 'python' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Location' }));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Pune, 12 jobs' }));
+      expect(keywordInput()).toHaveValue('python');
+      await act(() => vi.advanceTimersByTimeAsync(350));
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({
+        keyword: 'python',
+        locations: ['Pune'],
+        pageNumber: 1,
+      });
+    });
+
+    it.each(['Search chip', 'Reset'])(
+      'intentionally clears both draft and applied search with %s',
+      async (action) => {
+        renderPage(
+          action === 'Reset' ? '/dashboard/jobs?q=react&freshness=7' : '/dashboard/jobs?q=react',
+        );
+        vi.useFakeTimers();
+        fireEvent.change(keywordInput(), { target: { value: 'python' } });
+        fireEvent.click(
+          action === 'Search chip'
+            ? screen.getByLabelText('Search: react. Remove filter')
+            : screen.getByRole('button', { name: 'Reset all' }),
+        );
+        expect(keywordInput()).toHaveValue('');
+        await act(() => vi.advanceTimersByTimeAsync(500));
+        expect((mockSearchJobs.mock.calls.at(-1)?.[0] as PublicJobQuery).keyword).toBeUndefined();
+        expect(screen.getByTestId('location')).not.toHaveTextContent('q=');
+      },
+    );
+  });
+  describe('production route focus regression', () => {
+    const advance = async (ms: number) => {
+      await act(() => vi.advanceTimersByTimeAsync(ms));
+      // URL updates commit after the debounce; then the accessibility RAF runs.
+      await act(() => vi.advanceTimersByTimeAsync(20));
+    };
+    const getInput = () =>
+      screen.getByRole('textbox', { name: 'Job title, skills, company or keywords' });
+    const start = async () => {
+      vi.useFakeTimers();
+      const view = renderPage('/dashboard/jobs', true);
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      const input = getInput();
+      fireEvent.click(input);
+      input.focus();
+      return { ...view, input };
+    };
+    const expectStableFocus = (input: HTMLElement) => {
+      expect(getInput()).toBe(input);
+      expect(input).toHaveFocus();
+    };
+
+    it('keeps focus after each character of pwc and the final debounce', async () => {
+      const { input } = await start();
+      for (const value of ['p', 'pw', 'pwc']) {
+        fireEvent.change(input, { target: { value } });
+        expectStableFocus(input);
+        await act(() => vi.advanceTimersByTimeAsync(40));
+      }
+      await advance(400);
+      expectStableFocus(input);
+      expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: 'pwc' });
+    });
+
+    it('reproduces P, wait, W, wait, C without clicking again', async () => {
+      const { input } = await start();
+      const user = userEvent.setup({ delay: null });
+      for (const [character, expected] of [
+        ['P', 'P'],
+        ['W', 'PW'],
+        ['C', 'PWC'],
+      ] as const) {
+        const typing = user.keyboard(character);
+        await act(() => vi.advanceTimersByTimeAsync(0));
+        await typing;
+        expect(input).toHaveValue(expected);
+        await advance(400);
+        expectStableFocus(input);
+        expect(mockSearchJobs.mock.calls.at(-1)?.[0]).toMatchObject({ keyword: expected });
+      }
+    });
+
+    it.each(['software engineer', 'R', 'Go', 'C#', 'AI', '.NET'])(
+      'keeps the %s input mounted through fetching and results',
+      async (keyword) => {
+        const { input, router } = await start();
+        fireEvent.change(input, { target: { value: keyword } });
+        expectStableFocus(input);
+        await advance(400);
+        expectStableFocus(input);
+        mockSearchJobs.mockReturnValue(
+          queryResult(
+            { items: [job], totalCount: 1, totalPages: 1 },
+            { isFetching: true },
+          ) as ReturnType<typeof useSearchJobsQuery>,
+        );
+        await act(() =>
+          router.navigate(router.state.location.pathname + router.state.location.search, {
+            replace: true,
+          }),
+        );
+        expectStableFocus(input);
+        mockSearchJobs.mockReturnValue(
+          queryResult({
+            items: [{ ...job, title: 'Updated job results' }],
+            totalCount: 1,
+            totalPages: 1,
+          }) as ReturnType<typeof useSearchJobsQuery>,
+        );
+        await act(() =>
+          router.navigate(router.state.location.pathname + router.state.location.search, {
+            replace: true,
+          }),
+        );
+        expect(screen.getByText('Updated job results')).toBeVisible();
+        expectStableFocus(input);
+      },
+    );
+
+    it.each(['loading', 'empty', 'error'])(
+      'retains the input through the %s results state',
+      async (status) => {
+        const { input, router } = await start();
+        fireEvent.change(input, { target: { value: 'pwc' } });
+        await advance(400);
+        mockSearchJobs.mockReturnValue(
+          queryResult(
+            status === 'empty' ? { items: [], totalCount: 0, totalPages: 0 } : undefined,
+            { isLoading: status === 'loading', isError: status === 'error' },
+          ) as ReturnType<typeof useSearchJobsQuery>,
+        );
+        await act(() =>
+          router.navigate(router.state.location.pathname + router.state.location.search, {
+            replace: true,
+          }),
+        );
+        await act(() => vi.advanceTimersByTimeAsync(20));
+        expectStableFocus(input);
+      },
+    );
+
+    it('retains focus and DOM identity after Enter form submission', async () => {
+      const { input } = await start();
+      fireEvent.change(input, { target: { value: 'pwc' } });
+      fireEvent.submit(screen.getByRole('search'));
+      await advance(500);
+      expectStableFocus(input);
+    });
+
+    it('keeps the same input usable after clicking Search', async () => {
+      const { input } = await start();
+      fireEvent.change(input, { target: { value: 'pwc' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Search jobs' }));
+      await advance(500);
+      expectStableFocus(input);
+    });
+
+    it('preserves focus and input identity through filters, sort, tabs and pagination', async () => {
+      mockSearchJobs.mockReturnValue(
+        queryResult({ items: [job], totalCount: 222, totalPages: 23 }) as ReturnType<
+          typeof useSearchJobsQuery
+        >,
+      );
+      const { input } = await start();
+      fireEvent.click(screen.getByRole('radio', { name: 'Last 7 days (12)' }));
+      fireEvent.mouseDown(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByRole('option', { name: 'Latest published' }));
+      // A real control interaction may move focus; resume typing once, then verify URL effects.
+      input.focus();
+      fireEvent.click(screen.getByRole('tab', { name: 'Experienced' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }));
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      expectStableFocus(input);
+    });
+
+    it('retains the input on Back/Forward and focuses headings on real page navigation', async () => {
+      const { input, router } = await start();
+      fireEvent.change(input, { target: { value: 'react' } });
+      await advance(400);
+      fireEvent.change(input, { target: { value: 'python' } });
+      await advance(400);
+      await act(() => router.navigate(-1));
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      expect(input).toHaveValue('react');
+      expectStableFocus(input);
+      await act(() => router.navigate(1));
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      expect(input).toHaveValue('python');
+      expectStableFocus(input);
+      await act(() => router.navigate('/focus-destination'));
+      await act(() => vi.advanceTimersByTimeAsync(20));
+      expect(screen.getByRole('heading', { name: 'Destination page' })).toHaveFocus();
+    });
+  });
+});
+
+========== .\src\features\jobs\components\candidateBrowse\JobModeTabs.tsx ==========
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import { Paper, Tab, Tabs } from '@mui/material';
+
+export type CandidateBrowseMode = 'all' | 'recommended';
+
+export type CandidateBrowseTab =
+  CandidateBrowseMode | 'internships' | 'fresher' | 'experienced' | 'referral';
+
+interface JobModeTabsProps {
+  mode: CandidateBrowseTab;
+  onChange: (mode: CandidateBrowseTab) => void;
+}
+
+export const JobModeTabs = ({ mode, onChange }: JobModeTabsProps) => (
+  <Paper
+    component="section"
+    elevation={0}
+    sx={{
+      border: '1px solid',
+      borderColor: 'divider',
+      borderRadius: 2,
+      overflow: 'hidden',
+      bgcolor: 'background.paper',
+    }}
+  >
+    <Tabs
+      allowScrollButtonsMobile
+      aria-label="Browse jobs mode"
+      onChange={(_, value: CandidateBrowseTab) => onChange(value)}
+      scrollButtons="auto"
+      value={mode}
+      variant="scrollable"
+      sx={{
+        minHeight: 52,
+
+        '& .MuiTabs-flexContainer': {
+          minHeight: 52,
+        },
+
+        '& .MuiTabs-indicator': {
+          height: 3,
+          borderRadius: '3px 3px 0 0',
+        },
+
+        '& .MuiTab-root': {
+          minHeight: 52,
+          minWidth: 'auto',
+          px: { xs: 2, sm: 2.75 },
+          py: 0,
+          color: 'text.secondary',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          textTransform: 'none',
+          whiteSpace: 'nowrap',
+        },
+
+        '& .MuiTab-root.Mui-selected': {
+          color: 'primary.main',
+          fontWeight: 700,
+        },
+
+        '& .MuiTab-root.Mui-disabled': {
+          opacity: 0.45,
+        },
+      }}
+    >
+      <Tab label="All jobs" value="all" />
+
+      <Tab
+        icon={<GroupsOutlinedIcon sx={{ fontSize: 19 }} />}
+        iconPosition="start"
+        label="Referral jobs"
+        value="referral"
+      />
+
+      <Tab disabled title="Phase 2 - coming soon" label="Resume matches" value="recommended" />
+
+      <Tab label="Internships" value="internships" />
+
+      <Tab label="Fresher" value="fresher" />
+
+      <Tab label="Experienced" value="experienced" />
+    </Tabs>
+  </Paper>
+);
+
+========== .\src\features\jobs\components\candidateBrowse\ResumeRecommendationCard.tsx ==========
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { Alert, Box, Button, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
+import type { ChangeEventHandler, RefObject } from 'react';
+
+import { ResumeExtractionStatus } from '@/features/dashboard/types/dashboardModels';
+import {
+  RESUME_UPLOAD_HELP_TEXT,
+  sanitizeResumeFileName,
+} from '@/features/dashboard/utils/resumeValidation';
+
+interface ResumeRecommendationCardProps {
+  error: string | null;
+  fileInputRef: RefObject<HTMLInputElement | null>;
+  fileName?: string;
+  hasResume: boolean;
+  isDownloading: boolean;
+  isRefreshing: boolean;
+  isUploading: boolean;
+  lastUpdatedUtc?: string;
+  onDownload: () => void;
+  onFileChange: ChangeEventHandler<HTMLInputElement>;
+  onRefresh: () => void;
+  onUpload: () => void;
+  status?: ResumeExtractionStatus;
+}
+
+export const ResumeRecommendationCard = ({
+  error,
+  fileInputRef,
+  fileName,
+  hasResume,
+  isDownloading,
+  isRefreshing,
+  isUploading,
+  lastUpdatedUtc,
+  onDownload,
+  onFileChange,
+  onRefresh,
+  onUpload,
+  status,
+}: ResumeRecommendationCardProps) => {
+  const isProcessing = status === ResumeExtractionStatus.Processing;
+  const isReady = status === ResumeExtractionStatus.Ready;
+  const isFailed = status === ResumeExtractionStatus.Failed;
+  const displayFileName = fileName ? sanitizeResumeFileName(fileName, '') : '';
+  const updatedDate = lastUpdatedUtc ? new Date(lastUpdatedUtc) : null;
+  const lastUpdated = updatedDate && !Number.isNaN(updatedDate.valueOf())
+    ? updatedDate.toLocaleString()
+    : null;
+
+  return (
+    <Paper component="section" sx={{ overflow: 'hidden', p: { xs: 2, sm: 2.5 } }}>
+      <Stack alignItems={{ xs: 'stretch', xl: 'center' }} direction={{ xs: 'column', xl: 'row' }} justifyContent="space-between" spacing={2}>
+        <Box minWidth={0}>
+          <Stack alignItems="center" direction="row" flexWrap="wrap" gap={1}>
+            <Typography component="h2" variant="h3">Resume-powered recommendations</Typography>
+            {isReady ? (
+              <Chip
+                color="success"
+                icon={<CheckCircleOutlineIcon />}
+                label="Ready"
+                size="small"
+                sx={{ bgcolor: 'success.50', fontWeight: 800 }}
+                variant="outlined"
+              />
+            ) : null}
+          </Stack>
+          {!hasResume ? (
+            <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+              <Typography color="text.secondary">
+                Upload your resume to get personalized job matches.
+              </Typography>
+              <Typography color="text.secondary" variant="caption">
+                {RESUME_UPLOAD_HELP_TEXT}
+              </Typography>
+            </Stack>
+          ) : (
+            <>
+              {displayFileName ? (
+                <Typography noWrap sx={{ mt: 0.75 }} title={displayFileName}>
+                  {displayFileName}
+                </Typography>
+              ) : null}
+              <Typography color={isFailed ? 'error' : 'text.secondary'} variant="body2">
+                {isProcessing ? 'Analyzing resumeâ€¦' : isReady ? 'Resume analyzed' : isFailed ? 'Your resume is stored, but recommendations could not be prepared.' : 'Preparing recommendations'}
+              </Typography>
+              {lastUpdated ? <Typography color="text.secondary" variant="caption">Updated {lastUpdated}</Typography> : null}
+              {isReady ? <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">Jobs below are ranked using your skills, experience and preferences.</Typography> : null}
+            </>
+          )}
+          {error ? <Alert aria-live="assertive" severity="error" sx={{ mt: 1 }}>{error}</Alert> : null}
+        </Box>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={1} sx={{ flexShrink: 0 }}>
+          {hasResume && isReady ? <Button disabled={isDownloading} onClick={onDownload} startIcon={<DownloadOutlinedIcon />} variant="outlined">{isDownloading ? 'Downloadingâ€¦' : 'Download resume'}</Button> : null}
+          <Button disabled={isUploading} onClick={onUpload} startIcon={<CloudUploadOutlinedIcon />} variant={hasResume ? 'outlined' : 'contained'}>
+            {isUploading ? 'Uploadingâ€¦' : hasResume ? 'Update resume' : 'Upload resume'}
+          </Button>
+          {hasResume ? (
+            <Button
+              disabled={isProcessing || isRefreshing}
+              onClick={onRefresh}
+              startIcon={<RefreshIcon />}
+              variant="outlined"
+            >
+              {isRefreshing ? 'Refreshingâ€¦' : isFailed ? 'Retry status' : 'Refresh matches'}
+            </Button>
+          ) : null}
+        </Stack>
+      </Stack>
+      {isProcessing || isUploading ? <LinearProgress aria-label={isUploading ? 'Uploading resume' : 'Analyzing resume'} sx={{ mt: 2 }} /> : null}
+      <input accept=".pdf,.doc,.docx" aria-label="Choose resume" hidden onChange={onFileChange} ref={fileInputRef} type="file" />
+    </Paper>
+  );
+};
+
+========== .\src\features\jobs\components\ResumeMatchPanel.tsx ==========
+import CheckOutlinedIcon from '@mui/icons-material/CheckOutlined';
+import { Chip, Stack, Typography } from '@mui/material';
+
+export interface ResumeMatch {
+  matchScore: number;
+  matchReasons: string[];
+}
+
+export const ResumeMatchPanel = ({ match }: { match: ResumeMatch }) => (
+  <Stack spacing={1.5} sx={{ bgcolor: 'action.hover', borderRadius: 2, p: 2 }}>
+    <Chip label={`${match.matchScore}% Match`} color={match.matchScore >= 85 ? 'success' : match.matchScore >= 65 ? 'info' : 'warning'} size="small" sx={{ alignSelf: 'flex-start' }} variant="outlined" />
+    <Typography fontWeight={700}>Why this job matches you</Typography>
+    {match.matchReasons.slice(0, 3).map((reason) => <Stack direction="row" spacing={1} key={reason}><CheckOutlinedIcon color="success" fontSize="small" /><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{reason}</Typography></Stack>)}
+  </Stack>
+);
+
+========== .\src\features\jobs\utils\resumeMatch.ts ==========
+import type { ResumeMatch } from '../components/ResumeMatchPanel';
+
+export const readResumeMatch = (state: unknown, jobId: string): ResumeMatch | undefined => {
+  if (!state || typeof state !== 'object' || !('recommendedJobId' in state) || state.recommendedJobId !== jobId || !('resumeMatch' in state)) return undefined;
+  const match = state.resumeMatch;
+  if (!match || typeof match !== 'object' || !('matchScore' in match) || typeof match.matchScore !== 'number' || !Number.isFinite(match.matchScore) || match.matchScore < 0 || match.matchScore > 100 || !('matchReasons' in match) || !Array.isArray(match.matchReasons) || !match.matchReasons.every((reason) => typeof reason === 'string')) return undefined;
+  return { matchScore: match.matchScore, matchReasons: match.matchReasons };
+};
+

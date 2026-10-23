@@ -39,6 +39,9 @@ export const getGoogleAuthenticationErrorMessage = (
 };
 
 export const getAuthenticationErrorMessage = (error: unknown): string => {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return 'Sign-in was cancelled. You can try again.';
+  }
   const apiError = error instanceof ApiRequestError ? error : toApiRequestError(error);
 
   if (apiError.status === 401) return 'The identifier or password is incorrect.';
@@ -56,6 +59,7 @@ export const getAuthenticationErrorMessage = (error: unknown): string => {
       : 'Too many attempts. Please wait and try again.';
   }
   if (apiError.code === 'request_timeout') return 'The request timed out. Please try again.';
+  if (apiError.code === 'request_cancelled') return 'Sign-in was cancelled. You can try again.';
   if (apiError.code === 'network_error') {
     return 'The service could not be reached. Check your connection and try again.';
   }

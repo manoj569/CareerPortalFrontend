@@ -116,6 +116,8 @@ export const authService = {
       request,
       { signal },
     );
+    // A late response must not install credentials after its caller cancelled it.
+    if (signal?.aborted) throw new DOMException('The login request was cancelled.', 'AbortError');
     return storeAuthentication(response.data);
   },
 
