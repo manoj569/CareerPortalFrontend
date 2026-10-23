@@ -35,11 +35,15 @@ describe('HiringOpportunitiesSection', () => {
     expect(await screen.findByText('Existing Drive')).toBeInTheDocument();
     expect(screen.getByText('External Drive')).toBeInTheDocument();
     expect(screen.getByText('Promoted QA Engineer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous hiring opportunity' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next hiring opportunity' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Hiring opportunities pages' })).toBeInTheDocument();
     expect(screen.queryByText('Duplicate Promotion')).not.toBeInTheDocument();
     const promotedCard = screen.getByText('Promoted QA Engineer').closest('article');
     expect(promotedCard).toBeTruthy();
     expect(promotedCard!.querySelectorAll('button')).toHaveLength(1);
-    fireEvent.click(within(promotedCard as HTMLElement).getByRole('button', { name: 'View Details' }));
+    expect(within(promotedCard as HTMLElement).getByText('Promoted')).toBeInTheDocument();
+    fireEvent.click(within(promotedCard as HTMLElement).getByRole('button', { name: 'View Opportunity' }));
     expect(screen.getByTestId('details-path')).toHaveTextContent('/dashboard/jobs/authoritative-slug');
     expect(request.mock.calls.some(([config]) => config.url === '/job-promotions/active')).toBe(true);
   });
@@ -51,5 +55,13 @@ describe('HiringOpportunitiesSection', () => {
     mount();
     expect(await screen.findByText('Existing Drive')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/Promoted jobs are temporarily unavailable/)).toBeInTheDocument());
+  });
+
+  it('shows a compact empty state with a Browse jobs route when both feeds are empty', async () => {
+    vi.spyOn(apiClient, 'request').mockResolvedValue({ data: { data: [] } });
+    mount();
+    expect(await screen.findByText(/No opportunities are available right now/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Browse jobs' })).toHaveAttribute('href', '/dashboard/jobs');
+    expect(screen.queryByRole('button', { name: 'Next hiring opportunity' })).not.toBeInTheDocument();
   });
 });

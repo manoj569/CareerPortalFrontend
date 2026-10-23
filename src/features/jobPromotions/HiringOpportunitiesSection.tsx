@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, IconButton, Stack, Typography } from '@mui/material';
+import { Alert, Button, IconButton, Paper, Stack, Typography } from '@mui/material';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@/constants/routes';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import { useGetHomeHiringDrivesQuery } from '@/features/hiringDrives/api';
@@ -72,13 +74,31 @@ export const HiringOpportunitiesSection = () => {
   const drivesFailed = drivesQuery.isError;
   const promotionsFailed = promotionsQuery.isError;
   const isLoading = drivesQuery.isLoading || promotionsQuery.isLoading;
-  if (!isLoading && !items.length && drivesFailed && promotionsFailed) return <Alert severity="info" action={<Stack direction="row"><Button onClick={() => void drivesQuery.refetch()}>Retry drives</Button><Button onClick={() => void promotionsQuery.refetch()}>Retry promoted jobs</Button></Stack>}>Hiring opportunities are temporarily unavailable.</Alert>;
-  if (!isLoading && !items.length) return null;
+  if (!isLoading && !items.length) return (
+    <section className="hiring-ads-section hiring-ads-dashboard" aria-labelledby="dashboard-hiring-opportunities">
+      <Stack spacing={1.5}>
+        <div>
+          <Typography component="h2" id="dashboard-hiring-opportunities" variant="h5" fontWeight={800}>Hiring Opportunities</Typography>
+          <Typography color="text.secondary">Featured opportunities and promoted roles selected for you.</Typography>
+        </div>
+        {drivesFailed || promotionsFailed ? (
+          <Alert severity="info" action={<Stack direction="row" flexWrap="wrap"><Button onClick={() => void drivesQuery.refetch()}>Retry drives</Button><Button onClick={() => void promotionsQuery.refetch()}>Retry promoted jobs</Button></Stack>}>
+            Hiring opportunities are temporarily unavailable.
+          </Alert>
+        ) : (
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+            <Typography color="text.secondary">No opportunities are available right now. Explore jobs to find your next role.</Typography>
+            <Button component={Link} to={ROUTES.DASHBOARD_JOBS} variant="outlined">Browse jobs</Button>
+          </Paper>
+        )}
+      </Stack>
+    </section>
+  );
 
   const trackClass = ['hiring-ads-track', items.length === 1 ? 'hiring-ads-track-single' : '', items.length === 2 ? 'hiring-ads-track-double' : ''].filter(Boolean).join(' ');
   return <section className="hiring-ads-section hiring-ads-dashboard" aria-labelledby="dashboard-hiring-opportunities" aria-busy={isLoading}>
     <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 2.5 }}>
-      <div><Typography component="h2" id="dashboard-hiring-opportunities" variant="h5" fontWeight={800}>Hiring Opportunities</Typography><Typography color="text.secondary">Explore exciting opportunities from leading companies.</Typography></div>
+      <div><Typography component="h2" id="dashboard-hiring-opportunities" variant="h5" fontWeight={800}>Hiring Opportunities</Typography><Typography color="text.secondary">Featured opportunities and promoted roles selected for you.</Typography></div>
       {items.length > 1 && <Stack direction="row" gap={0.5}><IconButton aria-label="Previous hiring opportunity" onClick={() => goTo(index - 1)}><ArrowBackRoundedIcon /></IconButton><IconButton aria-label="Next hiring opportunity" onClick={() => goTo(index + 1)}><ArrowForwardRoundedIcon /></IconButton></Stack>}
     </Stack>
     {(drivesFailed || promotionsFailed) && <Alert severity="info" sx={{ mb: 2 }}>{drivesFailed ? 'Hiring Drives are temporarily unavailable. ' : ''}{promotionsFailed ? 'Promoted jobs are temporarily unavailable.' : ''}</Alert>}

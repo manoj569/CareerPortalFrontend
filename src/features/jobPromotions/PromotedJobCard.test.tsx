@@ -51,9 +51,10 @@ describe('PromotedJobCard', () => {
     expect(screen.queryByText(/salary|not disclosed/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/education/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Apply Now/i })).not.toBeInTheDocument();
-    expect(screen.getByAltText('PhonePe and Intern, Company Secretary')).toHaveAttribute('src', resolveApiAssetUrl(phonePePromotion.bannerImageUrl));
+    expect(screen.getByAltText('PhonePe promotional banner for Intern, Company Secretary')).toHaveAttribute('src', resolveApiAssetUrl(phonePePromotion.bannerImageUrl));
     expect(new URL(resolveApiAssetUrl(phonePePromotion.bannerImageUrl)!).pathname).toBe('/api/job-promotions/aafac721-b1eb-404b-8939-c59515dd958f/banner');
-    fireEvent.click(screen.getByRole('button', { name: 'View Details' }));
+    expect(screen.getByText('Promoted')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View Opportunity' }));
     expect(screen.getByTestId('path')).toHaveTextContent('/dashboard/jobs/intern-company-secretary-aafac721');
   });
 
@@ -62,13 +63,13 @@ describe('PromotedJobCard', () => {
       <Route path="/dashboard" element={<PromotedJobCard promotion={promotion} />} />
       <Route path="/dashboard/jobs/:slug" element={<Location />} />
     </Routes></MemoryRouter>);
-    expect(screen.getByAltText('Example Co and QA Engineer')).toHaveAttribute('src', resolveApiAssetUrl(promotion.bannerImageUrl));
+    expect(screen.getByAltText('Example Co promotional banner for QA Engineer')).toHaveAttribute('src', resolveApiAssetUrl(promotion.bannerImageUrl));
     expect(screen.getByText('Fresher')).toBeInTheDocument();
     expect(screen.getByText(/Entry Level/)).toBeInTheDocument();
     expect(screen.getByText('B.Tech')).toBeInTheDocument();
     expect(screen.queryByText(/Salary|Not disclosed/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole('button')).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'View Details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View Opportunity' }));
     expect(screen.getByTestId('path')).toHaveTextContent('/dashboard/jobs/verified-job-slug');
   });
 
@@ -76,5 +77,20 @@ describe('PromotedJobCard', () => {
     const resolved = resolveApiAssetUrl('/api/job-promotions/job-1/banner');
     expect(resolved).toBeTruthy();
     expect(new URL(resolved!).pathname).toBe('/api/job-promotions/job-1/banner');
+  });
+
+  it('falls back from a failed banner to company branding', () => {
+    const withLogo = { ...promotion, companyLogoUrl: 'https://example.test/logo.png' };
+    renderWithProviders(<MemoryRouter><PromotedJobCard promotion={withLogo} /></MemoryRouter>);
+    fireEvent.error(screen.getByAltText('Example Co promotional banner for QA Engineer'));
+    expect(screen.getAllByAltText('Example Co logo').length).toBeGreaterThan(0);
+  });
+
+  it('falls back to company initials when its logo image fails', () => {
+    const withoutBanner = { ...promotion, bannerImageUrl: null, companyLogoUrl: 'https://example.test/logo.png' };
+    renderWithProviders(<MemoryRouter><PromotedJobCard promotion={withoutBanner} /></MemoryRouter>);
+    const companyLogos = screen.getAllByAltText('Example Co logo');
+    fireEvent.error(companyLogos[companyLogos.length - 1]!);
+    expect(screen.getAllByRole('img', { name: 'Example Co initials' }).length).toBeGreaterThan(0);
   });
 });

@@ -26,6 +26,10 @@ import {
   useWithdrawApplicationMutation,
 } from '@/features/dashboard/api/dashboardApi';
 import type * as DashboardApiModule from '@/features/dashboard/api/dashboardApi';
+import type * as ReferralMarketplaceModule from '@/features/referrals/api/marketplaceApi';
+import type * as InterviewInsightsModule from '@/features/interviewInsights/api/interviewInsightsApi';
+import { useGetReferrerInboxQuery } from '@/features/referrals/api/marketplaceApi';
+import { useGetMyInterviewContributionsQuery } from '@/features/interviewInsights/api/interviewInsightsApi';
 import type { AuthState } from '@/features/auth/store/authSlice';
 import {
   JobApplicationStatus,
@@ -91,6 +95,14 @@ vi.mock('@/features/dashboard/api/dashboardApi', async (importOriginal) => {
     useWithdrawApplicationMutation: vi.fn(),
   };
 });
+vi.mock('@/features/referrals/api/marketplaceApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof ReferralMarketplaceModule>();
+  return { ...actual, useGetReferrerInboxQuery: vi.fn() };
+});
+vi.mock('@/features/interviewInsights/api/interviewInsightsApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof InterviewInsightsModule>();
+  return { ...actual, useGetMyInterviewContributionsQuery: vi.fn() };
+});
 
 const mockProfile = vi.mocked(useGetProfileQuery);
 const mockCompletion = vi.mocked(useGetProfileCompletionQuery);
@@ -103,6 +115,8 @@ const mockSavedJobs = vi.mocked(useGetSavedJobsQuery);
 const mockApplications = vi.mocked(useGetApplicationsQuery);
 const mockMemberships = vi.mocked(useGetMembershipsQuery);
 const mockNotifications = vi.mocked(useGetNotificationsQuery);
+const mockReferrerInbox = vi.mocked(useGetReferrerInboxQuery);
+const mockInterviewContributions = vi.mocked(useGetMyInterviewContributionsQuery);
 const mockUpdateProfile = vi.mocked(useUpdateProfileMutation);
 const mockUpdateAbout = vi.mocked(useUpdateCandidateAboutMutation);
 const mockAddSkill = vi.mocked(useAddCandidateSkillMutation);
@@ -301,6 +315,8 @@ beforeEach(() => {
   );
   mockApplication.mockReturnValue(queryResult({ data: application }));
   mockMemberships.mockReturnValue(queryResult({ data: [] }));
+  mockReferrerInbox.mockReturnValue(queryResult({ data: [] }) as ReturnType<typeof useGetReferrerInboxQuery>);
+  mockInterviewContributions.mockReturnValue(queryResult({ data: { insightsPublished: 0 } }) as ReturnType<typeof useGetMyInterviewContributionsQuery>);
   mockBasicDetails.mockReturnValue(queryResult({ data: { email: 'avery@example.com', mobileNumber: '+919876543210', mobileVerified: true, workStatus: 'Experienced', isOutsideIndia: false, currentCountry: 'India', currentCity: 'Pune', currentArea: null, noticePeriod: 'OneMonth', availabilityToJoin: null, currentAnnualSalary: null, currentFixedAnnualSalary: null, currentVariableAnnualSalary: null, salaryUnit: 'INR per annum' } }));
   mockNotifications.mockReturnValue(
     queryResult({
@@ -357,7 +373,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('candidate dashboard pages', () => {
-  it('renders a live overview from dashboard endpoints', () => {
+  it('renders the compact welcome, real dashboard counts, and existing quick-action routes', () => {
     mockSavedJobs.mockReturnValue(
       queryResult({
         data: { items: [savedJob], pageNumber: 1, pageSize: 3, totalCount: 2, totalPages: 1 },
@@ -365,9 +381,15 @@ describe('candidate dashboard pages', () => {
     );
     mockApplications.mockReturnValue(
       queryResult({
-        data: { items: [application], pageNumber: 1, pageSize: 5, totalCount: 1, totalPages: 1 },
+        data: { items: [application], pageNumber: 1, pageSize: 5, totalCount: 32, totalPages: 7 },
       }),
     );
+    mockReferrerInbox.mockReturnValue(queryResult({ data: [
+      { request: { status: 'Requested' } },
+      { request: { status: 'Requested' } },
+      { request: { status: 'Accepted' } },
+    ] }) as ReturnType<typeof useGetReferrerInboxQuery>);
+    mockInterviewContributions.mockReturnValue(queryResult({ data: { insightsPublished: 7 } }) as ReturnType<typeof useGetMyInterviewContributionsQuery>);
     mockMemberships.mockReturnValue(queryResult({ data: [membership] }));
     mockNotifications.mockReturnValue(
       queryResult({
@@ -386,19 +408,23 @@ describe('candidate dashboard pages', () => {
 
     renderPage(<DashboardPage />);
 
-    expect(screen.getByRole('heading', { name: 'Welcome, Avery' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome back, Avery' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Saved jobs: 2')).toBeInTheDocument();
+    expect(screen.getByLabelText('Applied jobs: 32')).toBeInTheDocument();
+    expect(screen.getByLabelText('Pending referrals: 2')).toBeInTheDocument();
+    expect(screen.getByLabelText('Insights published: 7')).toBeInTheDocument();
    
     expect(screen.getByText('Job Application Access')).toBeInTheDocument();
     expect(screen.getByText(job.title)).toBeInTheDocument();
     expect(screen.getByText('60%')).toBeInTheDocument();
-    expect(screen.getByLabelText('Career preferences: recommended next step')).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Edit profile' })).toHaveAttribute(
-      'href',
-      '/dashboard/portfolio',
-    );
+    expect(screen.getByText('Continue with career preferences.')).toBeVisible();
+    expect(screen.getByRole('link', { name: /Find jobs for you/ })).toHaveAttribute('href', '/dashboard/jobs');
+    expect(screen.getByRole('link', { name: /Get referred/ })).toHaveAttribute('href', '/dashboard/jobs?mode=referral');
+    expect(screen.getByRole('link', { name: /Prepare for interviews/ })).toHaveAttribute('href', '/dashboard/interview-insights');
+    expect(screen.getByRole('link', { name: /Learn and grow/ })).toHaveAttribute('href', '/career-guidance');
   });
 
-  it('places Hiring Opportunities between the feature banner and Explore Career Harbor', async () => {
+  it('puts Hiring Opportunities before quick actions and removes the marketing carousel from the dashboard', async () => {
     const drive = {
       id: 'dashboard-ad',
       title: 'Candidate hiring drive',
@@ -413,14 +439,13 @@ describe('candidate dashboard pages', () => {
       destination: { type: 'external', url: 'https://careers.example.test/apply' },
     };
     const request = vi.spyOn(apiClient, 'request');
-    request.mockResolvedValue({ data: { data: [drive] } });
+    request.mockImplementation((config) => Promise.resolve({ data: { data: config.url === '/job-promotions/active' ? [] : [drive] } }));
     renderPage(<DashboardPage />);
 
-    const banner = screen.getByRole('region', { name: 'Career Harbor features' });
     const hiring = await screen.findByRole('region', { name: 'Hiring Opportunities' });
-    const explore = screen.getByRole('heading', { name: 'Explore Career Harbor' });
+    const explore = screen.getByRole('heading', { name: 'Explore CareerHarbor' });
     const profileProgress = screen.getByRole('heading', { name: 'Profile progress' });
-    expect(banner.compareDocumentPosition(hiring) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Career Harbor features' })).not.toBeInTheDocument();
     expect(hiring.compareDocumentPosition(explore) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(explore.compareDocumentPosition(profileProgress) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await waitFor(() =>
@@ -433,12 +458,11 @@ describe('candidate dashboard pages', () => {
     );
   });
 
-  it('renders the overview loading state', () => {
+  it('keeps the dashboard content available while profile data is loading', () => {
     mockProfile.mockReturnValue(queryResult({ isLoading: true }));
     renderPage(<DashboardPage />);
-    expect(screen.getByLabelText('Loading candidate dashboard')).toBeInTheDocument();
-    expect(screen.getByRole('status', { name: 'Loading candidate dashboard' })).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getByText('Loading candidate dashboard')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Welcome back, Avery' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Hiring Opportunities' })).toBeInTheDocument();
   });
 
   it('validates and uploads a supported resume file', async () => {
