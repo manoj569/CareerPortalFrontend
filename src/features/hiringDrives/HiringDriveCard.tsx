@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Chip, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { useNavigate } from 'react-router-dom';
-import { buildJobDetailsPath } from '@/constants/routes';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
+import { selectIsAuthenticated } from '@/features/auth/store/authSlice';
 import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
+import { useAppSelector } from '@/hooks/reduxHooks';
 import { getSafeExternalUrl } from '@/utils/safeExternalUrl';
 import { useClickHiringDriveMutation, useRecordHiringImpressionsMutation } from './api';
 import type { HiringDrive } from './types';
@@ -13,6 +15,8 @@ const seen = new Set<string>();
 let impressionsUnavailable = false;
 export const HiringDriveCard = ({ drive }: { drive: HiringDrive }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const [click, clickState] = useClickHiringDriveMutation();
   const [record] = useRecordHiringImpressionsMutation();
   const root = useRef<HTMLElement>(null);
@@ -48,6 +52,10 @@ export const HiringDriveCard = ({ drive }: { drive: HiringDrive }) => {
     return () => observer.disconnect();
   }, [drive.id, record]);
   const apply = async () => {
+    if (!isAuthenticated) {
+      void navigate(ROUTES.LOGIN, { state: { from: location } });
+      return;
+    }
     if (pending.current) return;
     pending.current = true;
     setError('');

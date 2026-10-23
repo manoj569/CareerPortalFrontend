@@ -2,7 +2,10 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/api/apiClient';
+import { ROUTES } from '@/constants/routes';
+import type { AuthState } from '@/features/auth/store/authSlice';
 import { renderWithProviders } from '@/test/renderWithProviders';
+import { UserRole } from '@/types';
 import { HiringDrivesSection } from './HiringDrivesSection';
 import { validateHiringDrive } from './validation';
 import type { HiringDriveInput } from './types';
@@ -19,14 +22,36 @@ const drive = {
   destination: { type: 'internalJob', jobId: 'job-1' },
   isSponsored: true,
 };
-const mount = () =>
+const authenticatedState = {
+  status: 'authenticated' as const,
+  user: {
+    id: 'candidate-1',
+    firstName: 'Test',
+    lastName: 'Candidate',
+    email: 'candidate@example.test',
+    role: UserRole.Candidate,
+  },
+  isSubmitting: false,
+  accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
+  error: null,
+};
+const loggedOutState = {
+  status: 'unauthenticated' as const,
+  user: null,
+  isSubmitting: false,
+  accessTokenExpiresAtUtc: null,
+  error: null,
+};
+const mount = (auth: AuthState = authenticatedState) =>
   renderWithProviders(
     <MemoryRouter>
       <Routes>
         <Route path="/" element={<HiringDrivesSection />} />
+        <Route path={ROUTES.LOGIN} element={<div>CareerHarbor Login</div>} />
         <Route path="/jobs/:slug" element={<div>Job detail destination</div>} />
       </Routes>
     </MemoryRouter>,
+    { auth },
   );
 afterEach(() => {
   vi.restoreAllMocks();
@@ -67,6 +92,22 @@ describe('hiring drives', () => {
     );
     expect(screen.queryByRole('region')).not.toBeInTheDocument();
     expect(screen.getByText('Home remains available')).toBeInTheDocument();
+  });
+  it('sends logged-out visitors to Login without opening a campaign destination', async () => {
+    const request = vi.spyOn(apiClient, 'request').mockImplementation((config) =>
+      Promise.resolve({ data: { data: config.method === 'POST' ? [] : [drive] } }),
+    );
+    const externalOpen = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    mount(loggedOutState);
+    fireEvent.click(await screen.findByRole('button', { name: `Apply now for ${drive.title}` }));
+
+    expect(await screen.findByText('CareerHarbor Login')).toBeInTheDocument();
+    expect(request.mock.calls.some(([config]) => config.url?.includes('/click'))).toBe(false);
+    expect(externalOpen).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
   it('calls the click endpoint, prevents duplicates and uses internal navigation', async () => {
     let resolveClick!: (value: unknown) => void;
@@ -117,7 +158,7 @@ describe('hiring drives', () => {
     expect(window.location.pathname).not.toContain('job-1');
   });
   it('opens only the backend external destination with safe link attributes', async () => {
-    vi.spyOn(apiClient, 'request').mockImplementation((config) =>
+    const request = vi.spyOn(apiClient, 'request').mockImplementation((config) =>
       Promise.resolve({
         data: {
           data:
@@ -137,6 +178,24 @@ describe('hiring drives', () => {
     mount();
     fireEvent.click(await screen.findByRole('button', { name: `Apply now for ${drive.title}` }));
     await waitFor(() => expect(click).toHaveBeenCalledOnce());
+    expect(
+      request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/drive-1/click'),
+    ).toHaveLength(1);
+  });
+  it('keeps the existing error when the authenticated click request fails', async () => {
+    const request = vi.spyOn(apiClient, 'request').mockImplementation((config) =>
+      config.url === '/public/hiring-drives/drive-1/click'
+        ? Promise.reject(new Error('Unavailable'))
+        : Promise.resolve({ data: { data: [drive] } }),
+    );
+    mount();
+
+    fireEvent.click(await screen.findByRole('button', { name: `Apply now for ${drive.title}` }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to open this opportunity');
+    expect(
+      request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/drive-1/click'),
+    ).toHaveLength(1);
   });
   it('rejects unsafe backend destinations', async () => {
     vi.spyOn(apiClient, 'request').mockImplementation((config) =>
