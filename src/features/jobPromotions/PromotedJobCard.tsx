@@ -15,6 +15,31 @@ import { resolveApiAssetUrl } from './assetUrl';
 import type { ActiveJobPromotion } from './types';
 
 const safeText = (value: unknown): string | null => typeof value === 'string' ? value.trim() || null : null;
+const PromotedJobVisual = ({
+  bannerUrl,
+  companyName,
+  logoUrl,
+  title,
+}: {
+  bannerUrl: string | null;
+  companyName: string;
+  logoUrl: string | null;
+  title: string;
+}) => {
+  const [bannerFailed, setBannerFailed] = useState(false);
+  const showBanner = Boolean(bannerUrl) && !bannerFailed;
+
+  return (
+    <Box className="promoted-job-visual" aria-label={showBanner ? 'Promotional job banner' : `${companyName} branding`}>
+      {showBanner ? (
+        <Box component="img" className="promoted-job-banner" src={bannerUrl!} alt={`${companyName} promotional banner for ${title}`} loading="lazy" onError={() => setBannerFailed(true)} />
+      ) : (
+        <CompanyLogoFallback companyName={companyName} logoUrl={logoUrl} size={104} sx={{ zIndex: 1 }} />
+      )}
+    </Box>
+  );
+};
+
 const enumLabel = <T extends number>(value: unknown, options: readonly { value: T; label: string }[], enumNames: Record<string, string | number>, labeler: (value: T) => string): string | null => {
   if (typeof value === 'number' && Number.isInteger(value) && options.some((option) => option.value === value)) return labeler(value as T);
   const text = safeText(value);
@@ -27,8 +52,7 @@ const enumLabel = <T extends number>(value: unknown, options: readonly { value: 
 
 export const PromotedJobCard = ({ promotion }: { promotion: ActiveJobPromotion }) => {
   const navigate = useNavigate();
-  const [bannerFailed, setBannerFailed] = useState(false);
-  const banner = bannerFailed ? null : resolveApiAssetUrl(safeText(promotion.bannerImageUrl));
+  const banner = resolveApiAssetUrl(safeText(promotion.bannerImageUrl));
   const companyName = safeText(promotion.companyName) ?? 'Company';
   const title = safeText(promotion.title) ?? 'Job opportunity';
   const logoUrl = safeText(promotion.companyLogoUrl);
@@ -67,9 +91,7 @@ export const PromotedJobCard = ({ promotion }: { promotion: ActiveJobPromotion }
             View Opportunity
           </Button>
         </CardContent>
-        <Box className="promoted-job-visual" aria-label={banner ? 'Promotional job banner' : `${companyName} branding`}>
-          {banner ? <Box component="img" className="promoted-job-banner" src={banner} alt={`${companyName} promotional banner for ${title}`} loading="lazy" onError={() => setBannerFailed(true)} /> : <CompanyLogoFallback companyName={companyName} logoUrl={logoUrl} size={104} sx={{ zIndex: 1 }} />}
-        </Box>
+        <PromotedJobVisual key={`${promotion.jobId}:${banner ?? ''}`} bannerUrl={banner} companyName={companyName} logoUrl={logoUrl} title={title} />
       </Box>
     </Card>
   );
