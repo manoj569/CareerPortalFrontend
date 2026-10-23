@@ -45,7 +45,7 @@ const blank: HiringDriveInput = {
   locationText: '',
   imageUrl: '',
   isSponsored: false,
-  jobId: '',
+  jobId: null,
   applyUrl: '',
   isActive: false,
   startAtUtc: '',
@@ -318,3 +318,4 @@ export const AdminHiringDrivesPage = () => {
     </Stack>
   );
 };
+
