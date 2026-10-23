@@ -87,13 +87,11 @@ export const PromotedJobCard = ({ promotion }: { promotion: ActiveJobPromotion }
           {details.length > 0 && <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere' }}>{details.join(' · ')}</Typography>}
           {education && <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere' }}>{education}</Typography>}
           {skills.length > 0 && <Stack direction="row" flexWrap="wrap" gap={0.5}>{skills.slice(0, 3).map((skill) => <Chip key={skill} size="small" variant="outlined" label={skill} />)}{skills.length > 3 && <Chip size="small" variant="outlined" label={`+${skills.length - 3}`} />}</Stack>}
-        </CardContent>
-        <PromotedJobVisual key={`${promotion.jobId}:${banner ?? ''}`} bannerUrl={banner} companyName={companyName} logoUrl={logoUrl} title={title} />
-        <Box className="promoted-job-action">
-          <Button variant="contained" endIcon={<ArrowForwardRoundedIcon />} onClick={() => void navigate(buildDashboardJobDetailsPath(promotion.jobSlug))} sx={{ minHeight: 44, width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 190 }, bgcolor: 'primary.main' }}>
+          <Button variant="contained" endIcon={<ArrowForwardRoundedIcon />} onClick={() => void navigate(buildDashboardJobDetailsPath(promotion.jobSlug))} sx={{ mt: 'auto', alignSelf: 'flex-start', minWidth: { xs: '100%', sm: 190 }, bgcolor: 'primary.main' }}>
             View Opportunity
           </Button>
-        </Box>
+        </CardContent>
+        <PromotedJobVisual key={`${promotion.jobId}:${banner ?? ''}`} bannerUrl={banner} companyName={companyName} logoUrl={logoUrl} title={title} />
       </Box>
     </Card>
   );

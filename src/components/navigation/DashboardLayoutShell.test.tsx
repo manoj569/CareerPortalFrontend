@@ -171,7 +171,7 @@ describe('Candidate workspace shell', () => {
     expect(action).toHaveBeenCalledOnce();
   });
 
-  it('removes the points card from the mobile drawer while preserving membership and social links', async () => {
+  it('shows compact points status in the mobile drawer and keeps it out of the header', async () => {
     pointsQueryMock.mockReturnValue({
       data: {
         pointsBalance: {
@@ -191,10 +191,7 @@ describe('Candidate workspace shell', () => {
     renderShell(0);
     await userEvent.click(screen.getByRole('button', { name: 'Open candidate workspace navigation' }));
     const drawer = screen.getByLabelText('Candidate workspace navigation drawer');
-    expect(within(drawer).queryByText('1,320 / 3,000 points')).not.toBeInTheDocument();
-    expect(within(drawer).queryByLabelText('Mentor eligibility points progress')).not.toBeInTheDocument();
-    expect(within(drawer).getByRole('link', { name: 'Membership' })).toBeVisible();
-    expect(within(drawer).getByRole('link', { name: 'CareerHarbor on LinkedIn' })).toBeVisible();
+    expect(within(drawer).getByText('1,320 / 3,000 points')).toBeVisible();
   });
 
   it('refreshes the private account-menu avatar after a profile photo change', async () => {

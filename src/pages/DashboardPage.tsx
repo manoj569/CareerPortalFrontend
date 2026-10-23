@@ -31,13 +31,13 @@ export const DashboardPage = () => {
   const firstName = profile.data?.firstName?.trim() || currentUser?.firstName?.trim();
 
   return (
-    <Stack spacing={{ xs: 2.5, md: 3 }} sx={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
+    <Stack spacing={{ xs: 2.5, md: 3 }}>
       <Grid container spacing={{ xs: 2, lg: 2.5 }} alignItems="center">
         <Grid size={{ xs: 12, lg: 5 }}>
           <Stack spacing={0.15} sx={{ px: { xs: 0, sm: 1 } }}>
             <Typography color="text.secondary" variant="body2">Welcome back,</Typography>
-            <Typography component="h1" variant="h3" fontWeight={850} sx={{ letterSpacing: '-.035em', lineHeight: 1.12, fontSize: { xs: 'clamp(2.15rem, 9vw, 3rem)', md: '3rem' }, overflowWrap: 'anywhere' }}>{firstName ? `${firstName} 👋` : 'Welcome back'}</Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 600, overflowWrap: 'anywhere' }}>Explore top opportunities, track your progress and grow your career with CareerHarbor.</Typography>
+            <Typography component="h1" variant="h3" fontWeight={850} sx={{ letterSpacing: '-.035em', lineHeight: 1.12 }}>{firstName ? `${firstName} 👋` : 'Welcome back'}</Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 600 }}>Explore top opportunities, track your progress and grow your career with CareerHarbor.</Typography>
           </Stack>
         </Grid>
         <Grid size={{ xs: 12, lg: 7 }}>

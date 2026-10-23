@@ -32,7 +32,6 @@
   background: transparent;
 }
 .hiring-ads-heading { display:flex; align-items:center; gap:14px; min-width:0; }
-.hiring-ads-dashboard .hiring-ads-heading > div { min-width:0; }
 .hiring-ads-heading-icon { display:grid; place-items:center; flex:0 0 46px; width:46px; height:46px; border-radius:50%; background:#f0e8ff; color:#7629e8; }
 .hiring-ads-heading-icon svg { font-size:29px; }
 .hiring-ads-control { width:42px; height:42px; border:1px solid #e1e8f4 !important; background:#fff !important; box-shadow:0 2px 7px rgba(20,45,90,.08); }
@@ -50,7 +49,7 @@
 .hiring-ads-track::-webkit-scrollbar {
   display: none;
 }
-.hiring-ads-dashboard .hiring-ads-track .hiring-card {
+.hiring-ads-track .hiring-card {
   min-height: 100%;
 }
 .hiring-ads-dot {
@@ -139,15 +138,6 @@
   .hiring-ads-track {
     grid-auto-columns: 100%;
   }
-  .hiring-ads-dashboard .hiring-ads-track { grid-auto-columns:minmax(0, 100%); width:100%; }
-  .hiring-ads-dashboard .hiring-ads-track .hiring-card { min-width:0; max-width:100%; }
-  .hiring-ads-dashboard .hiring-ads-heading { align-items:flex-start; gap:10px; }
-  .hiring-ads-dashboard .hiring-ads-heading-icon { flex-basis:40px; width:40px; height:40px; }
-  .hiring-ads-dashboard .hiring-ads-heading-icon svg { font-size:25px; }
-  .hiring-ads-dashboard .hiring-card { padding:16px; }
-  .hiring-ads-dashboard .hiring-drive-content { padding:16px; }
-  .hiring-ads-dashboard .hiring-drive-layout.has-image { grid-template-rows:minmax(0, auto) auto; }
-  .hiring-ads-dashboard .hiring-drive-visual .hiring-image { min-height:0; aspect-ratio:16 / 9; height:auto; }
 }
 @media (min-width: 768px) {
   .hiring-ads-track {
@@ -161,17 +151,13 @@
 }
 .promoted-job-layout {
   display: grid;
-  grid-template-areas: 'content' 'visual' 'action';
+  grid-template-areas: 'visual' 'content';
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  width: 100%;
-  min-width: 0;
   min-height: 100%;
 }
 .promoted-job-content {
   grid-area: content;
-  min-width: 0;
-  padding: 18px 18px 0 !important;
+  padding: 18px !important;
 }
 .promoted-disclosure {
   align-self: flex-start;
@@ -187,17 +173,10 @@
   position: relative;
   display: grid;
   grid-area: visual;
-  min-height: 0;
-  width: 100%;
-  aspect-ratio: 16 / 9;
+  min-height: 132px;
   place-items: center;
   overflow: hidden;
   background: linear-gradient(135deg, #e4eaff, #eedfff 58%, #e8f2ff);
-}
-.promoted-job-action {
-  grid-area: action;
-  min-width: 0;
-  padding: 12px 18px 18px;
 }
 .promoted-job-card .MuiButton-root { min-height:44px; padding-inline:22px; border-radius:9px; }
 .promoted-job-banner {
@@ -210,17 +189,14 @@
 }
 @container (min-width: 520px) {
   .promoted-job-layout {
-    grid-template-areas: 'content visual' 'action visual';
+    grid-template-areas: 'content visual';
     grid-template-columns: minmax(0, 1fr) minmax(38%, 42%);
-    grid-template-rows: 1fr auto;
   }
   .promoted-job-visual {
     min-height: 100%;
-    aspect-ratio: auto;
   }
   .promoted-job-content {
-    padding: 22px 22px 0 !important;
+    padding: 22px !important;
   }
-  .promoted-job-action { padding: 10px 22px 22px; }
   .hiring-drive-content { padding:22px; }
 }
