@@ -29,11 +29,11 @@ export const DashboardRecentAndMembership = ({ applications, applicationsLoading
       <Paper component="section" aria-labelledby="dashboard-recent-applications" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2.5, height: '100%', borderColor: '#dce5f5', boxShadow: '0 3px 12px rgba(37,76,145,.055)' }}>
         <Stack spacing={1.5}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
             <Box sx={{ display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: 2, bgcolor: '#e9f1ff', color: 'primary.main' }}><DescriptionOutlinedIcon /></Box>
-            <Box>
-              <Typography component="h2" id="dashboard-recent-applications" variant="h6" fontWeight={800}>Recent applications</Typography>
-              <Typography variant="body2" color="text.secondary">Track your latest applications.</Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography component="h2" id="dashboard-recent-applications" variant="h6" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>Recent applications</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>Track your latest applications.</Typography>
             </Box>
             </Stack>
             <MuiLink component={Link} to={ROUTES.APPLICATIONS} underline="hover" fontWeight={700} sx={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>View all</MuiLink>
@@ -62,11 +62,11 @@ export const DashboardRecentAndMembership = ({ applications, applicationsLoading
       <Paper component="section" aria-labelledby="dashboard-membership-access" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2.5, height: '100%', borderColor: '#dce5f5', boxShadow: '0 3px 12px rgba(37,76,145,.055)' }}>
         <Stack spacing={1.5}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
               <Box sx={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: '50%', bgcolor: '#fff0df', color: '#d97500' }}><WorkspacePremiumOutlinedIcon aria-hidden="true" /></Box>
-              <Box>
-                <Typography component="h2" id="dashboard-membership-access" variant="h6" fontWeight={800}>Membership access</Typography>
-                <Typography variant="body2" color="text.secondary">Your current plan and access status.</Typography>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography component="h2" id="dashboard-membership-access" variant="h6" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>Membership access</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>Your current plan and access status.</Typography>
               </Box>
             </Stack>
             <Button component={Link} to={ROUTES.MEMBERSHIP} variant="outlined" sx={{ minHeight: 40, px: 2 }}>Manage plan</Button>

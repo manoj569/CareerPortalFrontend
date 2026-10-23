@@ -240,12 +240,6 @@ const isFullWidthPage =
 
       <Divider />
 
-      {!compact && mobile && pointsQuery.data?.pointsBalance ? (
-        <Box sx={{ px: 2, pt: 1.5 }}>
-          <CareerHarborPointsCard balance={pointsQuery.data.pointsBalance} compact />
-        </Box>
-      ) : null}
-
       {!compact && areaLabel === 'Candidate workspace' && isDashboardLocation ? (
         <Box sx={{ px: 1.75, pb: 1.25 }}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 3, bgcolor: '#f5efff', borderColor: '#e8ddff' }}>
@@ -430,8 +424,8 @@ const isFullWidthPage =
               'aria-label': `${areaLabel} navigation drawer`,
               id: mobileDrawerId,
               sx: {
-                maxWidth: '88vw',
-                width: DRAWER_WIDTH,
+                maxWidth: 'min(82vw, 300px)',
+                width: { xs: 'min(82vw, 300px)', md: DRAWER_WIDTH },
               },
             },
           }}
@@ -501,7 +495,7 @@ const isFullWidthPage =
       <Box
         component="main"
         id="main-content"
-        sx={{ flexGrow: 1, minWidth: 0, pt: 8 }}
+        sx={{ flexGrow: 1, minWidth: 0, width: { xs: '100%', md: 'auto' }, maxWidth: '100%', pt: 8 }}
         tabIndex={-1}
       >
         <Container
@@ -509,6 +503,9 @@ const isFullWidthPage =
   sx={
     isFullWidthPage
       ? {
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
           px: { xs: 1.5, sm: 2, lg: 3 },
           py: { xs: 1.5, md: 2 },
         }

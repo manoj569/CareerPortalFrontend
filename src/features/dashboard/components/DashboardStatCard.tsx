@@ -17,7 +17,7 @@ const statColors: Record<string, { color: string; tint: string }> = {
 export const DashboardStatCard = ({ icon, label, value }: DashboardStatCardProps) => {
   const colors = statColors[label] ?? { color: '#0758d7', tint: '#e8f1ff' };
   return (
-  <Stack alignItems="center" direction="row" spacing={1.25} sx={{ height: '100%', p: { xs: 1, sm: 1.25 } }}>
+  <Stack alignItems="center" direction="row" spacing={{ xs: 0.75, sm: 1.25 }} sx={{ height: '100%', minWidth: 0, p: { xs: 0.75, sm: 1.25 } }}>
       <Box
         aria-hidden="true"
         sx={{
@@ -29,6 +29,7 @@ export const DashboardStatCard = ({ icon, label, value }: DashboardStatCardProps
           height: { xs: 40, sm: 46 },
           justifyContent: 'center',
           width: { xs: 40, sm: 46 },
+          flexShrink: 0,
         }}
       >
         {icon}
@@ -37,7 +38,7 @@ export const DashboardStatCard = ({ icon, label, value }: DashboardStatCardProps
         <Typography component="p" fontWeight={800} variant="h5" aria-label={`${label}: ${typeof value === 'number' || typeof value === 'string' ? value : 'loading'}`} sx={{ lineHeight: 1.05 }}>
           {value}
         </Typography>
-        <Typography color="text.secondary" variant="body2">
+        <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere', lineHeight: 1.25 }}>
           {label}
         </Typography>
       </Box>

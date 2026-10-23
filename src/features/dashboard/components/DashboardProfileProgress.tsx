@@ -36,12 +36,12 @@ export const DashboardProfileProgress = ({ completion, isLoading, isError, onRet
   return (
     <Paper component="section" aria-labelledby="dashboard-profile-progress" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2.5, borderColor: '#dce5f5', boxShadow: '0 3px 12px rgba(37,76,145,.055)' }}>
       <Stack spacing={1.25}>
-        <Stack direction="row" alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" spacing={2}>
+        <Stack direction="row" alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" spacing={1} sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
             <Box sx={{ display: 'grid', placeItems: 'center', flex: '0 0 42px', width: 42, height: 42, borderRadius: '50%', bgcolor: '#e4efff', color: 'primary.main' }}><PersonOutlineRoundedIcon aria-hidden="true" sx={{ fontSize: 25 }} /></Box>
             <Box minWidth={0}>
-              <Typography id="dashboard-profile-progress" component="h2" variant="h6" fontWeight={800}>Profile progress</Typography>
-              <Typography variant="body2" color="text.secondary">Complete your profile to get better job recommendations.</Typography>
+              <Typography id="dashboard-profile-progress" component="h2" variant="h6" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>Profile progress</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>Complete your profile to get better job recommendations.</Typography>
             </Box>
           </Stack>
           <Typography color="primary.main" fontWeight={850} variant="h6" aria-label={`Profile ${percent}% complete`} sx={{ fontSize: '1.15rem' }}>{percent}%</Typography>
@@ -55,11 +55,11 @@ export const DashboardProfileProgress = ({ completion, isLoading, isError, onRet
         <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'block', sm: 'none' } }}>
           {completedCount} of {profileSteps.length} sections complete{nextStep ? ` · Next: ${nextStep.label}` : ''}
         </Typography>
-        <Grid container spacing={1} sx={{ display: { xs: 'none', sm: 'flex' } }}>
+        <Grid container spacing={1} sx={{ display: 'flex', minWidth: 0 }}>
           {profileSteps.map((step) => {
             const complete = isSectionCompleted(completion, step.value);
             const missing = isSectionMissing(completion, step.value);
-            return <Grid key={step.value} size={{ sm: 6, md: 3, lg: 'auto' }} sx={{ flex: { lg: '1 1 0' } }}>
+            return <Grid key={step.value} size={{ xs: 6, sm: 6, md: 3, lg: 'auto' }} sx={{ minWidth: 0, flex: { lg: '1 1 0' } }}>
               <Chip
                 size="small"
                 variant={complete ? 'filled' : 'outlined'}
@@ -67,7 +67,7 @@ export const DashboardProfileProgress = ({ completion, isLoading, isError, onRet
                 icon={complete ? <CheckCircleRoundedIcon /> : <RadioButtonUncheckedRoundedIcon />}
                 label={step.label}
                 aria-label={`${step.label}: ${complete ? 'complete' : missing ? 'incomplete' : 'not marked complete'}`}
-                sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+                sx={{ maxWidth: '100%', height: { xs: 'auto', sm: 32 }, py: { xs: 0.5, sm: 0 }, '& .MuiChip-label': { whiteSpace: { xs: 'normal', sm: 'nowrap' }, overflowWrap: 'anywhere', display: 'block' } }}
               />
             </Grid>;
           })}
