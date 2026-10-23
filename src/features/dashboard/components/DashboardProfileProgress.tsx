@@ -34,20 +34,23 @@ export const DashboardProfileProgress = ({ completion, isLoading, isError, onRet
   const completedCount = profileSteps.filter((step) => isSectionCompleted(completion, step.value)).length;
 
   return (
-    <Paper component="section" aria-labelledby="dashboard-profile-progress" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2.5 }}>
-      <Stack spacing={1.5}>
+    <Paper component="section" aria-labelledby="dashboard-profile-progress" variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2.5, borderColor: '#dce5f5', boxShadow: '0 3px 12px rgba(37,76,145,.055)' }}>
+      <Stack spacing={1.25}>
         <Stack direction="row" alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" spacing={2}>
           <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
-            <Box sx={{ display: 'grid', placeItems: 'center', flex: '0 0 36px', width: 36, height: 36, borderRadius: '50%', bgcolor: 'action.hover', color: 'primary.main' }}><PersonOutlineRoundedIcon aria-hidden="true" /></Box>
+            <Box sx={{ display: 'grid', placeItems: 'center', flex: '0 0 42px', width: 42, height: 42, borderRadius: '50%', bgcolor: '#e4efff', color: 'primary.main' }}><PersonOutlineRoundedIcon aria-hidden="true" sx={{ fontSize: 25 }} /></Box>
             <Box minWidth={0}>
-              <Typography id="dashboard-profile-progress" component="h2" variant="h6" fontWeight={750}>Profile progress</Typography>
+              <Typography id="dashboard-profile-progress" component="h2" variant="h6" fontWeight={800}>Profile progress</Typography>
               <Typography variant="body2" color="text.secondary">Complete your profile to get better job recommendations.</Typography>
             </Box>
           </Stack>
-          <Typography color="primary.main" fontWeight={800} variant="h6" aria-label={`Profile ${percent}% complete`}>{percent}%</Typography>
+          <Typography color="primary.main" fontWeight={850} variant="h6" aria-label={`Profile ${percent}% complete`} sx={{ fontSize: '1.15rem' }}>{percent}%</Typography>
         </Stack>
 
-        <LinearProgress variant="determinate" value={percent} aria-label={`Profile ${percent}% complete`} sx={{ height: 8, borderRadius: 99, bgcolor: 'action.hover', '& .MuiLinearProgress-bar': { borderRadius: 99 } }} />
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ sm: 'center' }}>
+          <LinearProgress variant="determinate" value={percent} aria-label={`Profile ${percent}% complete`} sx={{ flex: 1, height: 9, borderRadius: 99, bgcolor: '#e5ebf4', '& .MuiLinearProgress-bar': { borderRadius: 99 } }} />
+          {nextStep && <Button component={Link} to={profileStepActions[nextStep.value].path} variant="contained" sx={{ minHeight: 42, px: 2.25, borderRadius: 2, alignSelf: { xs: 'stretch', sm: 'auto' }, whiteSpace: 'nowrap' }}>Continue profile</Button>}
+        </Stack>
 
         <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'block', sm: 'none' } }}>
           {completedCount} of {profileSteps.length} sections complete{nextStep ? ` · Next: ${nextStep.label}` : ''}
@@ -70,10 +73,7 @@ export const DashboardProfileProgress = ({ completion, isLoading, isError, onRet
           })}
         </Grid>
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={1}>
-          {nextStep ? <Typography variant="body2" color="text.secondary">Continue with {nextStep.label.toLowerCase()}.</Typography> : <Typography variant="body2" color="success.dark" fontWeight={600}>Your profile is complete.</Typography>}
-          {nextStep && <Button component={Link} to={profileStepActions[nextStep.value].path} variant="contained" sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}>Complete profile</Button>}
-        </Stack>
+        {nextStep ? <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>Continue with {nextStep.label.toLowerCase()}.</Typography> : <Typography variant="body2" color="success.dark" fontWeight={600}>Your profile is complete.</Typography>}
       </Stack>
     </Paper>
   );

@@ -1,4 +1,4 @@
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 
 interface DashboardStatCardProps {
@@ -7,32 +7,40 @@ interface DashboardStatCardProps {
   value: ReactNode;
 }
 
-export const DashboardStatCard = ({ icon, label, value }: DashboardStatCardProps) => (
-  <Paper variant="outlined" sx={{ height: '100%', p: 1.5, borderRadius: 2.5, bgcolor: 'background.paper' }}>
-    <Stack alignItems="center" direction="row" spacing={2}>
+const statColors: Record<string, { color: string; tint: string }> = {
+  'Saved jobs': { color: '#5d28d9', tint: '#f0eaff' },
+  'Applied jobs': { color: '#0758d7', tint: '#e8f1ff' },
+  'Pending referrals': { color: '#5035d2', tint: '#efebff' },
+  'Insights published': { color: '#078b73', tint: '#e0f8f2' },
+};
+
+export const DashboardStatCard = ({ icon, label, value }: DashboardStatCardProps) => {
+  const colors = statColors[label] ?? { color: '#0758d7', tint: '#e8f1ff' };
+  return (
+  <Stack alignItems="center" direction="row" spacing={1.25} sx={{ height: '100%', p: { xs: 1, sm: 1.25 } }}>
       <Box
         aria-hidden="true"
         sx={{
           alignItems: 'center',
-          bgcolor: 'action.hover',
-          borderRadius: 2,
-          color: 'primary.main',
+          bgcolor: colors.tint,
+          borderRadius: '50%',
+          color: colors.color,
           display: 'flex',
-          height: 44,
+          height: { xs: 40, sm: 46 },
           justifyContent: 'center',
-          width: 44,
+          width: { xs: 40, sm: 46 },
         }}
       >
         {icon}
       </Box>
-      <Box>
-        <Typography component="p" fontWeight={800} variant="h5" aria-label={`${label}: ${typeof value === 'number' || typeof value === 'string' ? value : 'loading'}`}>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography component="p" fontWeight={800} variant="h5" aria-label={`${label}: ${typeof value === 'number' || typeof value === 'string' ? value : 'loading'}`} sx={{ lineHeight: 1.05 }}>
           {value}
         </Typography>
         <Typography color="text.secondary" variant="body2">
           {label}
         </Typography>
       </Box>
-    </Stack>
-  </Paper>
-);
+  </Stack>
+  );
+};

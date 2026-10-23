@@ -50,11 +50,11 @@ const isActive = (item: NavigationItem, pathname: string, search: string): boole
   return true;
 };
 const itemSx = (compact: boolean) => ({
-  borderRadius: 1.5,
+  borderRadius: 2,
   justifyContent: compact ? 'center' : 'flex-start',
   mb: 0.5,
-  minHeight: 44,
-  px: compact ? 1 : 2,
+  minHeight: compact ? 46 : 48,
+  px: compact ? 1 : 1.75,
   '&.active': {
     bgcolor: 'primary.main',
     color: 'primary.contrastText',
@@ -88,15 +88,15 @@ const NavigationEntry = ({
     <>
       {Icon && (
         <ListItemIcon
-          sx={{ color: 'text.secondary', justifyContent: 'center', minWidth: compact ? 0 : 40 }}
+          sx={{ color: 'text.secondary', justifyContent: 'center', minWidth: compact ? 0 : 42 }}
         >
-          <Icon fontSize="small" />
+          <Icon sx={{ fontSize: 22 }} />
         </ListItemIcon>
       )}
       {!compact && (
         <ListItemText
           primary={item.label}
-          primaryTypographyProps={{ fontWeight: 600 }}
+          primaryTypographyProps={{ fontWeight: 650, fontSize: '0.9rem' }}
           secondary={item.secondaryLabel}
           secondaryTypographyProps={{ variant: 'caption' }}
         />

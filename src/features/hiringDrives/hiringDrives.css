@@ -27,11 +27,14 @@
   box-sizing: border-box;
 }
 .hiring-ads-dashboard {
-  padding: 20px;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: #fff;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
+.hiring-ads-heading { display:flex; align-items:center; gap:14px; min-width:0; }
+.hiring-ads-heading-icon { display:grid; place-items:center; flex:0 0 46px; width:46px; height:46px; border-radius:50%; background:#f0e8ff; color:#7629e8; }
+.hiring-ads-heading-icon svg { font-size:29px; }
+.hiring-ads-control { width:42px; height:42px; border:1px solid #e1e8f4 !important; background:#fff !important; box-shadow:0 2px 7px rgba(20,45,90,.08); }
 .hiring-ads-track {
   display: grid;
   grid-auto-flow: column;
@@ -87,6 +90,16 @@
   object-fit: contain;
   border-radius: 8px;
 }
+.hiring-drive-card { padding:0; min-height:300px; border:1px solid #dce5f5; border-radius:14px; box-shadow:0 5px 15px rgba(27,55,100,.10); background:#fff; }
+.hiring-drive-layout { display:grid; grid-template-columns:minmax(0,1fr); height:100%; min-height:300px; }
+.hiring-drive-layout.has-image { grid-template-rows: minmax(132px, auto) auto; }
+.hiring-drive-content { display:flex; flex-direction:column; gap:10px; min-width:0; padding:20px; z-index:1; }
+.hiring-drive-featured { align-self:flex-start; background:#e8f1ff !important; color:#0758d7 !important; border:0 !important; font-weight:750 !important; }
+.hiring-drive-featured .MuiChip-icon { color:inherit; }
+.hiring-drive-batch { background:#eaf1ff !important; color:#0758d7 !important; font-weight:700 !important; }
+.hiring-drive-visual { position:relative; min-width:0; min-height:100%; overflow:hidden; background:linear-gradient(120deg,#f7f9fc,#e4efff); }
+.hiring-drive-visual::before { content:''; position:absolute; z-index:1; inset:0 auto 0 -1px; width:30%; background:linear-gradient(90deg,#fff,rgba(255,255,255,0)); }
+.hiring-drive-visual .hiring-image { display:block; width:100%; height:100%; min-height:300px; margin:0; border-radius:0; object-fit:cover; object-position:center; }
 .hiring-section button:focus-visible,
 .hiring-section a:focus-visible {
   outline: 3px solid #0b57d0;
@@ -130,6 +143,7 @@
   .hiring-ads-track {
     grid-auto-columns: calc((100% - 16px) / 2);
   }
+  .hiring-drive-layout.has-image { grid-template-rows: minmax(0,1fr); grid-template-columns:minmax(0,1.1fr) minmax(34%,.9fr); }
 }
 
 .promoted-job-card {
@@ -147,9 +161,9 @@
 }
 .promoted-disclosure {
   align-self: flex-start;
-  border: 1px solid #e2dcff !important;
-  background: #f2efff !important;
-  color: #5136a8 !important;
+  border: 1px solid #ffc7cb !important;
+  background: #ffe5e7 !important;
+  color: #d82236 !important;
   font-weight: 700 !important;
 }
 .promoted-disclosure .MuiChip-icon {
@@ -162,8 +176,9 @@
   min-height: 132px;
   place-items: center;
   overflow: hidden;
-  background: linear-gradient(135deg, #eff4ff, #f4f0ff);
+  background: linear-gradient(135deg, #e4eaff, #eedfff 58%, #e8f2ff);
 }
+.promoted-job-card .MuiButton-root { min-height:44px; padding-inline:22px; border-radius:9px; }
 .promoted-job-banner {
   position: absolute;
   inset: 0;
@@ -175,7 +190,7 @@
 @container (min-width: 520px) {
   .promoted-job-layout {
     grid-template-areas: 'content visual';
-    grid-template-columns: minmax(0, 1fr) minmax(30%, 36%);
+    grid-template-columns: minmax(0, 1fr) minmax(38%, 42%);
   }
   .promoted-job-visual {
     min-height: 100%;
@@ -183,4 +198,5 @@
   .promoted-job-content {
     padding: 22px !important;
   }
+  .hiring-drive-content { padding:22px; }
 }

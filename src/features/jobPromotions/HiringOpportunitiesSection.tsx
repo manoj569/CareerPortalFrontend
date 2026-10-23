@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import BoltRoundedIcon from '@mui/icons-material/BoltRounded';
 import { useGetHomeHiringDrivesQuery } from '@/features/hiringDrives/api';
 import { HiringDriveCard, HiringDriveSkeleton } from '@/features/hiringDrives/HiringDriveCard';
 import type { HiringDrive } from '@/features/hiringDrives/types';
@@ -77,9 +78,12 @@ export const HiringOpportunitiesSection = () => {
   if (!isLoading && !items.length) return (
     <section className="hiring-ads-section hiring-ads-dashboard" aria-labelledby="dashboard-hiring-opportunities">
       <Stack spacing={1.5}>
-        <div>
+        <div className="hiring-ads-heading">
+          <span className="hiring-ads-heading-icon"><BoltRoundedIcon /></span>
+          <div>
           <Typography component="h2" id="dashboard-hiring-opportunities" variant="h5" fontWeight={800}>Hiring Opportunities</Typography>
           <Typography color="text.secondary">Featured opportunities and promoted roles selected for you.</Typography>
+          </div>
         </div>
         {drivesFailed || promotionsFailed ? (
           <Alert severity="info" action={<Stack direction="row" flexWrap="wrap"><Button onClick={() => void drivesQuery.refetch()}>Retry drives</Button><Button onClick={() => void promotionsQuery.refetch()}>Retry promoted jobs</Button></Stack>}>
@@ -97,9 +101,12 @@ export const HiringOpportunitiesSection = () => {
 
   const trackClass = ['hiring-ads-track', items.length === 1 ? 'hiring-ads-track-single' : '', items.length === 2 ? 'hiring-ads-track-double' : ''].filter(Boolean).join(' ');
   return <section className="hiring-ads-section hiring-ads-dashboard" aria-labelledby="dashboard-hiring-opportunities" aria-busy={isLoading}>
-    <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 2.5 }}>
-      <div><Typography component="h2" id="dashboard-hiring-opportunities" variant="h5" fontWeight={800}>Hiring Opportunities</Typography><Typography color="text.secondary">Featured opportunities and promoted roles selected for you.</Typography></div>
-      {items.length > 1 && <Stack direction="row" gap={0.5}><IconButton aria-label="Previous hiring opportunity" onClick={() => goTo(index - 1)}><ArrowBackRoundedIcon /></IconButton><IconButton aria-label="Next hiring opportunity" onClick={() => goTo(index + 1)}><ArrowForwardRoundedIcon /></IconButton></Stack>}
+    <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 1.75 }}>
+      <div className="hiring-ads-heading"><span className="hiring-ads-heading-icon"><BoltRoundedIcon /></span><div><Typography component="h2" id="dashboard-hiring-opportunities" variant="h5" fontWeight={800}>Hiring Opportunities</Typography><Typography color="text.secondary">Top opportunities from leading companies, handpicked for you.</Typography></div></div>
+      <Stack direction="row" gap={0.75} alignItems="center">
+        <Button component={Link} to={ROUTES.DASHBOARD_JOBS} endIcon={<ArrowForwardRoundedIcon />} sx={{ fontWeight: 700, minHeight: 42 }}>View all</Button>
+        {items.length > 1 && <><IconButton className="hiring-ads-control" aria-label="Previous hiring opportunity" onClick={() => goTo(index - 1)}><ArrowBackRoundedIcon /></IconButton><IconButton className="hiring-ads-control" aria-label="Next hiring opportunity" onClick={() => goTo(index + 1)}><ArrowForwardRoundedIcon /></IconButton></>}
+      </Stack>
     </Stack>
     {(drivesFailed || promotionsFailed) && <Alert severity="info" sx={{ mb: 2 }}>{drivesFailed ? 'Hiring Drives are temporarily unavailable. ' : ''}{promotionsFailed ? 'Promoted jobs are temporarily unavailable.' : ''}</Alert>}
     <div ref={track} className={trackClass} role="region" aria-roledescription="carousel" aria-label="Hiring opportunities carousel" aria-live="off" onScroll={onScroll} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setFocus(true)} onBlur={onBlur}>

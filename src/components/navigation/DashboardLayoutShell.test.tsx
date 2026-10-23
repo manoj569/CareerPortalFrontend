@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ROUTES } from '@/constants/routes';
 import { authService } from '@/features/auth/services/authService';
 import type { AuthState } from '@/features/auth/store/authSlice';
+import type * as InterviewInsightsApi from '@/features/interviewInsights/api/interviewInsightsApi';
 import { candidateNavigationItems } from '@/layouts/candidateNavigation';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { UserRole } from '@/types';
@@ -17,7 +18,7 @@ const { apiRequestMock, pointsQueryMock } = vi.hoisted(() => ({
 
 vi.mock('@/api/apiClient', () => ({ apiClient: { request: apiRequestMock } }));
 vi.mock('@/features/interviewInsights/api/interviewInsightsApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/features/interviewInsights/api/interviewInsightsApi')>();
+  const actual = await importOriginal<typeof InterviewInsightsApi>();
   return {
     ...actual,
     useGetMyInterviewContributionsQuery: pointsQueryMock,
@@ -40,7 +41,7 @@ const candidateAuth: AuthState = {
 
 const LocationProbe = () => {
   const location = useLocation();
-  return <output data-testid="location">{location.pathname}</output>;
+  return <output data-testid="location">{location.pathname}{location.search}</output>;
 };
 
 const renderShell = (notificationCount: number) => {
@@ -59,7 +60,7 @@ const renderShell = (notificationCount: number) => {
         ),
         path: '/dashboard',
         children: [
-          { path: 'jobs', element: <p>Browse jobs page</p> },
+          { path: 'jobs', element: <><p>Browse jobs page</p><LocationProbe /></> },
           {
             path: 'portfolio',
             element: (
@@ -114,6 +115,15 @@ describe('Candidate workspace shell', () => {
       value: vi.fn().mockReturnValue('blob:header-photo'),
     });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+  });
+
+  it('submits keyword and location search to the existing job filters', async () => {
+    const user = userEvent.setup();
+    renderShell(0);
+    await user.type(screen.getByRole('textbox', { name: 'Search jobs, companies, skills or keywords' }), 'product designer');
+    await user.type(screen.getByRole('textbox', { name: 'Job location' }), 'Pune');
+    await user.click(screen.getByRole('button', { name: 'Search' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/dashboard/jobs?q=product+designer&location=Pune');
   });
 
   it('intercepts direct Career Guidance workflow URLs with the Coming soon page', () => {

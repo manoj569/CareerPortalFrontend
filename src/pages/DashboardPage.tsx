@@ -1,4 +1,4 @@
-import { Grid, Stack } from '@mui/material';
+import { Grid, Stack, Typography } from '@mui/material';
 
 import {
   useGetApplicationsQuery,
@@ -7,7 +7,6 @@ import {
   useGetProfileQuery,
   useGetSavedJobsQuery,
 } from '@/features/dashboard/api/dashboardApi';
-import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { DashboardProfileProgress } from '@/features/dashboard/components/DashboardProfileProgress';
 import { DashboardQuickActions } from '@/features/dashboard/components/DashboardQuickActions';
 import { DashboardRecentAndMembership } from '@/features/dashboard/components/DashboardRecentAndMembership';
@@ -33,14 +32,15 @@ export const DashboardPage = () => {
 
   return (
     <Stack spacing={{ xs: 2.5, md: 3 }}>
-      <Grid container spacing={{ xs: 2, lg: 3 }} alignItems="center">
-        <Grid size={{ xs: 12, lg: 4 }}>
-          <DashboardPageHeader
-            description="Here's what's happening with your career today."
-            title={firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
-          />
+      <Grid container spacing={{ xs: 2, lg: 2.5 }} alignItems="center">
+        <Grid size={{ xs: 12, lg: 5 }}>
+          <Stack spacing={0.15} sx={{ px: { xs: 0, sm: 1 } }}>
+            <Typography color="text.secondary" variant="body2">Welcome back,</Typography>
+            <Typography component="h1" variant="h3" fontWeight={850} sx={{ letterSpacing: '-.035em', lineHeight: 1.12 }}>{firstName ? `${firstName} 👋` : 'Welcome back'}</Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 600 }}>Explore top opportunities, track your progress and grow your career with CareerHarbor.</Typography>
+          </Stack>
         </Grid>
-        <Grid size={{ xs: 12, lg: 8 }}>
+        <Grid size={{ xs: 12, lg: 7 }}>
           <DashboardSummaryStats
             savedJobsCount={savedJobs.data?.totalCount}
             savedJobsLoading={savedJobs.isLoading}

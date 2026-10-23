@@ -373,7 +373,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('candidate dashboard pages', () => {
-  it('renders the compact welcome, real dashboard counts, and existing quick-action routes', () => {
+  it('renders the reference welcome, real dashboard counts, and existing quick-action routes', () => {
     mockSavedJobs.mockReturnValue(
       queryResult({
         data: { items: [savedJob], pageNumber: 1, pageSize: 3, totalCount: 2, totalPages: 1 },
@@ -408,7 +408,8 @@ describe('candidate dashboard pages', () => {
 
     renderPage(<DashboardPage />);
 
-    expect(screen.getByRole('heading', { name: 'Welcome back, Avery' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Avery 👋' })).toBeInTheDocument();
+    expect(screen.getByText('Welcome back,')).toBeInTheDocument();
     expect(screen.getByLabelText('Saved jobs: 2')).toBeInTheDocument();
     expect(screen.getByLabelText('Applied jobs: 32')).toBeInTheDocument();
     expect(screen.getByLabelText('Pending referrals: 2')).toBeInTheDocument();
@@ -443,7 +444,7 @@ describe('candidate dashboard pages', () => {
     renderPage(<DashboardPage />);
 
     const hiring = await screen.findByRole('region', { name: 'Hiring Opportunities' });
-    const explore = screen.getByRole('heading', { name: 'Explore CareerHarbor' });
+      const explore = screen.getByRole('link', { name: /Find jobs for you/ });
     const profileProgress = screen.getByRole('heading', { name: 'Profile progress' });
     expect(screen.queryByRole('region', { name: 'Career Harbor features' })).not.toBeInTheDocument();
     expect(hiring.compareDocumentPosition(explore) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -461,7 +462,7 @@ describe('candidate dashboard pages', () => {
   it('keeps the dashboard content available while profile data is loading', () => {
     mockProfile.mockReturnValue(queryResult({ isLoading: true }));
     renderPage(<DashboardPage />);
-    expect(screen.getByRole('heading', { name: 'Welcome back, Avery' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Avery 👋' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Hiring Opportunities' })).toBeInTheDocument();
   });
 

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Chip, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import BoltRoundedIcon from '@mui/icons-material/BoltRounded';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import WorkHistoryOutlinedIcon from '@mui/icons-material/WorkHistoryOutlined';
+import { Box } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildDashboardHiringDriveDetailsPath, buildHiringDriveDetailsPath, buildDashboardJobDetailsPath, ROUTES } from '@/constants/routes';
 import { selectIsAuthenticated } from '@/features/auth/store/authSlice';
@@ -102,7 +106,13 @@ export const HiringDriveCard = ({
   };
   const image = getSafeExternalUrl(drive.imageUrl);
   return (
-    <Paper component="article" ref={root} variant="outlined" className="hiring-card">
+    <Paper component="article" ref={root} variant="outlined" className="hiring-card hiring-drive-card">
+      <div className={`hiring-drive-layout${image ? ' has-image' : ''}`}>
+      <div className="hiring-drive-content">
+      <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+        {drive.isSponsored ? <Chip size="small" className="hiring-drive-featured" icon={<BoltRoundedIcon />} label="Sponsored" /> : null}
+        {drive.badgeText && <Chip size="small" color="primary" label={drive.badgeText} className="hiring-drive-batch" />}
+      </Stack>
       <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
         <CompanyLogoFallback
           companyName={drive.company?.name ?? 'Company'}
@@ -112,39 +122,23 @@ export const HiringDriveCard = ({
         <Typography fontWeight={700} sx={{ flex: 1, overflowWrap: 'anywhere' }}>
           {drive.company?.name ?? 'Company'}
         </Typography>
-        {drive.badgeText && (
-          <Chip size="small" color="primary" variant="outlined" label={drive.badgeText} />
-        )}
       </Stack>
-      <Typography component="h3" variant="h6" sx={{ overflowWrap: 'anywhere' }}>
+      <Typography component="h3" variant="h5" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>
         {drive.title}
       </Typography>
-      {drive.subtitle && <Typography color="text.secondary">{drive.subtitle}</Typography>}
-      {image && (
-        <img
-          className="hiring-image"
-          src={image}
-          alt={`${drive.company?.name ?? 'Company'} hiring campaign`}
-          loading="lazy"
-        />
-      )}
-      <Stack direction="row" gap={1.5} flexWrap="wrap" sx={{ mt: 'auto', pt: 2 }}>
+      {drive.subtitle && <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>{drive.subtitle}</Typography>}
+      <Stack direction="row" gap={1.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
         {drive.experienceText && (
-          <Typography variant="body2">Experience: {drive.experienceText}</Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}><WorkHistoryOutlinedIcon fontSize="small" color="action" /><Typography variant="body2">{drive.experienceText}</Typography></Stack>
         )}
         {drive.locationText && (
-          <Typography variant="body2">Location: {drive.locationText}</Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}><LocationOnOutlinedIcon fontSize="small" color="action" /><Typography variant="body2">{drive.locationText}</Typography></Stack>
         )}
       </Stack>
-      {drive.isSponsored && (
-        <Typography variant="caption" color="text.secondary">
-          Sponsored
-        </Typography>
-      )}
       {error && <Alert severity="error">{error}</Alert>}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 'auto', pt: 1 }}>
         {enableViewDetails && (
-          <Button variant="outlined" onClick={() => void navigate(location.pathname.startsWith('/dashboard/') ? buildDashboardHiringDriveDetailsPath(drive.id) : buildHiringDriveDetailsPath(drive.id))}>
+          <Button variant="outlined" sx={{ minHeight: 42, px: 2.5 }} onClick={() => void navigate(location.pathname.startsWith('/dashboard/') ? buildDashboardHiringDriveDetailsPath(drive.id) : buildHiringDriveDetailsPath(drive.id))}>
             View Details
           </Button>
         )}
@@ -154,10 +148,14 @@ export const HiringDriveCard = ({
           aria-label={`Apply now for ${drive.title}`}
           onClick={() => void apply()}
           endIcon={<ArrowForwardIcon />}
+          sx={{ minHeight: 42, px: 2.5 }}
         >
           {clickState.isLoading ? 'Opening…' : 'Apply Now'}
         </Button>
       </Stack>
+      </div>
+      {image ? <Box className="hiring-drive-visual"><img className="hiring-image" src={image} alt={`${drive.company?.name ?? 'Company'} hiring campaign`} loading="lazy" /></Box> : null}
+      </div>
     </Paper>
   );
 };

@@ -28,6 +28,13 @@ const icons: Partial<Record<CareerHarborSocialPlatform, typeof LinkedInIcon>> = 
   whatsapp: WhatsAppIcon,
   facebook: FacebookIcon,
 };
+const brandColors: Partial<Record<CareerHarborSocialPlatform, string>> = {
+  linkedin: '#0a66c2',
+  instagram: '#c13584',
+  youtube: '#ff0033',
+  facebook: '#0866ff',
+  whatsapp: '#25d366',
+};
 
 export const CareerHarborSocialLinks = ({
   mobile = false,
@@ -51,7 +58,7 @@ export const CareerHarborSocialLinks = ({
           {mobile ? 'Follow CareerHarbor' : 'Connect with CareerHarbor'}
         </Typography>
       ) : null}
-      <Stack alignItems="center" direction="row" spacing={0.25}>
+      <Stack alignItems="center" direction="row" spacing={0.65}>
         {primary.map((link) => {
           const Icon = icons[link.id] ?? OpenInNewIcon;
           return (
@@ -61,9 +68,11 @@ export const CareerHarborSocialLinks = ({
                 component="a"
                 href={link.url}
                 rel="noopener noreferrer"
-                size="small"
+                size="medium"
                 sx={{
-                  color: footer ? 'rgba(255,255,255,.68)' : undefined,
+                  color: footer ? 'rgba(255,255,255,.68)' : (brandColors[link.id] ?? 'text.secondary'),
+                  width: 36,
+                  height: 36,
                   '&:hover': footer
                     ? { bgcolor: 'rgba(255,255,255,.1)', color: 'common.white' }
                     : undefined,
@@ -74,7 +83,7 @@ export const CareerHarborSocialLinks = ({
                 }}
                 target="_blank"
               >
-                <Icon fontSize="small" />
+                <Icon sx={{ fontSize: 22 }} />
               </IconButton>
             </Tooltip>
           );
@@ -87,9 +96,10 @@ export const CareerHarborSocialLinks = ({
               aria-haspopup="menu"
               aria-label="More CareerHarbor social channels"
               onClick={openMore}
-              size="small"
+              size="medium"
+              sx={{ width: 36, height: 36, color: 'text.secondary' }}
             >
-              <MoreHorizIcon fontSize="small" />
+              <MoreHorizIcon sx={{ fontSize: 22 }} />
             </IconButton>
           </Tooltip>
         ) : null}
