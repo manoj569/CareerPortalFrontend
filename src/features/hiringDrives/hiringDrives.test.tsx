@@ -49,6 +49,8 @@ const mount = (auth: AuthState = authenticatedState) =>
         <Route path="/" element={<HiringDrivesSection />} />
         <Route path={ROUTES.LOGIN} element={<div>CareerHarbor Login</div>} />
         <Route path="/jobs/:slug" element={<div>Job detail destination</div>} />
+        <Route path="/dashboard/jobs/:slug" element={<div>Job detail destination</div>} />
+        <Route path="/dashboard/jobs/:slug" element={<div>Job detail destination</div>} />
       </Routes>
     </MemoryRouter>,
     { auth },

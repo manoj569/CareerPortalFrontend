@@ -88,6 +88,10 @@ export const appRoutes: RouteObject[] = [
             element: lazyPage(() => import('@/pages/HiringDrivesPage'), 'HiringDrivesPage'),
           },
           {
+            path: ROUTES.HIRING_DRIVE_DETAILS,
+            element: lazyPage(() => import('@/pages/HiringDriveDetailsPage'), 'HiringDriveDetailsPage'),
+          },
+          {
             path: ROUTES.JOBS,
 
             element: lazyPage(() => import('@/pages/JobsPage'), 'JobsPage'),
@@ -333,6 +337,10 @@ export const appRoutes: RouteObject[] = [
     'JobDetailsPage',
   ),
 },
+              {
+                path: ROUTES.DASHBOARD_HIRING_DRIVE_DETAILS,
+                element: lazyPage(() => import('@/pages/HiringDriveDetailsPage'), 'HiringDriveDetailsPage'),
+              },
 
               {
 

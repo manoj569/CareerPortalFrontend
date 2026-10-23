@@ -19,6 +19,11 @@ export const hiringDrivesApi = jobsApi
         transformResponse: (response: ApiResponse<HiringDrive[]>) => response.data,
         providesTags: ['HiringDrives'],
       }),
+      getHiringDriveById: builder.query<HiringDrive, string>({
+        query: (id) => ({ url: `/public/hiring-drives/${encodeURIComponent(id)}` }),
+        transformResponse: (response: ApiResponse<HiringDrive>) => response.data,
+        providesTags: (_result, _error, id) => [{ type: 'HiringDrives', id }],
+      }),
       getHomeHiringDrives: builder.query<HiringDrive[], void>({
         query: () => ({ url: '/public/hiring-drives/home' }),
         transformResponse: (response: ApiResponse<HiringDrive[]>) => response.data,
@@ -42,6 +47,7 @@ export const hiringDrivesApi = jobsApi
   });
 export const {
   useGetHiringDrivesQuery,
+  useGetHiringDriveByIdQuery,
   useGetHomeHiringDrivesQuery,
   useClickHiringDriveMutation,
   useRecordHiringImpressionsMutation,

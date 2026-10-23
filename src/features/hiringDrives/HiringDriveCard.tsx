@@ -1,22 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
-import {
-  Alert,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Chip, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { buildJobDetailsPath, ROUTES } from '@/constants/routes';
+import { buildDashboardHiringDriveDetailsPath, buildHiringDriveDetailsPath, buildDashboardJobDetailsPath, ROUTES } from '@/constants/routes';
 import { selectIsAuthenticated } from '@/features/auth/store/authSlice';
 import { CompanyLogoFallback } from '@/features/jobs/components/CompanyLogoFallback';
 import { useAppSelector } from '@/hooks/reduxHooks';
@@ -44,7 +30,6 @@ export const HiringDriveCard = ({
   const root = useRef<HTMLElement>(null);
   const pending = useRef(false);
   const [error, setError] = useState('');
-  const [detailsOpen, setDetailsOpen] = useState(false);
   useEffect(() => {
     if (
       !root.current ||
@@ -75,8 +60,13 @@ export const HiringDriveCard = ({
     return () => observer.disconnect();
   }, [drive.id, record]);
   const apply = async () => {
-    if (!allowAnonymousApply && !isAuthenticated) {
-      void navigate(ROUTES.LOGIN, { state: { from: location } });
+    if (!isAuthenticated) {
+      const candidateDetails = buildDashboardHiringDriveDetailsPath(drive.id);
+      void navigate(ROUTES.LOGIN, { state: { from: { pathname: candidateDetails } } });
+      return;
+    }
+    if (allowAnonymousApply) {
+      void navigate(buildDashboardHiringDriveDetailsPath(drive.id));
       return;
     }
     if (pending.current) return;
@@ -89,7 +79,7 @@ export const HiringDriveCard = ({
         destination.jobId?.trim() &&
         destination.jobSlug?.trim()
       ) {
-        void navigate(buildJobDetailsPath(destination.jobSlug));
+        void navigate(buildDashboardJobDetailsPath(destination.jobSlug));
         return;
       } else if (destination.destinationType === 'external') {
         const url = getSafeExternalUrl(destination.url);
@@ -154,7 +144,7 @@ export const HiringDriveCard = ({
       {error && <Alert severity="error">{error}</Alert>}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         {enableViewDetails && (
-          <Button variant="outlined" onClick={() => setDetailsOpen(true)}>
+          <Button variant="outlined" onClick={() => void navigate(location.pathname.startsWith('/dashboard/') ? buildDashboardHiringDriveDetailsPath(drive.id) : buildHiringDriveDetailsPath(drive.id))}>
             View Details
           </Button>
         )}
@@ -168,75 +158,6 @@ export const HiringDriveCard = ({
           {clickState.isLoading ? 'Opening…' : 'Apply Now'}
         </Button>
       </Stack>
-      {enableViewDetails && (
-        <Dialog
-          open={detailsOpen}
-          onClose={() => setDetailsOpen(false)}
-          fullWidth
-          maxWidth="sm"
-          aria-labelledby={`hiring-drive-details-${drive.id}`}
-        >
-          <DialogTitle id={`hiring-drive-details-${drive.id}`} sx={{ pr: 7 }}>
-            {drive.title}
-            <IconButton
-              aria-label="Close hiring drive details"
-              onClick={() => setDetailsOpen(false)}
-              sx={{ position: 'absolute', right: 12, top: 12 }}
-            >
-              <CloseRoundedIcon />
-            </IconButton>
-          </DialogTitle>
-          <DialogContent dividers>
-            <Stack spacing={2}>
-              {image && (
-                <img
-                  className="hiring-image hiring-details-image"
-                  src={image}
-                  alt={`${drive.company?.name ?? 'Company'} hiring campaign`}
-                />
-              )}
-              {drive.company?.name && (
-                <Typography fontWeight={700}>{drive.company.name}</Typography>
-              )}
-              {drive.subtitle && <Typography color="text.secondary">{drive.subtitle}</Typography>}
-              {drive.badgeText && (
-                <Chip
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  label={drive.badgeText}
-                  sx={{ alignSelf: 'flex-start' }}
-                />
-              )}
-              {drive.experienceText && (
-                <Typography>Experience: {drive.experienceText}</Typography>
-              )}
-              {drive.locationText && <Typography>Location: {drive.locationText}</Typography>}
-              {drive.description && (
-                <Typography sx={{ whiteSpace: 'pre-wrap' }}>{drive.description}</Typography>
-              )}
-              {drive.startAtUtc && (
-                <Typography>Campaign starts: {new Date(drive.startAtUtc).toLocaleString()}</Typography>
-              )}
-              {drive.endAtUtc && (
-                <Typography>Application deadline: {new Date(drive.endAtUtc).toLocaleString()}</Typography>
-              )}
-              {error && <Alert severity="error">{error}</Alert>}
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ p: 2.5 }}>
-            <Button onClick={() => setDetailsOpen(false)}>Close</Button>
-            <Button
-              variant="contained"
-              disabled={clickState.isLoading}
-              onClick={() => void apply()}
-              endIcon={<ArrowForwardIcon />}
-            >
-              {clickState.isLoading ? 'Opening…' : 'Apply Now'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
     </Paper>
   );
 };

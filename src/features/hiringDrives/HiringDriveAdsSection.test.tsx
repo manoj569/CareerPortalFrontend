@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/api/apiClient';
@@ -6,6 +6,7 @@ import type { AuthState } from '@/features/auth/store/authSlice';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { UserRole } from '@/types';
 import { HiringDriveAdsSection } from './HiringDriveAdsSection';
+import { HiringDriveDetailsPage } from '@/pages/HiringDriveDetailsPage';
 
 const drive = {
   id: 'home-ad-1',
@@ -54,6 +55,9 @@ const mountAds = (placement: 'home' | 'dashboard' = 'home', auth?: AuthState) =>
         />
         <Route path="/login" element={<div>Login page</div>} />
         <Route path="/jobs/:slug" element={<div>Internal job page</div>} />
+        <Route path="/dashboard/jobs/:slug" element={<div>Internal dashboard job page</div>} />
+        <Route path="/hiring-drives/:id" element={<><Location /><HiringDriveDetailsPage /></>} />
+        <Route path="/dashboard/hiring-drives/:id" element={<><Location /><HiringDriveDetailsPage /></>} />
       </Routes>
     </MemoryRouter>,
     auth ? { auth } : undefined,
@@ -104,28 +108,22 @@ describe('Hiring Drive advertisement section', () => {
     vi.spyOn(apiClient, 'request').mockRejectedValue(new Error('Unavailable'));
     mountAds(placement);
     expect(await screen.findByText(/Hiring opportunities are temporarily unavailable/)).toBeVisible();
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/');
     },
   );
 
-  it('resolves anonymous direct Apply Now through the public click endpoint', async () => {
+  it('redirects anonymous public Apply to Login without click resolution', async () => {
     const request = vi.spyOn(apiClient, 'request').mockImplementation((config) =>
       Promise.resolve({
         data: {
           data:
             config.url === '/public/hiring-drives/home'
               ? [drive]
-              : { destinationType: 'external', url: 'https://careers.example.test/apply' },
+              : config.url === '/public/hiring-drives/home-ad-1'
+                ? drive
+                : { destinationType: 'external', url: 'https://careers.example.test/apply' },
         },
       }),
     );
-    const externalOpen = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(function (this: HTMLAnchorElement) {
-        expect(this.href).toBe('https://careers.example.test/apply');
-        expect(this.rel).toBe('noopener noreferrer');
-      });
-
     mountAds();
     const applyButton = await screen.findByRole('button', { name: `Apply now for ${drive.title}` });
     const carousel = screen.getByRole('region', { name: 'Hiring opportunities carousel' });
@@ -138,15 +136,13 @@ describe('Hiring Drive advertisement section', () => {
     ).not.toBeInTheDocument();
     fireEvent.click(applyButton);
 
-    await waitFor(() => expect(externalOpen).toHaveBeenCalledOnce());
+    expect(await screen.findByText('Login page')).toBeInTheDocument();
     expect(
       request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/home'),
     ).toHaveLength(1);
     expect(
       request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/home-ad-1/click'),
-    ).toHaveLength(1);
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/');
-    expect(screen.queryByText('Login page')).not.toBeInTheDocument();
+    ).toHaveLength(0);
   });
 
   it('resolves authenticated dashboard Apply Now through the same public click endpoint', async () => {
@@ -156,41 +152,39 @@ describe('Hiring Drive advertisement section', () => {
           data:
             config.url === '/public/hiring-drives/home'
               ? [drive]
-              : { destinationType: 'external', url: 'https://careers.example.test/apply' },
+              : config.url === '/public/hiring-drives/home-ad-1'
+                ? drive
+                : { destinationType: 'external', url: 'https://careers.example.test/apply' },
         },
       }),
     );
-    const externalOpen = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => undefined);
+    const externalOpen = vi.spyOn(window, 'open').mockReturnValue(null);
 
     mountAds('dashboard', candidateAuth);
     fireEvent.click(await screen.findByRole('button', { name: `Apply now for ${drive.title}` }));
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply Now' }));
     await waitFor(() => expect(externalOpen).toHaveBeenCalledOnce());
     expect(
       request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/home-ad-1/click'),
     ).toHaveLength(1);
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/');
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/dashboard/hiring-drives/home-ad-1');
   });
 
-  it('stays on CareerHarbor and does not open the raw URL when click resolution fails', async () => {
+  it('does not click or open the raw URL for anonymous Apply', async () => {
     const request = vi.spyOn(apiClient, 'request').mockImplementation((config) =>
       config.url === '/public/hiring-drives/home'
         ? Promise.resolve({ data: { data: [drive] } })
         : Promise.reject(new Error('Unavailable')),
     );
-    const externalOpen = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => undefined);
+    const externalOpen = vi.spyOn(window, 'open').mockReturnValue(null);
     mountAds();
 
     fireEvent.click(await screen.findByRole('button', { name: `Apply now for ${drive.title}` }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to open this opportunity');
+    expect(await screen.findByText('Login page')).toBeInTheDocument();
     expect(externalOpen).not.toHaveBeenCalled();
-    expect(request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/home-ad-1/click')).toHaveLength(1);
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/');
+    expect(request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/home-ad-1/click')).toHaveLength(0);
   });
 
   it('handles sparse campaign details without inventing optional information', async () => {
@@ -203,14 +197,13 @@ describe('Hiring Drive advertisement section', () => {
       locationText: null,
       experienceText: null,
     };
-    vi.spyOn(apiClient, 'request').mockResolvedValue({ data: { data: [sparseDrive] } });
+    vi.spyOn(apiClient, 'request').mockImplementation((config) => Promise.resolve({ data: { data: config.url === '/public/hiring-drives/home' ? [sparseDrive] : sparseDrive } }));
     mountAds();
     fireEvent.click(await screen.findByRole('button', { name: 'View Details' }));
 
-    const dialog = await screen.findByRole('dialog', { name: drive.title });
-    expect(within(dialog).getByText(drive.title)).toBeVisible();
-    expect(within(dialog).queryByText('Example Company')).not.toBeInTheDocument();
-    expect(within(dialog).queryByText(/Experience:|Location:/)).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: drive.title })).toBeVisible();
+    expect(screen.queryByText('Example Company')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Experience:|Location:/)).not.toBeInTheDocument();
   });
 
   it('renders public campaign description and dates in View Details without counting an apply', async () => {
@@ -220,14 +213,13 @@ describe('Hiring Drive advertisement section', () => {
       startAtUtc: '2026-10-22T00:00:00.000Z',
       endAtUtc: '2026-11-01T00:00:00.000Z',
     };
-    const request = vi.spyOn(apiClient, 'request').mockResolvedValue({ data: { data: [detailedDrive] } });
+    const request = vi.spyOn(apiClient, 'request').mockImplementation((config) => Promise.resolve({ data: { data: config.url === '/public/hiring-drives/home' ? [detailedDrive] : detailedDrive } }));
     mountAds();
     await screen.findByText(drive.title);
     fireEvent.click(screen.getByRole('button', { name: 'View Details' }));
-    const dialog = await screen.findByRole('dialog', { name: drive.title });
-    expect(within(dialog).getByText('Verified campaign description.')).toBeVisible();
-    expect(within(dialog).getByText(/Campaign starts:/)).toBeVisible();
-    expect(within(dialog).getByText(/Application deadline:/)).toBeVisible();
+    expect(await screen.findByText('Verified campaign description.')).toBeVisible();
+    expect(screen.getByText(/Starts/)).toBeVisible();
+    expect(screen.getByText(/Ends/)).toBeVisible();
     expect(request.mock.calls.some(([config]) => config.url?.endsWith('/click'))).toBe(false);
   });
 
@@ -246,45 +238,25 @@ describe('Hiring Drive advertisement section', () => {
     expect(scrollTo).toHaveBeenCalledWith({ left: 0, behavior: 'smooth' });
   });
 
-  it('opens details without click analytics and applies from details through the same resolver', async () => {
+  it('navigates View Details without click analytics', async () => {
     const request = vi.spyOn(apiClient, 'request').mockImplementation((config) =>
       Promise.resolve({
         data: {
-          data:
-            config.url === '/public/hiring-drives/home'
-              ? [drive]
+          data: config.url === '/public/hiring-drives/home'
+            ? [drive]
+            : config.url === '/public/hiring-drives/home-ad-1'
+              ? drive
               : { destinationType: 'external', url: 'https://careers.example.test/apply' },
         },
       }),
     );
-    const externalOpen = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => undefined);
-
     mountAds();
     fireEvent.click(await screen.findByRole('button', { name: 'View Details' }));
 
-    const dialog = await screen.findByRole('dialog', { name: drive.title });
-    expect(within(dialog).getByText('Example Company')).toBeVisible();
-    expect(within(dialog).getByText(drive.subtitle)).toBeVisible();
-    expect(within(dialog).getByText('Experience: 0-1 year')).toBeVisible();
-    expect(within(dialog).getByText('Location: Remote')).toBeVisible();
+    expect(await screen.findByRole('heading', { name: drive.title })).toBeVisible();
     expect(request.mock.calls.some(([config]) => config.url?.endsWith('/click'))).toBe(false);
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/');
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Close hiring drive details' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/');
-
-    fireEvent.click(screen.getByRole('button', { name: 'View Details' }));
-    const reopened = await screen.findByRole('dialog', { name: drive.title });
-    fireEvent.click(within(reopened).getByRole('button', { name: 'Apply Now' }));
-
-    await waitFor(() => expect(externalOpen).toHaveBeenCalledOnce());
-    expect(
-      request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/home-ad-1/click'),
-    ).toHaveLength(1);
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/');
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/hiring-drives/home-ad-1');
+    expect(request.mock.calls.filter(([config]) => config.url === '/public/hiring-drives/home-ad-1/click')).toHaveLength(0);
   });
 
   it('deduplicates visible ad impressions through carousel and details rerenders', async () => {
