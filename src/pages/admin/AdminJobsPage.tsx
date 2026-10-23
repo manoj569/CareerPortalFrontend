@@ -52,6 +52,8 @@ import {
 import { EmploymentType, WorkplaceType } from '@/features/jobs/types/jobModels';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { AdminJobPromotionDialog } from '@/features/jobPromotions/AdminJobPromotionDialog';
+import { useGetAdminJobPromotionsQuery } from '@/features/jobPromotions/api';
 
 const PAGE_SIZE = 10;
 
@@ -122,6 +124,7 @@ export const AdminJobsPage = () => {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [promotionJob, setPromotionJob] = useState<AdminJob | null>(null);
   const debouncedSearch = useDebouncedValue(searchInput, 350);
 
   useEffect(() => {
@@ -183,6 +186,8 @@ export const AdminJobsPage = () => {
     ],
   );
   const jobs = useGetAdminJobsQuery(query);
+  const promotionList = useGetAdminJobPromotionsQuery({ pageNumber: 1, pageSize: 100 });
+  const promotionByJobId = new Map((promotionList.data?.items ?? []).map((item) => [item.jobId, item]));
   const [publishJob, publishState] = usePublishAdminJobMutation();
   const [unpublishJob, unpublishState] = useUnpublishAdminJobMutation();
   const [closeJob, closeState] = useCloseAdminJobMutation();
@@ -264,6 +269,7 @@ export const AdminJobsPage = () => {
 
   const jobActions = (job: AdminJob) => (
     <Stack direction="row" flexWrap="wrap" gap={0.75}>
+      {promotionByJobId.get(job.id)?.isEnabled ? <Chip color="secondary" label="Promoted" size="small" /> : promotionByJobId.has(job.id) ? <Chip label="Promotion disabled" size="small" variant="outlined" /> : null}
       {job.isReferralJob || job.referralId ? <Chip color={referralStatusLabel(job.referralApprovalStatus) === 'Approved' ? 'success' : referralStatusLabel(job.referralApprovalStatus) === 'Rejected' ? 'error' : 'warning'} label={`Referred${referralStatusLabel(job.referralApprovalStatus) ? ` · ${referralStatusLabel(job.referralApprovalStatus)}` : ''}`} size="small" /> : null}
       {(job.isReferralJob || job.referralId) && job.referralId && referralStatusLabel(job.referralApprovalStatus) === 'Pending' ? (
         <>
@@ -339,6 +345,7 @@ export const AdminJobsPage = () => {
           {job.isFeatured ? 'Unfeature' : 'Feature'}
         </Button>
       ) : null}
+      {!job.isDeleted ? <Button size="small" variant="outlined" onClick={() => setPromotionJob(job)}>{promotionByJobId.has(job.id) ? 'Edit promotion' : 'Promote'}</Button> : null}
       {!job.isDeleted ? (
         <Button
           color="error"
@@ -655,6 +662,8 @@ export const AdminJobsPage = () => {
         title={pendingAction ? actionCopy[pendingAction.action].label : 'Confirm action'}
       />
       <AdminCsvImportDialog onClose={() => setIsImportOpen(false)} open={isImportOpen} />
+      {promotionList.isError ? <Alert severity="info">Promotion status could not be loaded. You can still open Promote to check or configure a job.</Alert> : null}
+      <AdminJobPromotionDialog job={promotionJob} onClose={() => setPromotionJob(null)} onSaved={() => { void jobs.refetch(); }} />
     </Stack>
   );
 };
