@@ -16,6 +16,47 @@ const promotion: ActiveJobPromotion = {
 const Location = () => <output data-testid="path">{useLocation().pathname}</output>;
 
 describe('PromotedJobCard', () => {
+  it('renders the exact numeric-enum PhonePe production record without throwing', () => {
+    const phonePePromotion: ActiveJobPromotion = {
+      jobId: 'aafac721-b1eb-404b-8939-c59515dd958f',
+      jobSlug: 'intern-company-secretary-aafac721',
+      title: 'Intern, Company Secretary',
+      companyName: 'PhonePe',
+      companyLogoUrl: 'https://brain.talentd.in/static/company_logos/phonepe_128.jpg',
+      bannerImageUrl: '/api/job-promotions/aafac721-b1eb-404b-8939-c59515dd958f/banner',
+      jobCategory: 'Legal & Compliance',
+      location: 'Bengaluru, Karnataka, in',
+      workplaceType: 1,
+      employmentType: 4,
+      minimumExperienceYears: null,
+      maximumExperienceYears: null,
+      educationRequirement: null,
+      minimumSalary: null,
+      maximumSalary: null,
+      currencyCode: null,
+      skills: [],
+      postedAtUtc: '2026-10-22T07:56:52.799318Z',
+      detailsUrl: '/dashboard/jobs/intern-company-secretary-aafac721',
+    };
+    renderWithProviders(<MemoryRouter initialEntries={['/dashboard']}><Routes>
+      <Route path="/dashboard" element={<PromotedJobCard promotion={phonePePromotion} />} />
+      <Route path="/dashboard/jobs/:slug" element={<Location />} />
+    </Routes></MemoryRouter>);
+    expect(screen.getByText('PhonePe')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Intern, Company Secretary' })).toBeInTheDocument();
+    expect(screen.getByText(/Internship/)).toBeInTheDocument();
+    expect(screen.getByText(/On site/)).toBeInTheDocument();
+    expect(screen.getByText('Legal & Compliance')).toBeInTheDocument();
+    expect(screen.queryByText(/experience/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/salary|not disclosed/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/education/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Apply Now/i })).not.toBeInTheDocument();
+    expect(screen.getByAltText('PhonePe and Intern, Company Secretary')).toHaveAttribute('src', resolveApiAssetUrl(phonePePromotion.bannerImageUrl));
+    expect(new URL(resolveApiAssetUrl(phonePePromotion.bannerImageUrl)!).pathname).toBe('/api/job-promotions/aafac721-b1eb-404b-8939-c59515dd958f/banner');
+    fireEvent.click(screen.getByRole('button', { name: 'View Details' }));
+    expect(screen.getByTestId('path')).toHaveTextContent('/dashboard/jobs/intern-company-secretary-aafac721');
+  });
+
   it('uses API-hosted banner, real fields, and exactly one View Details action using jobSlug', () => {
     renderWithProviders(<MemoryRouter initialEntries={['/dashboard']}><Routes>
       <Route path="/dashboard" element={<PromotedJobCard promotion={promotion} />} />

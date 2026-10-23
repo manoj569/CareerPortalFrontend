@@ -1,3 +1,5 @@
+import type { EmploymentType, WorkplaceType } from '@/features/jobs/types/jobModels';
+
 export interface ActiveJobPromotion {
   jobId: string;
   jobSlug: string;
@@ -7,8 +9,8 @@ export interface ActiveJobPromotion {
   bannerImageUrl: string | null;
   jobCategory: string | null;
   location: string | null;
-  workplaceType: string | null;
-  employmentType: string | null;
+  workplaceType: WorkplaceType | string | null;
+  employmentType: EmploymentType | string | null;
   minimumExperienceYears: number | null;
   maximumExperienceYears: number | null;
   educationRequirement: string | null;
