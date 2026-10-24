@@ -171,7 +171,7 @@ describe('Candidate workspace shell', () => {
     expect(action).toHaveBeenCalledOnce();
   });
 
-  it('shows compact points status in the mobile drawer and keeps it out of the header', async () => {
+  it('keeps points functionality in the header and hides points and membership promos from the mobile drawer', async () => {
     pointsQueryMock.mockReturnValue({
       data: {
         pointsBalance: {
@@ -189,9 +189,17 @@ describe('Candidate workspace shell', () => {
       },
     });
     renderShell(0);
+    const header = screen.getByRole('banner');
+    expect(within(header).getByRole('group', { name: 'Primary navigation' })).toBeInTheDocument();
+    expect(within(header).getByRole('group', { name: 'Notifications and account' })).toBeInTheDocument();
+    expect(within(header).getByRole('button', { name: 'Notifications' })).toBeVisible();
+    expect(within(header).getByRole('button', { name: 'Open account menu' })).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Open candidate workspace navigation' }));
     const drawer = screen.getByLabelText('Candidate workspace navigation drawer');
-    expect(within(drawer).getByText('1,320 / 3,000 points')).toBeVisible();
+    expect(within(drawer).queryByText('1,320 / 3,000 points')).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole('button', { name: /View plans|Manage plan/ })).not.toBeInTheDocument();
+    expect(within(drawer).queryByText(/Membership (access|plans)/)).not.toBeInTheDocument();
+    expect(within(drawer).getByRole('link', { name: 'Membership' })).toBeVisible();
   });
 
   it('refreshes the private account-menu avatar after a profile photo change', async () => {

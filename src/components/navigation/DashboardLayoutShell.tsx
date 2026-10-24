@@ -240,13 +240,7 @@ const isFullWidthPage =
 
       <Divider />
 
-      {!compact && mobile && pointsQuery.data?.pointsBalance ? (
-        <Box sx={{ px: 2, pt: 1.5 }}>
-          <CareerHarborPointsCard balance={pointsQuery.data.pointsBalance} compact />
-        </Box>
-      ) : null}
-
-      {!compact && areaLabel === 'Candidate workspace' && isDashboardLocation ? (
+      {!compact && !mobile && areaLabel === 'Candidate workspace' && isDashboardLocation ? (
         <Box sx={{ px: 1.75, pb: 1.25 }}>
           <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 3, bgcolor: '#f5efff', borderColor: '#e8ddff' }}>
             <Stack spacing={0.8}>
@@ -333,29 +327,31 @@ const isFullWidthPage =
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 64, md: 68 }, gap: { xs: 0.5, md: 1.25 }, px: { xs: 1.5, md: 2.5 } }}>
-          <IconButton
-            aria-controls={mobileDrawerId}
-            aria-expanded={isMobileDrawerOpen}
-            aria-label={`Open ${areaLabel.toLowerCase()} navigation`}
-            edge="start"
-            onClick={() => setIsMobileDrawerOpen(true)}
-            ref={menuButtonRef}
-            sx={{ display: { md: 'none' }, mr: 1 }}
-          >
-            <MenuIcon />
-          </IconButton>
+          <Box role="group" aria-label="Primary navigation" sx={{ display: 'flex', alignItems: 'center', flexGrow: areaLabel === 'Candidate workspace' ? 0 : 1, flexShrink: 0, minWidth: 0 }}>
+            <IconButton
+              aria-controls={mobileDrawerId}
+              aria-expanded={isMobileDrawerOpen}
+              aria-label={`Open ${areaLabel.toLowerCase()} navigation`}
+              edge="start"
+              onClick={() => setIsMobileDrawerOpen(true)}
+              ref={menuButtonRef}
+              sx={{ display: { md: 'none' }, mr: 1 }}
+            >
+              <MenuIcon />
+            </IconButton>
 
-          {areaLabel === 'Candidate workspace' ? <>
-            <Box sx={{ display: { xs: 'none', sm: 'block' } }}><AppBrand /></Box>
-            <Box sx={{ display: { xs: 'block', sm: 'none' } }}><AppBrand compact markOnly /></Box>
-          </> : <Typography
-            component="p"
-            fontWeight={700}
-            noWrap
-            sx={{ flexGrow: 1, minWidth: 0 }}
-          >
-            {areaLabel}
-          </Typography>}
+            {areaLabel === 'Candidate workspace' ? <>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}><AppBrand /></Box>
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}><AppBrand compact markOnly /></Box>
+            </> : <Typography
+              component="p"
+              fontWeight={700}
+              noWrap
+              sx={{ flexGrow: 1, minWidth: 0 }}
+            >
+              {areaLabel}
+            </Typography>}
+          </Box>
 
           {areaLabel === 'Candidate workspace' ? <Box component="form" onSubmit={submitJobSearch} role="search" sx={{ display: { xs: 'none', lg: 'flex' }, '@media (min-width:1200px) and (max-width:1399px)': { display: 'none' }, alignItems: 'center', flex: '1 1 640px', maxWidth: 820, mx: 'auto', gap: 1 }}>
             <TextField size="small" value={jobSearch} onChange={(event) => setJobSearch(event.target.value)} placeholder="Search jobs, companies, skills or keywords..." inputProps={{ 'aria-label': 'Search jobs, companies, skills or keywords' }} sx={{ flex: 1, '& .MuiOutlinedInput-root': { height: 44, bgcolor: '#f5f7fc', borderRadius: 2.5 } }} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon color="primary" /></InputAdornment> }} />
@@ -363,6 +359,7 @@ const isFullWidthPage =
             <Button type="submit" variant="contained" startIcon={<SearchRoundedIcon />} sx={{ minHeight: 44, px: 2.25, borderRadius: 2 }}>Search</Button>
           </Box> : null}
 
+          <Box role="group" aria-label="Notifications and account" sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, ml: areaLabel === 'Candidate workspace' ? { xs: 'auto', md: 0 } : 0, gap: { xs: 0.5, md: 1.25 } }}>
           {notificationBell ?? (showNotifications ? (
             <IconButton
               aria-label={
@@ -407,6 +404,7 @@ const isFullWidthPage =
               Log out
             </Button>
           )}
+          </Box>
         </Toolbar>
       </AppBar>
 
