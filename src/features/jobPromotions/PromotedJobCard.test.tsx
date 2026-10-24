@@ -90,8 +90,10 @@ describe('PromotedJobCard', () => {
     expect(screen.getByText(/Entry Level/)).toBeInTheDocument();
     expect(screen.getByText('B.Tech')).toBeInTheDocument();
     expect(screen.queryByText(/Salary|Not disclosed/i)).not.toBeInTheDocument();
+    const opportunityButton = screen.getByRole('button', { name: 'View Opportunity' });
+    expect(opportunityButton).toHaveStyle({ whiteSpace: 'nowrap' });
     expect(screen.getAllByRole('button')).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'View Opportunity' }));
+    fireEvent.click(opportunityButton);
     expect(screen.getByTestId('path')).toHaveTextContent('/dashboard/jobs/verified-job-slug');
   });
 

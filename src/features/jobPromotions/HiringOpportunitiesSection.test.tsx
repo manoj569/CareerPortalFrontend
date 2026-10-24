@@ -27,6 +27,22 @@ const mount = () => renderWithProviders(<MemoryRouter initialEntries={['/dashboa
 afterEach(() => vi.restoreAllMocks());
 
 describe('HiringOpportunitiesSection', () => {
+  it('keeps two dashboard opportunities as separate full-slide carousel items', async () => {
+    vi.spyOn(apiClient, 'request').mockImplementation((config) => Promise.resolve({ data: { data:
+      config.url === '/public/hiring-drives/home' ? [] : [
+        promotion('phonepe-job', 'Intern, Company Secretary', 'phonepe-role'),
+        promotion('hcltech-job', 'Developer Jobs at HCLTech (Chennai) | Freshers Eligible', 'hcltech-role'),
+      ],
+    } }));
+    mount();
+
+    const carousel = await screen.findByRole('region', { name: 'Hiring opportunities carousel' });
+    expect(carousel).toHaveClass('hiring-ads-track-double');
+    expect(carousel.querySelectorAll(':scope > article')).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Intern, Company Secretary' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Developer Jobs at HCLTech (Chennai) | Freshers Eligible' })).toBeInTheDocument();
+  });
+
   it('combines active promoted jobs with hiring drives, deduplicates only internal job IDs and routes by slug', async () => {
     const request = vi.spyOn(apiClient, 'request').mockImplementation((config) => Promise.resolve({ data: { data:
       config.url === '/public/hiring-drives/home' ? [drive, externalDrive] : [promotion('job-duplicate', 'Duplicate Promotion', 'duplicate'), promotion('job-2', 'Promoted QA Engineer', 'authoritative-slug')],

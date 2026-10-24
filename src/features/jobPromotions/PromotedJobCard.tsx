@@ -78,16 +78,16 @@ export const PromotedJobCard = ({ promotion }: { promotion: ActiveJobPromotion }
           <Chip className="promoted-disclosure" icon={<BoltRoundedIcon />} label="Promoted" size="small" />
           <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
             <CompanyLogoFallback companyName={companyName} logoUrl={logoUrl} size={38} />
-            <Typography variant="body2" fontWeight={700} sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{companyName}</Typography>
+            <Typography variant="body2" fontWeight={700} sx={{ minWidth: 0 }}>{companyName}</Typography>
           </Stack>
           <Box>
-            <Typography component="h3" variant="h6" fontWeight={750} sx={{ overflowWrap: 'anywhere', lineHeight: 1.25 }}>{title}</Typography>
-            {category && <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ mt: 0.25, overflowWrap: 'anywhere' }}>{category}</Typography>}
+            <Typography component="h3" variant="h6" fontWeight={750} sx={{ lineHeight: 1.25 }}>{title}</Typography>
+            {category && <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ mt: 0.25 }}>{category}</Typography>}
           </Box>
-          {details.length > 0 && <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere' }}>{details.join(' · ')}</Typography>}
-          {education && <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere' }}>{education}</Typography>}
+          {details.length > 0 && <Typography color="text.secondary" variant="body2">{details.join(' · ')}</Typography>}
+          {education && <Typography color="text.secondary" variant="body2">{education}</Typography>}
           {skills.length > 0 && <Stack direction="row" flexWrap="wrap" gap={0.5}>{skills.slice(0, 3).map((skill) => <Chip key={skill} size="small" variant="outlined" label={skill} />)}{skills.length > 3 && <Chip size="small" variant="outlined" label={`+${skills.length - 3}`} />}</Stack>}
-          <Button variant="contained" endIcon={<ArrowForwardRoundedIcon />} onClick={() => void navigate(buildDashboardJobDetailsPath(promotion.jobSlug))} sx={{ mt: 'auto', alignSelf: 'flex-start', minWidth: { xs: '100%', sm: 190 }, bgcolor: 'primary.main' }}>
+          <Button variant="contained" endIcon={<ArrowForwardRoundedIcon />} onClick={() => void navigate(buildDashboardJobDetailsPath(promotion.jobSlug))} sx={{ mt: 'auto', alignSelf: 'flex-start', width: { xs: '100%', sm: 'auto' }, minWidth: { xs: '100%', sm: 190 }, whiteSpace: 'nowrap', bgcolor: 'primary.main' }}>
             View Opportunity
           </Button>
         </CardContent>

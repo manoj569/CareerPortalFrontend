@@ -144,6 +144,18 @@
     box-sizing: border-box;
     grid-auto-columns: minmax(0, 100%);
   }
+  .hiring-ads-dashboard .hiring-ads-track.hiring-ads-track-double {
+    grid-auto-columns: minmax(0, 100%);
+  }
+  .hiring-ads-dashboard .hiring-ads-track > .hiring-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .hiring-ads-dashboard .promoted-job-content {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
 }
 @media (min-width: 768px) {
   .hiring-ads-track {
