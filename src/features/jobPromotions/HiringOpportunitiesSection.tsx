@@ -101,7 +101,7 @@ export const HiringOpportunitiesSection = () => {
     </section>
   );
 
-  const trackClass = ['hiring-ads-track', items.length === 1 ? 'hiring-ads-track-single' : '', items.length === 2 ? 'hiring-ads-track-double' : ''].filter(Boolean).join(' ');
+  const trackClass = ['hiring-ads-track', items.length === 1 ? 'hiring-ads-track-single' : '', items.length === 2 && !isMobile ? 'hiring-ads-track-double' : ''].filter(Boolean).join(' ');
   return <section className="hiring-ads-section hiring-ads-dashboard" aria-labelledby="dashboard-hiring-opportunities" aria-busy={isLoading}>
     <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mb: 1.75 }}>
       <div className="hiring-ads-heading"><span className="hiring-ads-heading-icon"><BoltRoundedIcon /></span><div><Typography component="h2" id="dashboard-hiring-opportunities" variant="h5" fontWeight={800}>Hiring Opportunities</Typography><Typography color="text.secondary">Top opportunities from leading companies, handpicked for you.</Typography></div></div>

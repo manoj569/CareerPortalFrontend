@@ -154,6 +154,30 @@
   .hiring-ads-track {
     grid-auto-columns: 100%;
   }
+  .hiring-ads-dashboard .hiring-ads-track {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .hiring-ads-dashboard .hiring-opportunity-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .hiring-ads-dashboard .hiring-opportunity-slide > .hiring-card {
+    width: 100%;
+    height: auto !important;
+    min-width: 0;
+    min-height: 0 !important;
+    max-width: 100%;
+  }
+  .hiring-ads-dashboard .hiring-drive-layout {
+    height: auto;
+    min-height: 0;
+  }
   .hiring-ads-dashboard .promoted-job-content {
     overflow-wrap: normal;
     word-break: normal;

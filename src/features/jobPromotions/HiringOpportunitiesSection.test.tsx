@@ -65,7 +65,7 @@ describe('HiringOpportunitiesSection', () => {
     await screen.findByRole('heading', { name: 'Intern, Company Secretary' });
     await screen.findByRole('heading', { name: 'Developer Jobs at HCLTech (Chennai) | Freshers Eligible' });
     const carousel = screen.getByRole('region', { name: 'Hiring opportunities carousel' });
-    expect(carousel).toHaveClass('hiring-ads-track-double');
+    expect(carousel).not.toHaveClass('hiring-ads-track-double');
     expect(carousel).toHaveAttribute('data-items-per-view', '1');
     expect(carousel).toHaveAttribute('data-active-index', '0');
     expect(carousel).toHaveStyle({ display: 'flex', width: '100%' });
@@ -102,7 +102,7 @@ describe('HiringOpportunitiesSection', () => {
     expect(slides[1]?.querySelector('.promoted-job-card')).not.toBeNull();
   });
 
-  it.each([768, 1024])('keeps two items per view at %ipx and wider desktop widths', async (width) => {
+  it.each([768, 1024, 1440])('keeps two items per view at %ipx and wider desktop widths', async (width) => {
     setViewportWidth(width);
     vi.spyOn(apiClient, 'request').mockImplementation((config) => Promise.resolve({ data: { data:
       config.url === '/public/hiring-drives/home' ? [] : [
@@ -116,6 +116,7 @@ describe('HiringOpportunitiesSection', () => {
     await screen.findByRole('heading', { name: 'Developer Jobs at HCLTech (Chennai) | Freshers Eligible' });
     const carousel = screen.getByRole('region', { name: 'Hiring opportunities carousel' });
     expect(carousel).toHaveAttribute('data-items-per-view', '2');
+    expect(carousel).toHaveClass('hiring-ads-track-double');
     expect(carousel.style.display).toBe('');
     expect(carousel.querySelectorAll(':scope > .hiring-opportunity-slide')).toHaveLength(2);
   });
