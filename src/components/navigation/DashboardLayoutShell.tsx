@@ -5,7 +5,6 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
-import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
 import {
   AppBar,
   Badge,
@@ -15,7 +14,6 @@ import {
   Divider,
   Drawer,
   InputAdornment,
-  Paper,
   TextField,
   IconButton,
   Stack,
@@ -26,7 +24,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/constants/routes';
 import { CareerGuidanceComingSoonPage } from '@/features/careerGuidance/components/CareerGuidanceComingSoonPage';
@@ -41,8 +39,6 @@ import { CandidateAccountMenu } from './CandidateAccountMenu';
 import { CareerHarborSocialLinks } from './CareerHarborSocialLinks';
 import { NavigationList } from './NavigationList';
 import type { NavigationItem } from './navigationTypes';
-import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
-import { findActiveMembership } from '@/features/payments/utils/entitlement';
 
 const DRAWER_WIDTH = 252;
 const COLLAPSED_DRAWER_WIDTH = 72;
@@ -73,12 +69,9 @@ export const DashboardLayoutShell = ({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector(selectCurrentUser);
-  const isDashboardLocation = useLocation().pathname === ROUTES.DASHBOARD;
   const pointsQuery = useGetMyInterviewContributionsQuery(undefined, {
     skip: areaLabel !== 'Candidate workspace',
   });
-  const membershipsQuery = useGetMembershipsQuery(undefined, { skip: areaLabel !== 'Candidate workspace' || !isDashboardLocation });
-  const activeMembership = findActiveMembership(membershipsQuery.data);
   const [jobSearch, setJobSearch] = useState('');
   const [jobLocation, setJobLocation] = useState('');
   const navigate = useNavigate();
@@ -239,25 +232,6 @@ const isFullWidthPage =
       </Box>
 
       <Divider />
-
-      {!compact && !mobile && areaLabel === 'Candidate workspace' && isDashboardLocation ? (
-        <Box sx={{ px: 1.75, pb: 1.25 }}>
-          <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 3, bgcolor: '#f5efff', borderColor: '#e8ddff' }}>
-            <Stack spacing={0.8}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: '#ffe9d2', color: '#d97500', display: 'grid', placeItems: 'center' }}><WorkspacePremiumOutlinedIcon /></Box>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography fontWeight={800} lineHeight={1.2}>{activeMembership ? 'Membership access' : 'Membership plans'}</Typography>
-                  <Typography variant="caption" color="text.secondary">{activeMembership ? activeMembership.planName : 'Explore plans for your career'}</Typography>
-                </Box>
-              </Stack>
-              <Button component={Link} to={ROUTES.MEMBERSHIP} variant="contained" size="small" sx={{ minHeight: 38, bgcolor: '#6738e8', '&:hover': { bgcolor: '#5426d0' } }}>
-                {activeMembership ? 'Manage plan' : 'View plans'}
-              </Button>
-            </Stack>
-          </Paper>
-        </Box>
-      ) : null}
 
       {!compact ? (
         <Box sx={{ px: 2, py: 1.5 }}>

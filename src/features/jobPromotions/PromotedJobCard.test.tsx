@@ -73,9 +73,12 @@ describe('PromotedJobCard', () => {
     expect(screen.queryByText(/salary|not disclosed/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/education/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Apply Now/i })).not.toBeInTheDocument();
-    expect(screen.getByAltText('PhonePe promotional banner for Intern, Company Secretary')).toHaveAttribute('src', resolveApiAssetUrl(phonePePromotion.bannerImageUrl));
+    const phonePeCard = screen.getByRole('article', { name: 'PhonePe: Intern, Company Secretary' });
+    expect(phonePeCard.querySelector('.premium-promotion-background')).toHaveAttribute('src', resolveApiAssetUrl(phonePePromotion.bannerImageUrl));
     expect(new URL(resolveApiAssetUrl(phonePePromotion.bannerImageUrl)!).pathname).toBe('/api/job-promotions/aafac721-b1eb-404b-8939-c59515dd958f/banner');
     expect(screen.getByText('Promoted')).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'PhonePe: Intern, Company Secretary' })).toHaveClass('premium-promotion-card');
+    expect(screen.getByRole('article', { name: 'PhonePe: Intern, Company Secretary' })).toHaveAttribute('data-theme');
     fireEvent.click(screen.getByRole('button', { name: 'View Opportunity' }));
     expect(screen.getByTestId('path')).toHaveTextContent('/dashboard/jobs/intern-company-secretary-aafac721');
   });
@@ -85,7 +88,8 @@ describe('PromotedJobCard', () => {
       <Route path="/dashboard" element={<PromotedJobCard promotion={promotion} />} />
       <Route path="/dashboard/jobs/:slug" element={<Location />} />
     </Routes></MemoryRouter>);
-    expect(screen.getByAltText('Example Co promotional banner for QA Engineer')).toHaveAttribute('src', resolveApiAssetUrl(promotion.bannerImageUrl));
+    const exampleCard = screen.getByRole('article', { name: 'Example Co: QA Engineer' });
+    expect(exampleCard.querySelector('.premium-promotion-background')).toHaveAttribute('src', resolveApiAssetUrl(promotion.bannerImageUrl));
     expect(screen.getByText('Fresher')).toBeInTheDocument();
     expect(screen.getByText(/Entry Level/)).toBeInTheDocument();
     expect(screen.getByText('B.Tech')).toBeInTheDocument();
@@ -97,6 +101,32 @@ describe('PromotedJobCard', () => {
     expect(screen.getByTestId('path')).toHaveTextContent('/dashboard/jobs/verified-job-slug');
   });
 
+  it('uses the same premium card for a future company and a deterministic gradient when its banner is absent', () => {
+    const futurePromotion = {
+      ...promotion,
+      jobId: 'future-company-job',
+      companyName: 'Honeywell Global Technologies',
+      bannerImageUrl: null,
+      title: 'A very long engineering opportunity title that should wrap naturally across multiple lines',
+      jobCategory: 'Software Engineering',
+      minimumExperienceYears: null,
+      skills: ['Controls', 'Testing', 'Systems Design', 'Automation', 'Safety'],
+    };
+    const { rerender } = renderWithProviders(<MemoryRouter><PromotedJobCard promotion={futurePromotion} /></MemoryRouter>);
+    const article = screen.getByRole('article', { name: `${futurePromotion.companyName}: ${futurePromotion.title}` });
+    expect(article).toHaveClass('premium-promotion-card');
+    expect(article.getAttribute('data-theme')).toMatch(/^(purple|blue|teal|neutral)$/);
+    expect(article.querySelector('.premium-promotion-background')).toBeNull();
+    expect(screen.getByRole('heading', { name: futurePromotion.title })).toHaveClass('promoted-job-title');
+    expect(screen.getByText('Controls')).toBeInTheDocument();
+    expect(screen.getByText('Systems Design')).toBeInTheDocument();
+    expect(screen.getByText('+2')).toBeInTheDocument();
+
+    const theme = article.getAttribute('data-theme');
+    rerender(<MemoryRouter><PromotedJobCard promotion={{ ...futurePromotion, companyName: 'Future Employer' }} /></MemoryRouter>);
+    expect(screen.getByRole('article', { name: `Future Employer: ${futurePromotion.title}` })).toHaveAttribute('data-theme', theme);
+  });
+
   it('resolves API-relative banner paths against the configured API origin without duplicating /api', () => {
     const resolved = resolveApiAssetUrl('/api/job-promotions/job-1/banner');
     expect(resolved).toBeTruthy();
@@ -105,12 +135,14 @@ describe('PromotedJobCard', () => {
 
   it('renders the production HCLTech banner from the configured backend origin as the primary visual', () => {
     renderWithProviders(<MemoryRouter><PromotedJobCard promotion={hclTechPromotion} /></MemoryRouter>);
-    const banner = screen.getByAltText('HCLTech promotional banner for Developer Jobs at HCLTech (Chennai) | Freshers Eligible');
+    const banner = screen.getByRole('article', { name: 'HCLTech: Developer Jobs at HCLTech (Chennai) | Freshers Eligible' }).querySelector('.premium-promotion-background');
+    expect(banner).not.toBeNull();
+    if (!banner) throw new Error('Expected the uploaded banner to render as the promotion card background.');
     const resolved = new URL(banner.getAttribute('src')!);
     expect(resolved.origin).toBe(new URL(environment.apiBaseUrl).origin);
     expect(resolved.pathname).toBe('/api/job-promotions/df1a41db-b8ad-445a-91c0-477ff4871ee6/banner');
     expect(resolved.pathname).not.toContain('/api/api/');
-    expect(banner).toBeVisible();
+    expect(banner).toBeInTheDocument();
     expect(screen.getAllByAltText('HCLTech logo')).toHaveLength(1);
     expect(screen.queryByRole('img', { name: 'HCLTech initials' })).not.toBeInTheDocument();
   });
@@ -128,8 +160,13 @@ describe('PromotedJobCard', () => {
   it('falls back from a failed banner to company branding', () => {
     const withLogo = { ...promotion, companyLogoUrl: 'https://example.test/logo.png' };
     renderWithProviders(<MemoryRouter><PromotedJobCard promotion={withLogo} /></MemoryRouter>);
-    fireEvent.error(screen.getByAltText('Example Co promotional banner for QA Engineer'));
+    const banner = document.querySelector('.premium-promotion-background');
+    expect(banner).not.toBeNull();
+    fireEvent.error(banner!);
     expect(screen.getAllByAltText('Example Co logo').length).toBeGreaterThan(0);
+    const article = screen.getByRole('article', { name: 'Example Co: QA Engineer' });
+    expect(article.querySelector('.premium-promotion-background')).toBeNull();
+    expect(article.getAttribute('data-theme')).toMatch(/^(purple|blue|teal|neutral)$/);
   });
 
   it('resets banner failure when a reused card changes from PhonePe to HCLTech and back', () => {
@@ -143,15 +180,15 @@ describe('PromotedJobCard', () => {
       bannerImageUrl: '/api/job-promotions/aafac721-b1eb-404b-8939-c59515dd958f/banner',
     };
     const view = renderWithProviders(<MemoryRouter><PromotedJobCard promotion={phonePePromotion} /></MemoryRouter>);
-    fireEvent.error(screen.getByAltText('PhonePe promotional banner for Intern, Company Secretary'));
+    fireEvent.error(document.querySelector('.premium-promotion-background')!);
     expect(screen.getAllByAltText('PhonePe logo').length).toBeGreaterThan(0);
 
     view.rerender(<MemoryRouter><PromotedJobCard promotion={hclTechPromotion} /></MemoryRouter>);
-    expect(screen.getByAltText('HCLTech promotional banner for Developer Jobs at HCLTech (Chennai) | Freshers Eligible')).toBeVisible();
-    fireEvent.error(screen.getByAltText('HCLTech promotional banner for Developer Jobs at HCLTech (Chennai) | Freshers Eligible'));
+    expect(document.querySelector('.premium-promotion-background')).toBeInTheDocument();
+    fireEvent.error(document.querySelector('.premium-promotion-background')!);
 
     view.rerender(<MemoryRouter><PromotedJobCard promotion={phonePePromotion} /></MemoryRouter>);
-    expect(screen.getByAltText('PhonePe promotional banner for Intern, Company Secretary')).toBeVisible();
+    expect(document.querySelector('.premium-promotion-background')).toBeInTheDocument();
   });
 
   it('falls back to company initials when its logo image fails', () => {

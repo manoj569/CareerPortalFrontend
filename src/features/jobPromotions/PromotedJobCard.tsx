@@ -15,29 +15,18 @@ import { resolveApiAssetUrl } from './assetUrl';
 import type { ActiveJobPromotion } from './types';
 
 const safeText = (value: unknown): string | null => typeof value === 'string' ? value.trim() || null : null;
-const PromotedJobVisual = ({
-  bannerUrl,
-  companyName,
-  logoUrl,
-  title,
-}: {
-  bannerUrl: string | null;
-  companyName: string;
-  logoUrl: string | null;
-  title: string;
-}) => {
+const PromotedJobVisual = ({ bannerUrl }: { bannerUrl: string | null }) => {
   const [bannerFailed, setBannerFailed] = useState(false);
   const showBanner = Boolean(bannerUrl) && !bannerFailed;
 
-  return (
-    <Box className="promoted-job-visual" aria-label={showBanner ? 'Promotional job banner' : `${companyName} branding`}>
-      {showBanner ? (
-        <Box component="img" className="promoted-job-banner" src={bannerUrl!} alt={`${companyName} promotional banner for ${title}`} loading="lazy" onError={() => setBannerFailed(true)} />
-      ) : (
-        <CompanyLogoFallback companyName={companyName} logoUrl={logoUrl} size={104} sx={{ zIndex: 1 }} />
-      )}
-    </Box>
-  );
+  if (!showBanner) return null;
+  return <Box component="img" className="promoted-job-banner premium-promotion-background" src={bannerUrl!} alt="" aria-hidden="true" loading="lazy" onError={() => setBannerFailed(true)} />;
+};
+
+const getFallbackTheme = (jobId: string): 'purple' | 'blue' | 'teal' | 'neutral' => {
+  let hash = 0;
+  for (const character of jobId) hash = (hash * 31 + character.charCodeAt(0)) | 0;
+  return (['purple', 'blue', 'teal', 'neutral'] as const)[Math.abs(hash) % 4] ?? 'purple';
 };
 
 const enumLabel = <T extends number>(value: unknown, options: readonly { value: T; label: string }[], enumNames: Record<string, string | number>, labeler: (value: T) => string): string | null => {
@@ -68,30 +57,35 @@ export const PromotedJobCard = ({ promotion }: { promotion: ActiveJobPromotion }
   const currencyCode = safeText(promotion.currencyCode);
   const salary = (minSalary !== null || maxSalary !== null) && currencyCode ? formatSalary(minSalary, maxSalary, currencyCode) : null;
   const education = safeText(promotion.educationRequirement);
-  const skills = Array.isArray(promotion.skills) ? promotion.skills.filter((skill): skill is string => typeof skill === 'string' && Boolean(skill.trim())) : [];
+  const skills = Array.isArray(promotion.skills) ? promotion.skills.filter((skill): skill is string => typeof skill === 'string').map((skill) => skill.trim()).filter(Boolean) : [];
   const details = [location, workplace, employment, experience, salary].filter((value): value is string => Boolean(value));
+  const isFresher = /\bfreshers?\b/i.test(category ?? '') || /\bfreshers?\b/i.test(title);
+  const isInternship = /internship/i.test(employment ?? '');
+  const displayedDetails = details.filter((detail) => !(isInternship && detail === employment));
+  const fallbackTheme = getFallbackTheme(promotion.jobId);
 
   return (
-    <Card component="article" className="hiring-card promoted-job-card" variant="outlined" sx={{ p: 0, gap: 0, height: '100%', minHeight: 280, overflow: 'hidden', containerType: 'inline-size' }}>
-      <Box className="promoted-job-layout">
+    <Card component="article" aria-label={`${companyName}: ${title}`} className="hiring-card promoted-job-card premium-promotion-card" data-theme={fallbackTheme} variant="outlined" sx={{ p: 0, gap: 0 }}>
+      <PromotedJobVisual key={`${promotion.jobId}:${banner ?? ''}`} bannerUrl={banner} />
+      <Box className="promoted-job-layout premium-promotion-content">
         <CardContent className="promoted-job-content" sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
           <Chip className="promoted-disclosure" icon={<BoltRoundedIcon />} label="Promoted" size="small" />
           <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
             <CompanyLogoFallback companyName={companyName} logoUrl={logoUrl} size={38} />
-            <Typography variant="body2" fontWeight={700} sx={{ minWidth: 0 }}>{companyName}</Typography>
+            <Typography className="promoted-company-name" variant="body2" fontWeight={700} sx={{ minWidth: 0 }}>{companyName}</Typography>
           </Stack>
           <Box>
-            <Typography component="h3" variant="h6" fontWeight={750} sx={{ lineHeight: 1.25 }}>{title}</Typography>
-            {category && <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ mt: 0.25 }}>{category}</Typography>}
+            <Typography className="promoted-job-title" component="h3" variant="h6" fontWeight={750} sx={{ lineHeight: 1.25 }}>{title}</Typography>
+            {category && !/^fresher|internship$/i.test(category.trim()) && <Typography className="promoted-job-details" variant="body2" fontWeight={600} color="text.secondary" sx={{ mt: 0.25 }}>{category}</Typography>}
           </Box>
-          {details.length > 0 && <Typography color="text.secondary" variant="body2">{details.join(' · ')}</Typography>}
-          {education && <Typography color="text.secondary" variant="body2">{education}</Typography>}
-          {skills.length > 0 && <Stack direction="row" flexWrap="wrap" gap={0.5}>{skills.slice(0, 3).map((skill) => <Chip key={skill} size="small" variant="outlined" label={skill} />)}{skills.length > 3 && <Chip size="small" variant="outlined" label={`+${skills.length - 3}`} />}</Stack>}
-          <Button variant="contained" endIcon={<ArrowForwardRoundedIcon />} onClick={() => void navigate(buildDashboardJobDetailsPath(promotion.jobSlug))} sx={{ mt: 'auto', alignSelf: 'flex-start', width: { xs: '100%', sm: 'auto' }, minWidth: { xs: '100%', sm: 190 }, whiteSpace: 'nowrap', bgcolor: 'primary.main' }}>
+          {(isFresher || isInternship) && <Stack className="promoted-job-badges" direction="row" flexWrap="wrap" gap={0.75}>{isFresher && <Chip size="small" label="Fresher" />}{isInternship && <Chip size="small" label="Internship" />}</Stack>}
+          {displayedDetails.length > 0 && <Typography className="promoted-job-details" color="text.secondary" variant="body2">{displayedDetails.join(' · ')}</Typography>}
+          {education && <Typography className="promoted-job-details" color="text.secondary" variant="body2">{education}</Typography>}
+          {skills.length > 0 && <Stack className="promoted-job-skills" direction="row" flexWrap="wrap" gap={0.5}>{skills.slice(0, 3).map((skill) => <Chip key={skill} size="small" variant="outlined" label={skill} />)}{skills.length > 3 && <Chip size="small" variant="outlined" label={`+${skills.length - 3}`} />}</Stack>}
+          <Button className="promoted-job-cta" variant="contained" endIcon={<ArrowForwardRoundedIcon />} onClick={() => void navigate(buildDashboardJobDetailsPath(promotion.jobSlug))} sx={{ mt: 'auto', alignSelf: 'flex-start', width: { xs: '100%', sm: 'auto' }, minWidth: { xs: '100%', sm: 190 }, whiteSpace: 'nowrap', bgcolor: 'primary.main' }}>
             View Opportunity
           </Button>
         </CardContent>
-        <PromotedJobVisual key={`${promotion.jobId}:${banner ?? ''}`} bannerUrl={banner} companyName={companyName} logoUrl={logoUrl} title={title} />
       </Box>
     </Card>
   );

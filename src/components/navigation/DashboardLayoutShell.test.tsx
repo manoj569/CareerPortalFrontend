@@ -44,12 +44,13 @@ const LocationProbe = () => {
   return <output data-testid="location">{location.pathname}{location.search}</output>;
 };
 
-const renderShell = (notificationCount: number) => {
+const renderShell = (notificationCount: number, initialPath: string = ROUTES.DASHBOARD_JOBS) => {
   const router = createMemoryRouter(
     [
       {
         element: (
           <DashboardLayoutShell
+            accessStatus="2 active access plans"
             areaLabel="Candidate workspace"
             accountMenuProfilePath={ROUTES.PORTFOLIO}
             collapsibleDesktop
@@ -60,6 +61,7 @@ const renderShell = (notificationCount: number) => {
         ),
         path: '/dashboard',
         children: [
+          { index: true, element: <><p>Candidate dashboard page</p><LocationProbe /></> },
           { path: 'jobs', element: <><p>Browse jobs page</p><LocationProbe /></> },
           {
             path: 'portfolio',
@@ -100,7 +102,7 @@ const renderShell = (notificationCount: number) => {
         ),
       },
     ],
-    { initialEntries: [ROUTES.DASHBOARD_JOBS] },
+    { initialEntries: [initialPath] },
   );
 
   return renderWithProviders(<RouterProvider router={router} />, { auth: candidateAuth });
@@ -124,6 +126,20 @@ describe('Candidate workspace shell', () => {
     await user.type(screen.getByRole('textbox', { name: 'Job location' }), 'Pune');
     await user.click(screen.getByRole('button', { name: 'Search' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/dashboard/jobs?q=product+designer&location=Pune');
+  });
+
+  it('removes the membership plan promotion from the dashboard sidebar and preserves verified access and links', () => {
+    renderShell(0, ROUTES.DASHBOARD);
+    const collapse = screen.getByRole('button', { name: 'Collapse candidate navigation' });
+    const sidebar = collapse.closest('.MuiDrawer-paper') as HTMLElement;
+    expect(within(sidebar).getByText('Verified access')).toBeVisible();
+    expect(within(sidebar).getByText('2 active access plans')).toBeVisible();
+    expect(within(sidebar).queryByText(/Membership access|Membership plans/)).not.toBeInTheDocument();
+    expect(within(sidebar).queryByRole('button', { name: /Manage plan|View plans/ })).not.toBeInTheDocument();
+    expect(within(sidebar).getByRole('link', { name: 'Browse jobs' })).toBeVisible();
+    expect(within(sidebar).getByRole('link', { name: /CareerHarbor on LinkedIn/i })).toBeVisible();
+    expect(within(sidebar).getByText('Avery Patel')).toBeVisible();
+    expect(within(sidebar).getByText('candidate@example.com')).toBeVisible();
   });
 
   it('intercepts direct Career Guidance workflow URLs with the Coming soon page', () => {
