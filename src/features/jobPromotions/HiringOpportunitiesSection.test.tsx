@@ -5,6 +5,10 @@ import { apiClient } from '@/api/apiClient';
 import { renderWithProviders } from '@/test/renderWithProviders';
 import { HiringOpportunitiesSection } from './HiringOpportunitiesSection';
 
+if (typeof globalThis.cancelAnimationFrame !== 'function') {
+  globalThis.cancelAnimationFrame = (handle => clearTimeout(handle));
+}
+
 const drive = {
   id: 'drive-1', title: 'Existing Drive', subtitle: null, badgeText: null, badgeType: null,
   company: { id: 'company-1', name: 'Drive Co', logoUrl: null }, imageUrl: null, locationText: 'Pune',
@@ -18,16 +22,38 @@ const promotion = (jobId: string, title: string, jobSlug: string) => ({
   detailsUrl: `/dashboard/jobs/${jobSlug}`,
 });
 const Location = () => <output data-testid="details-path">{useLocation().pathname}</output>;
+const originalMatchMedia = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+
+const setViewportWidth = (width: number) => {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (query: string) => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: query === '(max-width:767px)' ? width < 768 : false,
+      media: query,
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    }) as MediaQueryList,
+  });
+};
 
 const mount = () => renderWithProviders(<MemoryRouter initialEntries={['/dashboard']}><Routes>
   <Route path="/dashboard" element={<HiringOpportunitiesSection />} />
   <Route path="/dashboard/jobs/:slug" element={<Location />} />
 </Routes></MemoryRouter>);
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  if (originalMatchMedia) Object.defineProperty(window, 'matchMedia', originalMatchMedia);
+  else Reflect.deleteProperty(window, 'matchMedia');
+});
 
 describe('HiringOpportunitiesSection', () => {
-  it('keeps two dashboard opportunities as separate full-slide carousel items', async () => {
+  it.each([360, 375, 393, 412, 430, 440])('uses one full-width slide at %ipx and advances a full slide to the next opportunity', async (width) => {
+    setViewportWidth(width);
     vi.spyOn(apiClient, 'request').mockImplementation((config) => Promise.resolve({ data: { data:
       config.url === '/public/hiring-drives/home' ? [] : [
         promotion('phonepe-job', 'Intern, Company Secretary', 'phonepe-role'),
@@ -36,11 +62,62 @@ describe('HiringOpportunitiesSection', () => {
     } }));
     mount();
 
-    const carousel = await screen.findByRole('region', { name: 'Hiring opportunities carousel' });
+    await screen.findByRole('heading', { name: 'Intern, Company Secretary' });
+    await screen.findByRole('heading', { name: 'Developer Jobs at HCLTech (Chennai) | Freshers Eligible' });
+    const carousel = screen.getByRole('region', { name: 'Hiring opportunities carousel' });
     expect(carousel).toHaveClass('hiring-ads-track-double');
-    expect(carousel.querySelectorAll(':scope > article')).toHaveLength(2);
-    expect(screen.getByRole('heading', { name: 'Intern, Company Secretary' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Developer Jobs at HCLTech (Chennai) | Freshers Eligible' })).toBeInTheDocument();
+    expect(carousel).toHaveAttribute('data-items-per-view', '1');
+    expect(carousel).toHaveAttribute('data-active-index', '0');
+    expect(carousel).toHaveStyle({ display: 'flex', width: '100%' });
+    const slides = carousel.querySelectorAll(':scope > .hiring-opportunity-slide');
+    expect(slides).toHaveLength(2);
+    expect(slides[0]).toHaveStyle({ flex: '0 0 100%', width: '100%', maxWidth: '100%' });
+    expect(slides[1]).toHaveStyle({ flex: '0 0 100%', width: '100%', maxWidth: '100%' });
+
+    Object.defineProperty(slides[1], 'offsetLeft', { configurable: true, value: width + 16 });
+    const scrollTo = vi.fn();
+    Object.defineProperty(carousel, 'scrollTo', { configurable: true, value: scrollTo });
+    fireEvent.click(screen.getByRole('button', { name: 'Next hiring opportunity' }));
+
+    await waitFor(() => expect(carousel).toHaveAttribute('data-active-index', '1'));
+    expect(scrollTo).toHaveBeenCalledWith({ left: width + 16, behavior: 'smooth' });
+  });
+
+  it('uses full-width mobile slides for both a Hiring Drive and a promoted job', async () => {
+    setViewportWidth(393);
+    vi.spyOn(apiClient, 'request').mockImplementation((config) => Promise.resolve({ data: { data:
+      config.url === '/public/hiring-drives/home' ? [drive] : [promotion('job-2', 'Promoted Engineer', 'promoted-role')],
+    } }));
+    mount();
+
+    await screen.findByText('Existing Drive');
+    await screen.findByText('Promoted Engineer');
+    const carousel = screen.getByRole('region', { name: 'Hiring opportunities carousel' });
+    const slides = carousel.querySelectorAll(':scope > .hiring-opportunity-slide');
+    expect(carousel).toHaveAttribute('data-items-per-view', '1');
+    expect(slides).toHaveLength(2);
+    expect(slides[0]).toHaveStyle({ flex: '0 0 100%' });
+    expect(slides[0]?.querySelector('.hiring-drive-card')).not.toBeNull();
+    expect(slides[1]).toHaveStyle({ flex: '0 0 100%' });
+    expect(slides[1]?.querySelector('.promoted-job-card')).not.toBeNull();
+  });
+
+  it.each([768, 1024])('keeps two items per view at %ipx and wider desktop widths', async (width) => {
+    setViewportWidth(width);
+    vi.spyOn(apiClient, 'request').mockImplementation((config) => Promise.resolve({ data: { data:
+      config.url === '/public/hiring-drives/home' ? [] : [
+        promotion('phonepe-job', 'Intern, Company Secretary', 'phonepe-role'),
+        promotion('hcltech-job', 'Developer Jobs at HCLTech (Chennai) | Freshers Eligible', 'hcltech-role'),
+      ],
+    } }));
+    mount();
+
+    await screen.findByRole('heading', { name: 'Intern, Company Secretary' });
+    await screen.findByRole('heading', { name: 'Developer Jobs at HCLTech (Chennai) | Freshers Eligible' });
+    const carousel = screen.getByRole('region', { name: 'Hiring opportunities carousel' });
+    expect(carousel).toHaveAttribute('data-items-per-view', '2');
+    expect(carousel.style.display).toBe('');
+    expect(carousel.querySelectorAll(':scope > .hiring-opportunity-slide')).toHaveLength(2);
   });
 
   it('combines active promoted jobs with hiring drives, deduplicates only internal job IDs and routes by slug', async () => {

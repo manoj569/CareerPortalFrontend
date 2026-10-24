@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, IconButton, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Button, IconButton, Paper, Stack, Typography, useMediaQuery } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/constants/routes';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
@@ -26,6 +26,8 @@ export const HiringOpportunitiesSection = () => {
     return (promotionsQuery.data ?? []).filter((job) => !internalJobIds.has(job.jobId));
   }, [drivesList, promotionsQuery.data]);
   const items: Opportunity[] = useMemo(() => [...drivesList.map((drive) => ({ kind: 'drive' as const, drive })), ...jobs.map((job) => ({ kind: 'job' as const, job }))], [drivesList, jobs]);
+  const isMobile = useMediaQuery('(max-width:767px)');
+  const itemsPerView = isMobile ? 1 : 2;
   const track = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [hover, setHover] = useState(false);
@@ -109,8 +111,25 @@ export const HiringOpportunitiesSection = () => {
       </Stack>
     </Stack>
     {(drivesFailed || promotionsFailed) && <Alert severity="info" sx={{ mb: 2 }}>{drivesFailed ? 'Hiring Drives are temporarily unavailable. ' : ''}{promotionsFailed ? 'Promoted jobs are temporarily unavailable.' : ''}</Alert>}
-    <div ref={track} className={trackClass} role="region" aria-roledescription="carousel" aria-label="Hiring opportunities carousel" aria-live="off" onScroll={onScroll} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setFocus(true)} onBlur={onBlur}>
-      {isLoading && !items.length ? Array.from({ length: 2 }, (_, i) => <HiringDriveSkeleton key={i} />) : items.map((item) => item.kind === 'drive' ? <HiringDriveCard key={`drive-${item.drive.id}`} drive={item.drive} allowAnonymousApply enableViewDetails /> : <PromotedJobCard key={`job-${item.job.jobId}`} promotion={item.job} />)}
+    <div ref={track} className={trackClass} role="region" aria-roledescription="carousel" aria-label="Hiring opportunities carousel" aria-live="off" aria-orientation="horizontal" data-items-per-view={itemsPerView} data-active-index={index} style={isMobile ? { display: 'flex', width: '100%', maxWidth: '100%', minWidth: 0 } : undefined} onScroll={onScroll} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setFocus(true)} onBlur={onBlur}>
+      {isLoading && !items.length
+        ? Array.from({ length: 2 }, (_, i) => (
+          <div className="hiring-opportunity-slide" key={`skeleton-${i}`} data-slide-index={i} style={isMobile ? { flex: '0 0 100%', width: '100%', maxWidth: '100%', minWidth: 0 } : undefined}>
+            <HiringDriveSkeleton />
+          </div>
+        ))
+        : items.map((item, itemIndex) => (
+          <div
+            className="hiring-opportunity-slide"
+            key={item.kind === 'drive' ? `drive-${item.drive.id}` : `job-${item.job.jobId}`}
+            data-slide-index={itemIndex}
+            style={isMobile ? { flex: '0 0 100%', width: '100%', maxWidth: '100%', minWidth: 0 } : undefined}
+          >
+            {item.kind === 'drive'
+              ? <HiringDriveCard drive={item.drive} allowAnonymousApply enableViewDetails />
+              : <PromotedJobCard promotion={item.job} />}
+          </div>
+        ))}
     </div>
     {items.length > 1 && <Stack direction="row" justifyContent="center" spacing={0.75} sx={{ mt: 1.5 }} role="group" aria-label="Hiring opportunities pages">{items.map((item, i) => <button key={item.kind === 'drive' ? `drive-${item.drive.id}` : `job-${item.job.jobId}`} type="button" className="hiring-ads-dot" aria-label={`Show hiring opportunity ${i + 1}`} aria-current={index === i ? 'true' : undefined} onClick={() => goTo(i)} />)}</Stack>}
   </section>;
