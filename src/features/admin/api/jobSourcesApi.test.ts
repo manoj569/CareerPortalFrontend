@@ -6,6 +6,20 @@ const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/apiClient', () => ({ apiClient: { request } }));
 
 describe('source collection pagination', () => {
+  it('posts the unsaved discovery DTO and retains the actual backend result without persisting', async () => {
+    const dto = { atsType: AtsType.RippleHire, careerPageUrl: 'https://www.ltm.com/india-careers', atsIdentifier: null };
+    const result = { provider: 8, configurationValid: true, providerReachable: true, listingReachable: true,
+      reasonCode: 'RIPPLEHIRE_SOURCE_VERIFIED', message: 'Verified', discovery: { status: 'Resolved',
+        resolvedCareerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token', succeeded: true,
+        manualConfigurationRequired: false, validationErrors: [], reasonCode: 'RIPPLEHIRE_SOURCE_VERIFIED' } };
+    request.mockReset();
+    request.mockResolvedValue({ data: { data: result } });
+    const store = createAppStore();
+    expect(await store.dispatch(jobSourcesApi.endpoints.testJobSourceConfiguration.initiate(dto)).unwrap()).toEqual(result);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({ method: 'POST', url: '/admin/job-sources/test', data: dto, timeout: 60000 }));
+    store.dispatch(jobSourcesApi.util.resetApiState());
+  });
   it.each([
     AtsType.Greenhouse,
     AtsType.Lever,

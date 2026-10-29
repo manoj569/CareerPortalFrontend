@@ -107,7 +107,11 @@ describe('job sources administrator workflow', () => {
     const original = request.getMockImplementation()!;
     request.mockImplementation((config) => config.url.endsWith('/test')
       ? Promise.resolve({ data: { data: { provider: 8, configurationValid, providerReachable, listingReachable,
-        reasonCode: 'TEST_RESULT', message: 'Backend connection result' } } }) : original(config));
+        reasonCode: 'TEST_RESULT', message: 'Backend connection result', discovery: {
+          status: 'ManualUrlVerified', succeeded: true, manualConfigurationRequired: false,
+          resolvedCareerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token',
+          reasonCode: 'RIPPLEHIRE_SOURCE_VERIFIED', validationErrors: [],
+        } } } }) : original(config));
     renderPage();
     await screen.findByRole('table', { name: 'Job sources' });
     expect(within(screen.getByRole('table')).getByText('RippleHire')).toBeVisible();
@@ -131,6 +135,27 @@ describe('job sources administrator workflow', () => {
     resolve({ data: null });
     expect(await screen.findByText(/server did not confirm a connection/)).toBeVisible();
     expect(request.mock.calls.filter(([config]) => config.url.endsWith('/test'))).toHaveLength(1);
+  });
+  it('saves an employer URL using the existing update API and displays the persisted normalized RippleHire configuration', async () => {
+    const ripple = { ...source, atsType: AtsType.RippleHire, atsIdentifier: null,
+      careerPageUrl: 'https://www.ltm.com/india-careers', autoPublishEnabled: false };
+    const resolved = { ...ripple, careerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token', atsIdentifier: 'public-token' };
+    items = [ripple];
+    const original = request.getMockImplementation()!;
+    request.mockImplementation((config) => config.url.endsWith('/source-1')
+      ? Promise.resolve({ data: { data: config.method === 'PUT' ? resolved : ripple } }) : original(config));
+    renderPage();
+    await screen.findByRole('table', { name: 'Job sources' });
+    fireEvent.click(firstButton('Edit'));
+    const form = await screen.findByRole('dialog', { name: 'Edit Job Source' });
+    await waitFor(() => expect(within(form).getByRole('button', { name: 'Save Job Source' })).toBeEnabled());
+    fireEvent.click(within(form).getByRole('button', { name: 'Save Job Source' }));
+    const saved = await screen.findByRole('dialog', { name: 'Job Source Saved' });
+    expect(within(saved).getByRole('textbox', { name: 'Saved RippleHire URL' })).toHaveValue(resolved.careerPageUrl);
+    const updateCall = request.mock.calls.find(([config]) => config.method === 'PUT');
+    expect(updateCall?.[0]).toMatchObject({ method: 'PUT', url: '/admin/job-sources/source-1',
+      data: { atsType: 8, careerPageUrl: ripple.careerPageUrl, atsIdentifier: null, autoPublishEnabled: false } });
+    expect(request.mock.calls.some(([config]) => config.url.endsWith('/test') || config.url.endsWith('/run'))).toBe(false);
   });
   it('renders sources, null dates, intervals, summary and draft-review link', async () => {
     renderPage();

@@ -18,7 +18,6 @@ describe('source validation and formatting', () => {
   });
   it.each([
     'http://example.ripplehire.com/candidate/?token=public-token',
-    'https://example.com/candidate/?token=public-token',
     'https://example.ripplehire.com/ripplehire/candidate/?token=public-token',
     'https://example.ripplehire.com/candidate/?token=public-token#detail/job/1',
     'https://example.ripplehire.com/candidate/?token=public-token&lang=fr',
@@ -27,13 +26,23 @@ describe('source validation and formatting', () => {
     'https://example.ripplehire.com/candidate/?token=public%2Dtoken',
     'https://example.ripplehire.com/candidate/?token=',
     'https://example.ripplehire.com:444/candidate/?token=public-token',
-    'https://example.ripplehire.com/candidate/',
+    'https://127.0.0.1/careers',
+    'https://internal.local/careers',
+    'https://user:password@example.com/careers',
   ])('rejects unsupported RippleHire URL %s', async (careerPageUrl) => {
     expect(await jobSourceSchema.isValid({ ...valid, atsType: 8, atsIdentifier: null, careerPageUrl })).toBe(false);
   });
   it('rejects RippleHire identifier conflicts', async () => {
     expect(await jobSourceSchema.isValid({ ...valid, atsType: 8, atsIdentifier: 'other',
       careerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token' })).toBe(false);
+  });
+  it.each(['https://www.ltm.com/india-careers', 'https://example.ripplehire.com/',
+    'https://example.ripplehire.com/candidate/', 'https://employer.example/careers?region=India',
+    'https://example.ripplehire.com/candidate/?token=public-token#list/geo=India'])('permits RippleHire discovery input %s with no identifier', async (careerPageUrl) => {
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 8, atsIdentifier: null, careerPageUrl })).toBe(true);
+  });
+  it.each(['https://www.ltm.com/india-careers', 'https://example.ripplehire.com/'])('requires a complete token URL for an explicit identifier: %s', async (careerPageUrl) => {
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 8, atsIdentifier: 'public-token', careerPageUrl })).toBe(false);
   });
   it('accepts SmartRecruiters numeric type 7 with a company identifier and normal URL validation', async () => {
     expect(await jobSourceSchema.validate({ ...valid, atsType: 7, atsIdentifier: 'ExampleCompany', careerPageUrl: 'https://careers.smartrecruiters.com/ExampleCompany' })).toMatchObject({ atsType: 7, atsIdentifier: 'ExampleCompany' });

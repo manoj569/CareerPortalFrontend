@@ -18,6 +18,23 @@ export interface JobSourceConnectionResult {
   reasonCode: string;
   message: string;
   statusCode?: number | null;
+  discovery?: RippleHireDiscoveryResult | null;
+}
+
+export interface RippleHireDiscoveryResult {
+  status: 'Resolved' | 'ManualUrlVerified' | 'UnsafeInput' | 'InvalidConfiguration' |
+    'Unsupported' | 'NotFound' | 'Ambiguous' | 'VerificationFailed';
+  resolvedCareerPageUrl: string | null;
+  manualConfigurationRequired: boolean;
+  reasonCode: string;
+  validationErrors: string[];
+  succeeded: boolean;
+}
+
+export interface JobSourceConnectionTestRequest {
+  atsType: AtsType;
+  careerPageUrl: string;
+  atsIdentifier: string | null;
 }
 
 export interface SaveJobSourceRequest {
@@ -31,6 +48,7 @@ export interface SaveJobSourceRequest {
 }
 
 export interface JobSource extends SaveJobSourceRequest {
+  discovery?: RippleHireDiscoveryResult | null;
   id: string;
   companyName: string;
   lastRunAtUtc: string | null;

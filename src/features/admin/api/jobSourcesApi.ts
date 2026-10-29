@@ -1,9 +1,11 @@
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import type { ApiResponse, PaginatedResponse } from '@/types';
 import { adminApi } from './adminApi';
+import { AtsType } from '../types/jobSourceModels';
 import type {
   JobSource,
   JobSourceConnectionResult,
+  JobSourceConnectionTestRequest,
   DurableJobSourceRun,
   SaveJobSourceRequest,
 } from '../types/jobSourceModels';
@@ -14,8 +16,12 @@ export const jobSourcesApi = adminApi
   .enhanceEndpoints({ addTagTypes: ['JobSources'] })
   .injectEndpoints({
     endpoints: (builder) => ({
+      testJobSourceConfiguration: builder.mutation<JobSourceConnectionResult | null, JobSourceConnectionTestRequest>({
+        query: (data) => ({ url: `${endpoints.LIST}/test`, method: 'POST', data, timeout: 60000 }),
+        transformResponse: (response: ApiResponse<JobSourceConnectionResult> | null) => response?.data ?? null,
+      }),
       testJobSource: builder.mutation<JobSourceConnectionResult | null, string>({
-        query: (id) => ({ url: `${endpoints.DETAILS(id)}/test`, method: 'POST' }),
+        query: (id) => ({ url: `${endpoints.DETAILS(id)}/test`, method: 'POST', timeout: 60000 }),
         transformResponse: (response: ApiResponse<JobSourceConnectionResult> | null) => response?.data ?? null,
       }),
       getJobSources: builder.query<JobSource[], void>({
@@ -46,12 +52,14 @@ export const jobSourcesApi = adminApi
         providesTags: ['JobSources'],
       }),
       createJobSource: builder.mutation<JobSource, SaveJobSourceRequest>({
-        query: (data) => ({ url: endpoints.LIST, method: 'POST', data }),
+        query: (data) => ({ url: endpoints.LIST, method: 'POST', data,
+          ...(data.atsType === AtsType.RippleHire ? { timeout: 60000 } : {}) }),
         transformResponse: (response: ApiResponse<JobSource>) => response.data,
         invalidatesTags: ['JobSources'],
       }),
       updateJobSource: builder.mutation<JobSource, { id: string; request: SaveJobSourceRequest }>({
-        query: ({ id, request }) => ({ url: endpoints.DETAILS(id), method: 'PUT', data: request }),
+        query: ({ id, request }) => ({ url: endpoints.DETAILS(id), method: 'PUT', data: request,
+          ...(request.atsType === AtsType.RippleHire ? { timeout: 60000 } : {}) }),
         transformResponse: (response: ApiResponse<JobSource>) => response.data,
         invalidatesTags: ['JobSources'],
       }),
@@ -76,6 +84,7 @@ export const jobSourcesApi = adminApi
   });
 
 export const {
+  useTestJobSourceConfigurationMutation,
   useTestJobSourceMutation,
   useGetJobSourcesQuery,
   useLazyGetJobSourceQuery,

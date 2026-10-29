@@ -92,7 +92,18 @@ export const sourceConfigurationError = (
   if (type === AtsType.RippleHire) {
     let url: URL;
     try { url = new URL(value.trim()); } catch { return 'Enter a valid RippleHire career URL.'; }
-    if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
+    const tenant = /^[a-z0-9][a-z0-9-]{0,62}\.ripplehire\.com$/.test(url.hostname);
+    const publicUrl = new URL(url);
+    publicUrl.hash = '';
+    if (!publicHttps(publicUrl) || value.includes('\\'))
+      return 'RippleHire discovery requires a public HTTPS career URL on port 443 without credentials or IP addresses.';
+    if (!token && (!tenant || !url.search)) {
+      if (url.hash || (tenant && !['/', '/candidate/'].includes(url.pathname)))
+        return 'Enter the employer career page or RippleHire tenant root or /candidate/ entry without a job fragment.';
+      return null;
+    }
+    if (url.protocol !== 'https:' || url.port || url.username || url.password ||
+        (url.hash && url.hash !== '#list' && !url.hash.startsWith('#list/')) ||
         !/^[a-z0-9][a-z0-9-]{0,62}\.ripplehire\.com$/.test(url.hostname) ||
         url.pathname !== '/candidate/' || value.includes('\\') || value.includes('%'))
       return 'Use https://{tenant}.ripplehire.com/candidate/?token={public-career-token} without a job fragment. Custom domains and legacy /ripplehire/ URLs are unsupported.';
@@ -177,7 +188,7 @@ export const sourceConfigurationError = (
 
 export const sourceIdentifierHelp: Record<AtsType, string> = {
   [AtsType.RippleHire]:
-    'Leave blank to derive the public career token from https://{tenant}.ripplehire.com/candidate/?token={public-career-token}, or enter the same token. Optional source and lang=en only. Custom domains, legacy /ripplehire/ paths and job fragments are unsupported. Use only a public employer career token, never a private candidate link. Other RippleHire URL variants are not verified.',
+    'Leave ATS Identifier blank for automatic discovery. For manual fallback, paste the complete public https://{tenant}.ripplehire.com/candidate/?token=... URL into Career Page URL; the identifier may be blank or match its token. Optional source and lang=en only. Never use private candidate links or internal shareToken values. Discovery requires a supported public link and may require manual configuration.',
   [AtsType.SmartRecruiters]:
     'SmartRecruiters Company Identifier: enter the company identifier from the SmartRecruiters career URL. For https://careers.smartrecruiters.com/ExampleCompany, enter ExampleCompany. Public postings do not require credentials.',
   [AtsType.Custom]: 'Optional for Custom; ingestion is unsupported.',

@@ -44,9 +44,12 @@ import {
 } from '@/features/admin/api/jobSourcesApi';
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
 import { JobSourceFormDialog } from '@/features/admin/components/JobSourceFormDialog';
+import { SourceDiscoveryDetails } from '@/features/admin/components/SourceConnectionResult';
+import { isVerifiedSourceConnection } from '@/features/admin/utils/sourceConnectionVerification';
 import {
   AtsType,
   type JobSource,
+  type JobSourceConnectionResult,
   type SaveJobSourceRequest,
 } from '@/features/admin/types/jobSourceModels';
 import { JobStatus } from '@/features/admin/types/adminModels';
@@ -79,7 +82,8 @@ export const AdminJobSourcesPage = () => {
   const [remove] = useDeleteJobSourceMutation();
   const [run] = useRunJobSourceMutation();
   const [testConnection] = useTestJobSourceMutation();
-  const [connection, setConnection] = useState<{ company: string; success: boolean; message: string } | null>(null);
+  const [connection, setConnection] = useState<{ company: string; success: boolean; message: string; result?: JobSourceConnectionResult | null } | null>(null);
+  const [savedSource, setSavedSource] = useState<JobSource | null>(null);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [ats, setAts] = useState('all');
@@ -174,8 +178,10 @@ export const AdminJobSourcesPage = () => {
     if (!begin('form')) return;
     setFormError(null);
     try {
-      if (form && form !== 'new') await update({ id: form.id, request }).unwrap();
-      else await create(request).unwrap();
+      const saved = form && form !== 'new'
+        ? await update({ id: form.id, request }).unwrap()
+        : await create(request).unwrap();
+      if (saved.atsType === AtsType.RippleHire) setSavedSource(saved);
       setForm(null);
       enqueueSnackbar('Job source saved.', { variant: 'success' });
     } catch (error) {
@@ -246,9 +252,8 @@ export const AdminJobSourcesPage = () => {
       submission.current = request;
       const response = await request.unwrap();
       if (!mounted.current || currentGeneration !== generation.current) return;
-      const success = response?.provider === source.atsType && response.configurationValid === true &&
-        response.providerReachable === true && response.listingReachable === true;
-      setConnection({ company: source.companyName, success,
+      const success = isVerifiedSourceConnection(response, source.atsType);
+      setConnection({ company: source.companyName, success, result: response,
         message: response?.message
           ? `${response.message}${response.reasonCode ? ` (${response.reasonCode})` : ''}${response.statusCode ? ` — HTTP ${response.statusCode}` : ''}`
           : 'The server did not confirm a connection. Check the source configuration and try again.' });
@@ -606,8 +611,21 @@ export const AdminJobSourcesPage = () => {
       )}
       <Dialog open={Boolean(connection)} onClose={() => setConnection(null)} fullWidth maxWidth="sm" aria-labelledby="connection-title">
         <DialogTitle id="connection-title">Connection Test — {connection?.company}</DialogTitle>
-        <DialogContent><Alert severity={connection?.success ? 'success' : 'error'}>{connection?.message}</Alert></DialogContent>
+        <DialogContent><Stack spacing={1.5}>
+          <Alert severity={connection?.success ? 'success' : 'error'}>{connection?.message}</Alert>
+          <SourceDiscoveryDetails discovery={connection?.result?.discovery} />
+        </Stack></DialogContent>
         <DialogActions><Button onClick={() => setConnection(null)}>Close</Button></DialogActions>
+      </Dialog>
+      <Dialog open={Boolean(savedSource)} onClose={() => setSavedSource(null)} fullWidth maxWidth="sm" aria-labelledby="saved-source-title">
+        <DialogTitle id="saved-source-title">Job Source Saved</DialogTitle>
+        <DialogContent><Stack spacing={1.5}>
+          <Typography>{savedSource?.companyName}</Typography>
+          <SourceDiscoveryDetails discovery={savedSource?.discovery} />
+          {!savedSource?.discovery?.resolvedCareerPageUrl && <TextField label="Saved RippleHire URL"
+            value={savedSource?.careerPageUrl ?? ''} multiline fullWidth slotProps={{ input: { readOnly: true } }} />}
+        </Stack></DialogContent>
+        <DialogActions><Button onClick={() => setSavedSource(null)}>Close</Button></DialogActions>
       </Dialog>
       {form && (
         <JobSourceFormDialog

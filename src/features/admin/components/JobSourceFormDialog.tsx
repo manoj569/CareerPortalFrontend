@@ -17,7 +17,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   isAdminApiError,
   useCreateAdminCompanyMutation,
@@ -25,7 +25,10 @@ import {
   useGetAdminCompanyQuery,
 } from '../api/adminApi';
 import type { AdminOption } from '../types/adminModels';
-import { AtsType, type JobSource, type SaveJobSourceRequest } from '../types/jobSourceModels';
+import { AtsType, type JobSource, type SaveJobSourceRequest, type JobSourceConnectionResult } from '../types/jobSourceModels';
+import { useTestJobSourceConfigurationMutation } from '../api/jobSourcesApi';
+import { SourceConnectionResult } from './SourceConnectionResult';
+import { isVerifiedSourceConnection } from '../utils/sourceConnectionVerification';
 import { EMPLOYER_DIRECT_ATS_IDENTIFIER, isEmployerDirectSource, sourceRequest } from '../utils/jobSourceFormatting';
 import { jobSourceSchema } from '../validation/jobSourceSchema';
 import { parseWorkdaySiteRoot, sourceIdentifierHelp } from '../validation/jobSourceConfiguration';
@@ -59,12 +62,24 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
   const creating = useRef(false);
   const [createdCompanies, setCreatedCompanies] = useState<AdminOption[]>([]);
   const [companyError, setCompanyError] = useState<string | null>(null);
+  const [detect] = useTestJobSourceConfigurationMutation();
+  const [isDetecting, setIsDetecting] = useState(false);
+  const detecting = useRef(false);
+  const detectionRequest = useRef<{ abort: () => void } | null>(null);
+  const mounted = useRef(true);
+  const [preview, setPreview] = useState<{ key: string; result: JobSourceConnectionResult | null; error?: string } | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; detectionRequest.current?.abort(); };
+  }, []);
   const {
     control,
     register,
     watch,
     handleSubmit,
     setValue,
+    getValues,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<SaveJobSourceRequest>({
     resolver: yupResolver(jobSourceSchema),
@@ -80,10 +95,36 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
           scanIntervalMinutes: 720,
         },
   });
-  const busy = isSaving || isSubmitting || isCreating;
+  const busy = isSaving || isSubmitting || isCreating || isDetecting;
   const atsType = watch('atsType');
   const companyId = watch('companyId');
   const atsIdentifier = watch('atsIdentifier');
+  const careerPageUrl = watch('careerPageUrl');
+  const configurationKey = JSON.stringify([atsType, careerPageUrl.trim(), atsIdentifier?.trim() || null]);
+  const currentPreview = preview?.key === configurationKey ? preview : null;
+  const detectConfiguration = async () => {
+    if (detecting.current || busy) return;
+    detecting.current = true;
+    setIsDetecting(true);
+    setPreview(null);
+    try {
+      if (!await trigger(['atsType', 'careerPageUrl', 'atsIdentifier'])) return;
+      const values = getValues();
+      const request = detect({ atsType: values.atsType, careerPageUrl: values.careerPageUrl.trim(),
+        atsIdentifier: values.atsIdentifier?.trim() || null });
+      detectionRequest.current = request;
+      const result = await request.unwrap();
+      if (mounted.current) setPreview({ key: configurationKey, result });
+    } catch (cause) {
+      if (mounted.current) setPreview({ key: configurationKey, result: null, error: isAdminApiError(cause)
+        ? [cause.message, ...Object.values(cause.errors ?? {}).flat()].join(' ')
+        : 'Discovery could not be completed. Retry or paste a complete public RippleHire token URL.' });
+    } finally {
+      detecting.current = false;
+      detectionRequest.current = null;
+      if (mounted.current) setIsDetecting(false);
+    }
+  };
   const isEmployerDirect = isEmployerDirectSource({ atsType, atsIdentifier });
   const interval = watch('scanIntervalMinutes');
   const options = [
@@ -144,7 +185,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
       </DialogTitle>
       <form
         onSubmit={(event) => {
-          if (creating.current) {
+          if (creating.current || detecting.current) {
             event.preventDefault();
             return;
           }
@@ -248,7 +289,8 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
               required
               disabled={busy}
               error={Boolean(errors.careerPageUrl)}
-              helperText={errors.careerPageUrl?.message}
+              helperText={errors.careerPageUrl?.message ?? (atsType === AtsType.RippleHire
+                ? 'Enter the employer career page or RippleHire tenant URL. CareerHarbor will attempt to detect the public RippleHire configuration automatically.' : undefined)}
             />
             <Controller
               control={control}
@@ -303,6 +345,25 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
               helperText={isEmployerDirect ? 'Automatically set for Any Career Website.' : errors.atsIdentifier?.message ?? sourceIdentifierHelp[atsType]}
             />
             {atsType === AtsType.SmartRecruiters && <SourceCompanyMetadata companyId={companyId} />}
+            {atsType === AtsType.RippleHire && (
+              <Stack spacing={1.5}>
+                <Button type="button" variant="outlined" disabled={busy} onClick={() => void detectConfiguration()}
+                  startIcon={isDetecting ? <CircularProgress size={16} /> : undefined}>
+                  {isDetecting ? 'Detecting & testing…' : 'Detect & Test Connection'}
+                </Button>
+                {currentPreview && (currentPreview.error
+                  ? <Alert severity="error">{currentPreview.error}</Alert>
+                  : <SourceConnectionResult result={currentPreview.result} provider={AtsType.RippleHire} />)}
+                {currentPreview && isVerifiedSourceConnection(currentPreview.result, AtsType.RippleHire) && (
+                  <Button type="button" disabled={busy} onClick={() => {
+                    const resolved = currentPreview.result!.discovery!.resolvedCareerPageUrl!;
+                    setValue('careerPageUrl', resolved, { shouldDirty: true, shouldValidate: true });
+                    setValue('atsIdentifier', null, { shouldDirty: true, shouldValidate: true });
+                    setPreview({ ...currentPreview, key: JSON.stringify([AtsType.RippleHire, resolved, null]) });
+                  }}>Use Resolved Configuration</Button>
+                )}
+              </Stack>
+            )}
             <Controller
               control={control}
               name="scanIntervalMinutes"
@@ -389,7 +450,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
             variant="contained"
             disabled={busy || companies.isLoading || companies.isError}
           >
-            {isCreating ? 'Creating company…' : busy ? 'Saving…' : 'Save Job Source'}
+            {isCreating ? 'Creating company…' : isDetecting ? 'Detecting…' : busy ? 'Saving…' : 'Save Job Source'}
           </Button>
         </DialogActions>
       </form>
