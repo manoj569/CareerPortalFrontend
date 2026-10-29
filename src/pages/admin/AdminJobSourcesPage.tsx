@@ -39,6 +39,7 @@ import {
   useGetJobSourcesQuery,
   useLazyGetJobSourceQuery,
   useRunJobSourceMutation,
+  useTestJobSourceMutation,
   useUpdateJobSourceMutation,
 } from '@/features/admin/api/jobSourcesApi';
 import { ConfirmActionDialog } from '@/features/admin/components/ConfirmActionDialog';
@@ -77,6 +78,8 @@ export const AdminJobSourcesPage = () => {
   const [update] = useUpdateJobSourceMutation();
   const [remove] = useDeleteJobSourceMutation();
   const [run] = useRunJobSourceMutation();
+  const [testConnection] = useTestJobSourceMutation();
+  const [connection, setConnection] = useState<{ company: string; success: boolean; message: string } | null>(null);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [ats, setAts] = useState('all');
@@ -234,8 +237,36 @@ export const AdminJobSourcesPage = () => {
     setActionError(null);
     setPending({ kind, source });
   };
+  const test = async (source: JobSource) => {
+    if (!begin(source.id)) return;
+    const currentGeneration = generation.current;
+    setConnection(null);
+    try {
+      const request = testConnection(source.id);
+      submission.current = request;
+      const response = await request.unwrap();
+      if (!mounted.current || currentGeneration !== generation.current) return;
+      const success = response?.provider === source.atsType && response.configurationValid === true &&
+        response.providerReachable === true && response.listingReachable === true;
+      setConnection({ company: source.companyName, success,
+        message: response?.message
+          ? `${response.message}${response.reasonCode ? ` (${response.reasonCode})` : ''}${response.statusCode ? ` — HTTP ${response.statusCode}` : ''}`
+          : 'The server did not confirm a connection. Check the source configuration and try again.' });
+    } catch (error) {
+      if (mounted.current && currentGeneration === generation.current)
+        setConnection({ company: source.companyName, success: false, message: errorMessage(error) });
+    } finally {
+      if (mounted.current && currentGeneration === generation.current) {
+        submission.current = null;
+        finish();
+      }
+    }
+  };
   const actions = (source: JobSource) => (
     <Stack direction="row" flexWrap="wrap" gap={0.5}>
+      <Button size="small" disabled={Boolean(busy) || sources.isFetching} onClick={() => void test(source)}>
+        Test Connection
+      </Button>
       <Button
         size="small"
         disabled={
@@ -411,7 +442,7 @@ export const AdminJobSourcesPage = () => {
                 sx={{ minWidth: 160 }}
               >
                 <MenuItem value="all">All ATS</MenuItem>
-                {[1, 2, 3, 4, 5, 7].map((value) => (
+                {[1, 2, 3, 4, 5, 7, 8].map((value) => (
                   <MenuItem key={value} value={String(value)}>
                     {AtsType[value]}
                   </MenuItem>
@@ -573,6 +604,11 @@ export const AdminJobSourcesPage = () => {
           </Grid>
         </>
       )}
+      <Dialog open={Boolean(connection)} onClose={() => setConnection(null)} fullWidth maxWidth="sm" aria-labelledby="connection-title">
+        <DialogTitle id="connection-title">Connection Test — {connection?.company}</DialogTitle>
+        <DialogContent><Alert severity={connection?.success ? 'success' : 'error'}>{connection?.message}</Alert></DialogContent>
+        <DialogActions><Button onClick={() => setConnection(null)}>Close</Button></DialogActions>
+      </Dialog>
       {form && (
         <JobSourceFormDialog
           source={form === 'new' ? undefined : form}
@@ -628,6 +664,7 @@ export const AdminJobSourcesPage = () => {
                 {[
                   ['Total Received', result.run.totalReceived],
                   ['Created', result.run.created],
+                  ...(result.run.updated !== undefined ? [['Updated', result.run.updated]] : []),
                   ['Existing', result.run.existing ?? result.run.matched],
                   ['Published', result.run.published ?? 0],
                   ['Rejected', result.run.rejected ?? result.run.skipped],

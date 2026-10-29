@@ -278,6 +278,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                     AtsType.SuccessFactors,
                     AtsType.Workday,
                     AtsType.SmartRecruiters,
+                    AtsType.RippleHire,
                   ].map((type) => (
                     <MenuItem key={type} value={type}>
                       {type === AtsType.Custom && (!source || isEmployerDirect)

@@ -7,6 +7,17 @@ export enum AtsType {
   SuccessFactors = 4,
   Workday = 5,
   SmartRecruiters = 7,
+  RippleHire = 8,
+}
+
+export interface JobSourceConnectionResult {
+  provider: AtsType;
+  configurationValid: boolean;
+  providerReachable: boolean;
+  listingReachable: boolean;
+  reasonCode: string;
+  message: string;
+  statusCode?: number | null;
 }
 
 export interface SaveJobSourceRequest {
@@ -37,6 +48,7 @@ export interface JobSourceRunResult {
   totalReceived: number;
   created: number;
   matched: number;
+  updated?: number;
   skipped: number;
   failed: number;
   succeeded: boolean;

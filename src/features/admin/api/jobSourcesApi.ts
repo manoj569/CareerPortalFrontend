@@ -3,6 +3,7 @@ import type { ApiResponse, PaginatedResponse } from '@/types';
 import { adminApi } from './adminApi';
 import type {
   JobSource,
+  JobSourceConnectionResult,
   DurableJobSourceRun,
   SaveJobSourceRequest,
 } from '../types/jobSourceModels';
@@ -13,6 +14,10 @@ export const jobSourcesApi = adminApi
   .enhanceEndpoints({ addTagTypes: ['JobSources'] })
   .injectEndpoints({
     endpoints: (builder) => ({
+      testJobSource: builder.mutation<JobSourceConnectionResult | null, string>({
+        query: (id) => ({ url: `${endpoints.DETAILS(id)}/test`, method: 'POST' }),
+        transformResponse: (response: ApiResponse<JobSourceConnectionResult> | null) => response?.data ?? null,
+      }),
       getJobSources: builder.query<JobSource[], void>({
         // Search and error filtering are not supported server-side. Fetch every page
         // so client filters and overview counts never silently cover only page one.
@@ -71,6 +76,7 @@ export const jobSourcesApi = adminApi
   });
 
 export const {
+  useTestJobSourceMutation,
   useGetJobSourcesQuery,
   useLazyGetJobSourceQuery,
   useCreateJobSourceMutation,

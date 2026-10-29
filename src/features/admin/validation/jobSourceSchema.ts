@@ -30,6 +30,7 @@ export const jobSourceSchema: yup.ObjectSchema<SaveJobSourceRequest> = yup.objec
       AtsType.SuccessFactors,
       AtsType.Workday,
       AtsType.SmartRecruiters,
+      AtsType.RippleHire,
     ])
     .required(),
 

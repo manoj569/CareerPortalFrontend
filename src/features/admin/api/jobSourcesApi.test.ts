@@ -13,6 +13,7 @@ describe('source collection pagination', () => {
     AtsType.Workday,
     AtsType.SuccessFactors,
     AtsType.SmartRecruiters,
+    AtsType.RippleHire,
   ])('sends the exact create/update DTO for provider %s', async (atsType) => {
     request.mockReset();
     const dto = {

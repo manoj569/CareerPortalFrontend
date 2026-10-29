@@ -12,6 +12,29 @@ const valid = {
   scanIntervalMinutes: 720,
 };
 describe('source validation and formatting', () => {
+  it.each([null, '', 'public-token'])('accepts RippleHire with optional matching identifier %s', async (atsIdentifier) => {
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 8, atsIdentifier,
+      careerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token&source=PUBLIC&lang=en' })).toBe(true);
+  });
+  it.each([
+    'http://example.ripplehire.com/candidate/?token=public-token',
+    'https://example.com/candidate/?token=public-token',
+    'https://example.ripplehire.com/ripplehire/candidate/?token=public-token',
+    'https://example.ripplehire.com/candidate/?token=public-token#detail/job/1',
+    'https://example.ripplehire.com/candidate/?token=public-token&lang=fr',
+    'https://example.ripplehire.com/candidate/?token=public-token&extra=value',
+    'https://example.ripplehire.com/candidate/?token=public-token&token=other',
+    'https://example.ripplehire.com/candidate/?token=public%2Dtoken',
+    'https://example.ripplehire.com/candidate/?token=',
+    'https://example.ripplehire.com:444/candidate/?token=public-token',
+    'https://example.ripplehire.com/candidate/',
+  ])('rejects unsupported RippleHire URL %s', async (careerPageUrl) => {
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 8, atsIdentifier: null, careerPageUrl })).toBe(false);
+  });
+  it('rejects RippleHire identifier conflicts', async () => {
+    expect(await jobSourceSchema.isValid({ ...valid, atsType: 8, atsIdentifier: 'other',
+      careerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token' })).toBe(false);
+  });
   it('accepts SmartRecruiters numeric type 7 with a company identifier and normal URL validation', async () => {
     expect(await jobSourceSchema.validate({ ...valid, atsType: 7, atsIdentifier: 'ExampleCompany', careerPageUrl: 'https://careers.smartrecruiters.com/ExampleCompany' })).toMatchObject({ atsType: 7, atsIdentifier: 'ExampleCompany' });
     expect(await jobSourceSchema.isValid({ ...valid, atsType: 7, careerPageUrl: 'invalid' })).toBe(false);

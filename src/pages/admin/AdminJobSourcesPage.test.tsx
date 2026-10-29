@@ -98,6 +98,40 @@ describe('job sources administrator workflow', () => {
     );
   });
 
+  it.each([
+    [true, true, true, 'success'],
+    [true, true, false, 'error'],
+    [false, false, false, 'error'],
+  ])('uses actual connection flags %s/%s/%s', async (configurationValid, providerReachable, listingReachable, severity) => {
+    items = [{ ...source, atsType: AtsType.RippleHire }];
+    const original = request.getMockImplementation()!;
+    request.mockImplementation((config) => config.url.endsWith('/test')
+      ? Promise.resolve({ data: { data: { provider: 8, configurationValid, providerReachable, listingReachable,
+        reasonCode: 'TEST_RESULT', message: 'Backend connection result' } } }) : original(config));
+    renderPage();
+    await screen.findByRole('table', { name: 'Job sources' });
+    expect(within(screen.getByRole('table')).getByText('RippleHire')).toBeVisible();
+    fireEvent.click(firstButton('Test Connection'));
+    const dialog = await screen.findByRole('dialog', { name: /Connection Test/ });
+    expect(within(dialog).getByRole('alert')).toHaveClass(`MuiAlert-standard${severity.charAt(0).toUpperCase() + severity.slice(1)}`);
+    expect(within(dialog).getByText(/Backend connection result/)).toBeVisible();
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({ url: '/admin/job-sources/source-1/test', method: 'POST' }));
+  });
+  it('rejects an empty connection response and prevents repeated test submissions', async () => {
+    let resolve!: (value: { data: unknown }) => void;
+    const original = request.getMockImplementation()!;
+    request.mockImplementation((config) => config.url.endsWith('/test')
+      ? new Promise((done) => { resolve = done; }) : original(config));
+    renderPage();
+    await screen.findByRole('table', { name: 'Job sources' });
+    fireEvent.click(firstButton('Test Connection'));
+    expect(firstButton('Test Connection')).toBeDisabled();
+    fireEvent.click(firstButton('Test Connection'));
+    await waitFor(() => expect(resolve).toBeDefined());
+    resolve({ data: null });
+    expect(await screen.findByText(/server did not confirm a connection/)).toBeVisible();
+    expect(request.mock.calls.filter(([config]) => config.url.endsWith('/test'))).toHaveLength(1);
+  });
   it('renders sources, null dates, intervals, summary and draft-review link', async () => {
     renderPage();
     expect(await screen.findByRole('table', { name: 'Job sources' })).toBeInTheDocument();
@@ -127,7 +161,7 @@ describe('job sources administrator workflow', () => {
       ),
     );
   });
-  it.each([AtsType.Workday, AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.SuccessFactors, AtsType.SmartRecruiters])(
+  it.each([AtsType.Workday, AtsType.Greenhouse, AtsType.Lever, AtsType.Ashby, AtsType.SuccessFactors, AtsType.SmartRecruiters, AtsType.RippleHire])(
     'keeps active ATS %s manually runnable', async (atsType) => {
       items = [{ ...source, atsType }];
       renderPage();

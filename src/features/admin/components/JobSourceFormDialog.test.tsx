@@ -65,6 +65,19 @@ it('creates a public SmartRecruiters source using numeric type 7', async () => {
   await waitFor(() => expect(onSave).toHaveBeenCalledWith({ companyId: 'existing', careerPageUrl: 'https://careers.smartrecruiters.com/ExampleCompany', atsType: 7, atsIdentifier: 'ExampleCompany', isActive: true, autoPublishEnabled: true, scanIntervalMinutes: 720 }));
 });
 
+it('loads and saves an existing RippleHire configuration without changing its public token', async () => {
+  const source = { id: 'ripple-source', companyId: 'existing', companyName: 'Deloitte',
+    careerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token', atsType: AtsType.RippleHire,
+    atsIdentifier: 'public-token', isActive: true, autoPublishEnabled: false, scanIntervalMinutes: 360 } as JobSource;
+  renderWithProviders(<JobSourceFormDialog source={source} isSaving={false} error={null} onClose={vi.fn()} onSave={onSave} />);
+  await waitFor(() => expect(screen.getByRole('combobox', { name: /Company/ })).toBeEnabled());
+  expect(screen.getByRole('combobox', { name: 'ATS Type' })).toHaveTextContent('RippleHire');
+  expect(screen.getByRole('textbox', { name: /ATS Identifier/ })).toHaveValue('public-token');
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ atsType: 8,
+    atsIdentifier: 'public-token', careerPageUrl: source.careerPageUrl, autoPublishEnabled: false, scanIntervalMinutes: 360 })));
+});
+
 it('edits SmartRecruiters while preserving identity and Auto Publish and changing activation', async () => {
   request.mockImplementation(({ url }) => Promise.resolve({ data: { data: url.endsWith('/companies/existing') ? { websiteUrl: 'https://example.com', logoUrl: 'https://example.com/logo.png' } : [{ id: 'existing', name: 'Example Company', slug: 'example-company' }] } }));
   const source = { id: 'smart-source', companyId: 'existing', companyName: 'Example Company', careerPageUrl: 'https://careers.smartrecruiters.com/ExampleCompany', atsType: AtsType.SmartRecruiters, atsIdentifier: 'ExampleCompany', isActive: true, autoPublishEnabled: false, scanIntervalMinutes: 360 } as JobSource;
@@ -86,6 +99,7 @@ it.each([
   [3, 'Ashby', 'https://jobs.ashbyhq.com/ExactCase'],
   [4, 'SuccessFactors', 'https://careers.example.com/go/Board/123'],
   [5, 'Workday', 'https://tenant.wd504.myworkdayjobs.com/ExactCase'],
+  [8, 'RippleHire', 'https://example.ripplehire.com/candidate/?token=public-token&lang=en'],
 ] as const)(
   'submits URL-derived identity for provider %s without inventing metadata',
   async (atsType, name, careerPageUrl) => {
