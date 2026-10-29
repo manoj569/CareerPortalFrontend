@@ -1,4 +1,4 @@
-import { apiClient } from '@/api';
+import { apiClient, refreshAuthentication } from '@/api';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
 import { authTokenStore } from '@/services/authTokenStore';
 import type { ApiResponse, AuthenticationResponse } from '@/types';
@@ -10,7 +10,6 @@ import type {
   LoginWithOtpRequest,
   LogoutRequest,
   MessageResponse,
-  RefreshTokenRequest,
   RegisterRequest,
   RegistrationResponse,
   RequestLoginOtpRequest,
@@ -49,16 +48,12 @@ const unwrapGoogleAuthenticationResponse = (
 };
 
 const refreshSession = async (signal?: AbortSignal): Promise<AuthenticationResponse> => {
-  const refreshToken = authTokenStore.getRefreshToken();
-  if (!refreshToken) throw new Error('No restorable session is available.');
-
-  const request: RefreshTokenRequest = { refreshToken };
-  const response = await apiClient.post<AuthenticationResponse>(
-    API_ENDPOINTS.AUTH.REFRESH_TOKEN,
-    request,
-    { signal },
-  );
-  return storeAuthentication(response.data);
+  if (signal?.aborted) throw new DOMException('Refresh was cancelled.', 'AbortError');
+  const version = authTokenStore.getSessionVersion();
+  const response = await refreshAuthentication();
+  if (signal?.aborted) throw new DOMException('Refresh was cancelled.', 'AbortError');
+  if (version !== authTokenStore.getSessionVersion()) throw new Error('The authentication session changed.');
+  return response;
 };
 
 export const authService = {
@@ -200,18 +195,20 @@ export const authService = {
   },
 
   async logout(signal?: AbortSignal): Promise<void> {
+    const version = authTokenStore.getSessionVersion();
     try {
       if (authTokenStore.getRefreshToken() && !authTokenStore.hasUsableAccessToken()) {
         await refreshSession(signal);
       }
 
+      if (version !== authTokenStore.getSessionVersion()) return;
       const refreshToken = authTokenStore.getRefreshToken();
       if (refreshToken) {
         const request: LogoutRequest = { refreshToken };
         await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT, request, { signal });
       }
     } finally {
-      authTokenStore.clear();
+      if (version === authTokenStore.getSessionVersion()) authTokenStore.clear();
     }
   },
 };

@@ -67,23 +67,21 @@ const show = (page = false, role = UserRole.Candidate) =>
       {page ? <NotificationsPage /> : <NotificationBell />}
       <Location />
     </MemoryRouter>,
-    role === UserRole.Administrator
-      ? {
+    {
           auth: {
             status: 'authenticated',
             error: null,
             isSubmitting: false,
             accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
             user: {
-              id: 'admin-1',
+              id: role === UserRole.Administrator ? 'admin-1' : 'candidate-1',
               email: 'admin@example.com',
               firstName: 'Admin',
               lastName: 'User',
               role,
             },
           },
-        }
-      : undefined,
+        },
   );
 it('renders backend title, message, timestamp and unread state in the existing bell', async () => {
   show();
@@ -226,7 +224,7 @@ it('preserves notifications and unread count on mark-all network failure and per
   await userEvent.click(screen.getByRole('button', { name: 'Mark all read' }));
   expect(await screen.findByText('0 unread')).toBeVisible();
 });
-it.each([401, 403, 404, 500])('retains the item when the read API returns %s', async (status) => {
+it.each([403, 404, 500])('retains the item when the read API returns %s', async (status) => {
   fail = true;
   failure = new ApiRequestError({ status, message: 'Backend rejected the read action.' });
   show();

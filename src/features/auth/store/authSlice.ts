@@ -19,6 +19,8 @@ export interface AuthState {
   isSubmitting: boolean;
   accessTokenExpiresAtUtc: string | null;
   error: string | null;
+  pendingLogoutRequestId?: string;
+  pendingLogoutSessionVersion?: number;
 }
 
 const initialState: AuthState = {
@@ -37,10 +39,11 @@ interface AuthThunkConfig {
 export const initializeAuth = createAsyncThunk<AuthenticationResponse, void, AuthThunkConfig>(
   'auth/initialize',
   async (_, { rejectWithValue }) => {
+    const version = authTokenStore.getSessionVersion();
     try {
       return await authService.refresh();
     } catch (error: unknown) {
-      authTokenStore.clear();
+      if (version === authTokenStore.getSessionVersion()) authTokenStore.clear();
       return rejectWithValue(getAuthenticationErrorMessage(error));
     }
   },
@@ -99,6 +102,10 @@ export const logout = createAsyncThunk<void, void, AuthThunkConfig>(
 );
 
 const applyAuthentication = (state: AuthState, response: AuthenticatedSession): void => {
+  if (state.user?.id !== response.user.id || state.pendingLogoutSessionVersion !== authTokenStore.getSessionVersion()) {
+    state.pendingLogoutRequestId = undefined;
+    state.pendingLogoutSessionVersion = undefined;
+  }
   state.user = response.user;
   state.status = 'authenticated';
   state.accessTokenExpiresAtUtc = response.accessTokenExpiresAtUtc;
@@ -106,6 +113,9 @@ const applyAuthentication = (state: AuthState, response: AuthenticatedSession): 
 };
 
 const clearAuthentication = (state: AuthState): void => {
+  state.pendingLogoutRequestId = undefined;
+  state.pendingLogoutSessionVersion = undefined;
+  state.isSubmitting = false;
   state.user = null;
   state.status = 'unauthenticated';
   state.accessTokenExpiresAtUtc = null;
@@ -141,9 +151,11 @@ const authSlice = createSlice({
         state.status = 'initializing';
       })
       .addCase(initializeAuth.fulfilled, (state, action) => {
+        if (state.status !== 'initializing') return;
         applyAuthentication(state, action.payload);
       })
       .addCase(initializeAuth.rejected, (state) => {
+        if (state.status !== 'initializing') return;
         clearAuthentication(state);
       })
       .addCase(login.pending, (state) => {
@@ -185,14 +197,20 @@ const authSlice = createSlice({
         state.isSubmitting = false;
         state.error = action.payload ?? 'Unable to create the account.';
       })
-      .addCase(logout.pending, (state) => {
+      .addCase(logout.pending, (state, action) => {
+        state.pendingLogoutRequestId = action.meta.requestId;
+        state.pendingLogoutSessionVersion = authTokenStore.getSessionVersion();
         state.isSubmitting = true;
       })
-      .addCase(logout.fulfilled, (state) => {
+      .addCase(logout.fulfilled, (state, action) => {
+        if (state.pendingLogoutRequestId !== action.meta.requestId) return;
+        state.pendingLogoutRequestId = undefined;
         state.isSubmitting = false;
         clearAuthentication(state);
       })
       .addCase(logout.rejected, (state, action) => {
+        if (state.pendingLogoutRequestId !== action.meta.requestId) return;
+        state.pendingLogoutRequestId = undefined;
         state.isSubmitting = false;
         clearAuthentication(state);
         state.error = action.payload ?? null;

@@ -5,8 +5,10 @@ const REFRESH_EXPIRY_KEY = 'careerPortal.refreshTokenExpiresAtUtc';
 
 let accessToken: string | null = null;
 let accessTokenExpiresAtUtc: string | null = null;
+let sessionVersion = 0;
 
 const clearTokens = (): void => {
+  sessionVersion++;
   accessToken = null;
   accessTokenExpiresAtUtc = null;
   sessionStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -19,7 +21,17 @@ const hasRefreshTokenExpired = (expiresAtUtc: string | null): boolean => {
   return !Number.isFinite(expiryTime) || expiryTime <= Date.now();
 };
 
+const persistTokens = (tokens: AuthTokens): void => {
+  accessToken = tokens.accessToken;
+  accessTokenExpiresAtUtc = tokens.accessTokenExpiresAtUtc;
+  sessionStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+  sessionStorage.setItem(REFRESH_EXPIRY_KEY, tokens.refreshTokenExpiresAtUtc);
+};
+
 export const authTokenStore = {
+  getSessionVersion(): number {
+    return sessionVersion;
+  },
   getAccessToken(): string | null {
     return accessToken;
   },
@@ -36,17 +48,21 @@ export const authTokenStore = {
     const expiresAtUtc = sessionStorage.getItem(REFRESH_EXPIRY_KEY);
 
     if (!refreshToken || hasRefreshTokenExpired(expiresAtUtc)) {
-      clearTokens();
       return null;
     }
 
     return refreshToken;
   },
   set(tokens: AuthTokens): void {
-    accessToken = tokens.accessToken;
-    accessTokenExpiresAtUtc = tokens.accessTokenExpiresAtUtc;
-    sessionStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
-    sessionStorage.setItem(REFRESH_EXPIRY_KEY, tokens.refreshTokenExpiresAtUtc);
+    // Installing a login/account is a new session, even if token text is reused.
+    sessionVersion++;
+    persistTokens(tokens);
+  },
+  rotate(tokens: AuthTokens, expectedVersion: number): boolean {
+    // Rotation belongs to the existing session; a late refresh cannot create one.
+    if (expectedVersion !== sessionVersion) return false;
+    persistTokens(tokens);
+    return true;
   },
   clear(): void {
     clearTokens();

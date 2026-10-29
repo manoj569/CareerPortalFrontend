@@ -3,6 +3,8 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 import { apiClient } from '@/api/apiClient';
 import { axiosBaseQuery, type AxiosBaseQueryError } from '@/api/axiosBaseQuery';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
+import { sessionExpired } from '@/features/auth/store/authSlice';
+import { authTokenStore } from '@/services/authTokenStore';
 import type { CandidateRecruiterContact } from '@/features/jobs/types/jobModels';
 import type { ApiResponse } from '@/types';
 import type {
@@ -41,9 +43,18 @@ interface NotificationsQuery extends DashboardQuery {
   isRead?: boolean;
 }
 
+const rawDashboardBaseQuery = axiosBaseQuery();
+const dashboardBaseQuery: typeof rawDashboardBaseQuery = async (args, api) => {
+  const version = authTokenStore.getSessionVersion();
+  const result = await rawDashboardBaseQuery(args, api);
+  // The Axios interceptor has already attempted the supported refresh once.
+  if (result.error?.status === 401 && version === authTokenStore.getSessionVersion()) api.dispatch(sessionExpired());
+  return result;
+};
+
 export const dashboardApi = createApi({
   reducerPath: 'dashboardApi',
-  baseQuery: axiosBaseQuery(),
+  baseQuery: dashboardBaseQuery,
   keepUnusedDataFor: 120,
   tagTypes: [
     'Profile',

@@ -1,8 +1,4 @@
-import axios, {
-  type AxiosError,
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
-} from 'axios';
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 
 import { environment } from '@config/environment';
 import { API_ENDPOINTS } from '@/constants/apiEndpoints';
@@ -12,6 +8,7 @@ import { toApiRequestError } from './apiError';
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
   hasRetried?: boolean;
+  sessionVersion?: number;
 }
 
 // Normal APIs keep the normal configured timeout.
@@ -32,6 +29,7 @@ const refreshClient: AxiosInstance = axios.create({
 });
 
 let refreshPromise: Promise<AuthenticationResponse> | null = null;
+let refreshVersion: number | null = null;
 
 const endpointsWithoutAutomaticRefresh = new Set<string>([
   API_ENDPOINTS.AUTH.REGISTER,
@@ -40,12 +38,31 @@ const endpointsWithoutAutomaticRefresh = new Set<string>([
   API_ENDPOINTS.AUTH.LOGIN,
   API_ENDPOINTS.AUTH.REQUEST_LOGIN_OTP,
   API_ENDPOINTS.AUTH.LOGIN_WITH_OTP,
+  API_ENDPOINTS.AUTH.GOOGLE,
+  API_ENDPOINTS.AUTH.GOOGLE_CODE,
   API_ENDPOINTS.AUTH.REFRESH_TOKEN,
   API_ENDPOINTS.AUTH.REQUEST_PASSWORD_RESET,
   API_ENDPOINTS.AUTH.COMPLETE_PASSWORD_RESET,
 ]);
 
-const refreshAccessToken = async (): Promise<AuthenticationResponse> => {
+const sessionChanged = () =>
+  toApiRequestError({
+    code: 'session_changed',
+    message: 'The authentication session changed. Please sign in again.',
+  });
+
+const assertSession = (version: number | undefined) => {
+  if (version !== authTokenStore.getSessionVersion()) throw sessionChanged();
+};
+
+const assertRequestSession = (request: RetriableRequestConfig) => {
+  if (request.sessionVersion !== authTokenStore.getSessionVersion())
+    request.headers.delete('Authorization');
+  assertSession(request.sessionVersion);
+};
+
+const refreshAccessToken = async (version: number): Promise<AuthenticationResponse> => {
+  assertSession(version);
   const refreshToken = authTokenStore.getRefreshToken();
 
   if (!refreshToken) {
@@ -57,7 +74,16 @@ const refreshAccessToken = async (): Promise<AuthenticationResponse> => {
     { refreshToken },
   );
 
-  authTokenStore.set(response.data);
+  if (!response.data?.accessToken || !response.data.refreshToken || !response.data.user?.id)
+    throw new Error('Authentication could not be restored. Please sign in again.');
+
+  // A refresh started before logout must not restore the old account.
+  assertSession(version);
+  if (
+    authTokenStore.getRefreshToken() !== refreshToken ||
+    !authTokenStore.rotate(response.data, version)
+  )
+    throw sessionChanged();
 
   window.dispatchEvent(
     new CustomEvent('auth:session-refreshed', {
@@ -71,77 +97,98 @@ const refreshAccessToken = async (): Promise<AuthenticationResponse> => {
   return response.data;
 };
 
-const shouldExpireSession = (error: unknown): boolean => {
-  if (!axios.isAxiosError(error)) {
-    // No refresh token / unexpected local authentication failure.
-    return true;
+// Startup restoration and interceptor recovery share a flight only within one epoch.
+export const refreshAuthentication = async (): Promise<AuthenticationResponse> => {
+  const version = authTokenStore.getSessionVersion();
+  if (!refreshPromise || refreshVersion !== version) {
+    refreshVersion = version;
+    const pendingRefresh = refreshAccessToken(version).finally(() => {
+      if (refreshPromise === pendingRefresh) {
+        refreshPromise = null;
+        refreshVersion = null;
+      }
+    });
+    refreshPromise = pendingRefresh;
   }
-
-  const status = error.response?.status;
-
-  // These mean the refresh token itself is rejected/invalid.
-  return status === 400 || status === 401 || status === 403;
+  const response = await refreshPromise;
+  assertSession(version);
+  return response;
 };
 
-apiClient.interceptors.request.use((config) => {
-  const accessToken = authTokenStore.getAccessToken();
+const expireSession = (version: number | undefined) => {
+  if (version !== authTokenStore.getSessionVersion()) return;
+  authTokenStore.clear();
+  window.dispatchEvent(new CustomEvent('auth:session-expired'));
+};
 
-  if (accessToken) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
-  }
+apiClient.interceptors.request.use(
+  (config) => {
+    const request = config as RetriableRequestConfig;
+    request.sessionVersion ??= authTokenStore.getSessionVersion();
+    // Always discard caller/replay Authorization before consulting this session.
+    config.headers.delete('Authorization');
+    assertSession(request.sessionVersion);
+    const accessToken = authTokenStore.getAccessToken();
 
-  return config;
-});
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    return config;
+  },
+  (error: unknown) => {
+    throw toApiRequestError(error);
+  },
+  { synchronous: true },
+);
+
+const replayRequest = (request: RetriableRequestConfig) => {
+  request.headers.delete('Authorization');
+  assertRequestSession(request);
+  return apiClient(request);
+};
 
 apiClient.interceptors.response.use(
   (response) => response,
 
   async (error: AxiosError) => {
-    const originalRequest =
-      error.config as RetriableRequestConfig | undefined;
+    const originalRequest = error.config as RetriableRequestConfig | undefined;
 
     const skipsAutomaticRefresh = originalRequest?.url
       ? endpointsWithoutAutomaticRefresh.has(originalRequest.url)
       : false;
 
-    if (
-      error.response?.status !== 401 ||
-      !originalRequest ||
-      originalRequest.hasRetried ||
-      skipsAutomaticRefresh
-    ) {
+    if (error.response?.status !== 401 || !originalRequest || skipsAutomaticRefresh) {
+      return Promise.reject(toApiRequestError(error));
+    }
+
+    const failedToken = originalRequest.headers.Authorization;
+    assertRequestSession(originalRequest);
+    const currentToken = authTokenStore.getAccessToken();
+    if (originalRequest.hasRetried) {
+      if (currentToken && failedToken === `Bearer ${currentToken}`)
+        expireSession(originalRequest.sessionVersion);
       return Promise.reject(toApiRequestError(error));
     }
 
     originalRequest.hasRetried = true;
 
+    // A late 401 from the old token can arrive after a shared refresh completed.
+    if (currentToken && failedToken !== `Bearer ${currentToken}`) {
+      return replayRequest(originalRequest);
+    }
+
     try {
-      // Multiple simultaneous 401 responses share one refresh request.
-      refreshPromise ??= refreshAccessToken().finally(() => {
-        refreshPromise = null;
-      });
-
-      const response = await refreshPromise;
-
-      originalRequest.headers.Authorization =
-        `Bearer ${response.accessToken}`;
-
-      return apiClient(originalRequest);
+      await refreshAuthentication();
+      assertRequestSession(originalRequest);
+      return replayRequest(originalRequest);
     } catch (refreshError: unknown) {
-      // Important:
-      // Do NOT destroy the user's session because Render/network temporarily
-      // timed out. Only expire when the refresh token is actually rejected.
-      if (shouldExpireSession(refreshError)) {
-        authTokenStore.clear();
+      // Authentication was not restored: stop protected polling through the
+      // existing expiry flow. Do not clear a newer login that replaced this one.
+      assertRequestSession(originalRequest);
+      expireSession(originalRequest.sessionVersion);
 
-        window.dispatchEvent(
-          new CustomEvent('auth:session-expired'),
-        );
-      }
-
-      return Promise.reject(
-        toApiRequestError(refreshError),
-      );
+      return Promise.reject(toApiRequestError(refreshError));
     }
   },
 );

@@ -8,6 +8,8 @@ export interface AxiosBaseQueryError {
   status?: number;
   message: string;
   code?: string;
+  traceId?: string;
+  reasonCodes?: Record<string, string[]>;
   errors?: Record<string, string[]>;
   retryAfterSeconds?: number;
   redirectToMembership?: boolean;
@@ -57,12 +59,14 @@ export const axiosBaseQuery =
       return {
         error: {
           code: apiError.code,
+          traceId: apiError.traceId,
+          reasonCodes: apiError.reasonCodes,
           errors: apiError.errors,
           message: apiError.message,
           redirectToMembership: apiError.redirectToMembership,
           retryAfterSeconds: apiError.retryAfterSeconds,
           status: apiError.status,
-        } satisfies AxiosBaseQueryError,
+        } as AxiosBaseQueryError,
       };
     }
   };

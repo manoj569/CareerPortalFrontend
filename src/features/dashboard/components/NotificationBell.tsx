@@ -9,14 +9,19 @@ import { NotificationItem } from './NotificationItem';
 import { PageLoadingIndicator } from '@/components/feedback/PageLoadingIndicator';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { ROUTES } from '@/constants/routes';
+import { useAppSelector } from '@/hooks/reduxHooks';
+import { selectIsAuthenticated } from '@/features/auth/store/authSlice';
 export const NotificationBell = () => {
+  const authenticated = useAppSelector(selectIsAuthenticated);
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const query = useGetNotificationsQuery(
     { pageNumber: 1, pageSize: 5 },
-    { pollingInterval: 60000, refetchOnMountOrArgChange: true },
+    { skip: !authenticated, pollingInterval: authenticated ? 60000 : 0,
+      skipPollingIfUnfocused: true, refetchOnMountOrArgChange: true },
   );
   const { act, busy, role } = useNotificationActions();
-  const count = query.currentData?.unreadCount;
+  const count = authenticated ? query.currentData?.unreadCount : undefined;
+  if (!authenticated) return null;
   return (
     <>
       <IconButton

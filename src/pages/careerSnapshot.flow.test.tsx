@@ -32,7 +32,16 @@ const { post, request } = vi.hoisted(() => ({
   post: vi.fn<(url: string, data: unknown, config?: unknown) => Promise<{ data: unknown }>>(),
   request: vi.fn<(config: SnapshotApiConfig) => Promise<{ data: { data: CandidateProfile } }>>(),
 }));
-vi.mock('@/api/apiClient', () => ({ apiClient: { post, request } }));
+vi.mock('@/api/apiClient', () => ({
+  apiClient: { post, request },
+  refreshAuthentication: async () => {
+    const version = authTokenStore.getSessionVersion();
+    const response = await post('/auth/refresh', { refreshToken: authTokenStore.getRefreshToken() });
+    const session = response.data as AuthenticationResponse;
+    if (!authTokenStore.rotate(session, version)) throw new Error('Session changed.');
+    return session;
+  },
+}));
 vi.mock('@/features/auth/components/GoogleAuthorizationCodeButton', () => ({
   GoogleAuthorizationCodeButton: ({ onCode }: { onCode: (code: string) => void }) => (
     <button onClick={() => onCode('test-code')}>Continue with Google</button>
@@ -291,7 +300,6 @@ describe('Career snapshot account transitions', () => {
     expect(post).toHaveBeenCalledWith(
       '/auth/refresh',
       { refreshToken: 'refresh' },
-      expect.anything(),
     );
   });
   it('does not infer onboarding for an incomplete existing candidate', async () => {

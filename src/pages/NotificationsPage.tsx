@@ -22,11 +22,14 @@ import {
 } from '@/features/dashboard/api/dashboardApi';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { useDocumentMetadata } from '@/hooks/useDocumentMetadata';
+import { useAppSelector } from '@/hooks/reduxHooks';
+import { selectIsAuthenticated } from '@/features/auth/store/authSlice';
 
 type ReadFilter = 'all' | 'unread' | 'read';
 const PAGE_SIZE = 10;
 
 export const NotificationsPage = () => {
+  const authenticated = useAppSelector(selectIsAuthenticated);
   useDocumentMetadata(
     'Notifications | Career Portal',
     'Review and manage notifications for your candidate account.',
@@ -39,14 +42,15 @@ export const NotificationsPage = () => {
       pageNumber: page,
       pageSize: PAGE_SIZE,
     },
-    { pollingInterval: 30000, refetchOnMountOrArgChange: true },
+    { skip: !authenticated, pollingInterval: authenticated ? 30000 : 0,
+      skipPollingIfUnfocused: true, refetchOnMountOrArgChange: true },
   );
   const { act, busy, role } = useNotificationActions();
   const [markAllRead, markAllState] = useMarkAllNotificationsReadMutation();
 
   const markAllGuard = useRef(false);
   const handleMarkAllRead = async () => {
-    if (busy || markAllGuard.current) return;
+    if (!authenticated || busy || markAllGuard.current) return;
     markAllGuard.current = true;
     try {
       await markAllRead().unwrap();
@@ -60,6 +64,7 @@ export const NotificationsPage = () => {
 
   // Determine if all notifications are already read
   const areAllRead = data?.unreadCount === 0;
+  if (!authenticated) return null;
 
   return (
     <Stack spacing={4}>

@@ -157,6 +157,72 @@ describe('job sources administrator workflow', () => {
       data: { atsType: 8, careerPageUrl: ripple.careerPageUrl, atsIdentifier: null, autoPublishEnabled: false } });
     expect(request.mock.calls.some(([config]) => config.url.endsWith('/test') || config.url.endsWith('/run'))).toBe(false);
   });
+  it('creates a discovered RippleHire source with the verified URL and refreshes the source list', async () => {
+    const resolvedUrl = 'https://example.ripplehire.com/candidate/?token=public-token';
+    const saved = { ...source, id: 'ripple-new', atsType: AtsType.RippleHire, careerPageUrl: resolvedUrl, atsIdentifier: 'public-token', autoPublishEnabled: false };
+    const original = request.getMockImplementation()!;
+    request.mockImplementation((config) => {
+      if (config.url === '/admin/job-sources/test') return Promise.resolve({ data: { data: {
+        provider: 8, configurationValid: true, providerReachable: true, listingReachable: true,
+        message: 'Public source verified.', reasonCode: 'RIPPLEHIRE_SOURCE_VERIFIED', discovery: {
+          status: 'Resolved', succeeded: true, manualConfigurationRequired: false, resolvedCareerPageUrl: resolvedUrl,
+          validationErrors: [], reasonCode: 'RIPPLEHIRE_SOURCE_VERIFIED',
+        },
+      } } });
+      if (config.url === '/admin/job-sources' && config.method === 'POST') {
+        items.push(saved);
+        return Promise.resolve({ data: { data: saved } });
+      }
+      return original(config);
+    });
+    renderPage();
+    await screen.findByRole('table');
+    const listCalls = () => request.mock.calls.filter(([config]) => config.url === '/admin/job-sources' && config.method === 'GET').length;
+    const before = listCalls();
+    fireEvent.click(firstButton('+ Add Job Source'));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Add Job Source' }));
+    await waitFor(() => expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled());
+    fireEvent.change(dialog.getByRole('combobox', { name: /Company/ }), { target: { value: 'Together' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Together AI' }));
+    fireEvent.mouseDown(dialog.getByRole('combobox', { name: 'ATS Type' }));
+    fireEvent.click(screen.getByRole('option', { name: 'RippleHire' }));
+    fireEvent.change(dialog.getByRole('textbox', { name: /Career Page URL/ }), { target: { value: 'https://example.com/careers' } });
+    fireEvent.click(dialog.getByRole('switch', { name: 'Auto Publish' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Detect & Test Connection' }));
+    await screen.findByText('Discovery status: Resolved');
+    expect(request.mock.calls.some(([config]) => config.method === 'POST' && config.url === '/admin/job-sources')).toBe(false);
+    fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
+    await screen.findByRole('dialog', { name: 'Job Source Saved' });
+    expect(await screen.findByText('Job source saved.')).toBeVisible();
+    const createCall = request.mock.calls.find(([config]) => config.method === 'POST' && config.url === '/admin/job-sources');
+    expect(createCall?.[0].data).toMatchObject({ companyId: source.companyId, atsType: 8,
+      careerPageUrl: resolvedUrl, atsIdentifier: null, autoPublishEnabled: false, scanIntervalMinutes: 720 });
+    await waitFor(() => expect(listCalls()).toBeGreaterThan(before));
+  });
+
+  it('shows backend field errors and trace details after save failure without clearing the form', async () => {
+    const ripple = { ...source, atsType: AtsType.RippleHire, atsIdentifier: null, careerPageUrl: 'https://example.com/careers' };
+    const original = request.getMockImplementation()!;
+    request.mockImplementation((config) => {
+      if (config.method === 'PUT') return Promise.reject(new ApiRequestError({ status: 400, message: 'Source validation failed.',
+        code: 'validation_error', traceId: 'trace-save-123', errors: { CareerPageUrl: ['Use the exact public career URL.'], Request: ['Discovery was not verified.'] } }));
+      if (config.url.endsWith('/source-1')) return Promise.resolve({ data: { data: ripple } });
+      return original(config);
+    });
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(firstButton('Edit'));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Edit Job Source' }));
+    await waitFor(() => expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled());
+    fireEvent.click(dialog.getByRole('button', { name: 'Save Job Source' }));
+    expect(await screen.findByText('Source validation failed.')).toBeVisible();
+    expect(dialog.getByRole('textbox', { name: /Career Page URL/ })).toHaveAccessibleDescription('Use the exact public career URL.');
+    expect(dialog.getByRole('textbox', { name: /Career Page URL/ })).toHaveValue(ripple.careerPageUrl);
+    expect(dialog.getByText('Trace ID: trace-save-123')).toBeVisible();
+    expect(dialog.getByText('Discovery was not verified.')).toBeVisible();
+    expect(dialog.getByRole('button', { name: 'Save Job Source' })).toBeEnabled();
+  });
+
   it('renders sources, null dates, intervals, summary and draft-review link', async () => {
     renderPage();
     expect(await screen.findByRole('table', { name: 'Job sources' })).toBeInTheDocument();

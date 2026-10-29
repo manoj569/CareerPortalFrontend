@@ -33,6 +33,8 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { DashboardPageHeader } from '@/features/dashboard/components/DashboardPageHeader';
 import { isAdminApiError } from '@/features/admin/api/adminApi';
+import { extractApiError } from '@/api/apiError';
+import type { ApiError } from '@/types';
 import {
   useCreateJobSourceMutation,
   useDeleteJobSourceMutation,
@@ -93,7 +95,7 @@ export const AdminJobSourcesPage = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const lock = useRef(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resultId, setResultId] = useState<string | null>(null);
   const runs = useJobSourceRuns((entry) => {
@@ -185,7 +187,7 @@ export const AdminJobSourcesPage = () => {
       setForm(null);
       enqueueSnackbar('Job source saved.', { variant: 'success' });
     } catch (error) {
-      setFormError(errorMessage(error));
+      setFormError(extractApiError(error));
     } finally {
       finish();
     }

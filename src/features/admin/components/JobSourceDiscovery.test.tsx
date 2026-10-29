@@ -103,6 +103,54 @@ it('previews unsaved employer configuration with only the actual DTO fields and 
   );
 });
 
+it('saves the current verified discovery URL without stale employer input and keeps Auto Publish off', async () => {
+  await open();
+  fireEvent.click(screen.getByRole('button', { name: 'Detect & Test Connection' }));
+  await screen.findByText('Discovery status: Resolved');
+  expect(screen.getByRole('switch', { name: 'Auto Publish' })).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ careerPageUrl: resolvedUrl,
+    atsIdentifier: null, autoPublishEnabled: false, scanIntervalMinutes: 720 })));
+});
+
+it('prevents duplicate save submissions while preserving values until the save resolves', async () => {
+  let resolve!: () => void;
+  onSave.mockImplementationOnce(() => new Promise<void>((done) => { resolve = done; }));
+  await open();
+  const save = screen.getByRole('button', { name: 'Save Job Source' });
+  fireEvent.click(save);
+  fireEvent.click(save);
+  await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+  expect(screen.getByRole('textbox', { name: /Career Page URL/ })).toHaveValue(employerUrl);
+  resolve();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save Job Source' })).toBeEnabled());
+});
+
+it('maps backend field errors to inputs, retains values and offers copying the trace ID', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  const descriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+  try {
+    renderWithProviders(<JobSourceFormDialog source={source} isSaving={false} onClose={vi.fn()} onSave={onSave}
+      error={{ status: 400, message: 'One or more job-source fields are invalid.', code: 'validation_error', traceId: 'trace-job-123',
+        errors: { CareerPageUrl: ['Use a supported public URL.'], AtsIdentifier: ['Leave the identifier blank.'], Request: ['Check the configuration.'] },
+        reasonCodes: { CareerPageUrl: ['RIPPLEHIRE_UNSUPPORTED'] } }} />);
+    expect(await screen.findByText('Use a supported public URL.')).toBeVisible();
+    expect(screen.getByRole('textbox', { name: /Career Page URL/ })).toHaveAccessibleDescription('Use a supported public URL.');
+    expect(screen.getByRole('textbox', { name: /ATS Identifier/ })).toHaveAccessibleDescription('Leave the identifier blank.');
+    expect(screen.getByRole('textbox', { name: /Career Page URL/ })).toHaveValue(employerUrl);
+    expect(screen.getByText('Check the configuration.')).toBeVisible();
+    expect(screen.getByText('Trace ID: trace-job-123')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy trace ID' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('trace-job-123'));
+    expect(await screen.findByText('Trace ID copied')).toBeVisible();
+  } finally {
+    if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor);
+    else Reflect.deleteProperty(navigator, 'clipboard');
+  }
+});
+
 it.each(['NotFound', 'Ambiguous', 'VerificationFailed'] as const)(
   'shows actual %s errors and manual fallback without claiming verification',
   async (status) => {
@@ -237,7 +285,8 @@ it('preserves actionable API validation errors and form input after a failed det
   );
   await open();
   fireEvent.click(screen.getByRole('button', { name: 'Detect & Test Connection' }));
-  expect(await screen.findByText(/Invalid configuration. Use a public career page./)).toBeVisible();
+  expect(await screen.findByText('Invalid configuration.')).toBeVisible();
+  expect(screen.getByRole('textbox', { name: /Career Page URL/ })).toHaveAccessibleDescription('Use a public career page.');
   expect(screen.getByRole('textbox', { name: /Career Page URL/ })).toHaveValue(employerUrl);
 });
 

@@ -32,11 +32,17 @@ import { isVerifiedSourceConnection } from '../utils/sourceConnectionVerificatio
 import { EMPLOYER_DIRECT_ATS_IDENTIFIER, isEmployerDirectSource, sourceRequest } from '../utils/jobSourceFormatting';
 import { jobSourceSchema } from '../validation/jobSourceSchema';
 import { parseWorkdaySiteRoot, sourceIdentifierHelp } from '../validation/jobSourceConfiguration';
+import type { ApiError } from '@/types';
+import { extractApiError } from '@/api/apiError';
+import { applyApiValidationErrors } from '@/api/formErrors';
+import { ApiErrorAlert } from '@/components/feedback/ApiErrorAlert';
+
+const sourceFields = ['companyId', 'careerPageUrl', 'atsType', 'atsIdentifier', 'isActive', 'autoPublishEnabled', 'scanIntervalMinutes'] as const;
 
 interface Props {
   source?: JobSource;
   isSaving: boolean;
-  error: string | null;
+  error: string | ApiError | null;
   onClose: () => void;
   onSave: (request: SaveJobSourceRequest) => Promise<void>;
 }
@@ -65,9 +71,10 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
   const [detect] = useTestJobSourceConfigurationMutation();
   const [isDetecting, setIsDetecting] = useState(false);
   const detecting = useRef(false);
+  const saving = useRef(false);
   const detectionRequest = useRef<{ abort: () => void } | null>(null);
   const mounted = useRef(true);
-  const [preview, setPreview] = useState<{ key: string; result: JobSourceConnectionResult | null; error?: string } | null>(null);
+  const [preview, setPreview] = useState<{ key: string; result: JobSourceConnectionResult | null; error?: ApiError } | null>(null);
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; detectionRequest.current?.abort(); };
@@ -80,6 +87,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
     setValue,
     getValues,
     trigger,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<SaveJobSourceRequest>({
     resolver: yupResolver(jobSourceSchema),
@@ -95,6 +103,9 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
           scanIntervalMinutes: 720,
         },
   });
+  useEffect(() => {
+    if (error && typeof error !== 'string') applyApiValidationErrors(error, sourceFields, setError);
+  }, [error, setError]);
   const busy = isSaving || isSubmitting || isCreating || isDetecting;
   const atsType = watch('atsType');
   const companyId = watch('companyId');
@@ -116,9 +127,11 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
       const result = await request.unwrap();
       if (mounted.current) setPreview({ key: configurationKey, result });
     } catch (cause) {
-      if (mounted.current) setPreview({ key: configurationKey, result: null, error: isAdminApiError(cause)
-        ? [cause.message, ...Object.values(cause.errors ?? {}).flat()].join(' ')
-        : 'Discovery could not be completed. Retry or paste a complete public RippleHire token URL.' });
+      if (mounted.current) {
+        const details = extractApiError(cause);
+        applyApiValidationErrors(details, sourceFields, setError);
+        setPreview({ key: configurationKey, result: null, error: details });
+      }
     } finally {
       detecting.current = false;
       detectionRequest.current = null;
@@ -185,10 +198,11 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
       </DialogTitle>
       <form
         onSubmit={(event) => {
-          if (creating.current || detecting.current) {
+          if (creating.current || detecting.current || saving.current || isSaving) {
             event.preventDefault();
             return;
           }
+          saving.current = true;
           void handleSubmit((request) => {
             const identifier = request.atsIdentifier?.trim() || '';
             const workdayRoot =
@@ -199,23 +213,24 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
               request.atsType === AtsType.Workday && identifier
                 ? parseWorkdaySiteRoot(identifier)
                 : null;
+            const submittedKey = JSON.stringify([request.atsType, request.careerPageUrl.trim(), identifier || null]);
+            const resolved = preview?.key === submittedKey && isVerifiedSourceConnection(preview.result, request.atsType)
+              ? preview.result?.discovery?.resolvedCareerPageUrl : null;
             return onSave({
               ...request,
-              careerPageUrl: workdayRoot?.canonicalUrl ?? request.careerPageUrl.trim(),
-              atsIdentifier: isEmployerDirect
+              careerPageUrl: resolved ?? workdayRoot?.canonicalUrl ?? request.careerPageUrl.trim(),
+              atsIdentifier: resolved ? null : isEmployerDirect
                 ? EMPLOYER_DIRECT_ATS_IDENTIFIER
                 : identifierRoot?.canonicalIdentifier ?? (identifier || null),
             });
-          })(event);
+          })(event).finally(() => { saving.current = false; });
         }}
         noValidate
       >
         <DialogContent>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
             {error && (
-              <Alert severity="error" role="alert">
-                {error}
-              </Alert>
+              <ApiErrorAlert error={error} fields={sourceFields} />
             )}
             {companies.isError && (
               <Alert
@@ -300,6 +315,8 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   {...field}
                   select
                   label="ATS Type"
+                  error={Boolean(errors.atsType)}
+                  helperText={errors.atsType?.message}
                   disabled={busy}
                   onChange={(event) => {
                     const nextType = Number(event.target.value);
@@ -352,7 +369,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   {isDetecting ? 'Detecting & testing…' : 'Detect & Test Connection'}
                 </Button>
                 {currentPreview && (currentPreview.error
-                  ? <Alert severity="error">{currentPreview.error}</Alert>
+                  ? <ApiErrorAlert error={currentPreview.error} fields={sourceFields} />
                   : <SourceConnectionResult result={currentPreview.result} provider={AtsType.RippleHire} />)}
                 {currentPreview && isVerifiedSourceConnection(currentPreview.result, AtsType.RippleHire) && (
                   <Button type="button" disabled={busy} onClick={() => {
@@ -411,6 +428,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                 />
               )}
             />
+            {errors.isActive && <Typography color="error" variant="caption">{errors.isActive.message}</Typography>}
             <Stack spacing={0.5}>
               <Controller
                 control={control}
@@ -431,6 +449,7 @@ export const JobSourceFormDialog = ({ source, isSaving, error, onClose, onSave }
                   />
                 )}
               />
+              {errors.autoPublishEnabled && <Typography color="error" variant="caption">{errors.autoPublishEnabled.message}</Typography>}
               <Typography id="auto-publish-help" variant="body2" color="text.secondary">
                 Automatically publish eligible jobs imported from this source.
               </Typography>

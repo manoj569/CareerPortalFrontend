@@ -7,6 +7,8 @@ export interface ApiError {
   message: string;
   status?: number;
   code?: string;
+  traceId?: string;
+  reasonCodes?: Record<string, string[]>;
   errors?: Record<string, string[]>;
   retryAfterSeconds?: number;
   redirectToMembership?: boolean;

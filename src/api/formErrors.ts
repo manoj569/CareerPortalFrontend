@@ -20,8 +20,8 @@ export const applyApiValidationErrors = <TFields extends FieldValues>(
   let applied = false;
 
   for (const [backendField, messages] of Object.entries(apiError.errors)) {
-    const field = fieldsByNormalizedName.get(backendField.toLowerCase());
-    const message = messages.find((item) => item.trim().length > 0);
+    const field = fieldsByNormalizedName.get(backendField.replace(/^\$\./, '').toLowerCase());
+    const message = Array.isArray(messages) ? messages.filter((item): item is string => typeof item === 'string').join(' ') : undefined;
     if (!field || !message) continue;
     setError(field, { message, type: 'server' });
     applied = true;
