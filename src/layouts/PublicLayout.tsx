@@ -1,3 +1,8 @@
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
+import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
+import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
+import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
+import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
 import { SHOW_HOME_CAREER_GUIDANCE } from '@/constants/homeVisibility';
 import { SupportButton } from '@/features/support/SupportButton';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -52,6 +57,14 @@ export const PublicLayout = () => {
         { label: 'Register', path: ROUTES.REGISTER },
       ];
 
+  const homepageNavigation: NavigationItem[] = [
+    { label: 'Home', path: ROUTES.HOME, icon: HomeOutlinedIcon, end: true },
+    { label: 'Browse Jobs', path: ROUTES.JOBS, icon: WorkOutlineIcon },
+    { label: 'Employee Referrals', path: `${ROUTES.DASHBOARD_JOBS}?mode=referral`, icon: GroupAddOutlinedIcon },
+    { label: 'Interview Insights', path: ROUTES.INTERVIEW_INSIGHTS, icon: QuestionAnswerOutlinedIcon },
+    { label: 'Create Portfolio', path: ROUTES.PORTFOLIO, icon: WebOutlinedIcon },
+  ];
+
   const closeMobileNavigation = (restoreFocus = true) => {
     setIsMobileNavigationOpen(false);
     if (restoreFocus) window.setTimeout(() => menuButtonRef.current?.focus(), 0);
@@ -67,6 +80,7 @@ export const PublicLayout = () => {
           bgcolor: 'rgba(255,255,255,.97)',
           borderBottom: '1px solid rgba(15,23,42,.08)',
           backdropFilter: 'blur(14px)',
+          ...(isHomePage ? { '@media (max-width:1199.95px)': { '& a:focus-visible, & button:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 } } } : {}),
         }}
       >
         <Container
@@ -74,7 +88,7 @@ export const PublicLayout = () => {
           sx={{
             maxWidth: isHomePage ? 'none' : PUBLIC_PAGE_CONTAINER_MAX_WIDTH,
             paddingInline: isHomePage
-              ? 'clamp(20px, 5vw, 96px) !important'
+              ? { xs: '8px !important', sm: 'clamp(20px, 5vw, 96px) !important', lg: 'clamp(20px, 5vw, 96px) !important' }
               : `${PUBLIC_PAGE_GUTTER} !important`,
           }}
         >
@@ -82,7 +96,15 @@ export const PublicLayout = () => {
             disableGutters
             sx={{ minHeight: isHomePage ? { xs: 68, md: 76 } : { xs: 74, md: 88 } }}
           >
-            <AppBrand />
+            <Box sx={isHomePage ? {
+              display: { xs: 'block', lg: 'contents' },
+              flexShrink: 0,
+              '& > a': { minHeight: { xs: 44, lg: 'auto' }, gap: { xs: 0.5, sm: 1.25 } },
+              '& svg': { width: { xs: 24, sm: 31, md: 34 }, height: { xs: 24, sm: 31, md: 34 } },
+              '& span': { fontSize: { xs: '0.875rem', sm: '1.15rem', md: '1.25rem' }, whiteSpace: 'nowrap' },
+            } : { display: 'contents' }}>
+              <AppBrand />
+            </Box>
             <Stack
               direction="row"
               spacing={1.25}
@@ -128,6 +150,18 @@ export const PublicLayout = () => {
                 </>
               )}
             </Stack>
+            {isHomePage && (
+              <Stack direction="row" sx={{ display: { xs: 'flex', lg: 'none' }, ml: 'auto', gap: 0.5, flexShrink: 0, '& .MuiButton-root': { whiteSpace: 'nowrap' } }}>
+                {isAuthenticated ? (
+                  <Button component={NavLink} to={authenticatedHome} sx={{ minHeight: 44 }}>Dashboard</Button>
+                ) : (
+                  <>
+                    <Button component={NavLink} to={ROUTES.LOGIN} sx={{ minWidth: 48, minHeight: 44, px: 0.5 }}>Log in</Button>
+                    <Button component={NavLink} to={ROUTES.REGISTER} variant="contained" sx={{ minWidth: 0, minHeight: 44, px: 1 }}>Register</Button>
+                  </>
+                )}
+              </Stack>
+            )}
             <IconButton
               aria-controls="public-mobile-navigation"
               aria-expanded={isMobileNavigationOpen}
@@ -135,7 +169,7 @@ export const PublicLayout = () => {
               edge="end"
               onClick={() => setIsMobileNavigationOpen(true)}
               ref={menuButtonRef}
-              sx={{ display: isHomePage ? { lg: 'none' } : { md: 'none' }, ml: 'auto' }}
+              sx={{ display: isHomePage ? { lg: 'none' } : { md: 'none' }, ml: isHomePage ? 0.5 : 'auto', minWidth: 44, minHeight: 44, ...(isHomePage ? { mr: 0 } : {}) }}
             >
               <MenuIcon />
             </IconButton>
@@ -152,19 +186,27 @@ export const PublicLayout = () => {
           paper: {
             'aria-label': 'Main navigation drawer',
             id: 'public-mobile-navigation',
-            sx: { p: 2, width: { xs: 'min(88vw, 320px)', sm: 320 } },
+            sx: { p: 2, width: { xs: 'min(88vw, 320px)', sm: 320 }, boxSizing: 'border-box', overflowY: 'auto', '& a:focus-visible, & button:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 } },
           },
         }}
       >
-        <Stack direction="row" justifyContent="space-between" sx={{ mb: 2, px: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, px: 1, flexShrink: 0 }}>
           <AppBrand compact />
-          <Button onClick={() => closeMobileNavigation()}>Close</Button>
+          <Button sx={{ minHeight: 44 }} onClick={() => closeMobileNavigation()}>Close</Button>
         </Stack>
         <NavigationList
           ariaLabel="Mobile primary navigation"
-          items={mobileNavigation}
+          items={isHomePage && !isAuthenticated ? homepageNavigation : mobileNavigation}
           onNavigate={() => closeMobileNavigation(false)}
         />
+        {isHomePage && !isAuthenticated && (
+          <Stack spacing={1.5} sx={{ flexShrink: 0, pt: 1 }}>
+            <Divider />
+            <Typography variant="overline" color="text.secondary">Your account</Typography>
+            <Button component={NavLink} to={ROUTES.LOGIN} variant="outlined" sx={{ minHeight: 44 }} onClick={() => closeMobileNavigation(false)}>Log in</Button>
+            <Button component={NavLink} to={ROUTES.REGISTER} variant="contained" sx={{ minHeight: 44 }} onClick={() => closeMobileNavigation(false)}>Register for free</Button>
+          </Stack>
+        )}
       </Drawer>
 
       <Container
