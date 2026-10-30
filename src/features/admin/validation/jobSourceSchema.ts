@@ -18,6 +18,12 @@ export const jobSourceSchema: yup.ObjectSchema<SaveJobSourceRequest> = yup.objec
       } catch {
         return false;
       }
+    })
+    .test('ripplehire-url', function (value) {
+      const request = this.parent as SaveJobSourceRequest;
+      if (request.atsType !== AtsType.RippleHire) return true;
+      const message = sourceConfigurationError(request.atsType, value ?? '', null);
+      return message ? this.createError({ message }) : true;
     }),
 
   atsType: yup
@@ -42,6 +48,10 @@ export const jobSourceSchema: yup.ObjectSchema<SaveJobSourceRequest> = yup.objec
     .max(255)
     .test('provider-configuration', function (identifier) {
       const request = this.parent as SaveJobSourceRequest;
+      // RippleHire URL errors belong to Career Page URL, even with a blank identifier.
+      // Only check identifier equality after the URL passes its own validation.
+      if (request.atsType === AtsType.RippleHire &&
+          sourceConfigurationError(request.atsType, request.careerPageUrl, null)) return true;
       const message = sourceConfigurationError(
         request.atsType,
         request.careerPageUrl,

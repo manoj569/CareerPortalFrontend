@@ -78,6 +78,29 @@ it('loads and saves an existing RippleHire configuration without changing its pu
     atsIdentifier: 'public-token', careerPageUrl: source.careerPageUrl, autoPublishEnabled: false, scanIntervalMinutes: 360 })));
 });
 
+it('shows an unsupported RippleHire ref parameter error on Career Page URL and saves after correction with a blank identifier', async () => {
+  await open();
+  search('Deloitte');
+  fireEvent.click(await screen.findByRole('option', { name: 'Deloitte' }));
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ATS Type' }));
+  fireEvent.click(screen.getByRole('option', { name: 'RippleHire' }));
+  const url = screen.getByRole('textbox', { name: /Career Page URL/ });
+  const identifier = screen.getByRole('textbox', { name: /ATS Identifier/ });
+  const careerPageUrl = 'https://example.ripplehire.com/candidate/?token=public-token';
+  fireEvent.change(url, { target: { value: `${careerPageUrl}&ref=careers` } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+  await waitFor(() => expect(url).toHaveAttribute('aria-invalid', 'true'));
+  expect(url).toHaveAccessibleDescription(/optional source and lang=en only/);
+  expect(identifier).toHaveAttribute('aria-invalid', 'false');
+  expect(identifier).toHaveValue('');
+  expect(onSave).not.toHaveBeenCalled();
+  fireEvent.change(url, { target: { value: careerPageUrl } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save Job Source' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+    careerPageUrl, atsType: AtsType.RippleHire, atsIdentifier: null,
+  })));
+});
+
 it('edits SmartRecruiters while preserving identity and Auto Publish and changing activation', async () => {
   request.mockImplementation(({ url }) => Promise.resolve({ data: { data: url.endsWith('/companies/existing') ? { websiteUrl: 'https://example.com', logoUrl: 'https://example.com/logo.png' } : [{ id: 'existing', name: 'Example Company', slug: 'example-company' }] } }));
   const source = { id: 'smart-source', companyId: 'existing', companyName: 'Example Company', careerPageUrl: 'https://careers.smartrecruiters.com/ExampleCompany', atsType: AtsType.SmartRecruiters, atsIdentifier: 'ExampleCompany', isActive: true, autoPublishEnabled: false, scanIntervalMinutes: 360 } as JobSource;

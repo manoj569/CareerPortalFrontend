@@ -1,5 +1,33 @@
 # RippleHire frontend integration
 
+## Validation error placement investigation
+
+The local backend `RippleHireSourceConfiguration.Resolve` accepts a complete public
+`https://{tenant}.ripplehire.com/candidate/?token=...` URL with a null/blank identifier,
+or an identifier exactly matching its token. Only `source` and `lang=en` are optional
+query parameters; `ref` and other unknown parameters are unsupported. Discovery
+still resolves the configuration and verifies the public listing before saving.
+
+The frontend did not require an identifier for these URLs. Its shared provider
+configuration test ran on `atsIdentifier`, so URL errors (including an unsupported
+`ref`) appeared under the empty ATS Identifier field. RippleHire URL validation now
+runs on `careerPageUrl`; identifier equality remains on `atsIdentifier`. Unsupported
+parameters are rejected rather than silently removed. Schema and dialog regression
+tests cover error placement, correction and blank-identifier submission, and exact
+token equality. Backend code, public listing verification and network protections
+are unchanged. These checks establish configuration syntax only; no supplied token
+was verified and no complete job feed is claimed.
+
+Verification for this fix: TypeScript and production build passed (existing
+SignalR annotation and chunk-size warnings). All 193 relevant tests passed across
+the six suites after rerunning the two suites that initially had nine timeout
+failures; no timeouts or assertions were relaxed. The final schema-only rerun
+passed all 87 tests. ESLint passed for the three changed TypeScript files.
+Repository-wide ESLint remains blocked by seven errors in untouched files:
+`InsightFeedbackDialog.test.tsx`, `ReferralContactFields.tsx`, `referralContacts.ts`
+and `authPages.test.tsx`. `git diff --check` passed. No commit, push or deployment
+was performed.
+
 The existing Admin → Job Sources page and Add/Edit dialog support RippleHire. No backend code, dependencies, separate provider page, push or deployment was added.
 
 ## Contract inspected

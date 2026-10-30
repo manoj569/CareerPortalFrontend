@@ -36,6 +36,16 @@ describe('source validation and formatting', () => {
     expect(await jobSourceSchema.isValid({ ...valid, atsType: 8, atsIdentifier: 'other',
       careerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token' })).toBe(false);
   });
+  it.each([null, '', 'public-token'])('reports unsupported RippleHire ref on the URL with identifier %s', async (atsIdentifier) => {
+    await expect(jobSourceSchema.validate({ ...valid, atsType: 8, atsIdentifier,
+      careerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token&ref=careers' }))
+      .rejects.toMatchObject({ path: 'careerPageUrl', message: 'Provide one public career token, with optional source and lang=en only. Never use a private candidate link.' });
+  });
+  it('reports a RippleHire token conflict on the identifier', async () => {
+    await expect(jobSourceSchema.validate({ ...valid, atsType: 8, atsIdentifier: 'PUBLIC-token',
+      careerPageUrl: 'https://example.ripplehire.com/candidate/?token=public-token' }))
+      .rejects.toMatchObject({ path: 'atsIdentifier', message: 'The ATS Identifier must match the public career token in the URL, or be left blank.' });
+  });
   it.each(['https://www.ltm.com/india-careers', 'https://example.ripplehire.com/',
     'https://example.ripplehire.com/candidate/', 'https://employer.example/careers?region=India',
     'https://example.ripplehire.com/candidate/?token=public-token#list/geo=India'])('permits RippleHire discovery input %s with no identifier', async (careerPageUrl) => {
