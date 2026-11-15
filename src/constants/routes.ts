@@ -20,11 +20,15 @@ export const ROUTES = {
   UNAUTHORIZED: '/unauthorized',
   ONBOARDING: '/onboarding',
   CAREER_SNAPSHOT: '/career-snapshot',
+
   DASHBOARD: '/dashboard',
   DASHBOARD_JOBS: '/dashboard/jobs',
   DASHBOARD_JOB_DETAILS: '/dashboard/jobs/:slug',
-  HIRING_DRIVE_DETAILS: '/hiring-drives/:id',
   DASHBOARD_HIRING_DRIVE_DETAILS: '/dashboard/hiring-drives/:id',
+
+  AI_ACCELERATOR: '/dashboard/ai-accelerator',
+
+  HIRING_DRIVE_DETAILS: '/hiring-drives/:id',
   REFER_A_JOB: '/dashboard/refer-a-job',
   REFERRALS: '/dashboard/referrals',
   REFERRAL_CONTACT_DETAILS: '/dashboard/jobs/referral/:jobId/contact',
@@ -38,6 +42,7 @@ export const ROUTES = {
   APPLICATION_DETAILS: '/dashboard/applications/:applicationId',
   INTERVIEW_INSIGHTS: '/dashboard/interview-insights',
   CAREER_GUIDANCE: '/career-guidance',
+
   AI_APPLY: '/ai-apply',
   AI_APPLY_SETUP: '/ai-apply/setup',
   AI_APPLY_APPLICATIONS: '/ai-apply/applications',
@@ -47,23 +52,27 @@ export const ROUTES = {
   AI_APPLY_ANSWERS: '/ai-apply/answers',
   AI_APPLY_SUBSCRIPTION: '/ai-apply/subscription',
   AI_APPLY_CONNECTIONS: '/ai-apply/connections',
-  INTERVIEW_INSIGHT_CONTRIBUTIONS: '/dashboard/interview-insights/my-contributions',
+
+  INTERVIEW_INSIGHT_CONTRIBUTIONS:
+    '/dashboard/interview-insights/my-contributions',
   NOTIFICATIONS: '/dashboard/notifications',
   SETTINGS: '/dashboard/settings',
   MEMBERSHIP: '/dashboard/membership',
   PAYMENTS: '/dashboard/payments',
+
   PAYMENT: '/payment',
   PAYMENT_SUCCESS: '/payment/success',
   PAYMENT_PENDING: '/payment/pending',
   PAYMENT_FAILED: '/payment/failed',
   PHONEPE_RETURN: '/payment/phonepe/return',
   PHONEPE_RETURN_LEGACY: '/payments/phonepe/return',
+
   ADMIN: '/admin',
   ADMIN_NOTIFICATIONS: '/admin/notifications',
   ADMIN_JOBS: '/admin/jobs',
   ADMIN_JOB_CREATE: '/admin/jobs/create',
   ADMIN_JOB_DISCOVERY: '/admin/jobs/discovery',
-  ADMIN_JOB_DISCOVERY_RUN: '/admin/jobs/discovery/:runId',
+  ADMIN_JOB_DISCOVERY_RUN: '/admin/job-discovery/:runId',
   ADMIN_JOB_DETAILS: '/admin/jobs/:jobId',
   ADMIN_JOB_EDIT: '/admin/jobs/:jobId/edit',
   ADMIN_COMPANIES: '/admin/companies',
@@ -102,7 +111,10 @@ export const buildReferralContactDetailsPath = (jobId: string): string =>
   ROUTES.REFERRAL_CONTACT_DETAILS.replace(':jobId', encodeURIComponent(jobId));
 
 export const buildApplicationDetailsPath = (applicationId: string): string =>
-  ROUTES.APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+  ROUTES.APPLICATION_DETAILS.replace(
+    ':applicationId',
+    encodeURIComponent(applicationId),
+  );
 
 export const buildAIApplyApplicationDetailsPath = (id: string): string =>
   ROUTES.AI_APPLY_APPLICATION_DETAILS.replace(':id', encodeURIComponent(id));
@@ -110,9 +122,14 @@ export const buildAIApplyApplicationDetailsPath = (id: string): string =>
 export const buildAIApplyQuestionDetailsPath = (id: string): string =>
   ROUTES.AI_APPLY_QUESTION_DETAILS.replace(':id', encodeURIComponent(id));
 
-export const buildInterviewInsightsPath = (params?: Record<string, string>): string => {
+export const buildInterviewInsightsPath = (
+  params?: Record<string, string>,
+): string => {
   const search = new URLSearchParams(params);
-  return `${ROUTES.INTERVIEW_INSIGHTS}${search.size ? `?${search.toString()}` : ''}`;
+
+  return `${ROUTES.INTERVIEW_INSIGHTS}${
+    search.size ? `?${search.toString()}` : ''
+  }`;
 };
 
 export const buildPublicPortfolioPath = (slug: string): string =>
@@ -125,25 +142,48 @@ export const buildAdminJobDetailsPath = (jobId: string): string =>
   ROUTES.ADMIN_JOB_DETAILS.replace(':jobId', encodeURIComponent(jobId));
 
 export const buildAdminJobDiscoveryRunPath = (runId: string): string =>
-  ROUTES.ADMIN_JOB_DISCOVERY_RUN.replace(':runId', encodeURIComponent(runId));
+  ROUTES.ADMIN_JOB_DISCOVERY_RUN.replace(
+    ':runId',
+    encodeURIComponent(runId),
+  );
 
 export const buildAdminCompanyDetailsPath = (companyId: string): string =>
-  ROUTES.ADMIN_COMPANY_DETAILS.replace(':companyId', encodeURIComponent(companyId));
+  ROUTES.ADMIN_COMPANY_DETAILS.replace(
+    ':companyId',
+    encodeURIComponent(companyId),
+  );
 
 export const buildAdminCompanyEditPath = (companyId: string): string =>
-  ROUTES.ADMIN_COMPANY_EDIT.replace(':companyId', encodeURIComponent(companyId));
+  ROUTES.ADMIN_COMPANY_EDIT.replace(
+    ':companyId',
+    encodeURIComponent(companyId),
+  );
 
 export const buildAdminCategoryDetailsPath = (categoryId: string): string =>
-  ROUTES.ADMIN_CATEGORY_DETAILS.replace(':categoryId', encodeURIComponent(categoryId));
+  ROUTES.ADMIN_CATEGORY_DETAILS.replace(
+    ':categoryId',
+    encodeURIComponent(categoryId),
+  );
 
 export const buildAdminCategoryEditPath = (categoryId: string): string =>
-  ROUTES.ADMIN_CATEGORY_EDIT.replace(':categoryId', encodeURIComponent(categoryId));
+  ROUTES.ADMIN_CATEGORY_EDIT.replace(
+    ':categoryId',
+    encodeURIComponent(categoryId),
+  );
 
-export const buildAdminApplicationDetailsPath = (applicationId: string): string =>
-  ROUTES.ADMIN_APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+export const buildAdminApplicationDetailsPath = (
+  applicationId: string,
+): string =>
+  ROUTES.ADMIN_APPLICATION_DETAILS.replace(
+    ':applicationId',
+    encodeURIComponent(applicationId),
+  );
 
 export const buildAdminUserDetailsPath = (userId: string): string =>
   ROUTES.ADMIN_USER_DETAILS.replace(':userId', encodeURIComponent(userId));
 
 export const buildAdminPaymentDetailsPath = (paymentId: string): string =>
-  ROUTES.ADMIN_PAYMENT_DETAILS.replace(':paymentId', encodeURIComponent(paymentId));
+  ROUTES.ADMIN_PAYMENT_DETAILS.replace(
+    ':paymentId',
+    encodeURIComponent(paymentId),
+  );

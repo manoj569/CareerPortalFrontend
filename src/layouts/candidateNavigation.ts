@@ -1,9 +1,10 @@
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import WebOutlinedIcon from '@mui/icons-material/WebOutlined';
 import WorkspacePremiumOutlinedIcon from '@mui/icons-material/WorkspacePremiumOutlined';
@@ -50,7 +51,11 @@ export const candidateNavigationItems: NavigationItem[] = [
         path: '/dashboard/my-referral-requests',
         icon: DescriptionOutlinedIcon,
       },
-      { label: 'Share a Job', path: ROUTES.REFER_A_JOB, icon: GroupAddOutlinedIcon },
+      {
+        label: 'Share a Job',
+        path: ROUTES.REFER_A_JOB,
+        icon: GroupAddOutlinedIcon,
+      },
       {
         label: "Jobs I've Shared",
         path: ROUTES.REFERRALS,
@@ -77,6 +82,12 @@ export const candidateNavigationItems: NavigationItem[] = [
     icon: SchoolOutlinedIcon,
     action: 'career-guidance-coming-soon',
     secondaryLabel: 'Coming soon',
+  },
+  {
+    label: 'AI Accelerator',
+    path: ROUTES.AI_ACCELERATOR,
+    icon: AutoAwesomeOutlinedIcon,
+    badge: 'New',
   },
   {
     label: 'Portfolio',

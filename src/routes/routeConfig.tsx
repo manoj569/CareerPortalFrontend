@@ -316,6 +316,13 @@ export const appRoutes: RouteObject[] = [
                 element: lazyPage(() => import('@/pages/DashboardPage'), 'DashboardPage'),
 
               },
+              {
+  path: ROUTES.AI_ACCELERATOR,
+  element: lazyPage(
+    () => import('@/features/accelerator/pages/AIAcceleratorPage'),
+    'AIAcceleratorPage',
+  ),
+},
 
               {
 
