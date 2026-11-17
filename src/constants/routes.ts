@@ -3,6 +3,7 @@ export const ROUTES = {
   HOME: '/',
   JOBS: '/jobs',
   JOB_DETAILS: '/jobs/:slug',
+  EMPLOYERS: '/employers',
   LOGIN: '/login',
   REGISTER: '/register',
   VERIFY_EMAIL: '/verify-email',
@@ -53,8 +54,7 @@ export const ROUTES = {
   AI_APPLY_SUBSCRIPTION: '/ai-apply/subscription',
   AI_APPLY_CONNECTIONS: '/ai-apply/connections',
 
-  INTERVIEW_INSIGHT_CONTRIBUTIONS:
-    '/dashboard/interview-insights/my-contributions',
+  INTERVIEW_INSIGHT_CONTRIBUTIONS: '/dashboard/interview-insights/my-contributions',
   NOTIFICATIONS: '/dashboard/notifications',
   SETTINGS: '/dashboard/settings',
   MEMBERSHIP: '/dashboard/membership',
@@ -111,10 +111,7 @@ export const buildReferralContactDetailsPath = (jobId: string): string =>
   ROUTES.REFERRAL_CONTACT_DETAILS.replace(':jobId', encodeURIComponent(jobId));
 
 export const buildApplicationDetailsPath = (applicationId: string): string =>
-  ROUTES.APPLICATION_DETAILS.replace(
-    ':applicationId',
-    encodeURIComponent(applicationId),
-  );
+  ROUTES.APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
 
 export const buildAIApplyApplicationDetailsPath = (id: string): string =>
   ROUTES.AI_APPLY_APPLICATION_DETAILS.replace(':id', encodeURIComponent(id));
@@ -122,14 +119,10 @@ export const buildAIApplyApplicationDetailsPath = (id: string): string =>
 export const buildAIApplyQuestionDetailsPath = (id: string): string =>
   ROUTES.AI_APPLY_QUESTION_DETAILS.replace(':id', encodeURIComponent(id));
 
-export const buildInterviewInsightsPath = (
-  params?: Record<string, string>,
-): string => {
+export const buildInterviewInsightsPath = (params?: Record<string, string>): string => {
   const search = new URLSearchParams(params);
 
-  return `${ROUTES.INTERVIEW_INSIGHTS}${
-    search.size ? `?${search.toString()}` : ''
-  }`;
+  return `${ROUTES.INTERVIEW_INSIGHTS}${search.size ? `?${search.toString()}` : ''}`;
 };
 
 export const buildPublicPortfolioPath = (slug: string): string =>
@@ -142,48 +135,25 @@ export const buildAdminJobDetailsPath = (jobId: string): string =>
   ROUTES.ADMIN_JOB_DETAILS.replace(':jobId', encodeURIComponent(jobId));
 
 export const buildAdminJobDiscoveryRunPath = (runId: string): string =>
-  ROUTES.ADMIN_JOB_DISCOVERY_RUN.replace(
-    ':runId',
-    encodeURIComponent(runId),
-  );
+  ROUTES.ADMIN_JOB_DISCOVERY_RUN.replace(':runId', encodeURIComponent(runId));
 
 export const buildAdminCompanyDetailsPath = (companyId: string): string =>
-  ROUTES.ADMIN_COMPANY_DETAILS.replace(
-    ':companyId',
-    encodeURIComponent(companyId),
-  );
+  ROUTES.ADMIN_COMPANY_DETAILS.replace(':companyId', encodeURIComponent(companyId));
 
 export const buildAdminCompanyEditPath = (companyId: string): string =>
-  ROUTES.ADMIN_COMPANY_EDIT.replace(
-    ':companyId',
-    encodeURIComponent(companyId),
-  );
+  ROUTES.ADMIN_COMPANY_EDIT.replace(':companyId', encodeURIComponent(companyId));
 
 export const buildAdminCategoryDetailsPath = (categoryId: string): string =>
-  ROUTES.ADMIN_CATEGORY_DETAILS.replace(
-    ':categoryId',
-    encodeURIComponent(categoryId),
-  );
+  ROUTES.ADMIN_CATEGORY_DETAILS.replace(':categoryId', encodeURIComponent(categoryId));
 
 export const buildAdminCategoryEditPath = (categoryId: string): string =>
-  ROUTES.ADMIN_CATEGORY_EDIT.replace(
-    ':categoryId',
-    encodeURIComponent(categoryId),
-  );
+  ROUTES.ADMIN_CATEGORY_EDIT.replace(':categoryId', encodeURIComponent(categoryId));
 
-export const buildAdminApplicationDetailsPath = (
-  applicationId: string,
-): string =>
-  ROUTES.ADMIN_APPLICATION_DETAILS.replace(
-    ':applicationId',
-    encodeURIComponent(applicationId),
-  );
+export const buildAdminApplicationDetailsPath = (applicationId: string): string =>
+  ROUTES.ADMIN_APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
 
 export const buildAdminUserDetailsPath = (userId: string): string =>
   ROUTES.ADMIN_USER_DETAILS.replace(':userId', encodeURIComponent(userId));
 
 export const buildAdminPaymentDetailsPath = (paymentId: string): string =>
-  ROUTES.ADMIN_PAYMENT_DETAILS.replace(
-    ':paymentId',
-    encodeURIComponent(paymentId),
-  );
+  ROUTES.ADMIN_PAYMENT_DETAILS.replace(':paymentId', encodeURIComponent(paymentId));

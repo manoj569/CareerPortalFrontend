@@ -42,6 +42,8 @@ export const PublicLayout = () => {
   const authenticatedHome =
     currentUser?.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD;
   const isHomePage = location.pathname === ROUTES.HOME;
+  const isEmployerHomePage = location.pathname === ROUTES.EMPLOYERS;
+  const isWideLandingPage = isHomePage || isEmployerHomePage;
   const mobileNavigation: NavigationItem[] = isAuthenticated
     ? [{ label: 'Dashboard', path: authenticatedHome }]
     : [
@@ -49,8 +51,10 @@ export const PublicLayout = () => {
         { label: 'Jobs', path: ROUTES.JOBS },
         ...(isHomePage
           ? [
-              ...(SHOW_HOME_CAREER_GUIDANCE ? [{ label: 'Career Guidance', path: ROUTES.CAREER_GUIDANCE }] : []),
-              { label: 'Interview Insights', path: ROUTES.INTERVIEW_INSIGHTS },
+              ...(SHOW_HOME_CAREER_GUIDANCE
+                ? [{ label: 'Career Guidance', path: ROUTES.CAREER_GUIDANCE }]
+                : []),
+              { label: 'For Employers', path: ROUTES.EMPLOYERS },
             ]
           : []),
         { label: 'Log in', path: ROUTES.LOGIN },
@@ -60,8 +64,16 @@ export const PublicLayout = () => {
   const homepageNavigation: NavigationItem[] = [
     { label: 'Home', path: ROUTES.HOME, icon: HomeOutlinedIcon, end: true },
     { label: 'Browse Jobs', path: ROUTES.JOBS, icon: WorkOutlineIcon },
-    { label: 'Employee Referrals', path: `${ROUTES.DASHBOARD_JOBS}?mode=referral`, icon: GroupAddOutlinedIcon },
-    { label: 'Interview Insights', path: ROUTES.INTERVIEW_INSIGHTS, icon: QuestionAnswerOutlinedIcon },
+    {
+      label: 'Employee Referrals',
+      path: `${ROUTES.DASHBOARD_JOBS}?mode=referral`,
+      icon: GroupAddOutlinedIcon,
+    },
+    {
+      label: 'Interview Insights',
+      path: ROUTES.INTERVIEW_INSIGHTS,
+      icon: QuestionAnswerOutlinedIcon,
+    },
     { label: 'Create Portfolio', path: ROUTES.PORTFOLIO, icon: WebOutlinedIcon },
   ];
 
@@ -80,7 +92,17 @@ export const PublicLayout = () => {
           bgcolor: 'rgba(255,255,255,.97)',
           borderBottom: '1px solid rgba(15,23,42,.08)',
           backdropFilter: 'blur(14px)',
-          ...(isHomePage ? { '@media (max-width:1199.95px)': { '& a:focus-visible, & button:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 } } } : {}),
+          ...(isHomePage
+            ? {
+                '@media (max-width:1199.95px)': {
+                  '& a:focus-visible, & button:focus-visible': {
+                    outline: '2px solid',
+                    outlineColor: 'primary.main',
+                    outlineOffset: 2,
+                  },
+                },
+              }
+            : {}),
         }}
       >
         <Container
@@ -88,7 +110,11 @@ export const PublicLayout = () => {
           sx={{
             maxWidth: isHomePage ? 'none' : PUBLIC_PAGE_CONTAINER_MAX_WIDTH,
             paddingInline: isHomePage
-              ? { xs: '8px !important', sm: 'clamp(20px, 5vw, 96px) !important', lg: 'clamp(20px, 5vw, 96px) !important' }
+              ? {
+                  xs: '8px !important',
+                  sm: 'clamp(20px, 5vw, 96px) !important',
+                  lg: 'clamp(20px, 5vw, 96px) !important',
+                }
               : `${PUBLIC_PAGE_GUTTER} !important`,
           }}
         >
@@ -96,13 +122,25 @@ export const PublicLayout = () => {
             disableGutters
             sx={{ minHeight: isHomePage ? { xs: 68, md: 76 } : { xs: 74, md: 88 } }}
           >
-            <Box sx={isHomePage ? {
-              display: { xs: 'block', lg: 'contents' },
-              flexShrink: 0,
-              '& > a': { minHeight: { xs: 44, lg: 'auto' }, gap: { xs: 0.5, sm: 1.25 } },
-              '& svg': { width: { xs: 24, sm: 31, md: 34 }, height: { xs: 24, sm: 31, md: 34 } },
-              '& span': { fontSize: { xs: '0.875rem', sm: '1.15rem', md: '1.25rem' }, whiteSpace: 'nowrap' },
-            } : { display: 'contents' }}>
+            <Box
+              sx={
+                isHomePage
+                  ? {
+                      display: { xs: 'block', lg: 'contents' },
+                      flexShrink: 0,
+                      '& > a': { minHeight: { xs: 44, lg: 'auto' }, gap: { xs: 0.5, sm: 1.25 } },
+                      '& svg': {
+                        width: { xs: 24, sm: 31, md: 34 },
+                        height: { xs: 24, sm: 31, md: 34 },
+                      },
+                      '& span': {
+                        fontSize: { xs: '0.875rem', sm: '1.15rem', md: '1.25rem' },
+                        whiteSpace: 'nowrap',
+                      },
+                    }
+                  : { display: 'contents' }
+              }
+            >
               <AppBrand />
             </Box>
             <Stack
@@ -127,11 +165,13 @@ export const PublicLayout = () => {
                   </Button>
                   {isHomePage && (
                     <>
-                      {SHOW_HOME_CAREER_GUIDANCE && <Button component={NavLink} to={ROUTES.CAREER_GUIDANCE}>
-                        Career Guidance
-                      </Button>}
-                      <Button component={NavLink} to={ROUTES.INTERVIEW_INSIGHTS}>
-                        Interview Insights
+                      {SHOW_HOME_CAREER_GUIDANCE && (
+                        <Button component={NavLink} to={ROUTES.CAREER_GUIDANCE}>
+                          Career Guidance
+                        </Button>
+                      )}
+                      <Button component={NavLink} to={ROUTES.EMPLOYERS}>
+                        For Employers
                       </Button>
                     </>
                   )}
@@ -151,13 +191,37 @@ export const PublicLayout = () => {
               )}
             </Stack>
             {isHomePage && (
-              <Stack direction="row" sx={{ display: { xs: 'flex', lg: 'none' }, ml: 'auto', gap: 0.5, flexShrink: 0, '& .MuiButton-root': { whiteSpace: 'nowrap' } }}>
+              <Stack
+                direction="row"
+                sx={{
+                  display: { xs: 'flex', lg: 'none' },
+                  ml: 'auto',
+                  gap: 0.5,
+                  flexShrink: 0,
+                  '& .MuiButton-root': { whiteSpace: 'nowrap' },
+                }}
+              >
                 {isAuthenticated ? (
-                  <Button component={NavLink} to={authenticatedHome} sx={{ minHeight: 44 }}>Dashboard</Button>
+                  <Button component={NavLink} to={authenticatedHome} sx={{ minHeight: 44 }}>
+                    Dashboard
+                  </Button>
                 ) : (
                   <>
-                    <Button component={NavLink} to={ROUTES.LOGIN} sx={{ minWidth: 48, minHeight: 44, px: 0.5 }}>Log in</Button>
-                    <Button component={NavLink} to={ROUTES.REGISTER} variant="contained" sx={{ minWidth: 0, minHeight: 44, px: 1 }}>Register</Button>
+                    <Button
+                      component={NavLink}
+                      to={ROUTES.LOGIN}
+                      sx={{ minWidth: 48, minHeight: 44, px: 0.5 }}
+                    >
+                      Log in
+                    </Button>
+                    <Button
+                      component={NavLink}
+                      to={ROUTES.REGISTER}
+                      variant="contained"
+                      sx={{ minWidth: 0, minHeight: 44, px: 1 }}
+                    >
+                      Register
+                    </Button>
                   </>
                 )}
               </Stack>
@@ -169,7 +233,13 @@ export const PublicLayout = () => {
               edge="end"
               onClick={() => setIsMobileNavigationOpen(true)}
               ref={menuButtonRef}
-              sx={{ display: isHomePage ? { lg: 'none' } : { md: 'none' }, ml: isHomePage ? 0.5 : 'auto', minWidth: 44, minHeight: 44, ...(isHomePage ? { mr: 0 } : {}) }}
+              sx={{
+                display: isHomePage ? { lg: 'none' } : { md: 'none' },
+                ml: isHomePage ? 0.5 : 'auto',
+                minWidth: 44,
+                minHeight: 44,
+                ...(isHomePage ? { mr: 0 } : {}),
+              }}
             >
               <MenuIcon />
             </IconButton>
@@ -186,13 +256,30 @@ export const PublicLayout = () => {
           paper: {
             'aria-label': 'Main navigation drawer',
             id: 'public-mobile-navigation',
-            sx: { p: 2, width: { xs: 'min(88vw, 320px)', sm: 320 }, boxSizing: 'border-box', overflowY: 'auto', '& a:focus-visible, & button:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 } },
+            sx: {
+              p: 2,
+              width: { xs: 'min(88vw, 320px)', sm: 320 },
+              boxSizing: 'border-box',
+              overflowY: 'auto',
+              '& a:focus-visible, & button:focus-visible': {
+                outline: '2px solid',
+                outlineColor: 'primary.main',
+                outlineOffset: 2,
+              },
+            },
           },
         }}
       >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, px: 1, flexShrink: 0 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 2, px: 1, flexShrink: 0 }}
+        >
           <AppBrand compact />
-          <Button sx={{ minHeight: 44 }} onClick={() => closeMobileNavigation()}>Close</Button>
+          <Button sx={{ minHeight: 44 }} onClick={() => closeMobileNavigation()}>
+            Close
+          </Button>
         </Stack>
         <NavigationList
           ariaLabel="Mobile primary navigation"
@@ -202,9 +289,27 @@ export const PublicLayout = () => {
         {isHomePage && !isAuthenticated && (
           <Stack spacing={1.5} sx={{ flexShrink: 0, pt: 1 }}>
             <Divider />
-            <Typography variant="overline" color="text.secondary">Your account</Typography>
-            <Button component={NavLink} to={ROUTES.LOGIN} variant="outlined" sx={{ minHeight: 44 }} onClick={() => closeMobileNavigation(false)}>Log in</Button>
-            <Button component={NavLink} to={ROUTES.REGISTER} variant="contained" sx={{ minHeight: 44 }} onClick={() => closeMobileNavigation(false)}>Register for free</Button>
+            <Typography variant="overline" color="text.secondary">
+              Your account
+            </Typography>
+            <Button
+              component={NavLink}
+              to={ROUTES.LOGIN}
+              variant="outlined"
+              sx={{ minHeight: 44 }}
+              onClick={() => closeMobileNavigation(false)}
+            >
+              Log in
+            </Button>
+            <Button
+              component={NavLink}
+              to={ROUTES.REGISTER}
+              variant="contained"
+              sx={{ minHeight: 44 }}
+              onClick={() => closeMobileNavigation(false)}
+            >
+              Register for free
+            </Button>
           </Stack>
         )}
       </Drawer>
@@ -212,7 +317,7 @@ export const PublicLayout = () => {
       <Container
         component="main"
         id="main-content"
-        maxWidth={isHomePage ? false : 'lg'}
+        maxWidth={isWideLandingPage ? false : 'lg'}
         sx={{
           flex: 1,
           minWidth: 0,
@@ -234,7 +339,7 @@ export const PublicLayout = () => {
         }}
       >
         <Container
-          maxWidth={isHomePage ? false : 'lg'}
+          maxWidth={isWideLandingPage ? false : 'lg'}
           sx={
             isHomePage
               ? { maxWidth: 'none', paddingInline: 'clamp(20px, 5vw, 96px) !important' }
@@ -286,7 +391,9 @@ export const PublicLayout = () => {
                           ? ([
                               ['Career portfolio', ROUTES.PORTFOLIO],
                               ['Interview insights', ROUTES.INTERVIEW_INSIGHTS],
-                              ...(SHOW_HOME_CAREER_GUIDANCE ? [['Career guidance', ROUTES.CAREER_GUIDANCE] as [string, string]] : []),
+                              ...(SHOW_HOME_CAREER_GUIDANCE
+                                ? [['Career guidance', ROUTES.CAREER_GUIDANCE] as [string, string]]
+                                : []),
                             ] as Array<[string, string]>)
                           : []),
                       ]
@@ -314,7 +421,12 @@ export const PublicLayout = () => {
                 ]}
                 title="Legal"
               />
-              <SupportButton color="inherit" sx={{ color: 'rgba(255,255,255,.68)', justifyContent: 'flex-start', mt: 1, p: 0 }}>Help & Support</SupportButton>
+              <SupportButton
+                color="inherit"
+                sx={{ color: 'rgba(255,255,255,.68)', justifyContent: 'flex-start', mt: 1, p: 0 }}
+              >
+                Help & Support
+              </SupportButton>
               <CookieSettingsButton
                 color="inherit"
                 sx={{ color: 'rgba(255,255,255,.68)', justifyContent: 'flex-start', mt: 1, p: 0 }}
