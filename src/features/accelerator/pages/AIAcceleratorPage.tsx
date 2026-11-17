@@ -35,6 +35,30 @@ import {
 } from '../api/acceleratorMarketApi';
 import { AcceleratorHero } from '../components/AcceleratorHero';
 import { MarketPathCard } from '../components/MarketPathCard';
+
+import { AIAcceleratorPathPage } from './AIAcceleratorPathPage';
+import { AITutorPage } from './AITutorPage';
+import { ActiveLearningPage } from './ActiveLearningPage';
+import { AssessmentQuestionsPage } from './AssessmentQuestionsPage';
+import { AssessmentResultsPage } from './AssessmentResultsPage';
+import { AssignmentResultsPage } from './AssignmentResultsPage';
+import { CareerGoalSetupPage } from './CareerGoalSetupPage';
+import { CareerReadinessPage } from './CareerReadinessPage';
+import { HandsOnAssignmentPage } from './HandsOnAssignmentPage';
+import { LearningModulePage } from './LearningModulePage';
+import { LearningRoadmapPage } from './LearningRoadmapPage';
+import { LiveMockInterviewPage } from './LiveMockInterviewPage';
+import { MockInterviewResultsPage } from './MockInterviewResultsPage';
+import { MockInterviewSetupPage } from './MockInterviewSetupPage';
+import { PracticeResultsPage } from './PracticeResultsPage';
+import { PracticeSessionPage } from './PracticeSessionPage';
+import { ProgressInsightsPage } from './ProgressInsightsPage';
+import { ProjectPracticePage } from './ProjectPracticePage';
+import { ProjectResourcesPage } from './ProjectResourcesPage';
+import { SkillAssessmentPage } from './SkillAssessmentPage';
+import { SkillPassportPage } from './SkillPassportPage';
+import { VirtualProjectWorkspacePage } from './VirtualProjectWorkspacePage';
+
 import type {
   AcceleratorPathType,
   MarketPathCard as MarketPathCardModel,
@@ -75,30 +99,42 @@ export const AIAcceleratorPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const pathType = normalizeType(searchParams.get('type'));
+  const selectedPathId = searchParams.get('selected');
+  const acceleratorScreen = searchParams.get('screen');
 
   const initialSearch = searchParams.get('search') ?? '';
-  const initialCategory = searchParams.get('category') ?? 'All';
+  const initialCategory =
+    searchParams.get('category') ?? 'All';
 
-  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [searchInput, setSearchInput] =
+    useState(initialSearch);
+
   const [appliedSearch, setAppliedSearch] =
     useState(initialSearch);
+
   const [selectedCategory, setSelectedCategory] =
     useState(initialCategory);
 
-  const [paths, setPaths] = useState<MarketPathCardModel[]>([]);
+  const [paths, setPaths] =
+    useState<MarketPathCardModel[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const discoverySectionRef = useRef<HTMLDivElement | null>(null);
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const discoverySectionRef =
+    useRef<HTMLDivElement | null>(null);
 
   const categories = useMemo(() => {
     const dynamicCategories = Array.from(
       new Set(
         paths
           .map((path) => path.category?.trim())
-          .filter((category): category is string =>
-            Boolean(category),
+          .filter(
+            (category): category is string =>
+              Boolean(category),
           ),
       ),
     );
@@ -147,7 +183,8 @@ export const AIAcceleratorPage = () => {
 
       try {
         const query = {
-          search: appliedSearch.trim() || undefined,
+          search:
+            appliedSearch.trim() || undefined,
           category:
             selectedCategory === 'All'
               ? undefined
@@ -161,7 +198,9 @@ export const AIAcceleratorPage = () => {
             ? await getCareerPaths(query)
             : await getSkillPaths(query);
 
-        setPaths(Array.isArray(result) ? result : []);
+        setPaths(
+          Array.isArray(result) ? result : [],
+        );
       } catch (requestError) {
         setPaths([]);
         setError(getErrorMessage(requestError));
@@ -170,7 +209,11 @@ export const AIAcceleratorPage = () => {
         setRefreshing(false);
       }
     },
-    [appliedSearch, pathType, selectedCategory],
+    [
+      appliedSearch,
+      pathType,
+      selectedCategory,
+    ],
   );
 
   useEffect(() => {
@@ -188,18 +231,32 @@ export const AIAcceleratorPage = () => {
     updateUrl(value, '', 'All');
   };
 
-  const handleSearch = (event: FormEvent) => {
+  const handleSearch = (
+    event: FormEvent,
+  ) => {
     event.preventDefault();
 
     const nextSearch = searchInput.trim();
 
     setAppliedSearch(nextSearch);
-    updateUrl(pathType, nextSearch, selectedCategory);
+
+    updateUrl(
+      pathType,
+      nextSearch,
+      selectedCategory,
+    );
   };
 
-  const handleCategoryChange = (category: string) => {
+  const handleCategoryChange = (
+    category: string,
+  ) => {
     setSelectedCategory(category);
-    updateUrl(pathType, appliedSearch, category);
+
+    updateUrl(
+      pathType,
+      appliedSearch,
+      category,
+    );
   };
 
   const handleStartJourney = () => {
@@ -216,30 +273,211 @@ export const AIAcceleratorPage = () => {
     });
   };
 
-  const handleExplore = (path: MarketPathCardModel) => {
-    /*
-     * Detailed Career Path / Skill Path pages are intentionally
-     * not part of Screen 1.
-     *
-     * Until that phase is implemented, keep the user on the
-     * discovery page and expose the selected path through the URL.
-     */
-    const params = new URLSearchParams(searchParams);
+  const handleExplore = (
+    path: MarketPathCardModel,
+  ) => {
+    const params =
+      new URLSearchParams(searchParams);
 
     params.set('selected', path.id);
 
     setSearchParams(params);
   };
 
-  const handleViewJobs = (path: MarketPathCardModel) => {
+  const handleViewJobs = (
+    path: MarketPathCardModel,
+  ) => {
     const query =
       path.jobFilter?.trim() ||
       path.name.trim();
 
     navigate(
-      `${ROUTES.DASHBOARD_JOBS}?q=${encodeURIComponent(query)}`,
+      `${ROUTES.DASHBOARD_JOBS}?q=${encodeURIComponent(
+        query,
+      )}`,
     );
   };
+
+  /*
+   * =========================================================
+   * AI CAREER ACCELERATOR SCREEN ROUTING
+   * =========================================================
+   *
+   * Each screen key must be unique.
+   *
+   * practice
+   *   -> ProjectPracticePage
+   *
+   * practice-session
+   *   -> PracticeSessionPage
+   *
+   * practice-results
+   *   -> PracticeResultsPage
+   */
+
+  if (
+    acceleratorScreen === 'progress-insights' &&
+    pathType === 'career'
+  ) {
+    return <ProgressInsightsPage />;
+  }
+
+  if (
+    acceleratorScreen === 'skill-passport' &&
+    pathType === 'career'
+  ) {
+    return <SkillPassportPage />;
+  }
+
+  if (
+    acceleratorScreen === 'career-readiness' &&
+    pathType === 'career'
+  ) {
+    return <CareerReadinessPage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'mock-interview-results' &&
+    pathType === 'career'
+  ) {
+    return <MockInterviewResultsPage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'mock-interview-live' &&
+    pathType === 'career'
+  ) {
+    return <LiveMockInterviewPage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'mock-interview-setup' &&
+    pathType === 'career'
+  ) {
+    return <MockInterviewSetupPage />;
+  }
+
+  if (
+    acceleratorScreen === 'practice' &&
+    pathType === 'career'
+  ) {
+    return <ProjectPracticePage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'project-resources' &&
+    pathType === 'career'
+  ) {
+    return <ProjectResourcesPage />;
+  }
+
+  if (
+    acceleratorScreen === 'ai-tutor' &&
+    pathType === 'career'
+  ) {
+    return <AITutorPage />;
+  }
+
+  if (
+    acceleratorScreen === 'project' &&
+    pathType === 'career'
+  ) {
+    return <VirtualProjectWorkspacePage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'assignment-results' &&
+    pathType === 'career'
+  ) {
+    return <AssignmentResultsPage />;
+  }
+
+  if (
+    acceleratorScreen === 'assignment' &&
+    pathType === 'career'
+  ) {
+    return <HandsOnAssignmentPage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'practice-results' &&
+    pathType === 'career'
+  ) {
+    return <PracticeResultsPage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'practice-session' &&
+    pathType === 'career'
+  ) {
+    return <PracticeSessionPage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'learning-module' &&
+    pathType === 'career'
+  ) {
+    return <LearningModulePage />;
+  }
+
+  if (
+    acceleratorScreen === 'learning' &&
+    pathType === 'career'
+  ) {
+    return <ActiveLearningPage />;
+  }
+
+  if (
+    acceleratorScreen === 'roadmap' &&
+    pathType === 'career'
+  ) {
+    return <LearningRoadmapPage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'assessment-results' &&
+    pathType === 'career'
+  ) {
+    return <AssessmentResultsPage />;
+  }
+
+  if (
+    acceleratorScreen ===
+      'assessment-questions' &&
+    pathType === 'career'
+  ) {
+    return <AssessmentQuestionsPage />;
+  }
+
+  if (
+    acceleratorScreen === 'assessment' &&
+    pathType === 'career'
+  ) {
+    return <SkillAssessmentPage />;
+  }
+
+  if (
+    acceleratorScreen === 'goal' &&
+    pathType === 'career'
+  ) {
+    return <CareerGoalSetupPage />;
+  }
+
+  if (
+    selectedPathId &&
+    pathType === 'career'
+  ) {
+    return <AIAcceleratorPathPage />;
+  }
 
   return (
     <Box
@@ -285,7 +523,8 @@ export const AIAcceleratorPage = () => {
             letterSpacing: '-0.02em',
           }}
         >
-          What career do you want to accelerate?
+          What career do you want to
+          accelerate?
         </Typography>
 
         <Typography
@@ -295,8 +534,9 @@ export const AIAcceleratorPage = () => {
             fontSize: '0.9rem',
           }}
         >
-          Explore career paths and skills using CareerHarbor&apos;s
-          current job-market intelligence.
+          Explore career paths and skills using
+          CareerHarbor&apos;s current job-market
+          intelligence.
         </Typography>
 
         <Box
@@ -315,7 +555,9 @@ export const AIAcceleratorPage = () => {
             size="small"
             value={searchInput}
             onChange={(event) =>
-              setSearchInput(event.target.value)
+              setSearchInput(
+                event.target.value,
+              )
             }
             placeholder={
               pathType === 'career'
@@ -372,7 +614,8 @@ export const AIAcceleratorPage = () => {
         <Box
           sx={{
             mt: 2.5,
-            borderBottom: '1px solid #e7ebf1',
+            borderBottom:
+              '1px solid #e7ebf1',
           }}
         >
           <Tabs
@@ -421,10 +664,20 @@ export const AIAcceleratorPage = () => {
                 label={category}
                 clickable
                 onClick={() =>
-                  handleCategoryChange(category)
+                  handleCategoryChange(
+                    category,
+                  )
                 }
-                color={selected ? 'primary' : 'default'}
-                variant={selected ? 'filled' : 'outlined'}
+                color={
+                  selected
+                    ? 'primary'
+                    : 'default'
+                }
+                variant={
+                  selected
+                    ? 'filled'
+                    : 'outlined'
+                }
                 sx={{
                   height: 32,
                   borderRadius: 1.7,
@@ -495,7 +748,9 @@ export const AIAcceleratorPage = () => {
                 )
               }
               disabled={refreshing}
-              onClick={() => void loadPaths(true)}
+              onClick={() =>
+                void loadPaths(true)
+              }
               sx={{
                 textTransform: 'none',
                 fontWeight: 700,
@@ -513,7 +768,9 @@ export const AIAcceleratorPage = () => {
               <Button
                 color="inherit"
                 size="small"
-                onClick={() => void loadPaths()}
+                onClick={() =>
+                  void loadPaths()
+                }
               >
                 Try again
               </Button>
@@ -523,7 +780,8 @@ export const AIAcceleratorPage = () => {
               borderRadius: 2,
             }}
           >
-            We couldn&apos;t load CareerHarbor market data.
+            We couldn&apos;t load
+            CareerHarbor market data.
           </Alert>
         )}
 
@@ -539,13 +797,16 @@ export const AIAcceleratorPage = () => {
               gap: 2,
             }}
           >
-            {Array.from({ length: 6 }).map((_, index) => (
+            {Array.from({
+              length: 6,
+            }).map((_, index) => (
               <Box
                 key={index}
                 sx={{
                   p: 2.5,
                   minHeight: 320,
-                  border: '1px solid #e2e8f0',
+                  border:
+                    '1px solid #e2e8f0',
                   borderRadius: 3,
                   bgcolor: '#fff',
                 }}
@@ -577,6 +838,7 @@ export const AIAcceleratorPage = () => {
                       width={100}
                       height={26}
                     />
+
                     <Skeleton
                       variant="rounded"
                       width={85}
@@ -599,13 +861,15 @@ export const AIAcceleratorPage = () => {
               </Box>
             ))}
           </Box>
-        ) : !error && paths.length === 0 ? (
+        ) : !error &&
+          paths.length === 0 ? (
           <Box
             sx={{
               py: 7,
               px: 2,
               textAlign: 'center',
-              border: '1px dashed #d9e0ea',
+              border:
+                '1px dashed #d9e0ea',
               borderRadius: 3,
               bgcolor: '#fbfcfe',
             }}
@@ -636,7 +900,8 @@ export const AIAcceleratorPage = () => {
                 fontSize: '0.86rem',
               }}
             >
-              Try another search or select a different category.
+              Try another search or select a
+              different category.
             </Typography>
 
             <Button
@@ -646,7 +911,11 @@ export const AIAcceleratorPage = () => {
                 setAppliedSearch('');
                 setSelectedCategory('All');
 
-                updateUrl(pathType, '', 'All');
+                updateUrl(
+                  pathType,
+                  '',
+                  'All',
+                );
               }}
               sx={{
                 mt: 1.5,
@@ -709,7 +978,8 @@ export const AIAcceleratorPage = () => {
               width: 240,
               height: 240,
               borderRadius: '50%',
-              bgcolor: 'rgba(255,255,255,0.07)',
+              bgcolor:
+                'rgba(255,255,255,0.07)',
             }}
           />
 
@@ -742,7 +1012,8 @@ export const AIAcceleratorPage = () => {
                   display: 'grid',
                   placeItems: 'center',
                   borderRadius: 2,
-                  bgcolor: 'rgba(255,255,255,0.15)',
+                  bgcolor:
+                    'rgba(255,255,255,0.15)',
                 }}
               >
                 <EmojiEventsOutlinedIcon />
@@ -758,26 +1029,31 @@ export const AIAcceleratorPage = () => {
                     },
                   }}
                 >
-                  Complete the Accelerator and build your Career
-                  Readiness Score
+                  Complete the Accelerator and
+                  build your Career Readiness
+                  Score
                 </Typography>
 
                 <Typography
                   sx={{
                     mt: 0.5,
-                    color: 'rgba(255,255,255,0.82)',
+                    color:
+                      'rgba(255,255,255,0.82)',
                     fontSize: '0.85rem',
                   }}
                 >
-                  Build your Skill Passport and showcase verified
-                  progress to employers.
+                  Build your Skill Passport and
+                  showcase verified progress to
+                  employers.
                 </Typography>
               </Box>
             </Stack>
 
             <Button
               variant="contained"
-              endIcon={<AutoAwesomeOutlinedIcon />}
+              endIcon={
+                <AutoAwesomeOutlinedIcon />
+              }
               disabled
               sx={{
                 minWidth: 175,
@@ -788,7 +1064,8 @@ export const AIAcceleratorPage = () => {
                 fontWeight: 800,
                 boxShadow: 'none',
                 '&.Mui-disabled': {
-                  bgcolor: 'rgba(255,255,255,0.88)',
+                  bgcolor:
+                    'rgba(255,255,255,0.88)',
                   color: '#62769e',
                 },
               }}
