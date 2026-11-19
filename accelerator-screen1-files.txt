@@ -1,0 +1,1522 @@
+
+========================================
+FILE: src\components\navigation\DashboardLayoutShell.tsx
+========================================
+
+import MenuIcon from '@mui/icons-material/Menu';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import LogoutIcon from '@mui/icons-material/Logout';
+import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import {
+  AppBar,
+  Badge,
+  Box,
+  Button,
+  Container,
+  Divider,
+  Drawer,
+  InputAdornment,
+  TextField,
+  IconButton,
+  Stack,
+  Toolbar,
+  Typography,
+  Tooltip,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
+
+import { ROUTES } from '@/constants/routes';
+import { CareerGuidanceComingSoonPage } from '@/features/careerGuidance/components/CareerGuidanceComingSoonPage';
+import { useGetMyInterviewContributionsQuery } from '@/features/interviewInsights/api/interviewInsightsApi';
+import { CareerGuidanceComingSoonDialog, CareerHarborPointsIndicator } from '@/features/interviewInsights/components/CareerHarborPointsActions';
+import { CareerHarborPointsCard } from '@/features/interviewInsights/components/CareerHarborPointsCard';
+import { logout, selectCurrentUser } from '@/features/auth/store/authSlice';
+import { CookieSettingsButton } from '@/features/cookieConsent/CookieSettingsButton';
+import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
+import { AppBrand } from './AppBrand';
+import { CandidateAccountMenu } from './CandidateAccountMenu';
+import { CareerHarborSocialLinks } from './CareerHarborSocialLinks';
+import { NavigationList } from './NavigationList';
+import type { NavigationItem } from './navigationTypes';
+
+const DRAWER_WIDTH = 252;
+const COLLAPSED_DRAWER_WIDTH = 72;
+
+interface DashboardLayoutShellProps {
+  accessStatus?: string;
+  areaLabel: string;
+  navigationItems: NavigationItem[];
+  collapsibleDesktop?: boolean;
+  accountMenuProfilePath?: string;
+  notificationCount?: number;
+  showNotifications?: boolean;
+  notificationBell?: ReactNode;
+}
+
+export const DashboardLayoutShell = ({
+  accessStatus,
+  areaLabel,
+  navigationItems,
+  accountMenuProfilePath,
+  collapsibleDesktop = false,
+  notificationCount = 0,
+  showNotifications = false,
+  notificationBell,
+}: DashboardLayoutShellProps) => {
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [careerGuidanceDialogOpen, setCareerGuidanceDialogOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const dispatch = useAppDispatch();
+  const currentUser = useAppSelector(selectCurrentUser);
+  const pointsQuery = useGetMyInterviewContributionsQuery(undefined, {
+    skip: areaLabel !== 'Candidate workspace',
+  });
+  const [jobSearch, setJobSearch] = useState('');
+  const [jobLocation, setJobLocation] = useState('');
+  const navigate = useNavigate();
+  const theme = useTheme();
+
+  const browseJobsMatch = useMatch({
+    path: ROUTES.DASHBOARD_JOBS,
+    end: true,
+  });
+  const savedJobsMatch = useMatch({
+  path: ROUTES.SAVED_JOBS,
+  end: true,
+});
+const applicationsMatch = useMatch({
+  path: ROUTES.APPLICATIONS,
+  end: true,
+});
+const referAJobMatch = useMatch({
+  path: ROUTES.REFER_A_JOB,
+  end: true,
+});
+const interviewInsightsMatch = useMatch({
+  path: ROUTES.INTERVIEW_INSIGHTS,
+  end: true,
+});
+const careerGuidanceMatch = useMatch({
+  path: ROUTES.CAREER_GUIDANCE,
+  end: true,
+});
+const portfolioMatch = useMatch({
+  path: ROUTES.PORTFOLIO,
+  end: true,
+});
+const membershipMatch = useMatch({
+  path: ROUTES.MEMBERSHIP,
+  end: true,
+});
+const settingsMatch = useMatch({
+  path: ROUTES.SETTINGS,
+  end: true,
+});
+  const isBrowseJobsPage = browseJobsMatch !== null;
+const dashboardMatch = useMatch({
+  path: ROUTES.DASHBOARD,
+  end: true,
+});
+
+const isDashboardPage = dashboardMatch !== null;
+const isSavedJobsPage = savedJobsMatch !== null;
+const isApplicationsPage = applicationsMatch !== null;
+const isReferAJobPage = referAJobMatch !== null;
+const isInterviewInsightsPage = interviewInsightsMatch !== null;
+const isCareerGuidancePage = careerGuidanceMatch !== null;
+const isPortfolioPage = portfolioMatch !== null;
+const isMembershipPage = membershipMatch !== null;
+const isSettingsPage = settingsMatch !== null;
+
+const referralLocation = useLocation();
+const isReferralPage = /^\/dashboard\/(referrals|referral-requests|my-referral-requests)(\/|$)/.test(referralLocation.pathname);
+const isFullWidthPage =
+  isReferralPage ||
+  isBrowseJobsPage ||
+  isDashboardPage ||
+  isSavedJobsPage ||
+  isApplicationsPage ||
+  isReferAJobPage ||
+  isInterviewInsightsPage ||
+  isCareerGuidancePage ||
+  isPortfolioPage ||
+  isMembershipPage ||
+  isSettingsPage;
+
+   const tabletSidebar = useMediaQuery(
+    theme.breakpoints.between('md', 'lg'),
+  );
+  const [desktopCollapseOverride, setDesktopCollapseOverride] =
+    useState<boolean | null>(null);
+
+  const isDesktopCollapsed =
+    collapsibleDesktop && (desktopCollapseOverride ?? tabletSidebar);
+
+  const desktopDrawerWidth = isDesktopCollapsed
+    ? COLLAPSED_DRAWER_WIDTH
+    : DRAWER_WIDTH;
+
+  const mobileDrawerId =
+    `${areaLabel.toLowerCase().replace(/\s+/g, '-')}-mobile-navigation`;
+
+  const handleLogout = () => {
+    void dispatch(logout()).finally(() => {
+      void navigate(ROUTES.HOME, { replace: true });
+    });
+  };
+
+  const submitJobSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const params = new URLSearchParams();
+    if (jobSearch.trim()) params.set('q', jobSearch.trim());
+    if (jobLocation.trim()) params.set('location', jobLocation.trim());
+    void navigate(`${ROUTES.DASHBOARD_JOBS}${params.size ? `?${params.toString()}` : ''}`);
+  };
+
+  const closeMobileDrawer = (restoreFocus = true) => {
+    setIsMobileDrawerOpen(false);
+
+    if (restoreFocus) {
+      window.setTimeout(() => menuButtonRef.current?.focus(), 0);
+    }
+  };
+
+  const renderDrawerContent = (compact = false, mobile = false) => (
+    <Stack flex={1} minHeight={0}>
+      <Box
+        sx={{
+          px: compact ? 1.5 : 2.5,
+          py: 2.25,
+          textAlign: compact ? 'center' : 'left',
+        }}
+      >
+        <AppBrand compact markOnly={compact} />
+
+        {compact ? null : (
+          <Typography
+            color="text.secondary"
+            display="block"
+            variant="caption"
+          >
+            {areaLabel}
+          </Typography>
+        )}
+      </Box>
+
+      <Divider />
+
+      {accessStatus && !compact ? (
+        <Box aria-live="polite" sx={{ px: 2.5, py: 1.5 }}>
+          <Typography color="text.secondary" variant="caption">
+            Verified access
+          </Typography>
+          <Typography fontWeight={700} variant="body2">
+            {accessStatus}
+          </Typography>
+        </Box>
+      ) : null}
+
+      {accessStatus && !compact ? <Divider /> : null}
+
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
+        <NavigationList
+          ariaLabel={`${areaLabel} navigation`}
+          compact={compact}
+          items={navigationItems}
+          onNavigate={() => closeMobileDrawer(false)}
+          onAction={(action) => {
+            if (action === 'career-guidance-coming-soon') setCareerGuidanceDialogOpen(true);
+          }}
+        />
+      </Box>
+
+      <Divider />
+
+      {!compact ? (
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <CareerHarborSocialLinks mobile={mobile} />
+        </Box>
+      ) : null}
+
+      <Divider />
+
+      <Box sx={{ p: compact ? 1 : 2 }}>
+        {currentUser && !compact ? (
+          <Box sx={{ mb: 2, minWidth: 0 }}>
+            <Typography
+              fontWeight={700}
+              noWrap
+              title={`${currentUser.firstName} ${currentUser.lastName}`}
+            >
+              {currentUser.firstName} {currentUser.lastName}
+            </Typography>
+
+            <Typography
+              color="text.secondary"
+              noWrap
+              title={currentUser.email}
+              variant="caption"
+            >
+              {currentUser.email}
+            </Typography>
+          </Box>
+        ) : null}
+
+        {compact ? null : (
+          <CookieSettingsButton
+            fullWidth
+            sx={{ mb: 1 }}
+            variant="text"
+          />
+        )}
+
+        {accountMenuProfilePath ? null : compact ? (
+          <Tooltip placement="right" title="Log out">
+            <IconButton aria-label="Log out" onClick={handleLogout}>
+              <LogoutIcon />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Button fullWidth onClick={handleLogout} variant="outlined">
+            Log out
+          </Button>
+        )}
+      </Box>
+    </Stack>
+  );
+
+  return (
+    <Box display="flex" minHeight="100vh">
+      <AppBar
+        color="inherit"
+        elevation={0}
+        position="fixed"
+        sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+          ml: { md: `${desktopDrawerWidth}px` },
+          transition: theme.transitions.create(['margin', 'width']),
+          width: { md: `calc(100% - ${desktopDrawerWidth}px)` },
+        }}
+      >
+        <Toolbar sx={{ minHeight: { xs: 64, md: 68 }, gap: { xs: 0.5, md: 1.25 }, px: { xs: 1.5, md: 2.5 } }}>
+          <Box role="group" aria-label="Primary navigation" sx={{ display: 'flex', alignItems: 'center', flexGrow: areaLabel === 'Candidate workspace' ? 0 : 1, flexShrink: 0, minWidth: 0 }}>
+            <IconButton
+              aria-controls={mobileDrawerId}
+              aria-expanded={isMobileDrawerOpen}
+              aria-label={`Open ${areaLabel.toLowerCase()} navigation`}
+              edge="start"
+              onClick={() => setIsMobileDrawerOpen(true)}
+              ref={menuButtonRef}
+              sx={{ display: { md: 'none' }, mr: 1 }}
+            >
+              <MenuIcon />
+            </IconButton>
+
+            {areaLabel === 'Candidate workspace' ? <>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}><AppBrand /></Box>
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}><AppBrand compact markOnly /></Box>
+            </> : <Typography
+              component="p"
+              fontWeight={700}
+              noWrap
+              sx={{ flexGrow: 1, minWidth: 0 }}
+            >
+              {areaLabel}
+            </Typography>}
+          </Box>
+
+          {areaLabel === 'Candidate workspace' ? <Box component="form" onSubmit={submitJobSearch} role="search" sx={{ display: { xs: 'none', lg: 'flex' }, '@media (min-width:1200px) and (max-width:1399px)': { display: 'none' }, alignItems: 'center', flex: '1 1 640px', maxWidth: 820, mx: 'auto', gap: 1 }}>
+            <TextField size="small" value={jobSearch} onChange={(event) => setJobSearch(event.target.value)} placeholder="Search jobs, companies, skills or keywords..." inputProps={{ 'aria-label': 'Search jobs, companies, skills or keywords' }} sx={{ flex: 1, '& .MuiOutlinedInput-root': { height: 44, bgcolor: '#f5f7fc', borderRadius: 2.5 } }} InputProps={{ startAdornment: <InputAdornment position="start"><SearchRoundedIcon color="primary" /></InputAdornment> }} />
+            <TextField size="small" value={jobLocation} onChange={(event) => setJobLocation(event.target.value)} placeholder="All locations" inputProps={{ 'aria-label': 'Job location' }} sx={{ width: 190, '& .MuiOutlinedInput-root': { height: 44, borderRadius: 2.5 } }} InputProps={{ startAdornment: <InputAdornment position="start"><LocationOnOutlinedIcon color="primary" /></InputAdornment> }} />
+            <Button type="submit" variant="contained" startIcon={<SearchRoundedIcon />} sx={{ minHeight: 44, px: 2.25, borderRadius: 2 }}>Search</Button>
+          </Box> : null}
+
+          <Box role="group" aria-label="Notifications and account" sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, ml: areaLabel === 'Candidate workspace' ? { xs: 'auto', md: 0 } : 0, gap: { xs: 0.5, md: 1.25 } }}>
+          {notificationBell ?? (showNotifications ? (
+            <IconButton
+              aria-label={
+                notificationCount > 0
+                  ? `Notifications, ${notificationCount} unread`
+                  : 'Notifications'
+              }
+              color="inherit"
+              onClick={() => void navigate(ROUTES.NOTIFICATIONS)}
+              sx={{ mr: 0.5 }}
+            >
+              {notificationCount > 0 ? (
+                <Badge
+                  badgeContent={notificationCount}
+                  color="error"
+                  max={99}
+                >
+                  <NotificationsNoneOutlinedIcon />
+                </Badge>
+              ) : (
+                <NotificationsNoneOutlinedIcon />
+              )}
+            </IconButton>
+          ) : null)}
+
+          <CareerHarborPointsIndicator balance={pointsQuery.data?.pointsBalance} />
+
+          {accountMenuProfilePath ? (
+            <CandidateAccountMenu
+              email={currentUser?.email}
+              firstName={currentUser?.firstName}
+              lastName={currentUser?.lastName}
+              onLogout={handleLogout}
+              profilePath={accountMenuProfilePath}
+            />
+          ) : (
+            <Button
+              color="inherit"
+              onClick={handleLogout}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+            >
+              Log out
+            </Button>
+          )}
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      <Box
+        component="nav"
+        sx={{
+          flexShrink: { md: 0 },
+          transition: theme.transitions.create('width'),
+          width: { md: desktopDrawerWidth },
+        }}
+      >
+        <Drawer
+          ModalProps={{
+            disableRestoreFocus: true,
+            keepMounted: true,
+          }}
+          onClose={() => closeMobileDrawer()}
+          open={isMobileDrawerOpen}
+          slotProps={{
+            paper: {
+              'aria-label': `${areaLabel} navigation drawer`,
+              id: mobileDrawerId,
+              sx: {
+                maxWidth: '88vw',
+                width: DRAWER_WIDTH,
+              },
+            },
+          }}
+          variant="temporary"
+          sx={{ display: { xs: 'block', md: 'none' } }}
+        >
+          {renderDrawerContent(false, true)}
+        </Drawer>
+
+        <Drawer
+          open
+          slotProps={{
+            paper: {
+              sx: {
+                overflowX: 'hidden',
+                transition: theme.transitions.create('width'),
+                width: desktopDrawerWidth,
+              },
+            },
+          }}
+          variant="permanent"
+          sx={{ display: { xs: 'none', md: 'block' } }}
+        >
+          {collapsibleDesktop ? (
+            <Tooltip
+              placement="right"
+              title={
+                isDesktopCollapsed
+                  ? 'Expand navigation'
+                  : 'Collapse navigation'
+              }
+            >
+              <IconButton
+                aria-expanded={!isDesktopCollapsed}
+                aria-label={
+                  isDesktopCollapsed
+                    ? 'Expand candidate navigation'
+                    : 'Collapse candidate navigation'
+                }
+                onClick={() =>
+                  setDesktopCollapseOverride(!isDesktopCollapsed)
+                }
+                sx={{
+                  alignSelf: isDesktopCollapsed ? 'center' : 'flex-end',
+                  m: 1,
+                }}
+              >
+                {isDesktopCollapsed ? (
+                  <ChevronRightIcon />
+                ) : (
+                  <ChevronLeftIcon />
+                )}
+              </IconButton>
+            </Tooltip>
+          ) : null}
+
+          {renderDrawerContent(isDesktopCollapsed)}
+        </Drawer>
+      </Box>
+
+      <CareerGuidanceComingSoonDialog
+        balance={pointsQuery.data?.pointsBalance}
+        onClose={() => setCareerGuidanceDialogOpen(false)}
+        open={careerGuidanceDialogOpen}
+      />
+
+      <Box
+        component="main"
+        id="main-content"
+        sx={{ flexGrow: 1, minWidth: 0, pt: 8 }}
+        tabIndex={-1}
+      >
+        <Container
+  maxWidth={isFullWidthPage ? false : 'xl'}
+  sx={
+    isFullWidthPage
+      ? {
+          px: { xs: 1.5, sm: 2, lg: 3 },
+          py: { xs: 1.5, md: 2 },
+        }
+      : {
+          py: { xs: 3, md: 4 },
+        }
+  }
+>
+          {referralLocation.pathname === ROUTES.REFERRALS && pointsQuery.data?.pointsBalance ? (
+            <Box sx={{ mb: 2 }}>
+              <CareerHarborPointsCard balance={pointsQuery.data.pointsBalance} compact />
+            </Box>
+          ) : null}
+          {referralLocation.pathname.startsWith('/career-guidance') ? (
+            <CareerGuidanceComingSoonPage balance={pointsQuery.data?.pointsBalance} />
+          ) : (
+            <Outlet />
+          )}
+        </Container>
+      </Box>
+    </Box>
+  );
+};
+
+
+========================================
+FILE: src\components\navigation\NavigationList.tsx
+========================================
+
+import {
+  Chip,
+  Collapse,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+} from '@mui/material';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { forwardRef, useEffect, useId, useState } from 'react';
+import { matchPath, NavLink, useLocation, type NavLinkProps } from 'react-router-dom';
+import {
+  SHOW_RESUME_CHECKER_NAVIGATION,
+  SHOW_RESUME_MAKER_NAVIGATION,
+} from '@/constants/navigationVisibility';
+import { ROUTES } from '@/constants/routes';
+import type { NavigationItem } from './navigationTypes';
+
+interface NavigationListProps {
+  ariaLabel?: string;
+  items: NavigationItem[];
+  onNavigate?: () => void;
+  onAction?: (action: string) => void;
+  compact?: boolean;
+}
+// NavLink's pathname-only active class would also highlight ordinary jobs in referral mode.
+const NavigationLink = forwardRef<HTMLAnchorElement, NavLinkProps>((props, ref) => (
+  <NavLink
+    {...props}
+    ref={ref}
+    className={() => (typeof props.className === 'string' ? props.className : '')}
+  />
+));
+const visible = (item: NavigationItem) =>
+  (SHOW_RESUME_CHECKER_NAVIGATION || item.label.trim().toLowerCase() !== 'resume checker') &&
+  (SHOW_RESUME_MAKER_NAVIGATION || item.path !== ROUTES.RESUME_MAKER);
+const isActive = (item: NavigationItem, pathname: string, search: string): boolean => {
+  if (!item.path) return false;
+  const [path, query] = item.path.split('?');
+  if (item.activePaths?.some((pattern) => matchPath({ path: pattern, end: true }, pathname)))
+    return true;
+  if (!matchPath({ path: path!, end: item.end ?? false }, pathname)) return false;
+  const params = new URLSearchParams(search);
+  if (query)
+    return [...new URLSearchParams(query)].every(([key, value]) => params.get(key) === value);
+  // The regular jobs entry and referral jobs share a pathname.
+  if (item.path === '/dashboard/jobs' && params.get('mode') === 'referral') return false;
+  return true;
+};
+const itemSx = (compact: boolean) => ({
+  borderRadius: 2,
+  justifyContent: compact ? 'center' : 'flex-start',
+  mb: 0.5,
+  minHeight: compact ? 46 : 48,
+  px: compact ? 1 : 1.75,
+  '&.active': {
+    bgcolor: 'primary.main',
+    color: 'primary.contrastText',
+    '& .MuiListItemIcon-root': { color: 'inherit' },
+    '&:hover': { bgcolor: 'primary.dark' },
+  },
+});
+const NavigationEntry = ({
+  item,
+  onNavigate,
+  onAction,
+  compact = false,
+}: {
+  item: NavigationItem;
+  onNavigate?: () => void;
+  onAction?: (action: string) => void;
+  compact?: boolean;
+}) => {
+  const location = useLocation();
+  const children = item.children?.filter(visible);
+  const active =
+    children?.some((child) => isActive(child, location.pathname, location.search)) ??
+    isActive(item, location.pathname, location.search);
+  const [expanded, setExpanded] = useState(active);
+  const childrenId = useId();
+  useEffect(() => {
+    if (active && children?.length) setExpanded(true);
+  }, [active, location.pathname, location.search, children?.length]);
+  const Icon = item.icon;
+  const content = (
+    <>
+      {Icon && (
+        <ListItemIcon
+          sx={{ color: 'text.secondary', justifyContent: 'center', minWidth: compact ? 0 : 42 }}
+        >
+          <Icon sx={{ fontSize: 22 }} />
+        </ListItemIcon>
+      )}
+      {!compact && (
+        <ListItemText
+          primary={item.label}
+          primaryTypographyProps={{ fontWeight: 650, fontSize: '0.9rem' }}
+          secondary={item.secondaryLabel}
+          secondaryTypographyProps={{ variant: 'caption' }}
+        />
+      )}
+      {!compact && item.badge && (
+        <Chip
+          label={item.badge}
+          size="small"
+          color="primary"
+          sx={{ height: 20, fontSize: 11, fontWeight: 700 }}
+        />
+      )}
+      {children?.length ? (
+        expanded ? (
+          <ExpandLessIcon fontSize="small" />
+        ) : (
+          <ExpandMoreIcon fontSize="small" />
+        )
+      ) : null}
+    </>
+  );
+  return (
+    <>
+      <Tooltip placement="right" title={compact ? item.label : ''}>
+        {children?.length ? (
+          <ListItemButton
+            component="button"
+            type="button"
+            aria-label={item.label}
+            aria-expanded={expanded}
+            aria-controls={childrenId}
+            onClick={() => setExpanded((value) => !value)}
+            sx={{ ...itemSx(compact), width: '100%', color: active ? 'primary.main' : undefined }}
+          >
+            {content}
+          </ListItemButton>
+        ) : item.action ? (
+          <ListItemButton
+            aria-label={item.secondaryLabel ? `${item.label}, ${item.secondaryLabel}` : item.label}
+            component="button"
+            onClick={() => {
+              onAction?.(item.action!);
+              onNavigate?.();
+            }}
+            sx={{ ...itemSx(compact), color: 'text.secondary', width: '100%' }}
+            type="button"
+          >
+            {content}
+          </ListItemButton>
+        ) : (
+          <ListItemButton
+            aria-label={compact ? item.label : undefined}
+            aria-current={active ? 'page' : false}
+            component={NavigationLink}
+            className={active ? 'active' : ''}
+            end={item.end}
+            onClick={onNavigate}
+            sx={itemSx(compact)}
+            state={
+              item.preserveCurrentLocation
+                ? { from: `${location.pathname}${location.search}${location.hash}` }
+                : undefined
+            }
+            to={item.path ?? '#'}
+          >
+            {content}
+          </ListItemButton>
+        )}
+      </Tooltip>
+      {children?.length ? (
+        <Collapse in={expanded} timeout="auto" unmountOnExit>
+          <List
+            id={childrenId}
+            aria-label={`${item.label} navigation`}
+            disablePadding
+            sx={{ pl: compact ? 0 : 2 }}
+          >
+            {children.map((child) => (
+              <NavigationEntry
+                key={child.path}
+                item={child}
+                onNavigate={onNavigate}
+                onAction={onAction}
+                compact={compact}
+              />
+            ))}
+          </List>
+        </Collapse>
+      ) : null}
+    </>
+  );
+};
+export const NavigationList = ({
+  ariaLabel = 'Primary navigation',
+  items,
+  onNavigate,
+  onAction,
+  compact = false,
+}: NavigationListProps) => (
+  <List component="nav" aria-label={ariaLabel} sx={{ px: compact ? 0.75 : 1 }}>
+    {items.filter(visible).map((item) => (
+      <NavigationEntry key={item.path ?? item.action ?? item.label} item={item} onNavigate={onNavigate} onAction={onAction} compact={compact} />
+    ))}
+  </List>
+);
+
+
+========================================
+FILE: src\components\navigation\navigationTypes.ts
+========================================
+
+import type { SvgIconComponent } from '@mui/icons-material';
+
+export interface NavigationItem {
+  label: string;
+  path?: string;
+  icon?: SvgIconComponent;
+  end?: boolean;
+  preserveCurrentLocation?: boolean;
+  badge?: string;
+  children?: NavigationItem[];
+  activePaths?: string[];
+  action?: string;
+  secondaryLabel?: string;
+}
+
+
+========================================
+FILE: src\components\navigation\AppBrand.tsx
+========================================
+
+import { Box, Typography } from '@mui/material';
+import { Link } from 'react-router-dom';
+
+import { ROUTES } from '@/constants/routes';
+
+interface AppBrandProps {
+  compact?: boolean;
+  inverse?: boolean;
+  markOnly?: boolean;
+}
+
+export const AppBrand = ({ compact = false, inverse = false, markOnly = false }: AppBrandProps) => (
+  <Box
+    aria-label="Career Harbor home"
+    alignItems="center"
+    color={inverse ? 'common.white' : 'primary.main'}
+    component={Link}
+    sx={{ display: 'inline-flex', gap: compact ? 1 : 1.25, textDecoration: 'none' }}
+    to={ROUTES.HOME}
+  >
+    <Box
+      aria-hidden
+      component="svg"
+      viewBox="0 0 40 40"
+      sx={{ flex: '0 0 auto', height: compact ? 28 : { xs: 31, md: 34 }, width: compact ? 28 : { xs: 31, md: 34 } }}
+    >
+      <path d="M20 2.5 35 11v18L20 37.5 5 29V11Z" fill="currentColor" opacity=".12" />
+      <path d="M27.7 12.2a10.8 10.8 0 1 0 .1 15.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
+      <path d="M17 20h14m-5-5 5 5-5 5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.2" />
+    </Box>
+    {markOnly ? null : (
+      <Typography component="span" fontSize={compact ? '1.05rem' : { xs: '1.15rem', md: '1.25rem' }} fontWeight={850} letterSpacing="-.025em">
+        Career Harbor
+      </Typography>
+    )}
+  </Box>
+);
+
+
+========================================
+FILE: src\app\App.tsx
+========================================
+
+import { RouterProvider } from 'react-router-dom';
+
+import { router } from '@/routes/router';
+import { AppProviders } from './AppProviders';
+
+export const App = () => (
+  <AppProviders>
+    <RouterProvider router={router} />
+  </AppProviders>
+);
+
+
+========================================
+FILE: src\constants\routes.ts
+========================================
+
+export const ROUTES = {
+  ADMIN_JOB_SOURCES: '/admin/job-sources',
+  HOME: '/',
+  JOBS: '/jobs',
+  JOB_DETAILS: '/jobs/:slug',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  VERIFY_EMAIL: '/verify-email',
+  VERIFY_REGISTRATION_MOBILE: '/register/verify-mobile',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
+  TERMS_OF_USE: '/terms-of-use',
+  PRIVACY_POLICY: '/privacy-policy',
+  COOKIE_POLICY: '/cookie-policy',
+  REFUND_POLICY: '/refund-and-cancellation-policy',
+  GRIEVANCE_POLICY: '/grievance-redressal-policy',
+  CONTACT_US: '/contact-us',
+  ABOUT_US: '/about-us',
+  PRICING: '/membership',
+  UNAUTHORIZED: '/unauthorized',
+  ONBOARDING: '/onboarding',
+  CAREER_SNAPSHOT: '/career-snapshot',
+  DASHBOARD: '/dashboard',
+  DASHBOARD_JOBS: '/dashboard/jobs',
+  DASHBOARD_JOB_DETAILS: '/dashboard/jobs/:slug',
+  HIRING_DRIVE_DETAILS: '/hiring-drives/:id',
+  DASHBOARD_HIRING_DRIVE_DETAILS: '/dashboard/hiring-drives/:id',
+  REFER_A_JOB: '/dashboard/refer-a-job',
+  REFERRALS: '/dashboard/referrals',
+  REFERRAL_CONTACT_DETAILS: '/dashboard/jobs/referral/:jobId/contact',
+  PORTFOLIO: '/dashboard/portfolio',
+  PROFILE: '/dashboard/profile',
+  PUBLIC_PORTFOLIO: '/p/:slug',
+  RESUME: '/dashboard/resume',
+  RESUME_MAKER: '/dashboard/resume-maker',
+  SAVED_JOBS: '/dashboard/saved-jobs',
+  APPLICATIONS: '/dashboard/applications',
+  APPLICATION_DETAILS: '/dashboard/applications/:applicationId',
+  INTERVIEW_INSIGHTS: '/dashboard/interview-insights',
+  CAREER_GUIDANCE: '/career-guidance',
+  AI_APPLY: '/ai-apply',
+  AI_APPLY_SETUP: '/ai-apply/setup',
+  AI_APPLY_APPLICATIONS: '/ai-apply/applications',
+  AI_APPLY_APPLICATION_DETAILS: '/ai-apply/applications/:id',
+  AI_APPLY_QUESTIONS: '/ai-apply/questions',
+  AI_APPLY_QUESTION_DETAILS: '/ai-apply/questions/:id',
+  AI_APPLY_ANSWERS: '/ai-apply/answers',
+  AI_APPLY_SUBSCRIPTION: '/ai-apply/subscription',
+  AI_APPLY_CONNECTIONS: '/ai-apply/connections',
+  INTERVIEW_INSIGHT_CONTRIBUTIONS: '/dashboard/interview-insights/my-contributions',
+  NOTIFICATIONS: '/dashboard/notifications',
+  SETTINGS: '/dashboard/settings',
+  MEMBERSHIP: '/dashboard/membership',
+  PAYMENTS: '/dashboard/payments',
+  PAYMENT: '/payment',
+  PAYMENT_SUCCESS: '/payment/success',
+  PAYMENT_PENDING: '/payment/pending',
+  PAYMENT_FAILED: '/payment/failed',
+  PHONEPE_RETURN: '/payment/phonepe/return',
+  PHONEPE_RETURN_LEGACY: '/payments/phonepe/return',
+  ADMIN: '/admin',
+  ADMIN_NOTIFICATIONS: '/admin/notifications',
+  ADMIN_JOBS: '/admin/jobs',
+  ADMIN_JOB_CREATE: '/admin/jobs/create',
+  ADMIN_JOB_DISCOVERY: '/admin/jobs/discovery',
+  ADMIN_JOB_DISCOVERY_RUN: '/admin/jobs/discovery/:runId',
+  ADMIN_JOB_DETAILS: '/admin/jobs/:jobId',
+  ADMIN_JOB_EDIT: '/admin/jobs/:jobId/edit',
+  ADMIN_COMPANIES: '/admin/companies',
+  ADMIN_COMPANY_CREATE: '/admin/companies/create',
+  ADMIN_COMPANY_DETAILS: '/admin/companies/:companyId',
+  ADMIN_COMPANY_EDIT: '/admin/companies/:companyId/edit',
+  ADMIN_CATEGORIES: '/admin/categories',
+  ADMIN_CATEGORY_CREATE: '/admin/categories/create',
+  ADMIN_CATEGORY_DETAILS: '/admin/categories/:categoryId',
+  ADMIN_CATEGORY_EDIT: '/admin/categories/:categoryId/edit',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_USER_DETAILS: '/admin/users/:userId',
+  ADMIN_APPLICATIONS: '/admin/applications',
+  ADMIN_APPLICATION_DETAILS: '/admin/applications/:applicationId',
+  ADMIN_PAYMENTS: '/admin/payments',
+  ADMIN_PAYMENT_DETAILS: '/admin/payments/:paymentId',
+  ADMIN_AUDIT_LOGS: '/admin/audit-logs',
+  ADMIN_INTERVIEW_INSIGHTS: '/admin/interview-insights',
+  ADMIN_AI_APPLY: '/admin/ai-apply',
+  ADMIN_CAREER_GUIDANCE: '/admin/career-guidance/consultants',
+} as const;
+
+export const buildJobDetailsPath = (slug: string): string =>
+  ROUTES.JOB_DETAILS.replace(':slug', encodeURIComponent(slug));
+
+export const buildDashboardJobDetailsPath = (slug: string): string =>
+  ROUTES.DASHBOARD_JOB_DETAILS.replace(':slug', encodeURIComponent(slug));
+
+export const buildHiringDriveDetailsPath = (id: string): string =>
+  ROUTES.HIRING_DRIVE_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildDashboardHiringDriveDetailsPath = (id: string): string =>
+  ROUTES.DASHBOARD_HIRING_DRIVE_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildReferralContactDetailsPath = (jobId: string): string =>
+  ROUTES.REFERRAL_CONTACT_DETAILS.replace(':jobId', encodeURIComponent(jobId));
+
+export const buildApplicationDetailsPath = (applicationId: string): string =>
+  ROUTES.APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+
+export const buildAIApplyApplicationDetailsPath = (id: string): string =>
+  ROUTES.AI_APPLY_APPLICATION_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildAIApplyQuestionDetailsPath = (id: string): string =>
+  ROUTES.AI_APPLY_QUESTION_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildInterviewInsightsPath = (params?: Record<string, string>): string => {
+  const search = new URLSearchParams(params);
+  return `${ROUTES.INTERVIEW_INSIGHTS}${search.size ? `?${search.toString()}` : ''}`;
+};
+
+export const buildPublicPortfolioPath = (slug: string): string =>
+  ROUTES.PUBLIC_PORTFOLIO.replace(':slug', encodeURIComponent(slug));
+
+export const buildAdminJobEditPath = (jobId: string): string =>
+  ROUTES.ADMIN_JOB_EDIT.replace(':jobId', encodeURIComponent(jobId));
+
+export const buildAdminJobDetailsPath = (jobId: string): string =>
+  ROUTES.ADMIN_JOB_DETAILS.replace(':jobId', encodeURIComponent(jobId));
+
+export const buildAdminJobDiscoveryRunPath = (runId: string): string =>
+  ROUTES.ADMIN_JOB_DISCOVERY_RUN.replace(':runId', encodeURIComponent(runId));
+
+export const buildAdminCompanyDetailsPath = (companyId: string): string =>
+  ROUTES.ADMIN_COMPANY_DETAILS.replace(':companyId', encodeURIComponent(companyId));
+
+export const buildAdminCompanyEditPath = (companyId: string): string =>
+  ROUTES.ADMIN_COMPANY_EDIT.replace(':companyId', encodeURIComponent(companyId));
+
+export const buildAdminCategoryDetailsPath = (categoryId: string): string =>
+  ROUTES.ADMIN_CATEGORY_DETAILS.replace(':categoryId', encodeURIComponent(categoryId));
+
+export const buildAdminCategoryEditPath = (categoryId: string): string =>
+  ROUTES.ADMIN_CATEGORY_EDIT.replace(':categoryId', encodeURIComponent(categoryId));
+
+export const buildAdminApplicationDetailsPath = (applicationId: string): string =>
+  ROUTES.ADMIN_APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+
+export const buildAdminUserDetailsPath = (userId: string): string =>
+  ROUTES.ADMIN_USER_DETAILS.replace(':userId', encodeURIComponent(userId));
+
+export const buildAdminPaymentDetailsPath = (paymentId: string): string =>
+  ROUTES.ADMIN_PAYMENT_DETAILS.replace(':paymentId', encodeURIComponent(paymentId));
+
+
+========================================
+FILE: src\constants\apiEndpoints.ts
+========================================
+
+export const API_ENDPOINTS = {
+  CATEGORIES: { OPTIONS: '/categories/options' },
+  AUTH: {
+    REGISTER: '/auth/register',
+    VERIFY_EMAIL: '/auth/verify-email',
+    VERIFY_REGISTRATION_OTP: '/auth/verify-registration-otp',
+    RESEND_REGISTRATION_OTP: '/auth/resend-registration-otp',
+    LOGIN: '/auth/login',
+    GOOGLE: '/auth/google',
+    GOOGLE_CODE: '/auth/google/code',
+    REQUEST_LOGIN_OTP: '/auth/request-login-otp',
+    LOGIN_WITH_OTP: '/auth/login-with-otp',
+    REFRESH_TOKEN: '/auth/refresh',
+    REQUEST_PASSWORD_RESET: '/auth/request-password-reset',
+    COMPLETE_PASSWORD_RESET: '/auth/complete-password-reset',
+    CHANGE_PASSWORD: '/auth/change-password',
+    LOGOUT: '/auth/logout',
+    ADMIN_HEALTH: '/auth/admin/health',
+  },
+  LEGAL: {
+    TERMS_OF_USE: '/legal/terms-of-use',
+    PRIVACY_POLICY: '/legal/privacy-policy',
+  },
+  JOBS: {
+    SEARCH: '/jobs',
+    REFERRALS: '/jobs/referrals',
+    FILTER_OPTIONS: '/jobs/filter-options',
+    FACETS: '/jobs/facets',
+    LATEST: '/jobs/latest',
+    NEWEST: '/jobs/newest',
+    FEATURED: '/jobs/featured',
+    POPULAR_COMPANIES: '/jobs/companies/popular',
+    COMPANIES: '/jobs/companies',
+    DETAILS: (slug: string) => `/jobs/${encodeURIComponent(slug)}`,
+    RELATED: (slug: string) => `/jobs/${encodeURIComponent(slug)}/related`,
+  },
+  MEMBERSHIPS: {
+    APPLY_TO_JOB: (slug: string) => `/memberships/jobs/${encodeURIComponent(slug)}/apply`,
+  },
+  REFERRALS: {
+    PUBLIC: '/referrals/public',
+    SUBMIT: '/referrals',
+    MINE: '/referrals/mine',
+    EXTRACT_FROM_URL: '/referrals/extract-from-url',
+    UNLOCK: (jobId: string) => `/referrals/unlock/${encodeURIComponent(jobId)}`,
+  },
+  PAYMENTS: {
+    PLANS: '/payments/plans',
+    CHECKOUT: '/payments/checkout',
+    CREATE_PHONEPE_CHECKOUT: '/payments/phonepe/checkout',
+    PHONEPE_RETURN: (merchantOrderId: string) =>
+      `/payments/phonepe/return/${encodeURIComponent(merchantOrderId)}`,
+    PENDING_MEMBERSHIP_CHECKOUT: '/payments/pending-membership-checkout',
+    CANCEL_PENDING_MEMBERSHIP_CHECKOUT: (publicReference: string) =>
+      `/payments/pending-membership-checkout/${encodeURIComponent(publicReference)}/cancel`,
+    CREATE_RAZORPAY_ORDER: '/payments/razorpay/orders',
+    CONFIRM_RAZORPAY: (paymentId: string) =>
+      `/payments/${encodeURIComponent(paymentId)}/razorpay/confirm`,
+    RECONCILE_RAZORPAY: (paymentId: string) =>
+      `/payments/${encodeURIComponent(paymentId)}/razorpay/reconcile`,
+    STATUS: '/payments/status',
+    LIST: '/payments',
+    HISTORY: '/payments/history',
+  },
+  AI_APPLY: {
+    ACCESS: '/ai-apply/access',
+    PROFILE: '/ai-apply/profile',
+    PREFERENCES: '/ai-apply/preferences',
+    SETTINGS: '/ai-apply/settings',
+    ENABLE: '/ai-apply/enable',
+    DISABLE: '/ai-apply/disable',
+    PAUSE: '/ai-apply/pause',
+    RESUME: '/ai-apply/resume',
+    RULES: '/ai-apply/rules',
+    RULE: (id: string) => `/ai-apply/rules/${encodeURIComponent(id)}`,
+    DASHBOARD: '/ai-apply/dashboard',
+    APPLICATIONS: '/ai-apply/applications',
+    QUEUE_APPLICATION: '/ai-apply/applications/queue',
+    APPLICATION: (id: string) => `/ai-apply/applications/${encodeURIComponent(id)}`,
+    CANCEL_APPLICATION: (id: string) => `/ai-apply/applications/${encodeURIComponent(id)}/cancel`,
+    CONTINUE_APPLICATION: (id: string) =>
+      `/ai-apply/applications/${encodeURIComponent(id)}/continue`,
+    ANALYTICS: '/ai-apply/analytics',
+    QUESTIONS: '/ai-apply/questions',
+    QUESTION: (id: string) => `/ai-apply/questions/${encodeURIComponent(id)}`,
+    ANSWER_QUESTION: (id: string) => `/ai-apply/questions/${encodeURIComponent(id)}/answer`,
+    SKIP_QUESTION: (id: string) => `/ai-apply/questions/${encodeURIComponent(id)}/skip`,
+    ANSWERS: '/ai-apply/answers',
+    ANSWER: (id: string) => `/ai-apply/answers/${encodeURIComponent(id)}`,
+    EXTERNAL_SESSION: (site: number) => `/ai-apply/external-sessions/${site}`,
+    START_EXTERNAL_SESSION_CAPTURE: (site: number) => `/ai-apply/external-sessions/${site}/capture`,
+    EXTERNAL_SESSION_CAPTURE: (captureId: string) =>
+      `/ai-apply/external-sessions/captures/${encodeURIComponent(captureId)}`,
+    COMPLETE_EXTERNAL_SESSION_CAPTURE: (captureId: string) =>
+      `/ai-apply/external-sessions/captures/${encodeURIComponent(captureId)}/complete`,
+    REVOKE_EXTERNAL_SESSION: (sessionId: string) =>
+      `/ai-apply/external-sessions/${encodeURIComponent(sessionId)}`,
+  },
+  ADMIN: {
+    JOB_SOURCES: {
+      LIST: '/admin/job-sources',
+      DETAILS: (id: string) => `/admin/job-sources/${encodeURIComponent(id)}`,
+      RUN: (id: string) => `/admin/job-sources/${encodeURIComponent(id)}/run`,
+    },
+    AI_APPLY: {
+      OVERVIEW: '/admin/ai-apply/overview',
+      APPLICATIONS: '/admin/ai-apply/applications',
+      FAILURES: '/admin/ai-apply/failures',
+      SITES: '/admin/ai-apply/sites',
+      WORKERS: '/admin/ai-apply/workers',
+      COSTS: '/admin/ai-apply/costs',
+      REQUEUE: (id: string) => `/admin/ai-apply/applications/${encodeURIComponent(id)}/requeue`,
+      OPEN_SITE: (site: number) => `/admin/ai-apply/sites/${site}/open`,
+      CLOSE_SITE: (site: number) => `/admin/ai-apply/sites/${site}/close`,
+    },
+    DASHBOARD_STATISTICS: '/admin/dashboard/statistics',
+    DASHBOARD_RECENT_PAYMENTS: '/admin/dashboard/recent-payments',
+    DASHBOARD_RECENT_USERS: '/admin/dashboard/recent-users',
+    DASHBOARD_CHARTS: '/admin/dashboard/charts',
+    JOBS: '/admin/jobs',
+    JOBS_COMPOSE: '/admin/jobs/compose',
+    JOB_DISCOVERY_RUN: '/admin/job-discovery/run',
+    JOB_DISCOVERY_RUNS: '/admin/job-discovery/runs',
+    JOB_DISCOVERY_RUN_DETAILS: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}`,
+    JOB_DISCOVERY_PREVIEW: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}/preview`,
+    JOB_DISCOVERY_COMMIT: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}/commit`,
+    JOB: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}`,
+    JOB_PUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/publish`,
+    JOB_UNPUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unpublish`,
+    JOB_CLOSE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/close`,
+    JOB_ARCHIVE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/archive`,
+    JOB_FEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/feature`,
+    JOB_UNFEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unfeature`,
+    JOB_FEATURED: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/featured`,
+    JOB_HIDDEN: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/hidden`,
+    REFERRAL_APPROVE: (referralId: string) => `/admin/referrals/${encodeURIComponent(referralId)}/approve`,
+    REFERRAL_REJECT: (referralId: string) => `/admin/referrals/${encodeURIComponent(referralId)}/reject`,
+    COMPANIES: '/admin/companies',
+    JOB_RECRUITER_CONTACT: (jobId: string) =>
+      `/admin/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
+    COMPANY: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}`,
+    COMPANY_LOGO_RESOLVE: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}/logo/resolve`,
+    COMPANY_OPTIONS: '/admin/companies/options',
+    CATEGORIES: '/admin/categories',
+    CATEGORY: (categoryId: string) => `/admin/categories/${encodeURIComponent(categoryId)}`,
+    CATEGORY_OPTIONS: '/admin/categories/options',
+    APPLICATIONS: '/admin/applications',
+    APPLICATION: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}`,
+    APPLICATION_STATUS: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}/status`,
+    APPLICATION_RESUME: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}/resume`,
+    AUDIT_LOGS: '/admin/audit-logs',
+    INTERVIEW_INSIGHTS: '/admin/interview-insights',
+    INTERVIEW_INSIGHT_MODERATION: (insightId: string) =>
+      `/admin/interview-insights/${encodeURIComponent(insightId)}/moderation`,
+    INTERVIEW_INSIGHT_REPORTS: '/admin/interview-insight-reports',
+    INTERVIEW_INSIGHT_REPORT: (reportId: string) =>
+      `/admin/interview-insight-reports/${encodeURIComponent(reportId)}`,
+    IMPORTS: {
+      COMPANIES_PREVIEW: '/admin/imports/companies/preview',
+      COMPANIES_COMMIT: '/admin/imports/companies/commit',
+      JOBS_PREVIEW: '/admin/imports/jobs/preview',
+      JOBS_COMMIT: '/admin/imports/jobs/commit',
+      COMPANIES_TEMPLATE: '/admin/imports/templates/companies',
+      JOBS_TEMPLATE: '/admin/imports/templates/jobs',
+    },
+  },
+  DASHBOARD: {
+    MEMBERSHIPS: '/dashboard/memberships',
+    NOTIFICATIONS: '/dashboard/notifications',
+    NOTIFICATION_READ: (notificationId: string) =>
+      `/dashboard/notifications/${encodeURIComponent(notificationId)}/read`,
+    NOTIFICATIONS_READ_ALL: '/dashboard/notifications/read-all',
+    CHANGE_PASSWORD: '/dashboard/change-password',
+  },
+  CANDIDATE: {
+    PROFILE: '/candidate/profile',
+    PROFILE_ABOUT: '/candidate/profile/about',
+    PROFILE_BASIC_DETAILS: '/candidate/profile/basic-details',
+    PROFILE_CAREER_PREFERENCES: '/candidate/profile/career-preferences',
+    PROFILE_PHOTO: '/candidate/profile/photo',
+    PROFILE_SKILLS: '/candidate/profile/skills',
+    PROFILE_SKILL: (skillId: string) => `/candidate/profile/skills/${encodeURIComponent(skillId)}`,
+    PROFILE_COMPLETION: '/candidate/profile/completion',
+    PORTFOLIO: '/candidate/portfolio',
+    PORTFOLIO_SETTINGS: '/candidate/portfolio/settings',
+    PORTFOLIO_PREVIEW: '/candidate/portfolio/preview',
+    PORTFOLIO_PUBLISH: '/candidate/portfolio/publish',
+    PORTFOLIO_UNPUBLISH: '/candidate/portfolio/unpublish',
+    PORTFOLIO_COLLECTION: (collection: string) => `/candidate/portfolio/${collection}`,
+    PORTFOLIO_RECORD: (collection: string, recordId: string) =>
+      `/candidate/portfolio/${collection}/${encodeURIComponent(recordId)}`,
+    PORTFOLIO_CUSTOM_ITEMS: (sectionId: string) =>
+      `/candidate/portfolio/custom-sections/${encodeURIComponent(sectionId)}/items`,
+    PORTFOLIO_CUSTOM_ITEM: (sectionId: string, itemId: string) =>
+      `/candidate/portfolio/custom-sections/${encodeURIComponent(sectionId)}/items/${encodeURIComponent(itemId)}`,
+    ONBOARDING: '/candidate/onboarding',
+    CAREER_SNAPSHOT: '/candidate/profile/career-snapshot',
+    RESUME: '/candidate/resume',
+    RESUME_STATUS: '/candidate/resume/status',
+    RECOMMENDED_JOBS: '/candidate/jobs/recommended',
+    SAVED_JOBS: '/candidate/saved-jobs',
+    APPLICATION_QUOTA: '/candidate/application-quota',
+    SAVED_JOB: (jobId: string) => `/candidate/saved-jobs/${encodeURIComponent(jobId)}`,
+    APPLICATIONS: '/candidate/applications',
+    APPLICATION: (applicationId: string) =>
+      `/candidate/applications/${encodeURIComponent(applicationId)}`,
+    APPLY: (jobId: string) => `/candidate/jobs/${encodeURIComponent(jobId)}/apply`,
+    WITHDRAW_APPLICATION: (applicationId: string) =>
+      `/candidate/applications/${encodeURIComponent(applicationId)}/withdraw`,
+    RECRUITER_CONTACT: (jobId: string) =>
+      `/candidate/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
+    INTERVIEW_INSIGHTS: '/candidate/interview-insights',
+    COMPANY_SEARCH: '/candidate/companies/search',
+    COMPANIES: '/candidate/companies',
+    INTERVIEW_INSIGHT: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}`,
+    INTERVIEW_INSIGHT_FEEDBACK: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}/feedback`,
+    INTERVIEW_INSIGHT_REPORT: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}/report`,
+    INTERVIEW_INSIGHT_CONTRIBUTIONS: '/candidate/interview-insights/my-contributions',
+    COMPANY_INTERVIEW_INSIGHT_SUMMARY: (companyId: string) =>
+      `/candidate/interview-insights/company/${encodeURIComponent(companyId)}/summary`,
+    INTERVIEW_SCHEDULES: '/candidate/interview-schedules',
+    INTERVIEW_SCHEDULE: (scheduleId: string) =>
+      `/candidate/interview-schedules/${encodeURIComponent(scheduleId)}`,
+  },
+  PUBLIC: {
+    PORTFOLIO: (slug: string) => `/portfolios/${encodeURIComponent(slug)}`,
+  },
+} as const;
+
+
+========================================
+FILE: src\api\apiClient.ts
+========================================
+
+import axios, {
+  type AxiosError,
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
+} from 'axios';
+
+import { environment } from '@config/environment';
+import { API_ENDPOINTS } from '@/constants/apiEndpoints';
+import { authTokenStore } from '@/services/authTokenStore';
+import type { AuthenticationResponse } from '@/types';
+import { toApiRequestError } from './apiError';
+
+interface RetriableRequestConfig extends InternalAxiosRequestConfig {
+  hasRetried?: boolean;
+}
+
+// Normal APIs keep the normal configured timeout.
+const apiClient: AxiosInstance = axios.create({
+  baseURL: environment.apiBaseUrl,
+  timeout: environment.apiTimeoutMs,
+  headers: { Accept: 'application/json' },
+});
+
+// Refresh may happen immediately after a Render cold start.
+// Give authentication refresh more time than normal API requests.
+const REFRESH_TIMEOUT_MS = Math.max(environment.apiTimeoutMs, 30_000);
+
+const refreshClient: AxiosInstance = axios.create({
+  baseURL: environment.apiBaseUrl,
+  timeout: REFRESH_TIMEOUT_MS,
+  headers: { Accept: 'application/json' },
+});
+
+let refreshPromise: Promise<AuthenticationResponse> | null = null;
+
+const endpointsWithoutAutomaticRefresh = new Set<string>([
+  API_ENDPOINTS.AUTH.REGISTER,
+  API_ENDPOINTS.AUTH.VERIFY_REGISTRATION_OTP,
+  API_ENDPOINTS.AUTH.RESEND_REGISTRATION_OTP,
+  API_ENDPOINTS.AUTH.LOGIN,
+  API_ENDPOINTS.AUTH.REQUEST_LOGIN_OTP,
+  API_ENDPOINTS.AUTH.LOGIN_WITH_OTP,
+  API_ENDPOINTS.AUTH.REFRESH_TOKEN,
+  API_ENDPOINTS.AUTH.REQUEST_PASSWORD_RESET,
+  API_ENDPOINTS.AUTH.COMPLETE_PASSWORD_RESET,
+]);
+
+const refreshAccessToken = async (): Promise<AuthenticationResponse> => {
+  const refreshToken = authTokenStore.getRefreshToken();
+
+  if (!refreshToken) {
+    throw new Error('No refresh token is available.');
+  }
+
+  const response = await refreshClient.post<AuthenticationResponse>(
+    API_ENDPOINTS.AUTH.REFRESH_TOKEN,
+    { refreshToken },
+  );
+
+  authTokenStore.set(response.data);
+
+  window.dispatchEvent(
+    new CustomEvent('auth:session-refreshed', {
+      detail: {
+        accessTokenExpiresAtUtc: response.data.accessTokenExpiresAtUtc,
+        user: response.data.user,
+      },
+    }),
+  );
+
+  return response.data;
+};
+
+const shouldExpireSession = (error: unknown): boolean => {
+  if (!axios.isAxiosError(error)) {
+    // No refresh token / unexpected local authentication failure.
+    return true;
+  }
+
+  const status = error.response?.status;
+
+  // These mean the refresh token itself is rejected/invalid.
+  return status === 400 || status === 401 || status === 403;
+};
+
+apiClient.interceptors.request.use((config) => {
+  const accessToken = authTokenStore.getAccessToken();
+
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  return config;
+});
+
+apiClient.interceptors.response.use(
+  (response) => response,
+
+  async (error: AxiosError) => {
+    const originalRequest =
+      error.config as RetriableRequestConfig | undefined;
+
+    const skipsAutomaticRefresh = originalRequest?.url
+      ? endpointsWithoutAutomaticRefresh.has(originalRequest.url)
+      : false;
+
+    if (
+      error.response?.status !== 401 ||
+      !originalRequest ||
+      originalRequest.hasRetried ||
+      skipsAutomaticRefresh
+    ) {
+      return Promise.reject(toApiRequestError(error));
+    }
+
+    originalRequest.hasRetried = true;
+
+    try {
+      // Multiple simultaneous 401 responses share one refresh request.
+      refreshPromise ??= refreshAccessToken().finally(() => {
+        refreshPromise = null;
+      });
+
+      const response = await refreshPromise;
+
+      originalRequest.headers.Authorization =
+        `Bearer ${response.accessToken}`;
+
+      return apiClient(originalRequest);
+    } catch (refreshError: unknown) {
+      // Important:
+      // Do NOT destroy the user's session because Render/network temporarily
+      // timed out. Only expire when the refresh token is actually rejected.
+      if (shouldExpireSession(refreshError)) {
+        authTokenStore.clear();
+
+        window.dispatchEvent(
+          new CustomEvent('auth:session-expired'),
+        );
+      }
+
+      return Promise.reject(
+        toApiRequestError(refreshError),
+      );
+    }
+  },
+);
+
+export { apiClient };
+
+========================================
+FILE: src\api\axiosBaseQuery.ts
+========================================
+
+import type { AxiosRequestConfig, Method, RawAxiosRequestHeaders, ResponseType } from 'axios';
+import type { BaseQueryApi } from '@reduxjs/toolkit/query';
+
+import { apiClient } from './apiClient';
+import { toApiRequestError } from './apiError';
+
+export interface AxiosBaseQueryError {
+  status?: number;
+  message: string;
+  code?: string;
+  errors?: Record<string, string[]>;
+  retryAfterSeconds?: number;
+  redirectToMembership?: boolean;
+}
+
+interface AxiosBaseQueryArgs {
+  url: string;
+  method?: Method;
+  data?: unknown;
+  headers?: RawAxiosRequestHeaders;
+  params?: object;
+  responseType?: ResponseType;
+  timeout?: number;
+  validateStatus?: AxiosRequestConfig['validateStatus'];
+}
+
+export const axiosBaseQuery =
+  () =>
+  async (
+    {
+      data,
+      headers,
+      method = 'GET',
+      params,
+      responseType,
+      timeout,
+      url,
+      validateStatus,
+    }: AxiosBaseQueryArgs,
+    { signal }: Pick<BaseQueryApi, 'dispatch' | 'signal'>,
+  ) => {
+    try {
+      const response = await apiClient.request({
+        data,
+        headers,
+        method,
+        params,
+        responseType,
+        signal,
+        url,
+        ...(validateStatus === undefined ? {} : { validateStatus }),
+        ...(timeout === undefined ? {} : { timeout }),
+      });
+      return { data: response.data as unknown };
+    } catch (error: unknown) {
+      const apiError = toApiRequestError(error);
+      return {
+        error: {
+          code: apiError.code,
+          errors: apiError.errors,
+          message: apiError.message,
+          redirectToMembership: apiError.redirectToMembership,
+          retryAfterSeconds: apiError.retryAfterSeconds,
+          status: apiError.status,
+        } satisfies AxiosBaseQueryError,
+      };
+    }
+  };
+
+
+========================================
+FILE: src\theme\theme.ts
+========================================
+
+import { alpha, createTheme, responsiveFontSizes } from '@mui/material/styles';
+
+const baseTheme = createTheme({
+  cssVariables: { colorSchemeSelector: 'class' },
+  colorSchemes: {
+    light: {
+      palette: {
+        primary: { main: '#0b57d0', dark: '#083d91' },
+        secondary: { main: '#455a64' },
+        background: { default: '#f7f9fc', paper: '#ffffff' },
+        text: { primary: '#172033', secondary: '#566176' },
+      },
+    },
+    dark: {
+      palette: {
+        primary: { main: '#8ab4f8' },
+        secondary: { main: '#b0bec5' },
+        background: { default: '#101319', paper: '#181c24' },
+      },
+    },
+  },
+  spacing: 8,
+  breakpoints: { values: { xs: 0, sm: 600, md: 900, lg: 1200, xl: 1536 } },
+  shape: { borderRadius: 10 },
+  typography: {
+    fontFamily: 'Inter, Roboto, Helvetica, Arial, sans-serif',
+    h1: { fontSize: '2.25rem', fontWeight: 700, lineHeight: 1.2 },
+    h2: { fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.25 },
+    h3: { fontSize: '1.375rem', fontWeight: 600, lineHeight: 1.3 },
+    button: { fontWeight: 600, textTransform: 'none' },
+  },
+  components: {
+    MuiButton: {
+      defaultProps: { disableElevation: true },
+      styleOverrides: {
+        root: {
+          minHeight: 44,
+          borderRadius: 8,
+          paddingInline: 20,
+          whiteSpace: 'normal',
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: { root: { minHeight: 44, minWidth: 44 } },
+    },
+    MuiPaginationItem: {
+      styleOverrides: { root: { minHeight: 36, minWidth: 36 } },
+    },
+    MuiTextField: { defaultProps: { size: 'small', fullWidth: true } },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          borderRadius: 8,
+          '&.Mui-focused': { boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.12)}` },
+        }),
+      },
+    },
+    MuiCard: {
+      defaultProps: { elevation: 0 },
+      styleOverrides: {
+        root: ({ theme }) => ({
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 12,
+        }),
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          maxWidth: 'calc(100% - 32px)',
+          margin: 16,
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        action: {
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          marginRight: 0,
+        },
+        message: { minWidth: 0 },
+      },
+    },
+  },
+});
+
+export const appTheme = responsiveFontSizes(baseTheme);
+

@@ -27,7 +27,7 @@ import { ConsultantWorkspaceGate } from '@/features/careerGuidance/components/Co
 import { GuestRoute } from './GuestRoute';
 import { supportRoutes } from '@/features/support/supportApi';
 import { adminSupportRoutes } from '@/features/support/admin/adminSupportApi';
-
+import { EmployerLayout } from '@/layouts/EmployerLayout';
 type PageImport = Promise<Record<string, ComponentType>>;
 
 const lazyPage = (loadPage: () => PageImport, exportName: string) => {
@@ -58,9 +58,17 @@ export const appRoutes: RouteObject[] = [
 
     children: [
       {
+        
         element: <PublicLayout />,
 
         children: [
+          {
+          path: ROUTES.EMPLOYER_LOGIN,
+          element: lazyPage(
+            () => import('@/pages/EmployerLoginPage'),
+            'EmployerLoginPage',
+          ),
+        },
           {
             path: ROUTES.HOME,
 
@@ -173,6 +181,20 @@ export const appRoutes: RouteObject[] = [
         element: <GuestRoute />,
 
         children: [
+           {
+      path: ROUTES.EMPLOYER_REGISTER,
+      element: lazyPage(
+        () => import('@/pages/EmployerRegisterPage'),
+        'EmployerRegisterPage',
+      ),
+    },
+    {
+  path: ROUTES.EMPLOYER_COMPANY_SETUP,
+  element: lazyPage(
+    () => import('@/pages/EmployerCompanySetupPage'),
+    'EmployerCompanySetupPage',
+  ),
+},
           {
             element: <AuthLayout />,
 
@@ -215,6 +237,146 @@ export const appRoutes: RouteObject[] = [
         ],
       },
 
+    {
+  element: <EmployerLayout />,
+  children: [
+    
+    {
+      path: ROUTES.EMPLOYER_DASHBOARD,
+      element: lazyPage(
+        () => import('@/pages/EmployerDashboardPage'),
+        'EmployerDashboardPage',
+      ),
+    },
+    {
+      path: ROUTES.EMPLOYER_JOBS,
+      element: lazyPage(
+        () => import('@/pages/EmployerJobsPage'),
+        'EmployerJobsPage',
+      ),
+    },
+    {
+      path: ROUTES.EMPLOYER_JOB_CREATE,
+      element: lazyPage(
+        () => import('@/pages/EmployerCreateJobPage'),
+        'EmployerCreateJobPage',
+      ),
+    },
+    {
+      path: ROUTES.EMPLOYER_JOB_CREATE_REQUIREMENTS,
+      element: lazyPage(
+        () => import('@/pages/EmployerJobRequirementsPage'),
+        'EmployerJobRequirementsPage',
+      ),
+    },
+    {
+      path: ROUTES.EMPLOYER_JOB_CREATE_SCREENING,
+      element: lazyPage(
+        () => import('@/pages/EmployerJobScreeningPage'),
+        'EmployerJobScreeningPage',
+      ),
+    },
+    {
+  path: ROUTES.EMPLOYER_JOB_CREATE_REVIEW,
+  element: lazyPage(
+    () => import('@/pages/EmployerJobReviewPage'),
+    'EmployerJobReviewPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_JOB_DETAILS,
+  element: lazyPage(
+    () => import('@/pages/EmployerJobDetailsPage'),
+    'EmployerJobDetailsPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_CANDIDATE_FIND,
+  element: lazyPage(
+    () => import('@/pages/EmployerCandidateFinderPage'),
+    'EmployerCandidateFinderPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_CANDIDATES,
+  element: lazyPage(
+    () => import('@/pages/EmployerCandidatesPage'),
+    'EmployerCandidatesPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_CANDIDATE_DETAILS,
+  element: lazyPage(
+    () => import('@/pages/EmployerCandidateProfilePage'),
+    'EmployerCandidateProfilePage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_PIPELINE,
+  element: lazyPage(
+    () => import('@/pages/EmployerPipelinePage'),
+    'EmployerPipelinePage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_INTERVIEWS,
+  element: lazyPage(
+    () => import('@/pages/EmployerInterviewsPage'),
+    'EmployerInterviewsPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_SCREENING,
+  element: lazyPage(
+    () => import('@/pages/EmployerScreeningPage'),
+    'EmployerScreeningPage',
+  ),
+},
+
+{
+  path: ROUTES.EMPLOYER_TALENT_POOL,
+  element: lazyPage(
+    () => import('@/pages/EmployerTalentPoolPage'),
+    'EmployerTalentPoolPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_COMPANY,
+  element: lazyPage(
+    () => import('@/pages/EmployerCompanyProfilePage'),
+    'EmployerCompanyProfilePage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_SETTINGS,
+  element: lazyPage(
+    () => import('@/pages/EmployerSettingsPage'),
+    'EmployerSettingsPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_INTERVIEW_DETAILS,
+  element: lazyPage(
+    () => import('@/pages/EmployerInterviewDetailPage'),
+    'EmployerInterviewDetailPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_MESSAGES,
+  element: lazyPage(
+    () => import('@/pages/EmployerMessagesPage'),
+    'EmployerMessagesPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_ANALYTICS,
+  element: lazyPage(
+    () => import('@/pages/EmployerAnalyticsPage'),
+    'EmployerAnalyticsPage',
+  ),
+},
+  ],
+},
       {
         element: <CandidateRoute />,
 
@@ -273,6 +435,14 @@ export const appRoutes: RouteObject[] = [
                   'HiringDriveDetailsPage',
                 ),
               },
+              {
+  path: ROUTES.CANDIDATE_MESSAGES,
+  element: lazyPage(
+    () => import('@/pages/CandidateMessagesPage'),
+    'CandidateMessagesPage',
+  ),
+},
+
 
               {
                 path: ROUTES.REFER_A_JOB,

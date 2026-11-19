@@ -1,0 +1,447 @@
+
+========================================
+FILE: src\layouts\UserDashboardLayout.tsx
+========================================
+
+import { NotificationBell } from '@/features/dashboard/components/NotificationBell';
+import { useGetReferrerInboxQuery } from '@/features/referrals/api/marketplaceApi';
+import { requestStatus } from '@/features/referrals/types/marketplaceModels';
+import { DashboardLayoutShell } from '@/components/navigation/DashboardLayoutShell';
+import { ROUTES } from '@/constants/routes';
+import { useGetMembershipsQuery } from '@/features/dashboard/api/dashboardApi';
+import { isMembershipActive } from '@/features/payments/utils/entitlement';
+import { candidateNavigationItems } from './candidateNavigation';
+export const UserDashboardLayout = () => {
+  const inbox = useGetReferrerInboxQuery(undefined, {
+    pollingInterval: 60000,
+    refetchOnMountOrArgChange: true,
+  });
+  const pendingCount = inbox.currentData?.filter(
+    (r) => requestStatus(r.request.status) === 'Requested',
+  ).length;
+  const memberships = useGetMembershipsQuery();
+  const activeAccessCount =
+    memberships.data?.filter((membership) => isMembershipActive(membership)).length ?? 0;
+  const accessStatus = memberships.isLoading
+    ? 'Checking access…'
+    : memberships.isError
+      ? 'Access status unavailable'
+      : activeAccessCount > 0
+        ? `${activeAccessCount} active access ${activeAccessCount === 1 ? 'plan' : 'plans'}`
+        : 'No active access';
+
+  return (
+    <DashboardLayoutShell
+      accessStatus={accessStatus}
+      accountMenuProfilePath={ROUTES.PORTFOLIO}
+      areaLabel="Candidate workspace"
+      collapsibleDesktop
+      navigationItems={candidateNavigationItems.map((item) =>
+        item.path === '/dashboard/referral-requests' && pendingCount
+          ? { ...item, badge: String(pendingCount) }
+          : item,
+      )}
+      notificationBell={<NotificationBell />}
+      showNotifications
+    />
+  );
+};
+
+
+========================================
+FILE: src\constants\routes.ts
+========================================
+
+export const ROUTES = {
+  ADMIN_JOB_SOURCES: '/admin/job-sources',
+  HOME: '/',
+  JOBS: '/jobs',
+  JOB_DETAILS: '/jobs/:slug',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  VERIFY_EMAIL: '/verify-email',
+  VERIFY_REGISTRATION_MOBILE: '/register/verify-mobile',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
+  TERMS_OF_USE: '/terms-of-use',
+  PRIVACY_POLICY: '/privacy-policy',
+  COOKIE_POLICY: '/cookie-policy',
+  REFUND_POLICY: '/refund-and-cancellation-policy',
+  GRIEVANCE_POLICY: '/grievance-redressal-policy',
+  CONTACT_US: '/contact-us',
+  ABOUT_US: '/about-us',
+  PRICING: '/membership',
+  UNAUTHORIZED: '/unauthorized',
+  ONBOARDING: '/onboarding',
+  CAREER_SNAPSHOT: '/career-snapshot',
+  DASHBOARD: '/dashboard',
+  DASHBOARD_JOBS: '/dashboard/jobs',
+  DASHBOARD_JOB_DETAILS: '/dashboard/jobs/:slug',
+  HIRING_DRIVE_DETAILS: '/hiring-drives/:id',
+  DASHBOARD_HIRING_DRIVE_DETAILS: '/dashboard/hiring-drives/:id',
+  REFER_A_JOB: '/dashboard/refer-a-job',
+  REFERRALS: '/dashboard/referrals',
+  REFERRAL_CONTACT_DETAILS: '/dashboard/jobs/referral/:jobId/contact',
+  PORTFOLIO: '/dashboard/portfolio',
+  PROFILE: '/dashboard/profile',
+  PUBLIC_PORTFOLIO: '/p/:slug',
+  RESUME: '/dashboard/resume',
+  RESUME_MAKER: '/dashboard/resume-maker',
+  SAVED_JOBS: '/dashboard/saved-jobs',
+  APPLICATIONS: '/dashboard/applications',
+  APPLICATION_DETAILS: '/dashboard/applications/:applicationId',
+  INTERVIEW_INSIGHTS: '/dashboard/interview-insights',
+  CAREER_GUIDANCE: '/career-guidance',
+  AI_APPLY: '/ai-apply',
+  AI_APPLY_SETUP: '/ai-apply/setup',
+  AI_APPLY_APPLICATIONS: '/ai-apply/applications',
+  AI_APPLY_APPLICATION_DETAILS: '/ai-apply/applications/:id',
+  AI_APPLY_QUESTIONS: '/ai-apply/questions',
+  AI_APPLY_QUESTION_DETAILS: '/ai-apply/questions/:id',
+  AI_APPLY_ANSWERS: '/ai-apply/answers',
+  AI_APPLY_SUBSCRIPTION: '/ai-apply/subscription',
+  AI_APPLY_CONNECTIONS: '/ai-apply/connections',
+  INTERVIEW_INSIGHT_CONTRIBUTIONS: '/dashboard/interview-insights/my-contributions',
+  NOTIFICATIONS: '/dashboard/notifications',
+  SETTINGS: '/dashboard/settings',
+  MEMBERSHIP: '/dashboard/membership',
+  PAYMENTS: '/dashboard/payments',
+  PAYMENT: '/payment',
+  PAYMENT_SUCCESS: '/payment/success',
+  PAYMENT_PENDING: '/payment/pending',
+  PAYMENT_FAILED: '/payment/failed',
+  PHONEPE_RETURN: '/payment/phonepe/return',
+  PHONEPE_RETURN_LEGACY: '/payments/phonepe/return',
+  ADMIN: '/admin',
+  ADMIN_NOTIFICATIONS: '/admin/notifications',
+  ADMIN_JOBS: '/admin/jobs',
+  ADMIN_JOB_CREATE: '/admin/jobs/create',
+  ADMIN_JOB_DISCOVERY: '/admin/jobs/discovery',
+  ADMIN_JOB_DISCOVERY_RUN: '/admin/jobs/discovery/:runId',
+  ADMIN_JOB_DETAILS: '/admin/jobs/:jobId',
+  ADMIN_JOB_EDIT: '/admin/jobs/:jobId/edit',
+  ADMIN_COMPANIES: '/admin/companies',
+  ADMIN_COMPANY_CREATE: '/admin/companies/create',
+  ADMIN_COMPANY_DETAILS: '/admin/companies/:companyId',
+  ADMIN_COMPANY_EDIT: '/admin/companies/:companyId/edit',
+  ADMIN_CATEGORIES: '/admin/categories',
+  ADMIN_CATEGORY_CREATE: '/admin/categories/create',
+  ADMIN_CATEGORY_DETAILS: '/admin/categories/:categoryId',
+  ADMIN_CATEGORY_EDIT: '/admin/categories/:categoryId/edit',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_USER_DETAILS: '/admin/users/:userId',
+  ADMIN_APPLICATIONS: '/admin/applications',
+  ADMIN_APPLICATION_DETAILS: '/admin/applications/:applicationId',
+  ADMIN_PAYMENTS: '/admin/payments',
+  ADMIN_PAYMENT_DETAILS: '/admin/payments/:paymentId',
+  ADMIN_AUDIT_LOGS: '/admin/audit-logs',
+  ADMIN_INTERVIEW_INSIGHTS: '/admin/interview-insights',
+  ADMIN_AI_APPLY: '/admin/ai-apply',
+  ADMIN_CAREER_GUIDANCE: '/admin/career-guidance/consultants',
+} as const;
+
+export const buildJobDetailsPath = (slug: string): string =>
+  ROUTES.JOB_DETAILS.replace(':slug', encodeURIComponent(slug));
+
+export const buildDashboardJobDetailsPath = (slug: string): string =>
+  ROUTES.DASHBOARD_JOB_DETAILS.replace(':slug', encodeURIComponent(slug));
+
+export const buildHiringDriveDetailsPath = (id: string): string =>
+  ROUTES.HIRING_DRIVE_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildDashboardHiringDriveDetailsPath = (id: string): string =>
+  ROUTES.DASHBOARD_HIRING_DRIVE_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildReferralContactDetailsPath = (jobId: string): string =>
+  ROUTES.REFERRAL_CONTACT_DETAILS.replace(':jobId', encodeURIComponent(jobId));
+
+export const buildApplicationDetailsPath = (applicationId: string): string =>
+  ROUTES.APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+
+export const buildAIApplyApplicationDetailsPath = (id: string): string =>
+  ROUTES.AI_APPLY_APPLICATION_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildAIApplyQuestionDetailsPath = (id: string): string =>
+  ROUTES.AI_APPLY_QUESTION_DETAILS.replace(':id', encodeURIComponent(id));
+
+export const buildInterviewInsightsPath = (params?: Record<string, string>): string => {
+  const search = new URLSearchParams(params);
+  return `${ROUTES.INTERVIEW_INSIGHTS}${search.size ? `?${search.toString()}` : ''}`;
+};
+
+export const buildPublicPortfolioPath = (slug: string): string =>
+  ROUTES.PUBLIC_PORTFOLIO.replace(':slug', encodeURIComponent(slug));
+
+export const buildAdminJobEditPath = (jobId: string): string =>
+  ROUTES.ADMIN_JOB_EDIT.replace(':jobId', encodeURIComponent(jobId));
+
+export const buildAdminJobDetailsPath = (jobId: string): string =>
+  ROUTES.ADMIN_JOB_DETAILS.replace(':jobId', encodeURIComponent(jobId));
+
+export const buildAdminJobDiscoveryRunPath = (runId: string): string =>
+  ROUTES.ADMIN_JOB_DISCOVERY_RUN.replace(':runId', encodeURIComponent(runId));
+
+export const buildAdminCompanyDetailsPath = (companyId: string): string =>
+  ROUTES.ADMIN_COMPANY_DETAILS.replace(':companyId', encodeURIComponent(companyId));
+
+export const buildAdminCompanyEditPath = (companyId: string): string =>
+  ROUTES.ADMIN_COMPANY_EDIT.replace(':companyId', encodeURIComponent(companyId));
+
+export const buildAdminCategoryDetailsPath = (categoryId: string): string =>
+  ROUTES.ADMIN_CATEGORY_DETAILS.replace(':categoryId', encodeURIComponent(categoryId));
+
+export const buildAdminCategoryEditPath = (categoryId: string): string =>
+  ROUTES.ADMIN_CATEGORY_EDIT.replace(':categoryId', encodeURIComponent(categoryId));
+
+export const buildAdminApplicationDetailsPath = (applicationId: string): string =>
+  ROUTES.ADMIN_APPLICATION_DETAILS.replace(':applicationId', encodeURIComponent(applicationId));
+
+export const buildAdminUserDetailsPath = (userId: string): string =>
+  ROUTES.ADMIN_USER_DETAILS.replace(':userId', encodeURIComponent(userId));
+
+export const buildAdminPaymentDetailsPath = (paymentId: string): string =>
+  ROUTES.ADMIN_PAYMENT_DETAILS.replace(':paymentId', encodeURIComponent(paymentId));
+
+
+========================================
+FILE: src\constants\apiEndpoints.ts
+========================================
+
+export const API_ENDPOINTS = {
+  CATEGORIES: { OPTIONS: '/categories/options' },
+  AUTH: {
+    REGISTER: '/auth/register',
+    VERIFY_EMAIL: '/auth/verify-email',
+    VERIFY_REGISTRATION_OTP: '/auth/verify-registration-otp',
+    RESEND_REGISTRATION_OTP: '/auth/resend-registration-otp',
+    LOGIN: '/auth/login',
+    GOOGLE: '/auth/google',
+    GOOGLE_CODE: '/auth/google/code',
+    REQUEST_LOGIN_OTP: '/auth/request-login-otp',
+    LOGIN_WITH_OTP: '/auth/login-with-otp',
+    REFRESH_TOKEN: '/auth/refresh',
+    REQUEST_PASSWORD_RESET: '/auth/request-password-reset',
+    COMPLETE_PASSWORD_RESET: '/auth/complete-password-reset',
+    CHANGE_PASSWORD: '/auth/change-password',
+    LOGOUT: '/auth/logout',
+    ADMIN_HEALTH: '/auth/admin/health',
+  },
+  LEGAL: {
+    TERMS_OF_USE: '/legal/terms-of-use',
+    PRIVACY_POLICY: '/legal/privacy-policy',
+  },
+  JOBS: {
+    SEARCH: '/jobs',
+    REFERRALS: '/jobs/referrals',
+    FILTER_OPTIONS: '/jobs/filter-options',
+    FACETS: '/jobs/facets',
+    LATEST: '/jobs/latest',
+    NEWEST: '/jobs/newest',
+    FEATURED: '/jobs/featured',
+    POPULAR_COMPANIES: '/jobs/companies/popular',
+    COMPANIES: '/jobs/companies',
+    DETAILS: (slug: string) => `/jobs/${encodeURIComponent(slug)}`,
+    RELATED: (slug: string) => `/jobs/${encodeURIComponent(slug)}/related`,
+  },
+  MEMBERSHIPS: {
+    APPLY_TO_JOB: (slug: string) => `/memberships/jobs/${encodeURIComponent(slug)}/apply`,
+  },
+  REFERRALS: {
+    PUBLIC: '/referrals/public',
+    SUBMIT: '/referrals',
+    MINE: '/referrals/mine',
+    EXTRACT_FROM_URL: '/referrals/extract-from-url',
+    UNLOCK: (jobId: string) => `/referrals/unlock/${encodeURIComponent(jobId)}`,
+  },
+  PAYMENTS: {
+    PLANS: '/payments/plans',
+    CHECKOUT: '/payments/checkout',
+    CREATE_PHONEPE_CHECKOUT: '/payments/phonepe/checkout',
+    PHONEPE_RETURN: (merchantOrderId: string) =>
+      `/payments/phonepe/return/${encodeURIComponent(merchantOrderId)}`,
+    PENDING_MEMBERSHIP_CHECKOUT: '/payments/pending-membership-checkout',
+    CANCEL_PENDING_MEMBERSHIP_CHECKOUT: (publicReference: string) =>
+      `/payments/pending-membership-checkout/${encodeURIComponent(publicReference)}/cancel`,
+    CREATE_RAZORPAY_ORDER: '/payments/razorpay/orders',
+    CONFIRM_RAZORPAY: (paymentId: string) =>
+      `/payments/${encodeURIComponent(paymentId)}/razorpay/confirm`,
+    RECONCILE_RAZORPAY: (paymentId: string) =>
+      `/payments/${encodeURIComponent(paymentId)}/razorpay/reconcile`,
+    STATUS: '/payments/status',
+    LIST: '/payments',
+    HISTORY: '/payments/history',
+  },
+  AI_APPLY: {
+    ACCESS: '/ai-apply/access',
+    PROFILE: '/ai-apply/profile',
+    PREFERENCES: '/ai-apply/preferences',
+    SETTINGS: '/ai-apply/settings',
+    ENABLE: '/ai-apply/enable',
+    DISABLE: '/ai-apply/disable',
+    PAUSE: '/ai-apply/pause',
+    RESUME: '/ai-apply/resume',
+    RULES: '/ai-apply/rules',
+    RULE: (id: string) => `/ai-apply/rules/${encodeURIComponent(id)}`,
+    DASHBOARD: '/ai-apply/dashboard',
+    APPLICATIONS: '/ai-apply/applications',
+    QUEUE_APPLICATION: '/ai-apply/applications/queue',
+    APPLICATION: (id: string) => `/ai-apply/applications/${encodeURIComponent(id)}`,
+    CANCEL_APPLICATION: (id: string) => `/ai-apply/applications/${encodeURIComponent(id)}/cancel`,
+    CONTINUE_APPLICATION: (id: string) =>
+      `/ai-apply/applications/${encodeURIComponent(id)}/continue`,
+    ANALYTICS: '/ai-apply/analytics',
+    QUESTIONS: '/ai-apply/questions',
+    QUESTION: (id: string) => `/ai-apply/questions/${encodeURIComponent(id)}`,
+    ANSWER_QUESTION: (id: string) => `/ai-apply/questions/${encodeURIComponent(id)}/answer`,
+    SKIP_QUESTION: (id: string) => `/ai-apply/questions/${encodeURIComponent(id)}/skip`,
+    ANSWERS: '/ai-apply/answers',
+    ANSWER: (id: string) => `/ai-apply/answers/${encodeURIComponent(id)}`,
+    EXTERNAL_SESSION: (site: number) => `/ai-apply/external-sessions/${site}`,
+    START_EXTERNAL_SESSION_CAPTURE: (site: number) => `/ai-apply/external-sessions/${site}/capture`,
+    EXTERNAL_SESSION_CAPTURE: (captureId: string) =>
+      `/ai-apply/external-sessions/captures/${encodeURIComponent(captureId)}`,
+    COMPLETE_EXTERNAL_SESSION_CAPTURE: (captureId: string) =>
+      `/ai-apply/external-sessions/captures/${encodeURIComponent(captureId)}/complete`,
+    REVOKE_EXTERNAL_SESSION: (sessionId: string) =>
+      `/ai-apply/external-sessions/${encodeURIComponent(sessionId)}`,
+  },
+  ADMIN: {
+    JOB_SOURCES: {
+      LIST: '/admin/job-sources',
+      DETAILS: (id: string) => `/admin/job-sources/${encodeURIComponent(id)}`,
+      RUN: (id: string) => `/admin/job-sources/${encodeURIComponent(id)}/run`,
+    },
+    AI_APPLY: {
+      OVERVIEW: '/admin/ai-apply/overview',
+      APPLICATIONS: '/admin/ai-apply/applications',
+      FAILURES: '/admin/ai-apply/failures',
+      SITES: '/admin/ai-apply/sites',
+      WORKERS: '/admin/ai-apply/workers',
+      COSTS: '/admin/ai-apply/costs',
+      REQUEUE: (id: string) => `/admin/ai-apply/applications/${encodeURIComponent(id)}/requeue`,
+      OPEN_SITE: (site: number) => `/admin/ai-apply/sites/${site}/open`,
+      CLOSE_SITE: (site: number) => `/admin/ai-apply/sites/${site}/close`,
+    },
+    DASHBOARD_STATISTICS: '/admin/dashboard/statistics',
+    DASHBOARD_RECENT_PAYMENTS: '/admin/dashboard/recent-payments',
+    DASHBOARD_RECENT_USERS: '/admin/dashboard/recent-users',
+    DASHBOARD_CHARTS: '/admin/dashboard/charts',
+    JOBS: '/admin/jobs',
+    JOBS_COMPOSE: '/admin/jobs/compose',
+    JOB_DISCOVERY_RUN: '/admin/job-discovery/run',
+    JOB_DISCOVERY_RUNS: '/admin/job-discovery/runs',
+    JOB_DISCOVERY_RUN_DETAILS: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}`,
+    JOB_DISCOVERY_PREVIEW: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}/preview`,
+    JOB_DISCOVERY_COMMIT: (runId: string) =>
+      `/admin/job-discovery/runs/${encodeURIComponent(runId)}/commit`,
+    JOB: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}`,
+    JOB_PUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/publish`,
+    JOB_UNPUBLISH: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unpublish`,
+    JOB_CLOSE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/close`,
+    JOB_ARCHIVE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/archive`,
+    JOB_FEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/feature`,
+    JOB_UNFEATURE: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/unfeature`,
+    JOB_FEATURED: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/featured`,
+    JOB_HIDDEN: (jobId: string) => `/admin/jobs/${encodeURIComponent(jobId)}/hidden`,
+    REFERRAL_APPROVE: (referralId: string) => `/admin/referrals/${encodeURIComponent(referralId)}/approve`,
+    REFERRAL_REJECT: (referralId: string) => `/admin/referrals/${encodeURIComponent(referralId)}/reject`,
+    COMPANIES: '/admin/companies',
+    JOB_RECRUITER_CONTACT: (jobId: string) =>
+      `/admin/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
+    COMPANY: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}`,
+    COMPANY_LOGO_RESOLVE: (companyId: string) => `/admin/companies/${encodeURIComponent(companyId)}/logo/resolve`,
+    COMPANY_OPTIONS: '/admin/companies/options',
+    CATEGORIES: '/admin/categories',
+    CATEGORY: (categoryId: string) => `/admin/categories/${encodeURIComponent(categoryId)}`,
+    CATEGORY_OPTIONS: '/admin/categories/options',
+    APPLICATIONS: '/admin/applications',
+    APPLICATION: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}`,
+    APPLICATION_STATUS: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}/status`,
+    APPLICATION_RESUME: (applicationId: string) =>
+      `/admin/applications/${encodeURIComponent(applicationId)}/resume`,
+    AUDIT_LOGS: '/admin/audit-logs',
+    INTERVIEW_INSIGHTS: '/admin/interview-insights',
+    INTERVIEW_INSIGHT_MODERATION: (insightId: string) =>
+      `/admin/interview-insights/${encodeURIComponent(insightId)}/moderation`,
+    INTERVIEW_INSIGHT_REPORTS: '/admin/interview-insight-reports',
+    INTERVIEW_INSIGHT_REPORT: (reportId: string) =>
+      `/admin/interview-insight-reports/${encodeURIComponent(reportId)}`,
+    IMPORTS: {
+      COMPANIES_PREVIEW: '/admin/imports/companies/preview',
+      COMPANIES_COMMIT: '/admin/imports/companies/commit',
+      JOBS_PREVIEW: '/admin/imports/jobs/preview',
+      JOBS_COMMIT: '/admin/imports/jobs/commit',
+      COMPANIES_TEMPLATE: '/admin/imports/templates/companies',
+      JOBS_TEMPLATE: '/admin/imports/templates/jobs',
+    },
+  },
+  DASHBOARD: {
+    MEMBERSHIPS: '/dashboard/memberships',
+    NOTIFICATIONS: '/dashboard/notifications',
+    NOTIFICATION_READ: (notificationId: string) =>
+      `/dashboard/notifications/${encodeURIComponent(notificationId)}/read`,
+    NOTIFICATIONS_READ_ALL: '/dashboard/notifications/read-all',
+    CHANGE_PASSWORD: '/dashboard/change-password',
+  },
+  CANDIDATE: {
+    PROFILE: '/candidate/profile',
+    PROFILE_ABOUT: '/candidate/profile/about',
+    PROFILE_BASIC_DETAILS: '/candidate/profile/basic-details',
+    PROFILE_CAREER_PREFERENCES: '/candidate/profile/career-preferences',
+    PROFILE_PHOTO: '/candidate/profile/photo',
+    PROFILE_SKILLS: '/candidate/profile/skills',
+    PROFILE_SKILL: (skillId: string) => `/candidate/profile/skills/${encodeURIComponent(skillId)}`,
+    PROFILE_COMPLETION: '/candidate/profile/completion',
+    PORTFOLIO: '/candidate/portfolio',
+    PORTFOLIO_SETTINGS: '/candidate/portfolio/settings',
+    PORTFOLIO_PREVIEW: '/candidate/portfolio/preview',
+    PORTFOLIO_PUBLISH: '/candidate/portfolio/publish',
+    PORTFOLIO_UNPUBLISH: '/candidate/portfolio/unpublish',
+    PORTFOLIO_COLLECTION: (collection: string) => `/candidate/portfolio/${collection}`,
+    PORTFOLIO_RECORD: (collection: string, recordId: string) =>
+      `/candidate/portfolio/${collection}/${encodeURIComponent(recordId)}`,
+    PORTFOLIO_CUSTOM_ITEMS: (sectionId: string) =>
+      `/candidate/portfolio/custom-sections/${encodeURIComponent(sectionId)}/items`,
+    PORTFOLIO_CUSTOM_ITEM: (sectionId: string, itemId: string) =>
+      `/candidate/portfolio/custom-sections/${encodeURIComponent(sectionId)}/items/${encodeURIComponent(itemId)}`,
+    ONBOARDING: '/candidate/onboarding',
+    CAREER_SNAPSHOT: '/candidate/profile/career-snapshot',
+    RESUME: '/candidate/resume',
+    RESUME_STATUS: '/candidate/resume/status',
+    RECOMMENDED_JOBS: '/candidate/jobs/recommended',
+    SAVED_JOBS: '/candidate/saved-jobs',
+    APPLICATION_QUOTA: '/candidate/application-quota',
+    SAVED_JOB: (jobId: string) => `/candidate/saved-jobs/${encodeURIComponent(jobId)}`,
+    APPLICATIONS: '/candidate/applications',
+    APPLICATION: (applicationId: string) =>
+      `/candidate/applications/${encodeURIComponent(applicationId)}`,
+    APPLY: (jobId: string) => `/candidate/jobs/${encodeURIComponent(jobId)}/apply`,
+    WITHDRAW_APPLICATION: (applicationId: string) =>
+      `/candidate/applications/${encodeURIComponent(applicationId)}/withdraw`,
+    RECRUITER_CONTACT: (jobId: string) =>
+      `/candidate/jobs/${encodeURIComponent(jobId)}/recruiter-contact`,
+    INTERVIEW_INSIGHTS: '/candidate/interview-insights',
+    COMPANY_SEARCH: '/candidate/companies/search',
+    COMPANIES: '/candidate/companies',
+    INTERVIEW_INSIGHT: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}`,
+    INTERVIEW_INSIGHT_FEEDBACK: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}/feedback`,
+    INTERVIEW_INSIGHT_REPORT: (insightId: string) =>
+      `/candidate/interview-insights/${encodeURIComponent(insightId)}/report`,
+    INTERVIEW_INSIGHT_CONTRIBUTIONS: '/candidate/interview-insights/my-contributions',
+    COMPANY_INTERVIEW_INSIGHT_SUMMARY: (companyId: string) =>
+      `/candidate/interview-insights/company/${encodeURIComponent(companyId)}/summary`,
+    INTERVIEW_SCHEDULES: '/candidate/interview-schedules',
+    INTERVIEW_SCHEDULE: (scheduleId: string) =>
+      `/candidate/interview-schedules/${encodeURIComponent(scheduleId)}`,
+  },
+  PUBLIC: {
+    PORTFOLIO: (slug: string) => `/portfolios/${encodeURIComponent(slug)}`,
+  },
+} as const;
+

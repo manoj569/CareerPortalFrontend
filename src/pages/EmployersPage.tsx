@@ -1,5 +1,5 @@
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import AnalyticsOutlinedIcon from '@mui/icons-material/AnalyticsOutlined';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
@@ -44,32 +44,32 @@ const candidates = [
     initials: 'RP',
     name: 'Rahul P.',
     score: '92% Match',
-    skills: ['.NET Core', 'Microservices', 'SQL', 'Azure'],
+    skills: ['Java', 'Spring Boot', 'Microservices', 'AWS'],
     meta: 'Pune • 4.2 years • 15-day notice',
   },
   {
     initials: 'NS',
     name: 'Neha S.',
     score: '89% Match',
-    skills: ['.NET Core', 'SQL', 'React'],
-    meta: 'Pune • 3.8 years • 30-day notice',
+    skills: ['React', 'TypeScript', 'Node.js', 'Azure'],
+    meta: 'Bengaluru • 3.8 years • 30-day notice',
   },
   {
     initials: 'AK',
     name: 'Amit K.',
-    score: '86% Match',
-    skills: ['.NET Core', 'Microservices', 'SQL'],
-    meta: 'Pune • 4.5 years • 20-day notice',
+    score: '88% Match',
+    skills: ['Python', 'FastAPI', 'PostgreSQL', 'AI/ML'],
+    meta: 'Hyderabad • 4.5 years • 20-day notice',
   },
 ];
 
 const jobRequirements = [
-  ['.NET Core', '4 years experience + assessment evidence'],
-  ['SQL Server', '3 years + assessment evidence'],
-  ['Microservices', 'Project and work experience'],
-  ['Azure', 'Resume experience'],
-  ['Pune', 'Location match'],
-  ['≤ 30-day notice', '15 days'],
+  ['Backend Development', '4 years relevant work experience'],
+  ['Cloud', 'AWS project and work experience'],
+  ['Microservices', 'Project and production experience'],
+  ['Database', 'SQL and PostgreSQL experience'],
+  ['Location', 'Preferred location match'],
+  ['Notice Period', '15 days'],
 ];
 
 const workflowSteps = [
@@ -96,7 +96,7 @@ const employerFeatures = [
   {
     icon: <AssignmentTurnedInOutlinedIcon />,
     title: 'Candidate Evidence',
-    description: 'Understand what supports candidate skills.',
+    description: 'Understand the evidence behind candidate skills.',
   },
   {
     icon: <WorkOutlineIcon />,
@@ -168,16 +168,68 @@ export const EmployersPage = () => {
             </div>
           </div>
 
-          <div className="employer-hero-visual">
-            <img
-              alt="CareerHarbor employer hiring platform"
-              src="/images/employers/employer-hero.png"
-            />
-          </div>
+          <div
+  className="employer-hero-visual"
+  role="group"
+  aria-label="CareerHarbor employer hiring intelligence"
+>
+  <div className="employer-hero-orbit" aria-hidden="true" />
+
+ <img
+  alt="Professional representing CareerHarbor employers"
+  className="employer-hero-person"
+  src="/images/employers/employer-woman.png"
+/>
+
+  <div className="employer-floating-card employer-floating-card-match">
+    <div className="employer-floating-icon employer-floating-icon-blue">
+      <PersonSearchOutlinedIcon />
+    </div>
+
+    <div>
+      <span className="employer-floating-label">Candidate Match</span>
+
+      <strong>92% Match</strong>
+
+      <p>Strong skills & experience fit</p>
+    </div>
+  </div>
+
+  <div className="employer-floating-card employer-floating-card-active">
+    <div className="employer-floating-icon employer-floating-icon-green">
+      <GroupsOutlinedIcon />
+    </div>
+
+    <div>
+      <span className="employer-floating-label">Availability</span>
+
+      <strong className="employer-floating-green">
+        <span className="employer-live-dot" />
+        Actively Looking
+      </strong>
+
+      <p>Notice period: 15 days</p>
+    </div>
+  </div>
+
+  <div className="employer-floating-card employer-floating-card-evidence">
+    <div className="employer-floating-icon employer-floating-icon-purple">
+      <AssignmentTurnedInOutlinedIcon />
+    </div>
+
+    <div>
+      <span className="employer-floating-label">Skill Evidence</span>
+
+      <strong>8 skills verified</strong>
+
+      <p>Assessment + project evidence</p>
+    </div>
+  </div>
+</div>
         </div>
       </section>
 
-      {/* PROBLEMS */}
+      {/* HIRING PROBLEMS */}
       <section className="employer-section employer-section-soft">
         <div className="employer-container">
           <div className="employer-section-heading">
@@ -216,14 +268,16 @@ export const EmployersPage = () => {
             </h2>
 
             <p>
-              Search naturally instead of configuring dozens of filters. CareerHarbor can turn your
-              hiring requirement into candidate matches.
+              Search naturally across roles, skills, experience, location and availability instead
+              of configuring dozens of filters.
             </p>
 
             <div className="employer-search-demo">
               <SearchIcon />
+
               <span>
-                Find .NET developers in Pune with 3–5 years experience, Microservices, SQL...
+                Find senior backend engineers in Pune with 4–6 years experience, cloud and
+                microservices...
               </span>
             </div>
 
@@ -252,7 +306,7 @@ export const EmployersPage = () => {
                   </div>
 
                   <div className="employer-candidate-meta">
-                    {candidate.meta}
+                    <span>{candidate.meta}</span>
                     <span className="employer-active">● Actively looking</span>
                   </div>
                 </div>
@@ -273,7 +327,7 @@ export const EmployersPage = () => {
             <h2>Don’t just get a match score. Understand the match.</h2>
 
             <p className="employer-card-description">
-              See how each candidate aligns with the actual job requirement.
+              See how each candidate aligns with your actual hiring requirements.
             </p>
 
             <div className="employer-table-wrapper">
@@ -309,7 +363,7 @@ export const EmployersPage = () => {
             <h2>From job opening to hired — one workspace.</h2>
 
             <p className="employer-card-description">
-              Keep every stage of the hiring process connected.
+              Keep every stage of your hiring process connected.
             </p>
 
             <div className="employer-workflow">
@@ -340,6 +394,8 @@ export const EmployersPage = () => {
                 <h3>Amit Sharma</h3>
                 <p>Senior Software Engineer</p>
               </div>
+
+              <span className="employer-profile-match">94% Match</span>
             </div>
 
             <div className="employer-intelligence-title">CareerHarbor Candidate Intelligence</div>
@@ -352,7 +408,7 @@ export const EmployersPage = () => {
 
               <div className="employer-score-box">
                 <span>Skills Evidence</span>
-                <strong>8</strong>
+                <strong>8 skills</strong>
               </div>
 
               <div className="employer-score-box">
@@ -390,8 +446,8 @@ export const EmployersPage = () => {
             <h2>See more than a resume.</h2>
 
             <p>
-              Understand the evidence behind a candidate’s skills, assessments, projects,
-              availability and job fit.
+              Get a complete view of candidate skills, assessments, project evidence, experience,
+              availability and overall job fit.
             </p>
 
             <Button endIcon={<ArrowForwardIcon />} variant="outlined">
@@ -432,7 +488,7 @@ export const EmployersPage = () => {
 
               <p>
                 Build a reusable talent pool from applicants, shortlisted candidates and previous
-                interviews.
+                interviewees.
               </p>
             </div>
 
@@ -440,7 +496,7 @@ export const EmployersPage = () => {
               <div className="employer-talent-count">17</div>
 
               <div>
-                <strong>previous candidates match your new .NET opening.</strong>
+                <strong>previous candidates match your new Software Engineer opening.</strong>
 
                 <div>
                   <Button endIcon={<ArrowForwardIcon />} sx={{ mt: 2 }} variant="outlined">
@@ -470,7 +526,9 @@ export const EmployersPage = () => {
               sx={{
                 bgcolor: '#fff',
                 color: '#0b57d0',
-                '&:hover': { bgcolor: '#f8fafc' },
+                '&:hover': {
+                  bgcolor: '#f8fafc',
+                },
               }}
               variant="contained"
             >

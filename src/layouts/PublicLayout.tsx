@@ -39,11 +39,14 @@ export const PublicLayout = () => {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const currentUser = useAppSelector(selectCurrentUser);
+
   const authenticatedHome =
     currentUser?.role === UserRole.Administrator ? ROUTES.ADMIN : ROUTES.DASHBOARD;
+
   const isHomePage = location.pathname === ROUTES.HOME;
   const isEmployerHomePage = location.pathname === ROUTES.EMPLOYERS;
   const isWideLandingPage = isHomePage || isEmployerHomePage;
+
   const mobileNavigation: NavigationItem[] = isAuthenticated
     ? [{ label: 'Dashboard', path: authenticatedHome }]
     : [
@@ -58,7 +61,10 @@ export const PublicLayout = () => {
             ]
           : []),
         { label: 'Log in', path: ROUTES.LOGIN },
-        { label: 'Register', path: ROUTES.REGISTER },
+        {
+          label: 'Register',
+          path: isEmployerHomePage ? ROUTES.EMPLOYER_REGISTER : ROUTES.REGISTER,
+        },
       ];
 
   const homepageNavigation: NavigationItem[] = [
@@ -74,12 +80,19 @@ export const PublicLayout = () => {
       path: ROUTES.INTERVIEW_INSIGHTS,
       icon: QuestionAnswerOutlinedIcon,
     },
-    { label: 'Create Portfolio', path: ROUTES.PORTFOLIO, icon: WebOutlinedIcon },
+    {
+      label: 'Create Portfolio',
+      path: ROUTES.PORTFOLIO,
+      icon: WebOutlinedIcon,
+    },
   ];
 
   const closeMobileNavigation = (restoreFocus = true) => {
     setIsMobileNavigationOpen(false);
-    if (restoreFocus) window.setTimeout(() => menuButtonRef.current?.focus(), 0);
+
+    if (restoreFocus) {
+      window.setTimeout(() => menuButtonRef.current?.focus(), 0);
+    }
   };
 
   return (
@@ -92,7 +105,7 @@ export const PublicLayout = () => {
           bgcolor: 'rgba(255,255,255,.97)',
           borderBottom: '1px solid rgba(15,23,42,.08)',
           backdropFilter: 'blur(14px)',
-          ...(isHomePage
+          ...(isWideLandingPage
             ? {
                 '@media (max-width:1199.95px)': {
                   '& a:focus-visible, & button:focus-visible': {
@@ -108,8 +121,8 @@ export const PublicLayout = () => {
         <Container
           maxWidth={false}
           sx={{
-            maxWidth: isHomePage ? 'none' : PUBLIC_PAGE_CONTAINER_MAX_WIDTH,
-            paddingInline: isHomePage
+            maxWidth: isWideLandingPage ? 'none' : PUBLIC_PAGE_CONTAINER_MAX_WIDTH,
+            paddingInline: isWideLandingPage
               ? {
                   xs: '8px !important',
                   sm: 'clamp(20px, 5vw, 96px) !important',
@@ -120,21 +133,30 @@ export const PublicLayout = () => {
         >
           <Toolbar
             disableGutters
-            sx={{ minHeight: isHomePage ? { xs: 68, md: 76 } : { xs: 74, md: 88 } }}
+            sx={{
+              minHeight: isWideLandingPage ? { xs: 68, md: 76 } : { xs: 74, md: 88 },
+            }}
           >
             <Box
               sx={
-                isHomePage
+                isWideLandingPage
                   ? {
                       display: { xs: 'block', lg: 'contents' },
                       flexShrink: 0,
-                      '& > a': { minHeight: { xs: 44, lg: 'auto' }, gap: { xs: 0.5, sm: 1.25 } },
+                      '& > a': {
+                        minHeight: { xs: 44, lg: 'auto' },
+                        gap: { xs: 0.5, sm: 1.25 },
+                      },
                       '& svg': {
                         width: { xs: 24, sm: 31, md: 34 },
                         height: { xs: 24, sm: 31, md: 34 },
                       },
                       '& span': {
-                        fontSize: { xs: '0.875rem', sm: '1.15rem', md: '1.25rem' },
+                        fontSize: {
+                          xs: '0.875rem',
+                          sm: '1.15rem',
+                          md: '1.25rem',
+                        },
                         whiteSpace: 'nowrap',
                       },
                     }
@@ -143,11 +165,15 @@ export const PublicLayout = () => {
             >
               <AppBrand />
             </Box>
+
+            {/* DESKTOP NAVIGATION */}
             <Stack
               direction="row"
               spacing={1.25}
               sx={{
-                display: isHomePage ? { xs: 'none', lg: 'flex' } : { xs: 'none', md: 'flex' },
+                display: isWideLandingPage
+                  ? { xs: 'none', lg: 'flex' }
+                  : { xs: 'none', md: 'flex' },
                 ml: 'auto',
               }}
             >
@@ -160,9 +186,11 @@ export const PublicLayout = () => {
                   <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.HOME}>
                     Home
                   </Button>
+
                   <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.JOBS}>
                     Jobs
                   </Button>
+
                   {isHomePage && (
                     <>
                       {SHOW_HOME_CAREER_GUIDANCE && (
@@ -170,19 +198,22 @@ export const PublicLayout = () => {
                           Career Guidance
                         </Button>
                       )}
+
                       <Button component={NavLink} to={ROUTES.EMPLOYERS}>
                         For Employers
                       </Button>
                     </>
                   )}
+
                   <Button component={NavLink} size="large" sx={{ px: 2 }} to={ROUTES.LOGIN}>
                     Log in
                   </Button>
+
                   <Button
                     component={NavLink}
                     size="large"
                     sx={{ minHeight: 48, px: 3 }}
-                    to={ROUTES.REGISTER}
+                    to={isEmployerHomePage ? ROUTES.EMPLOYER_REGISTER : ROUTES.REGISTER}
                     variant="contained"
                   >
                     Register
@@ -190,35 +221,74 @@ export const PublicLayout = () => {
                 </>
               )}
             </Stack>
-            {isHomePage && (
+
+            {/* MOBILE LANDING PAGE ACTIONS */}
+            {isWideLandingPage && (
               <Stack
                 direction="row"
                 sx={{
                   display: { xs: 'flex', lg: 'none' },
                   ml: 'auto',
-                  gap: 0.5,
+                  gap: { xs: 0.1, sm: 0.5 },
+                  alignItems: 'center',
                   flexShrink: 0,
-                  '& .MuiButton-root': { whiteSpace: 'nowrap' },
+                  '& .MuiButton-root': {
+                    whiteSpace: 'nowrap',
+                  },
                 }}
               >
                 {isAuthenticated ? (
-                  <Button component={NavLink} to={authenticatedHome} sx={{ minHeight: 44 }}>
+                  <Button
+                    component={NavLink}
+                    to={authenticatedHome}
+                    sx={{
+                      minHeight: 44,
+                      px: 0.5,
+                    }}
+                  >
                     Dashboard
                   </Button>
                 ) : (
                   <>
+                    {isHomePage && (
+                      <Button
+                        component={NavLink}
+                        to={ROUTES.EMPLOYERS}
+                        sx={{
+                          minWidth: 0,
+                          minHeight: 44,
+                          px: { xs: 0.35, sm: 1 },
+                          fontSize: { xs: '0.66rem', sm: '0.875rem' },
+                          fontWeight: 700,
+                        }}
+                      >
+                        Employers
+                      </Button>
+                    )}
+
                     <Button
                       component={NavLink}
                       to={ROUTES.LOGIN}
-                      sx={{ minWidth: 48, minHeight: 44, px: 0.5 }}
+                      sx={{
+                        minWidth: 0,
+                        minHeight: 44,
+                        px: { xs: 0.35, sm: 1 },
+                        fontSize: { xs: '0.66rem', sm: '0.875rem' },
+                      }}
                     >
                       Log in
                     </Button>
+
                     <Button
                       component={NavLink}
-                      to={ROUTES.REGISTER}
+                      to={isEmployerHomePage ? ROUTES.EMPLOYER_REGISTER : ROUTES.REGISTER}
                       variant="contained"
-                      sx={{ minWidth: 0, minHeight: 44, px: 1 }}
+                      sx={{
+                        minWidth: 0,
+                        minHeight: { xs: 38, sm: 44 },
+                        px: { xs: 0.65, sm: 1 },
+                        fontSize: { xs: '0.66rem', sm: '0.875rem' },
+                      }}
                     >
                       Register
                     </Button>
@@ -226,6 +296,8 @@ export const PublicLayout = () => {
                 )}
               </Stack>
             )}
+
+            {/* MOBILE MENU BUTTON */}
             <IconButton
               aria-controls="public-mobile-navigation"
               aria-expanded={isMobileNavigationOpen}
@@ -234,11 +306,11 @@ export const PublicLayout = () => {
               onClick={() => setIsMobileNavigationOpen(true)}
               ref={menuButtonRef}
               sx={{
-                display: isHomePage ? { lg: 'none' } : { md: 'none' },
-                ml: isHomePage ? 0.5 : 'auto',
+                display: isWideLandingPage ? { lg: 'none' } : { md: 'none' },
+                ml: isWideLandingPage ? 0.25 : 'auto',
                 minWidth: 44,
                 minHeight: 44,
-                ...(isHomePage ? { mr: 0 } : {}),
+                ...(isWideLandingPage ? { mr: 0 } : {}),
               }}
             >
               <MenuIcon />
@@ -247,9 +319,13 @@ export const PublicLayout = () => {
         </Container>
       </AppBar>
 
+      {/* MOBILE DRAWER */}
       <Drawer
         anchor="right"
-        ModalProps={{ disableRestoreFocus: true, keepMounted: true }}
+        ModalProps={{
+          disableRestoreFocus: true,
+          keepMounted: true,
+        }}
         onClose={() => closeMobileNavigation()}
         open={isMobileNavigationOpen}
         slotProps={{
@@ -274,24 +350,33 @@ export const PublicLayout = () => {
           direction="row"
           alignItems="center"
           justifyContent="space-between"
-          sx={{ mb: 2, px: 1, flexShrink: 0 }}
+          sx={{
+            mb: 2,
+            px: 1,
+            flexShrink: 0,
+          }}
         >
           <AppBrand compact />
+
           <Button sx={{ minHeight: 44 }} onClick={() => closeMobileNavigation()}>
             Close
           </Button>
         </Stack>
+
         <NavigationList
           ariaLabel="Mobile primary navigation"
           items={isHomePage && !isAuthenticated ? homepageNavigation : mobileNavigation}
           onNavigate={() => closeMobileNavigation(false)}
         />
+
         {isHomePage && !isAuthenticated && (
           <Stack spacing={1.5} sx={{ flexShrink: 0, pt: 1 }}>
             <Divider />
+
             <Typography variant="overline" color="text.secondary">
               Your account
             </Typography>
+
             <Button
               component={NavLink}
               to={ROUTES.LOGIN}
@@ -301,6 +386,7 @@ export const PublicLayout = () => {
             >
               Log in
             </Button>
+
             <Button
               component={NavLink}
               to={ROUTES.REGISTER}
@@ -314,6 +400,7 @@ export const PublicLayout = () => {
         )}
       </Drawer>
 
+      {/* PAGE CONTENT */}
       <Container
         component="main"
         id="main-content"
@@ -321,42 +408,55 @@ export const PublicLayout = () => {
         sx={{
           flex: 1,
           minWidth: 0,
-          ...(isHomePage ? { px: '0 !important' } : {}),
-          py: isHomePage ? 0 : { xs: 4, md: 6 },
+          ...(isWideLandingPage ? { px: '0 !important' } : {}),
+          py: isWideLandingPage ? 0 : { xs: 4, md: 6 },
         }}
         tabIndex={-1}
       >
         <Outlet />
       </Container>
 
+      {/* FOOTER */}
       <Box
         component="footer"
         sx={{
           bgcolor: '#111827',
           color: 'common.white',
-          mt: isHomePage ? 0 : { xs: 6, md: 8 },
+          mt: isWideLandingPage ? 0 : { xs: 6, md: 8 },
           py: { xs: 6, md: 8 },
         }}
       >
         <Container
           maxWidth={isWideLandingPage ? false : 'lg'}
           sx={
-            isHomePage
-              ? { maxWidth: 'none', paddingInline: 'clamp(20px, 5vw, 96px) !important' }
+            isWideLandingPage
+              ? {
+                  maxWidth: 'none',
+                  paddingInline: 'clamp(20px, 5vw, 96px) !important',
+                }
               : undefined
           }
         >
           <Grid container spacing={{ xs: 4, md: 7 }}>
             <Grid size={{ xs: 12, md: 4 }}>
               <AppBrand inverse />
+
               <Typography
-                sx={{ color: 'rgba(255,255,255,.68)', lineHeight: 1.7, maxWidth: 420, mt: 2 }}
+                sx={{
+                  color: 'rgba(255,255,255,.68)',
+                  lineHeight: 1.7,
+                  maxWidth: 420,
+                  mt: 2,
+                }}
               >
                 {isHomePage
                   ? 'A complete career growth platform with jobs, referrals, interview insights, guidance and a professional portfolio.'
-                  : 'A focused place to discover active jobs, prepare your candidate profile, and manage your job search.'}
+                  : isEmployerHomePage
+                    ? 'Find, evaluate and hire the right candidates with CareerHarbor.'
+                    : 'A focused place to discover active jobs, prepare your candidate profile, and manage your job search.'}
               </Typography>
             </Grid>
+
             <Grid size={{ xs: 6, sm: 4, md: 2 }}>
               <FooterGroup
                 links={[
@@ -374,6 +474,7 @@ export const PublicLayout = () => {
                 title="Jobs"
               />
             </Grid>
+
             <Grid size={{ xs: 6, sm: 4, md: 2 }}>
               <FooterGroup
                 links={
@@ -401,6 +502,7 @@ export const PublicLayout = () => {
                 title="Candidates"
               />
             </Grid>
+
             <Grid size={{ xs: 6, sm: 4, md: 2 }}>
               <FooterGroup
                 links={[
@@ -410,6 +512,7 @@ export const PublicLayout = () => {
                 title="Company"
               />
             </Grid>
+
             <Grid size={{ xs: 12, sm: 8, md: 2 }}>
               <FooterGroup
                 links={[
@@ -421,20 +524,38 @@ export const PublicLayout = () => {
                 ]}
                 title="Legal"
               />
+
               <SupportButton
                 color="inherit"
-                sx={{ color: 'rgba(255,255,255,.68)', justifyContent: 'flex-start', mt: 1, p: 0 }}
+                sx={{
+                  color: 'rgba(255,255,255,.68)',
+                  justifyContent: 'flex-start',
+                  mt: 1,
+                  p: 0,
+                }}
               >
                 Help & Support
               </SupportButton>
+
               <CookieSettingsButton
                 color="inherit"
-                sx={{ color: 'rgba(255,255,255,.68)', justifyContent: 'flex-start', mt: 1, p: 0 }}
+                sx={{
+                  color: 'rgba(255,255,255,.68)',
+                  justifyContent: 'flex-start',
+                  mt: 1,
+                  p: 0,
+                }}
                 variant="text"
               />
             </Grid>
           </Grid>
-          <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 4 }} />
+
+          <Divider
+            sx={{
+              borderColor: 'rgba(255,255,255,.12)',
+              my: 4,
+            }}
+          />
 
           <Stack
             alignItems={{ xs: 'flex-start', sm: 'center' }}
@@ -445,6 +566,7 @@ export const PublicLayout = () => {
             <Typography sx={{ color: 'rgba(255,255,255,.58)' }} variant="body2">
               © {new Date().getFullYear()} Career Harbor. All rights reserved.
             </Typography>
+
             <CareerHarborSocialLinks footer />
           </Stack>
         </Container>
@@ -453,15 +575,24 @@ export const PublicLayout = () => {
   );
 };
 
-const FooterGroup = ({ links, title }: { links: Array<[string, string]>; title: string }) => (
+const FooterGroup = ({
+  links,
+  title,
+}: {
+  links: Array<[string, string]>;
+  title: string;
+}) => (
   <Stack spacing={1.25}>
     <Typography fontWeight={800}>{title}</Typography>
+
     {links.map(([label, path]) => (
       <Typography
         component={Link}
         key={path}
         sx={{
-          '&:hover': { color: 'common.white' },
+          '&:hover': {
+            color: 'common.white',
+          },
           color: 'rgba(255,255,255,.68)',
           textDecoration: 'none',
         }}
