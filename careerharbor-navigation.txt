@@ -1,0 +1,188 @@
+﻿
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\components\MarketPathCard.tsx
+LineNumber : 27
+Line       :   onViewJobs: (path: MarketPathCardModel) => void;
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\components\MarketPathCard.tsx
+LineNumber : 101
+Line       :   onViewJobs,
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\components\MarketPathCard.tsx
+LineNumber : 411
+Line       :             onClick={() => onViewJobs(path)}
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\components\MarketPathCard.tsx
+LineNumber : 422
+Line       :             View Jobs
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\pages\AIAcceleratorPage.tsx
+LineNumber : 300
+Line       :   const handleViewJobs = (
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\pages\AIAcceleratorPage.tsx
+LineNumber : 1044
+Line       :                 onViewJobs={handleViewJobs}
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\pages\SkillPathDetailPage.tsx
+LineNumber : 202
+Line       :   const handleViewJobs = () => {
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\pages\SkillPathDetailPage.tsx
+LineNumber : 978
+Line       :             onClick={handleViewJobs}
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\accelerator\pages\SkillPathDetailPage.tsx
+LineNumber : 990
+Line       :             View Jobs
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\api\adminApi.test.ts
+LineNumber : 11
+Line       : import { jobsApi } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\api\adminApi.ts
+LineNumber : 8
+Line       : import { jobsApi } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.test.tsx
+LineNumber : 13
+Line       :   previewJobs: vi.fn(),
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.test.tsx
+LineNumber : 23
+Line       :     usePreviewAdminJobsImportMutation: () => [mocks.previewJobs, mutationState],
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.test.tsx
+LineNumber : 46
+Line       :     mocks.previewJobs.mockImplementation(() => triggerResult(validPreview));
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.test.tsx
+LineNumber : 61
+Line       :     expect(mocks.previewJobs).toHaveBeenCalledWith(file);
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.test.tsx
+LineNumber : 86
+Line       :     expect(mocks.previewJobs).not.toHaveBeenCalled();
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.test.tsx
+LineNumber : 116
+Line       :     mocks.previewJobs.mockImplementation(() => triggerResult(invalidPreview));
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.tsx
+LineNumber : 54
+Line       :   const [previewJobs, previewJobsState] = usePreviewAdminJobsImportMutation();
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.tsx
+LineNumber : 56
+Line       :   const isPreviewing = previewJobsState.isLoading;
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\AdminCsvImportDialog.tsx
+LineNumber : 95
+Line       :       const result = await previewJobs(selectedFile).unwrap();
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\components\JobSourceFormDialog.tsx
+LineNumber : 29
+Line       : import { useTestJobSourceConfigurationMutation } from '../api/jobSourcesApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\hooks\useJobSourceRuns.test.tsx
+LineNumber : 8
+Line       : import { jobSourcesApi } from '../api/jobSourcesApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\admin\hooks\useJobSourceRuns.ts
+LineNumber : 4
+Line       : import { jobSourcesApi } from '../api/jobSourcesApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\aiApply\components\AIApplyToJobButton.tsx
+LineNumber : 20
+Line       : import { fetchJobApplicationUrl } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\hiringDrives\api.ts
+LineNumber : 1
+Line       : import { jobsApi } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\jobPromotions\api.ts
+LineNumber : 2
+Line       : import { jobsApi } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\jobs\components\JobDiscoveryHighlights.tsx
+LineNumber : 9
+Line       : } from '../api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\features\referrals\api\marketplaceApi.ts
+LineNumber : 16
+Line       : import { jobsApi } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\admin\AdminJobSourcesPage.tsx
+LineNumber : 44
+Line       : } from '@/features/admin/api/jobSourcesApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\ApplicationsPage.tsx
+LineNumber : 34
+Line       :     'Review jobs you have applied to from your candidate account.',
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\CandidateBrowseJobsPage.test.tsx
+LineNumber : 22
+Line       : import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\CandidateBrowseJobsPage.test.tsx
+LineNumber : 29
+Line       : } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\CandidateBrowseJobsPage.test.tsx
+LineNumber : 54
+Line       : vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\CandidateBrowseJobsPage.tsx
+LineNumber : 68
+Line       : } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\HomePage.test.tsx
+LineNumber : 9
+Line       : import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\HomePage.test.tsx
+LineNumber : 15
+Line       : } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\HomePage.test.tsx
+LineNumber : 28
+Line       : vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\HomePage.tsx
+LineNumber : 52
+Line       : } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\JobDetailsPage.logos.test.tsx
+LineNumber : 5
+Line       : import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\JobDetailsPage.logos.test.tsx
+LineNumber : 10
+Line       : vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => ({
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\JobDetailsPage.tsx
+LineNumber : 37
+Line       : } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\jobPages.test.tsx
+LineNumber : 11
+Line       : } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\jobPages.test.tsx
+LineNumber : 12
+Line       : import type * as JobsApiModule from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\jobPages.test.tsx
+LineNumber : 43
+Line       : vi.mock('@/features/jobs/api/jobsApi', async (importOriginal) => {
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\pages\JobsPage.tsx
+LineNumber : 11
+Line       : import { useGetPopularCompaniesQuery, useSearchJobsQuery } from '@/features/jobs/api/jobsApi';
+
+Path       : D:\career-portal-frontend\career-portal-frontend-Run\src\store\store.ts
+LineNumber : 16
+Line       : import { jobsApi } from '@/features/jobs/api/jobsApi';
+
+
+

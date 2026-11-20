@@ -117,6 +117,8 @@ export interface PublicJobQuery {
   featuredOnly?: boolean;
   sortBy: JobSortField | PublicJobSort;
   sortDirection: SortDirection;
+marketRoleId?: string;
+marketSkillId?: string;
 }
 
 export type JobSortField =

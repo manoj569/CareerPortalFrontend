@@ -270,8 +270,9 @@ export const CandidateBrowseJobsPage = () => {
 
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const appliedCount = countCandidateJobFilters(state);
-
+const appliedCount =
+  countCandidateJobFilters(state) +
+  Number(Boolean(state.marketRoleId || state.marketSkillId));
   const setState = useCallback(
     (nextState: CandidateJobSearchState, replace = false, nextTab = activeTab) => {
       internalNavigationRef.current = {

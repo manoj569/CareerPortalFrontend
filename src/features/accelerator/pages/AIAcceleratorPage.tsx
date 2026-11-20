@@ -297,19 +297,34 @@ export const AIAcceleratorPage = () => {
     setSearchParams(params);
   };
 
-  const handleViewJobs = (
-    path: MarketPathCardModel,
-  ) => {
-    const query =
-      path.jobFilter?.trim() ||
-      path.name.trim();
+  const handleViewJobs = (path: MarketPathCardModel) => {
+  const filter = path.jobFilter?.trim();
 
-    navigate(
-      `${ROUTES.DASHBOARD_JOBS}?q=${encodeURIComponent(
-        query,
-      )}`,
-    );
-  };
+  const params = new URLSearchParams();
+  params.set('mode', 'all');
+
+  if (filter) {
+    const apiParams = new URL(
+      filter,
+      window.location.origin
+    ).searchParams;
+
+    const marketRoleId = apiParams.get('marketRoleId');
+    const marketSkillId = apiParams.get('marketSkillId');
+
+    if (marketRoleId) {
+      params.set('marketRoleId', marketRoleId);
+    } else if (marketSkillId) {
+      params.set('marketSkillId', marketSkillId);
+    } else {
+      params.set('q', path.name.trim());
+    }
+  } else {
+    params.set('q', path.name.trim());
+  }
+
+  navigate(`${ROUTES.DASHBOARD_JOBS}?${params.toString()}`);
+};
 
   /*
    * =========================================================
