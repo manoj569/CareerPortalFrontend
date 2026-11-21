@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
@@ -11,7 +11,6 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import PsychologyRoundedIcon from '@mui/icons-material/PsychologyRounded';
 import RocketLaunchRoundedIcon from '@mui/icons-material/RocketLaunchRounded';
 import SchoolRoundedIcon from '@mui/icons-material/SchoolRounded';
-import WorkOutlineRoundedIcon from '@mui/icons-material/WorkOutlineRounded';
 
 import {
   Alert,
@@ -25,9 +24,26 @@ import {
   Typography,
 } from '@mui/material';
 
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
-import { getCareerPath } from '../api/acceleratorMarketApi';
+import { ROUTES } from '@/constants/routes';
+import { JourneyAssessment } from './SkillAssessmentPage';
+import { JourneyAssessmentResults } from './AssessmentResultsPage';
+import { JourneyEnrollment } from './CareerGoalSetupPage';
+import { JourneyLessons } from './ActiveLearningPage';
+import { JourneyRoadmap } from './LearningRoadmapPage';
+import { JourneyProjects } from './VirtualProjectWorkspacePage';
+import { JourneyInterviews } from './MockInterviewSetupPage';
+import { JourneyPractice } from './ProjectPracticePage';
+import { JourneyTutor } from './AITutorPage';
+import { JourneyInsights } from './ProgressInsightsPage';
+import { journeyError } from '../hooks/useJourneyWork';
+import { getAcceleratorJourney } from '../api/acceleratorApi';
+import { journeyAction, journeyMessages, remainingTime } from '../journeyPresentation';
+import { NextAction, type AcceleratorJourneyResponse } from '../types/journey';
+import { getCareerPath, getSkillPath } from '../api/acceleratorMarketApi';
+import { AcceleratorSubscriptionStatus } from '../components/AcceleratorSubscriptionStatus';
+import { marketPathJobsUrl } from '../marketPathJobs';
 import type { MarketPathDetail } from '../types/marketIntelligence';
 
 const acceleratorTabs = [
@@ -44,111 +60,23 @@ type JourneyStatus =
   | 'active'
   | 'upcoming';
 
-interface JourneyStep {
-  id: string;
-  label: string;
-  status: JourneyStatus;
-}
+const checklistLabels: Record<string, string> = {
+  AssessmentCompleted: 'AI Skill Assessment',
+  RoadmapCreated: 'Create Roadmap',
+  LearningEvidence: 'Follow Roadmap',
+  PracticeEvaluated: 'Complete Practice',
+  ProjectCompleted: 'Build Projects',
+  InterviewCompleted: 'Interview Preparation',
+  ApplicationSubmitted: 'Apply to Jobs',
+};
 
-interface PlanPhase {
-  id: number;
-  title: string;
-  description: string;
-  status: JourneyStatus;
-  progress: number;
-}
-
-/*
- * IMPORTANT
- *
- * These are safe frontend defaults only.
- *
- * We intentionally DO NOT fake:
- * - assessment completion
- * - roadmap completion
- * - project completion
- * - interview completion
- * - job applications
- * - estimated weeks
- *
- * Real values will be populated from the existing Accelerator
- * backend during the integration pass.
- */
-const defaultJourneySteps: JourneyStep[] = [
-  {
-    id: 'goal',
-    label: 'Set Career Goal',
-    status: 'active',
-  },
-  {
-    id: 'assessment',
-    label: 'AI Skill Assessment',
-    status: 'upcoming',
-  },
-  {
-    id: 'roadmap',
-    label: 'Follow Roadmap',
-    status: 'upcoming',
-  },
-  {
-    id: 'projects',
-    label: 'Build Projects',
-    status: 'upcoming',
-  },
-  {
-    id: 'interview',
-    label: 'Interview Preparation',
-    status: 'upcoming',
-  },
-  {
-    id: 'jobs',
-    label: 'Apply to Jobs',
-    status: 'upcoming',
-  },
-];
-
-const defaultPlanPhases: PlanPhase[] = [
-  {
-    id: 1,
-    title: 'Foundation',
-    description:
-      'Understand your current skills and identify the most important gaps.',
-    status: 'active',
-    progress: 0,
-  },
-  {
-    id: 2,
-    title: 'Skill Build',
-    description:
-      'Learn and practice the in-demand skills required for your target role.',
-    status: 'upcoming',
-    progress: 0,
-  },
-  {
-    id: 3,
-    title: 'Build & Showcase',
-    description:
-      'Create real-world projects and build evidence of your capabilities.',
-    status: 'upcoming',
-    progress: 0,
-  },
-  {
-    id: 4,
-    title: 'Interview Readiness',
-    description:
-      'Practice interview questions, mock interviews and improve with feedback.',
-    status: 'upcoming',
-    progress: 0,
-  },
-  {
-    id: 5,
-    title: 'Job Application & Tracking',
-    description:
-      'Discover relevant opportunities, apply and track your job-search progress.',
-    status: 'upcoming',
-    progress: 0,
-  },
-];
+const phaseDescriptions: Record<string, { title: string; description: string }> = {
+  Foundation: { title: 'Foundation', description: 'Understand your skills and identify gaps.' },
+  SkillBuild: { title: 'Skill Build', description: 'Learn and practice skills for your target role.' },
+  BuildAndShowcase: { title: 'Build & Showcase', description: 'Build evidence through real projects.' },
+  InterviewReadiness: { title: 'Interview Readiness', description: 'Practice interviews and improve with feedback.' },
+  JobApplicationAndTracking: { title: 'Job Application & Tracking', description: 'Find opportunities and track your applications.' },
+};
 
 const getStepStyles = (status: JourneyStatus) => {
   if (status === 'completed') {
@@ -180,6 +108,8 @@ export const AIAcceleratorPathPage = () => {
 
   const selectedPathId =
     searchParams.get('selected');
+  const isSkill = searchParams.get('type') === 'skill';
+  const journeyContextId = selectedPathId ? null : searchParams.get('journeyContextId');
 
   const [pathDetail, setPathDetail] =
     useState<MarketPathDetail | null>(null);
@@ -190,27 +120,17 @@ export const AIAcceleratorPathPage = () => {
   const [error, setError] =
     useState<string | null>(null);
 
-  const [activeTab, setActiveTab] =
-    useState(0);
 
-  /*
-   * These will later come from real Accelerator APIs.
-   * Keep them safe instead of showing invented progress.
-   */
-  const progressPercent = 0;
-  const estimatedTime: string | null = null;
-
-  const journeySteps =
-    defaultJourneySteps;
-
-  const planPhases =
-    defaultPlanPhases;
+  const [journey, setJourney] = useState<AcceleratorJourneyResponse | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     const loadPath = async () => {
-      if (!selectedPathId) {
+      const query = selectedPathId ? (isSkill ? { marketSkillPathId: selectedPathId } : { marketPathId: selectedPathId })
+        : journeyContextId ? { journeyContextId } : null;
+      if (!query) {
         setError(
           'No career path was selected.',
         );
@@ -219,26 +139,21 @@ export const AIAcceleratorPathPage = () => {
         return;
       }
 
-      setLoading(true);
       setError(null);
 
       try {
-        const result =
-          await getCareerPath(
-            selectedPathId,
-          );
-
-        if (!cancelled) {
-          setPathDetail(result);
+        const result = await getAcceleratorJourney(query, controller.signal);
+        if (!controller.signal.aborted) {
+          setJourney(result);
         }
-      } catch {
-        if (!cancelled) {
+      } catch (failure) {
+        if (!controller.signal.aborted) {
           setError(
-            'We could not load this career path.',
+            journeyError(failure),
           );
         }
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
@@ -247,9 +162,18 @@ export const AIAcceleratorPathPage = () => {
     void loadPath();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [selectedPathId]);
+  }, [selectedPathId, isSkill, journeyContextId, retry]);
+
+  useEffect(() => {
+    if (!selectedPathId) return;
+    let current = true;
+    void (isSkill ? getSkillPath : getCareerPath)(selectedPathId).then((detail) => {
+      if (current) setPathDetail(detail);
+    }).catch(() => undefined);
+    return () => { current = false; };
+  }, [selectedPathId, isSkill]);
 
   const handleBack = () => {
     const params =
@@ -257,32 +181,19 @@ export const AIAcceleratorPathPage = () => {
         searchParams,
       );
 
-    params.delete('selected');
-    params.set('type', 'career');
+    for (const key of ['selected', 'screen', 'journeyContextId', 'goalId', 'enrollmentId', 'attemptId', 'roadmapId', 'projectId', 'sessionId']) {
+      params.delete(key);
+    }
+    params.set('type', isSkill ? 'skill' : 'career');
 
     setSearchParams(params);
   };
 
-  const handleChangeGoal = () => {
-  const params =
-    new URLSearchParams(searchParams);
-
-  params.set('type', 'career');
-  params.set('screen', 'goal');
-
-  setSearchParams(params);
-};
-
-  const activeJourneyIndex =
-    useMemo(() => {
-      const index =
-        journeySteps.findIndex(
-          (step) =>
-            step.status === 'active',
-        );
-
-      return index >= 0 ? index : 0;
-    }, [journeySteps]);
+  const screenUrl = (screen: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (screen) params.set('screen', screen); else params.delete('screen');
+    return '?' + params.toString();
+  };
 
   if (loading) {
     return (
@@ -312,7 +223,7 @@ export const AIAcceleratorPathPage = () => {
     );
   }
 
-  if (error || !pathDetail) {
+  if (!journey) {
     return (
       <Box
         sx={{
@@ -327,9 +238,9 @@ export const AIAcceleratorPathPage = () => {
           action={
             <Button
               color="inherit"
-              onClick={handleBack}
+              onClick={() => setRetry((count) => count + 1)}
             >
-              Back
+              Retry
             </Button>
           }
         >
@@ -340,7 +251,108 @@ export const AIAcceleratorPathPage = () => {
     );
   }
 
-  const path = pathDetail.path;
+  const path = pathDetail?.path;
+  const title = path?.name ?? journey.title ?? 'Career path';
+  const jobsUrl = path ? marketPathJobsUrl(path) : null;
+  const matchingJobs = journey.summary?.relevantJobCount ?? path?.demand.activeJobCount;
+  const action = journeyAction(journey);
+  const activeJourneyIndex = journey.checklist.findIndex((item) => !item.complete);
+  const journeySteps = journey.checklist.map((item, index) => ({
+    id: item.code,
+    label: checklistLabels[item.code] ?? item.code,
+    status: (item.complete ? 'completed' : index === activeJourneyIndex ? 'active' : 'upcoming') as JourneyStatus,
+  }));
+  const planPhases = journey.phases.map((phase, index) => ({
+    id: index + 1,
+    ...phase,
+    ...phaseDescriptions[phase.code],
+    status: phase.complete ? 'completed' : phase.unlocked && phase.code === journey.currentPhase ? 'active' : 'upcoming',
+  }));
+  const progress = journey.overallProgressPercent;
+  const displayedProgress = progress === null ? null : Math.min(100, Math.max(0, progress));
+  const actionUrl = action?.screen === 'jobs' ? jobsUrl
+    : action?.screen === 'applications' ? ROUTES.APPLICATIONS : action ? screenUrl(action.screen) : null;
+  const refresh = () => setRetry((count) => count + 1);
+  const requestedScreen = searchParams.get('screen') ?? '';
+  const skillScreens: Record<string, string> = {
+    'skill-goal': 'enroll', 'skill-assessment': 'assessment', 'skill-assessment-questions': 'assessment-questions',
+    'skill-assessment-results': 'assessment-results', 'skill-roadmap': 'roadmap', 'skill-learning': 'learning',
+    'skill-learning-module': 'learning-module', 'skill-practice': 'practice', 'skill-practice-session': 'practice-session',
+    'skill-practice-results': 'practice-results', 'skill-assignment': 'project', 'skill-assignment-feedback': 'project',
+    'skill-proficiency': 'progress-insights',
+  };
+  const screen = isSkill ? skillScreens[requestedScreen] ?? requestedScreen : requestedScreen;
+  const dashboard = !screen;
+  const selectedTab = dashboard ? 0 : screen === 'roadmap' ? 1
+    : ['learning', 'learning-module', 'practice', 'practice-session', 'practice-results', 'ai-tutor'].includes(screen) ? 2
+    : screen === 'jobs' ? 3 : screen.startsWith('mock-interview') ? 4
+    : ['progress-insights', 'career-readiness', 'skill-passport'].includes(screen) ? 5 : false;
+  const unlocked = (code: string) => journey.phases.some((phase) => phase.code === code && phase.unlocked);
+  const quickActions: Record<string, { screen: string; available: boolean; label: string }> = {
+    'Skill Assessment': { screen: 'assessment', available: !!journey.summary?.assessmentConfigured,
+      label: journey.nextAction === NextAction.ResumeAssessment ? 'Resume assessment'
+        : journey.summary?.completedAssessments ? 'View results' : 'Open assessment' },
+    'Learning Roadmap': { screen: 'roadmap', available: unlocked('SkillBuild'), label: journey.roadmapId ? 'View roadmap' : 'Open roadmap' },
+    'Build Projects': { screen: 'project', available: unlocked('BuildAndShowcase'), label: 'Open projects' },
+    'Interview Prep': { screen: 'mock-interview-setup', available: unlocked('InterviewReadiness'), label: 'Open interviews' },
+  };
+  const renderScreen = () => {
+    switch (screen) {
+      case 'goal':
+      case 'enroll':
+        return <JourneyEnrollment journey={journey} onDone={() => {
+          setSearchParams((previous) => { const params = new URLSearchParams(previous); params.delete('screen'); return params; });
+          refresh();
+        }} />;
+      case 'assessment':
+      case 'assessment-questions':
+        return <JourneyAssessment journey={journey} refresh={refresh} />;
+      case 'assessment-results':
+        return <JourneyAssessmentResults journey={journey} />;
+      case 'roadmap':
+        return <JourneyRoadmap journey={journey} refresh={refresh} />;
+      case 'learning':
+      case 'learning-module':
+        return <Stack spacing={2}>
+          <Stack direction="row" spacing={1}>
+            <Button component={Link} to={screenUrl('practice')}>Practice</Button>
+            <Button component={Link} to={screenUrl('ai-tutor')}>AI tutor</Button>
+          </Stack>
+          {journey.enrollmentId ? <JourneyLessons enrollmentId={journey.enrollmentId} refresh={refresh} />
+            : <JourneyRoadmap journey={journey} refresh={refresh} />}
+        </Stack>;
+      case 'practice':
+      case 'practice-session':
+      case 'practice-results':
+        return <JourneyPractice journey={journey} refresh={refresh} />;
+      case 'ai-tutor':
+        return <JourneyTutor journey={journey} />;
+      case 'project':
+      case 'project-resources':
+      case 'assignment':
+      case 'assignment-results':
+        return unlocked('BuildAndShowcase') ? <JourneyProjects journey={journey} refresh={refresh} />
+          : <Alert severity="info">Complete Foundation and generate a roadmap to unlock projects.</Alert>;
+      case 'mock-interview-setup':
+      case 'mock-interview-live':
+      case 'mock-interview-results':
+        return unlocked('InterviewReadiness') ? <JourneyInterviews journey={journey} refresh={refresh} />
+          : <Alert severity="info">Complete Foundation and build learning evidence to unlock interviews.</Alert>;
+      case 'progress-insights':
+      case 'career-readiness':
+      case 'skill-passport':
+        return <JourneyInsights journey={journey} />;
+      case 'jobs':
+        return <Stack spacing={2}>
+          <Typography variant="h5">Jobs &amp; opportunities</Typography>
+          <Typography>{matchingJobs == null ? 'Matching jobs are currently unavailable.' : `${matchingJobs} matching jobs`}</Typography>
+          {jobsUrl && <Button component={Link} to={jobsUrl}>View matching jobs</Button>}
+          <Button component={Link} to={ROUTES.APPLICATIONS}>View your applications</Button>
+        </Stack>;
+      default:
+        return <Alert severity="info">This Accelerator section is unavailable.</Alert>;
+    }
+  };
 
   return (
     <Box
@@ -560,7 +572,7 @@ export const AIAcceleratorPathPage = () => {
               letterSpacing: '-0.03em',
             }}
           >
-            {path.name} Path
+            {title} Path
           </Typography>
 
           <Stack
@@ -600,7 +612,7 @@ export const AIAcceleratorPathPage = () => {
                   fontWeight: 700,
                 }}
               >
-                Target Role
+                {isSkill ? 'Target Skill' : 'Target Role'}
               </Box>
 
               <Typography
@@ -613,11 +625,11 @@ export const AIAcceleratorPathPage = () => {
                   fontWeight: 700,
                 }}
               >
-                {path.name}
+                {title}
               </Typography>
             </Box>
 
-            {path.category && (
+            {path?.category && (
               <Box
                 sx={{
                   px: 1.4,
@@ -653,7 +665,7 @@ export const AIAcceleratorPathPage = () => {
   startIcon={
     <EditRoundedIcon />
   }
-  onClick={handleChangeGoal}
+  onClick={handleBack}
   sx={{
     minHeight: 42,
     px: 2,
@@ -684,6 +696,20 @@ export const AIAcceleratorPathPage = () => {
         </Stack>
       </Stack>
 
+      <Stack spacing={1} sx={{ mb: 2 }}>
+        {error && <Alert severity="error" action={<Button onClick={refresh}>Retry</Button>}>{error}</Alert>}
+        <AcceleratorSubscriptionStatus entitlement={journey.entitlement} />
+        <Stack direction="row" spacing={2} alignItems="center">
+          {matchingJobs != null && <Typography>{matchingJobs} matching jobs</Typography>}
+          {jobsUrl && <Button component={Link} to={jobsUrl}>View jobs</Button>}
+        </Stack>
+        {journey.summary && <Typography>
+          {journey.summary.applicationCount} applications and {journey.summary.savedJobCount} saved jobs across your account
+        </Typography>}
+        {journeyMessages[journey.state] && <Alert severity="info">{journeyMessages[journey.state]}</Alert>}
+        {action && actionUrl && <Button component={Link} to={actionUrl} variant="contained" sx={{ alignSelf: 'start' }}>{action.label}</Button>}
+      </Stack>
+
       {/* =====================================================
           NAVIGATION TABS
       ====================================================== */}
@@ -703,11 +729,16 @@ export const AIAcceleratorPathPage = () => {
         }}
       >
         <Tabs
-          value={activeTab}
+          value={selectedTab}
           onChange={(
             _event,
             value: number,
-          ) => setActiveTab(value)}
+          ) => {
+            const params = new URLSearchParams(searchParams);
+            const tabScreen = ['', 'roadmap', 'learning', 'jobs', 'mock-interview-setup', 'progress-insights'][value];
+            if (tabScreen) params.set('screen', tabScreen); else params.delete('screen');
+            setSearchParams(params);
+          }}
           variant="scrollable"
           scrollButtons="auto"
           aria-label="AI Accelerator sections"
@@ -755,7 +786,7 @@ export const AIAcceleratorPathPage = () => {
           MY ACCELERATOR
       ====================================================== */}
 
-      {activeTab === 0 && (
+      {dashboard && (
         <Box
           sx={{
             mt: 2.5,
@@ -820,10 +851,7 @@ export const AIAcceleratorPathPage = () => {
 
                   borderRadius: '50%',
 
-                  background: `conic-gradient(
-                    #2878f0 ${progressPercent * 3.6}deg,
-                    #e9eef6 0deg
-                  )`,
+                  background: displayedProgress === null ? '#e9eef6' : `conic-gradient(#2878f0 ${displayedProgress}%, #e9eef6 0)`,
 
                   display: 'grid',
 
@@ -853,7 +881,7 @@ export const AIAcceleratorPathPage = () => {
                       fontWeight: 800,
                     }}
                   >
-                    {progressPercent}%
+                    {displayedProgress === null ? <span aria-label="Progress unavailable">—</span> : `${displayedProgress}%`}
                   </Typography>
                 </Box>
               </Box>
@@ -1120,7 +1148,7 @@ export const AIAcceleratorPathPage = () => {
                     A personalized,
                     step-by-step plan
                     for becoming a{' '}
-                    {path.name}.
+                    {title}.
                   </Typography>
                 </Box>
               </Stack>
@@ -1168,8 +1196,7 @@ export const AIAcceleratorPathPage = () => {
                       '0.9rem',
                   }}
                 >
-                  {estimatedTime ??
-                    'Not calculated yet'}
+                  {remainingTime(journey.estimatedMinutesRemaining)}
                 </Typography>
               </Box>
             </Box>
@@ -1321,7 +1348,7 @@ export const AIAcceleratorPathPage = () => {
                                   800,
                               }}
                             >
-                              Not Started
+                              Current phase
                             </Typography>
                           )}
                         </Stack>
@@ -1344,64 +1371,13 @@ export const AIAcceleratorPathPage = () => {
                             phase.description
                           }
                         </Typography>
-
-                        {isActive && (
-                          <Box
-                            sx={{
-                              mt: 1.1,
-
-                              display:
-                                'flex',
-
-                              alignItems:
-                                'center',
-
-                              gap: 1.2,
-                            }}
-                          >
-                            <LinearProgress
-                              variant="determinate"
-                              value={
-                                phase.progress
-                              }
-                              sx={{
-                                flex: 1,
-
-                                height: 7,
-
-                                borderRadius:
-                                  5,
-
-                                bgcolor:
-                                  '#e3eaf5',
-
-                                '& .MuiLinearProgress-bar':
-                                  {
-                                    borderRadius:
-                                      5,
-                                  },
-                              }}
-                            />
-
-                            <Typography
-                              sx={{
-                                color:
-                                  '#26324b',
-
-                                fontSize:
-                                  '0.76rem',
-
-                                fontWeight:
-                                  800,
-                              }}
-                            >
-                              {
-                                phase.progress
-                              }
-                              %
-                            </Typography>
-                          </Box>
+                        {phase.progressPercent != null && (
+                          <Stack spacing={0.5} sx={{ mt: 1 }}>
+                            <Typography variant="caption">{phase.progressPercent}% complete</Typography>
+                            <LinearProgress aria-label={phase.title + " progress"} variant="determinate" value={Math.min(100, Math.max(0, phase.progressPercent))} />
+                          </Stack>
                         )}
+
                       </Box>
 
                       {/* ACTION */}
@@ -1450,7 +1426,9 @@ export const AIAcceleratorPathPage = () => {
                             endIcon={
                               <ArrowForwardRoundedIcon />
                             }
-                            disabled
+                            component={Link}
+                            to={actionUrl ?? "#"}
+                            disabled={!actionUrl}
                             sx={{
                               minWidth: {
                                 xs:
@@ -1471,7 +1449,7 @@ export const AIAcceleratorPathPage = () => {
                                 800,
                             }}
                           >
-                            Start
+                            {action?.label ?? 'Action unavailable'}
                           </Button>
                         ) : (
                           <Box
@@ -1510,7 +1488,7 @@ export const AIAcceleratorPathPage = () => {
                               }}
                             />
 
-                            Upcoming
+                            {phase.unlocked ? 'Not started' : 'Locked'}
                           </Box>
                         )}
                       </Box>
@@ -1580,7 +1558,9 @@ export const AIAcceleratorPathPage = () => {
                   ),
                 },
               ].map(
-                (item) => (
+                (item) => {
+                  const quickAction = quickActions[item.title];
+                  return (
                   <Box
                     key={item.title}
                     sx={{
@@ -1656,118 +1636,23 @@ export const AIAcceleratorPathPage = () => {
                         item.description
                       }
                     </Typography>
+                    {quickAction?.available ? (
+                      <Button component={Link} to={screenUrl(quickAction.screen)} size="small">
+                        {quickAction.label}
+                      </Button>
+                    ) : <Typography variant="caption">Available after journey prerequisites are met.</Typography>}
                   </Box>
-                ),
+                  );
+                },
               )}
             </Box>
           </Stack>
         </Box>
       )}
 
-      {/* =====================================================
-          OTHER TABS
-          Their full screens are C6-C12 and will be developed
-          individually after C2 approval.
-      ====================================================== */}
-
-      {activeTab !== 0 && (
-        <Box
-          sx={{
-            mt: 2.5,
-
-            minHeight: 350,
-
-            p: {
-              xs: 2,
-              md: 3,
-            },
-
-            border:
-              '1px solid #e0e6ef',
-
-            borderRadius: 3,
-
-            bgcolor: '#fff',
-
-            display: 'grid',
-
-            placeItems: 'center',
-          }}
-        >
-          <Stack
-            alignItems="center"
-            spacing={1.2}
-            sx={{
-              maxWidth: 500,
-              textAlign: 'center',
-            }}
-          >
-            {activeTab === 1 && (
-              <SchoolRoundedIcon
-                sx={{
-                  fontSize: 38,
-                  color: '#2878f0',
-                }}
-              />
-            )}
-
-            {activeTab === 2 && (
-              <PsychologyRoundedIcon
-                sx={{
-                  fontSize: 38,
-                  color: '#2878f0',
-                }}
-              />
-            )}
-
-            {activeTab === 3 && (
-              <WorkOutlineRoundedIcon
-                sx={{
-                  fontSize: 38,
-                  color: '#2878f0',
-                }}
-              />
-            )}
-
-            {activeTab >= 4 && (
-              <AutoAwesomeRoundedIcon
-                sx={{
-                  fontSize: 38,
-                  color: '#2878f0',
-                }}
-              />
-            )}
-
-            <Typography
-              sx={{
-                color: '#17213b',
-
-                fontSize: '1.1rem',
-
-                fontWeight: 800,
-              }}
-            >
-              {
-                acceleratorTabs[
-                  activeTab
-                ]
-              }
-            </Typography>
-
-            <Typography
-              sx={{
-                color: '#778399',
-
-                fontSize: '0.86rem',
-
-                lineHeight: 1.6,
-              }}
-            >
-              This Accelerator section will
-              be developed as its dedicated
-              frontend screen.
-            </Typography>
-          </Stack>
+      {!dashboard && (
+        <Box sx={{ mt: 2.5, p: { xs: 2, md: 3 }, border: '1px solid #e0e6ef', borderRadius: 3, bgcolor: '#fff' }}>
+          {renderScreen()}
         </Box>
       )}
     </Box>

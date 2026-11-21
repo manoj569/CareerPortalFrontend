@@ -27,51 +27,15 @@ import {
 } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { ROUTES } from '@/constants/routes';
-
 import {
   getCareerPaths,
   getSkillPaths,
 } from '../api/acceleratorMarketApi';
 import { AcceleratorHero } from '../components/AcceleratorHero';
 import { MarketPathCard } from '../components/MarketPathCard';
+import { marketPathJobsUrl } from '../marketPathJobs';
 
 import { AIAcceleratorPathPage } from './AIAcceleratorPathPage';
-import { AITutorPage } from './AITutorPage';
-import { ActiveLearningPage } from './ActiveLearningPage';
-import { AssessmentQuestionsPage } from './AssessmentQuestionsPage';
-import { AssessmentResultsPage } from './AssessmentResultsPage';
-import { AssignmentResultsPage } from './AssignmentResultsPage';
-import { CareerGoalSetupPage } from './CareerGoalSetupPage';
-import { CareerReadinessPage } from './CareerReadinessPage';
-import { HandsOnAssignmentPage } from './HandsOnAssignmentPage';
-import { LearningModulePage } from './LearningModulePage';
-import { LearningRoadmapPage } from './LearningRoadmapPage';
-import { LiveMockInterviewPage } from './LiveMockInterviewPage';
-import { MockInterviewResultsPage } from './MockInterviewResultsPage';
-import { MockInterviewSetupPage } from './MockInterviewSetupPage';
-import { PracticeResultsPage } from './PracticeResultsPage';
-import { PracticeSessionPage } from './PracticeSessionPage';
-import { ProgressInsightsPage } from './ProgressInsightsPage';
-import { ProjectPracticePage } from './ProjectPracticePage';
-import { ProjectResourcesPage } from './ProjectResourcesPage';
-import { SkillAssessmentPage } from './SkillAssessmentPage';
-import { SkillPassportPage } from './SkillPassportPage';
-import { VirtualProjectWorkspacePage } from './VirtualProjectWorkspacePage';
-import { SkillPathDetailPage } from './SkillPathDetailPage';
-import { SkillGoalSetupPage } from './SkillGoalSetupPage';
-import { SkillPathAssessmentPage } from './SkillPathAssessmentPage';
-import { SkillPathAssessmentQuestionsPage } from './SkillPathAssessmentQuestionsPage';
-import { SkillGapResultsPage } from './SkillGapResultsPage';
-import { SkillLearningRoadmapPage } from './SkillLearningRoadmapPage';
-import { SkillActiveLearningPage } from './SkillActiveLearningPage';
-import { SkillLearningModulePage } from './SkillLearningModulePage';
-import { SkillPracticePage } from './SkillPracticePage';
-import { SkillPracticeSessionPage } from './SkillPracticeSessionPage';
-import { SkillPracticeResultsPage } from './SkillPracticeResultsPage';
-import { SkillHandsOnAssignmentPage } from './SkillHandsOnAssignmentPage';
-import { SkillAssignmentFeedbackPage } from './SkillAssignmentFeedbackPage';
-import { SkillProficiencyPage } from './SkillProficiencyPage';
 import type {
   AcceleratorPathType,
   MarketPathCard as MarketPathCardModel,
@@ -113,7 +77,7 @@ export const AIAcceleratorPage = () => {
 
   const pathType = normalizeType(searchParams.get('type'));
   const selectedPathId = searchParams.get('selected');
-  const acceleratorScreen = searchParams.get('screen');
+  const journeyContextId = searchParams.get('journeyContextId');
 
   const initialSearch = searchParams.get('search') ?? '';
   const initialCategory =
@@ -230,8 +194,8 @@ export const AIAcceleratorPage = () => {
   );
 
   useEffect(() => {
-    void loadPaths();
-  }, [loadPaths]);
+    if (!selectedPathId && !journeyContextId) void loadPaths();
+  }, [loadPaths, selectedPathId, journeyContextId]);
 
   const handleTabChange = (
     _event: React.SyntheticEvent,
@@ -292,39 +256,22 @@ export const AIAcceleratorPage = () => {
     const params =
       new URLSearchParams(searchParams);
 
+    if (params.get('selected') !== path.id) {
+      for (const key of [
+        'screen', 'journeyContextId', 'goalId', 'enrollmentId', 'attemptId', 'roadmapId', 'projectId', 'sessionId',
+      ]) {
+        params.delete(key);
+      }
+    }
+
     params.set('selected', path.id);
 
     setSearchParams(params);
   };
 
   const handleViewJobs = (path: MarketPathCardModel) => {
-  const filter = path.jobFilter?.trim();
-
-  const params = new URLSearchParams();
-  params.set('mode', 'all');
-
-  if (filter) {
-    const apiParams = new URL(
-      filter,
-      window.location.origin
-    ).searchParams;
-
-    const marketRoleId = apiParams.get('marketRoleId');
-    const marketSkillId = apiParams.get('marketSkillId');
-
-    if (marketRoleId) {
-      params.set('marketRoleId', marketRoleId);
-    } else if (marketSkillId) {
-      params.set('marketSkillId', marketSkillId);
-    } else {
-      params.set('q', path.name.trim());
-    }
-  } else {
-    params.set('q', path.name.trim());
-  }
-
-  navigate(`${ROUTES.DASHBOARD_JOBS}?${params.toString()}`);
-};
+    navigate(marketPathJobsUrl(path));
+  };
 
   /*
    * =========================================================
@@ -343,254 +290,9 @@ export const AIAcceleratorPage = () => {
    *   -> PracticeResultsPage
    */
 
-  if (
-    acceleratorScreen === 'progress-insights' &&
-    pathType === 'career'
-  ) {
-    return <ProgressInsightsPage />;
+  if (selectedPathId || journeyContextId) {
+    return <AIAcceleratorPathPage key={`${pathType}/${selectedPathId ?? journeyContextId}`} />;
   }
-
-  if (
-    acceleratorScreen === 'skill-passport' &&
-    pathType === 'career'
-  ) {
-    return <SkillPassportPage />;
-  }
-
-  if (
-    acceleratorScreen === 'career-readiness' &&
-    pathType === 'career'
-  ) {
-    return <CareerReadinessPage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'mock-interview-results' &&
-    pathType === 'career'
-  ) {
-    return <MockInterviewResultsPage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'mock-interview-live' &&
-    pathType === 'career'
-  ) {
-    return <LiveMockInterviewPage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'mock-interview-setup' &&
-    pathType === 'career'
-  ) {
-    return <MockInterviewSetupPage />;
-  }
-
-  if (
-    acceleratorScreen === 'practice' &&
-    pathType === 'career'
-  ) {
-    return <ProjectPracticePage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'project-resources' &&
-    pathType === 'career'
-  ) {
-    return <ProjectResourcesPage />;
-  }
-
-  if (
-    acceleratorScreen === 'ai-tutor' &&
-    pathType === 'career'
-  ) {
-    return <AITutorPage />;
-  }
-
-  if (
-    acceleratorScreen === 'project' &&
-    pathType === 'career'
-  ) {
-    return <VirtualProjectWorkspacePage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'assignment-results' &&
-    pathType === 'career'
-  ) {
-    return <AssignmentResultsPage />;
-  }
-
-  if (
-    acceleratorScreen === 'assignment' &&
-    pathType === 'career'
-  ) {
-    return <HandsOnAssignmentPage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'practice-results' &&
-    pathType === 'career'
-  ) {
-    return <PracticeResultsPage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'practice-session' &&
-    pathType === 'career'
-  ) {
-    return <PracticeSessionPage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'learning-module' &&
-    pathType === 'career'
-  ) {
-    return <LearningModulePage />;
-  }
-
-  if (
-    acceleratorScreen === 'learning' &&
-    pathType === 'career'
-  ) {
-    return <ActiveLearningPage />;
-  }
-
-  if (
-    acceleratorScreen === 'roadmap' &&
-    pathType === 'career'
-  ) {
-    return <LearningRoadmapPage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'assessment-results' &&
-    pathType === 'career'
-  ) {
-    return <AssessmentResultsPage />;
-  }
-
-  if (
-    acceleratorScreen ===
-      'assessment-questions' &&
-    pathType === 'career'
-  ) {
-    return <AssessmentQuestionsPage />;
-  }
-
-  if (
-    acceleratorScreen === 'assessment' &&
-    pathType === 'career'
-  ) {
-    return <SkillAssessmentPage />;
-  }
-
-  if (
-    acceleratorScreen === 'goal' &&
-    pathType === 'career'
-  ) {
-    return <CareerGoalSetupPage />;
-  }
-  if (
-  acceleratorScreen === 'skill-proficiency' &&
-  pathType === 'skill'
-) {
-  return <SkillProficiencyPage />;
-}
-  if (
-  acceleratorScreen === 'skill-assignment-feedback' &&
-  pathType === 'skill'
-) {
-  return <SkillAssignmentFeedbackPage />;
-}
-  if (
-  acceleratorScreen === 'skill-assignment' &&
-  pathType === 'skill'
-) {
-  return <SkillHandsOnAssignmentPage />;
-}
-  if (
-  acceleratorScreen === 'skill-practice-results' &&
-  pathType === 'skill'
-) {
-  return <SkillPracticeResultsPage />;
-}
-  if (
-  acceleratorScreen === 'skill-practice-session' &&
-  pathType === 'skill'
-) {
-  return <SkillPracticeSessionPage />;
-}
-  if (
-  acceleratorScreen === 'skill-practice' &&
-  pathType === 'skill'
-) {
-  return <SkillPracticePage />;
-}
-  if (
-  acceleratorScreen === 'skill-learning-module' &&
-  pathType === 'skill'
-) {
-  return <SkillLearningModulePage />;
-}
-  if (
-  acceleratorScreen === 'skill-learning' &&
-  pathType === 'skill'
-) {
-  return <SkillActiveLearningPage />;
-}
-  if (
-  acceleratorScreen === 'skill-roadmap' &&
-  pathType === 'skill'
-) {
-  return <SkillLearningRoadmapPage />;
-}
-  if (
-  acceleratorScreen === 'skill-assessment-results' &&
-  pathType === 'skill'
-) {
-  return <SkillGapResultsPage />;
-}
-  if (
-  acceleratorScreen === 'skill-assessment-questions' &&
-  pathType === 'skill'
-) {
-  return <SkillPathAssessmentQuestionsPage />;
-}
-  if (
-  acceleratorScreen === 'skill-assessment' &&
-  pathType === 'skill'
-) {
-  return <SkillPathAssessmentPage />;
-}
-  if (
-  acceleratorScreen === 'skill-goal' &&
-  pathType === 'skill'
-) {
-  return <SkillGoalSetupPage />;
-}
-if (
-  selectedPathId &&
-  pathType === 'skill' &&
-  !acceleratorScreen
-) {
-  return <SkillPathDetailPage />;
-}
-  if (
-    selectedPathId &&
-    pathType === 'career'
-  ) {
-    return <AIAcceleratorPathPage />;
-  }
-
   return (
     <Box
       sx={{

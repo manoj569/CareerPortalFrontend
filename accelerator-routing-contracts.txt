@@ -1,0 +1,1470 @@
+import { apiClient } from '@/api/apiClient';
+
+import type {
+  ApiResponse,
+  MarketPathCard,
+  MarketPathDetail,
+  MarketPathQuery,
+  MarketRecommendation,
+  MarketRoleGap,
+  MarketSearchResult,
+  MarketSkillPathQuery,
+} from '../types/marketIntelligence';
+
+const MARKET_BASE = '/accelerator/market';
+
+const removeEmptyValues = <T extends Record<string, unknown>>(
+  values: T,
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(values).filter(
+      ([, value]) =>
+        value !== undefined &&
+        value !== null &&
+        value !== '',
+    ),
+  );
+
+export const getCareerPaths = async (
+  query: MarketPathQuery = {},
+): Promise<MarketPathCard[]> => {
+  const response = await apiClient.get<ApiResponse<MarketPathCard[]>>(
+    `${MARKET_BASE}/career-paths`,
+    {
+      params: removeEmptyValues({
+        search: query.search,
+        category: query.category,
+        location: query.location,
+        experience: query.experience,
+        sort: query.sort,
+        page: query.page ?? 1,
+        pageSize: query.pageSize ?? 20,
+      }),
+    },
+  );
+
+  return response.data.data;
+};
+
+export const getCareerPath = async (
+  id: string,
+): Promise<MarketPathDetail> => {
+  const response = await apiClient.get<ApiResponse<MarketPathDetail>>(
+    `${MARKET_BASE}/career-paths/${encodeURIComponent(id)}`,
+  );
+
+  return response.data.data;
+};
+
+export const getCareerPathGaps = async (
+  id: string,
+): Promise<MarketRoleGap[]> => {
+  const response = await apiClient.get<ApiResponse<MarketRoleGap[]>>(
+    `${MARKET_BASE}/career-paths/${encodeURIComponent(id)}/my-gaps`,
+  );
+
+  return response.data.data;
+};
+
+export const getSkillPaths = async (
+  query: MarketSkillPathQuery = {},
+): Promise<MarketPathCard[]> => {
+  const response = await apiClient.get<ApiResponse<MarketPathCard[]>>(
+    `${MARKET_BASE}/skill-paths`,
+    {
+      params: removeEmptyValues({
+        search: query.search,
+        category: query.category,
+        roleId: query.roleId,
+        location: query.location,
+        experience: query.experience,
+        sort: query.sort,
+        page: query.page ?? 1,
+        pageSize: query.pageSize ?? 20,
+      }),
+    },
+  );
+
+  return response.data.data;
+};
+
+export const getSkillPath = async (
+  id: string,
+): Promise<MarketPathDetail> => {
+  const response = await apiClient.get<ApiResponse<MarketPathDetail>>(
+    `${MARKET_BASE}/skill-paths/${encodeURIComponent(id)}`,
+  );
+
+  return response.data.data;
+};
+
+export const searchMarketPaths = async (
+  query: string,
+): Promise<MarketSearchResult> => {
+  const response = await apiClient.get<ApiResponse<MarketSearchResult>>(
+    `${MARKET_BASE}/search`,
+    {
+      params: {
+        q: query,
+      },
+    },
+  );
+
+  return response.data.data;
+};
+
+export const getCareerPathRecommendations = async (): Promise<
+  MarketRecommendation[]
+> => {
+  const response = await apiClient.get<
+    ApiResponse<MarketRecommendation[]>
+  >(`${MARKET_BASE}/recommendations/career-paths`);
+
+  return response.data.data;
+};
+
+export const getSkillPathRecommendations = async (): Promise<
+  MarketRecommendation[]
+> => {
+  const response = await apiClient.get<
+    ApiResponse<MarketRecommendation[]>
+  >(`${MARKET_BASE}/recommendations/skill-paths`);
+
+  return response.data.data;
+};
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
+
+import { Navigate, type RouteObject } from 'react-router-dom';
+
+import { RouteAccessibility } from '@/components/accessibility/RouteAccessibility';
+
+import { RouteLoadingFallback } from '@/components/feedback/RouteLoadingFallback';
+
+import { ROUTES } from '@/constants/routes';
+
+import { AdminDashboardLayout } from '@/layouts/AdminDashboardLayout';
+
+import { AuthLayout } from '@/layouts/AuthLayout';
+
+import { PublicLayout } from '@/layouts/PublicLayout';
+
+import { UserDashboardLayout } from '@/layouts/UserDashboardLayout';
+
+import { AdminRoute } from './AdminRoute';
+
+import { CandidateRoute } from './CandidateRoute';
+
+import { ProtectedRoute } from './ProtectedRoute';
+
+import { ConsultantWorkspaceGate } from '@/features/careerGuidance/components/ConsultantWorkspaceGate';
+
+import { GuestRoute } from './GuestRoute';
+import { supportRoutes } from '@/features/support/supportApi';
+import { adminSupportRoutes } from '@/features/support/admin/adminSupportApi';
+import { EmployerLayout } from '@/layouts/EmployerLayout';
+type PageImport = Promise<Record<string, ComponentType>>;
+
+const lazyPage = (loadPage: () => PageImport, exportName: string) => {
+  const LazyPage: LazyExoticComponent<ComponentType> = lazy(async () => {
+    const module = await loadPage();
+
+    const Page = module[exportName];
+
+    if (!Page) throw new Error(`Lazy page export "${exportName}" was not found.`);
+
+    return { default: Page };
+  });
+
+  return (
+    <Suspense fallback={<RouteLoadingFallback />}>
+      <LazyPage />
+    </Suspense>
+  );
+};
+
+const routeErrorElement = lazyPage(() => import('@/pages/RouteErrorPage'), 'RouteErrorPage');
+
+export const appRoutes: RouteObject[] = [
+  {
+    element: <RouteAccessibility />,
+
+    errorElement: routeErrorElement,
+
+    children: [
+      {
+        
+        element: <PublicLayout />,
+
+        children: [
+          {
+          path: ROUTES.EMPLOYER_LOGIN,
+          element: lazyPage(
+            () => import('@/pages/EmployerLoginPage'),
+            'EmployerLoginPage',
+          ),
+        },
+          {
+            path: ROUTES.HOME,
+
+            element: lazyPage(() => import('@/pages/HomePage'), 'HomePage'),
+          },
+
+          {
+            path: '/hiring-drives',
+            element: lazyPage(() => import('@/pages/HiringDrivesPage'), 'HiringDrivesPage'),
+          },
+          {
+            path: ROUTES.HIRING_DRIVE_DETAILS,
+            element: lazyPage(
+              () => import('@/pages/HiringDriveDetailsPage'),
+              'HiringDriveDetailsPage',
+            ),
+          },
+          {
+            path: ROUTES.EMPLOYERS,
+
+            element: lazyPage(() => import('@/pages/EmployersPage'), 'EmployersPage'),
+          },
+          {
+            path: ROUTES.JOBS,
+
+            element: lazyPage(() => import('@/pages/JobsPage'), 'JobsPage'),
+          },
+
+          {
+            path: ROUTES.JOB_DETAILS,
+
+            element: lazyPage(() => import('@/pages/JobDetailsPage'), 'JobDetailsPage'),
+          },
+
+          {
+            path: ROUTES.TERMS_OF_USE,
+
+            element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'TermsOfUsePage'),
+          },
+
+          {
+            path: ROUTES.PRIVACY_POLICY,
+
+            element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'PrivacyPolicyPage'),
+          },
+
+          {
+            path: ROUTES.COOKIE_POLICY,
+
+            element: lazyPage(() => import('@/pages/LegalDocumentPage'), 'CookiePolicyPage'),
+          },
+
+          {
+            path: ROUTES.VERIFY_EMAIL,
+
+            element: lazyPage(() => import('@/pages/VerifyEmailPage'), 'VerifyEmailPage'),
+          },
+
+          {
+            path: ROUTES.REFUND_POLICY,
+
+            element: lazyPage(
+              () => import('@/pages/LegalDocumentPage'),
+
+              'RefundAndCancellationPolicyPage',
+            ),
+          },
+
+          {
+            path: ROUTES.GRIEVANCE_POLICY,
+
+            element: lazyPage(
+              () => import('@/pages/LegalDocumentPage'),
+
+              'GrievanceRedressalPolicyPage',
+            ),
+          },
+
+          {
+            path: ROUTES.CONTACT_US,
+
+            element: lazyPage(() => import('@/pages/PublicInformationPages'), 'ContactUsPage'),
+          },
+
+          {
+            path: ROUTES.ABOUT_US,
+
+            element: lazyPage(() => import('@/pages/PublicInformationPages'), 'AboutUsPage'),
+          },
+
+          {
+            path: ROUTES.PRICING,
+
+            element: lazyPage(
+              () => import('@/pages/PublicInformationPages'),
+
+              'MembershipPricingPage',
+            ),
+          },
+
+          {
+            path: ROUTES.PUBLIC_PORTFOLIO,
+
+            element: lazyPage(() => import('@/pages/PublicPortfolioPage'), 'PublicPortfolioPage'),
+          },
+        ],
+      },
+
+      {
+        element: <GuestRoute />,
+
+        children: [
+           {
+      path: ROUTES.EMPLOYER_REGISTER,
+      element: lazyPage(
+        () => import('@/pages/EmployerRegisterPage'),
+        'EmployerRegisterPage',
+      ),
+    },
+    {
+  path: ROUTES.EMPLOYER_COMPANY_SETUP,
+  element: lazyPage(
+    () => import('@/pages/EmployerCompanySetupPage'),
+    'EmployerCompanySetupPage',
+  ),
+},
+          {
+            element: <AuthLayout />,
+
+            children: [
+              {
+                path: ROUTES.LOGIN,
+
+                element: lazyPage(() => import('@/pages/LoginPage'), 'LoginPage'),
+              },
+
+              {
+                path: ROUTES.REGISTER,
+
+                element: lazyPage(() => import('@/pages/RegisterPage'), 'RegisterPage'),
+              },
+
+              {
+                path: ROUTES.VERIFY_REGISTRATION_MOBILE,
+
+                element: lazyPage(
+                  () => import('@/pages/RegistrationOtpPage'),
+
+                  'RegistrationOtpPage',
+                ),
+              },
+
+              {
+                path: ROUTES.FORGOT_PASSWORD,
+
+                element: lazyPage(() => import('@/pages/ForgotPasswordPage'), 'ForgotPasswordPage'),
+              },
+
+              {
+                path: ROUTES.RESET_PASSWORD,
+
+                element: lazyPage(() => import('@/pages/ResetPasswordPage'), 'ResetPasswordPage'),
+              },
+            ],
+          },
+        ],
+      },
+
+    {
+  element: <EmployerLayout />,
+  children: [
+    
+    {
+      path: ROUTES.EMPLOYER_DASHBOARD,
+      element: lazyPage(
+        () => import('@/pages/EmployerDashboardPage'),
+        'EmployerDashboardPage',
+      ),
+    },
+    {
+      path: ROUTES.EMPLOYER_JOBS,
+      element: lazyPage(
+        () => import('@/pages/EmployerJobsPage'),
+        'EmployerJobsPage',
+      ),
+    },
+    {
+      path: ROUTES.EMPLOYER_JOB_CREATE,
+      element: lazyPage(
+        () => import('@/pages/EmployerCreateJobPage'),
+        'EmployerCreateJobPage',
+      ),
+    },
+    {
+      path: ROUTES.EMPLOYER_JOB_CREATE_REQUIREMENTS,
+      element: lazyPage(
+        () => import('@/pages/EmployerJobRequirementsPage'),
+        'EmployerJobRequirementsPage',
+      ),
+    },
+    {
+      path: ROUTES.EMPLOYER_JOB_CREATE_SCREENING,
+      element: lazyPage(
+        () => import('@/pages/EmployerJobScreeningPage'),
+        'EmployerJobScreeningPage',
+      ),
+    },
+    {
+  path: ROUTES.EMPLOYER_JOB_CREATE_REVIEW,
+  element: lazyPage(
+    () => import('@/pages/EmployerJobReviewPage'),
+    'EmployerJobReviewPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_JOB_DETAILS,
+  element: lazyPage(
+    () => import('@/pages/EmployerJobDetailsPage'),
+    'EmployerJobDetailsPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_CANDIDATE_FIND,
+  element: lazyPage(
+    () => import('@/pages/EmployerCandidateFinderPage'),
+    'EmployerCandidateFinderPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_CANDIDATES,
+  element: lazyPage(
+    () => import('@/pages/EmployerCandidatesPage'),
+    'EmployerCandidatesPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_CANDIDATE_DETAILS,
+  element: lazyPage(
+    () => import('@/pages/EmployerCandidateProfilePage'),
+    'EmployerCandidateProfilePage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_PIPELINE,
+  element: lazyPage(
+    () => import('@/pages/EmployerPipelinePage'),
+    'EmployerPipelinePage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_INTERVIEWS,
+  element: lazyPage(
+    () => import('@/pages/EmployerInterviewsPage'),
+    'EmployerInterviewsPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_SCREENING,
+  element: lazyPage(
+    () => import('@/pages/EmployerScreeningPage'),
+    'EmployerScreeningPage',
+  ),
+},
+
+{
+  path: ROUTES.EMPLOYER_TALENT_POOL,
+  element: lazyPage(
+    () => import('@/pages/EmployerTalentPoolPage'),
+    'EmployerTalentPoolPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_COMPANY,
+  element: lazyPage(
+    () => import('@/pages/EmployerCompanyProfilePage'),
+    'EmployerCompanyProfilePage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_SETTINGS,
+  element: lazyPage(
+    () => import('@/pages/EmployerSettingsPage'),
+    'EmployerSettingsPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_INTERVIEW_DETAILS,
+  element: lazyPage(
+    () => import('@/pages/EmployerInterviewDetailPage'),
+    'EmployerInterviewDetailPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_MESSAGES,
+  element: lazyPage(
+    () => import('@/pages/EmployerMessagesPage'),
+    'EmployerMessagesPage',
+  ),
+},
+{
+  path: ROUTES.EMPLOYER_ANALYTICS,
+  element: lazyPage(
+    () => import('@/pages/EmployerAnalyticsPage'),
+    'EmployerAnalyticsPage',
+  ),
+},
+  ],
+},
+      {
+        element: <CandidateRoute />,
+
+        children: [
+          {
+            element: <PublicLayout />,
+
+            children: [
+              {
+                path: ROUTES.ONBOARDING,
+
+                element: lazyPage(() => import('@/pages/OnboardingPage'), 'OnboardingPage'),
+              },
+
+              {
+                path: ROUTES.CAREER_SNAPSHOT,
+                element: lazyPage(() => import('@/pages/CareerSnapshotPage'), 'CareerSnapshotPage'),
+              },
+            ],
+          },
+
+          {
+            element: <UserDashboardLayout />,
+
+            children: [
+              {
+                path: ROUTES.DASHBOARD,
+
+                element: lazyPage(() => import('@/pages/DashboardPage'), 'DashboardPage'),
+              },
+              {
+                path: ROUTES.AI_ACCELERATOR,
+                element: lazyPage(
+                  () => import('@/features/accelerator/pages/AIAcceleratorPage'),
+                  'AIAcceleratorPage',
+                ),
+              },
+
+              {
+                path: ROUTES.DASHBOARD_JOBS,
+
+                element: lazyPage(
+                  () => import('@/pages/CandidateBrowseJobsPage'),
+
+                  'CandidateBrowseJobsPage',
+                ),
+              },
+              {
+                path: ROUTES.DASHBOARD_JOB_DETAILS,
+                element: lazyPage(() => import('@/pages/JobDetailsPage'), 'JobDetailsPage'),
+              },
+              {
+                path: ROUTES.DASHBOARD_HIRING_DRIVE_DETAILS,
+                element: lazyPage(
+                  () => import('@/pages/HiringDriveDetailsPage'),
+                  'HiringDriveDetailsPage',
+                ),
+              },
+              {
+  path: ROUTES.CANDIDATE_MESSAGES,
+  element: lazyPage(
+    () => import('@/pages/CandidateMessagesPage'),
+    'CandidateMessagesPage',
+  ),
+},
+
+
+              {
+                path: ROUTES.REFER_A_JOB,
+
+                element: lazyPage(() => import('@/pages/ReferAJobPage'), 'ReferAJobPage'),
+              },
+
+              {
+                path: ROUTES.REFERRALS,
+
+                element: lazyPage(() => import('@/pages/AllReferralsPage'), 'AllReferralsPage'),
+              },
+              {
+                path: '/dashboard/referrals/:referralId/submitted',
+                element: lazyPage(
+                  () => import('@/pages/ReferralMarketplacePages'),
+                  'ReferralSubmissionSuccessPage',
+                ),
+              },
+              {
+                path: '/dashboard/referrals/:referralId/requests',
+                element: lazyPage(() => import('@/pages/AllReferralsPage'), 'ReferralRequestsPage'),
+              },
+              {
+                path: '/dashboard/referral-requests',
+                element: lazyPage(() => import('@/pages/AllReferralsPage'), 'ReferralRequestsPage'),
+              },
+              {
+                path: '/dashboard/referral-requests/:requestId',
+                element: lazyPage(
+                  () => import('@/pages/ReferralMarketplacePages'),
+                  'ReferrerRequestDetailPage',
+                ),
+              },
+              {
+                path: '/dashboard/referral-requests/:requestId/complete',
+                element: lazyPage(
+                  () => import('@/pages/ReferralMarketplacePages'),
+                  'ReferrerRequestDetailPage',
+                ),
+              },
+              {
+                path: '/dashboard/referral-requests/:requestId/submitted',
+                element: lazyPage(
+                  () => import('@/pages/ReferralMarketplacePages'),
+                  'ReferrerRequestDetailPage',
+                ),
+              },
+              {
+                path: '/dashboard/my-referral-requests',
+                element: lazyPage(
+                  () => import('@/pages/CandidateReferralRequestsPage'),
+                  'CandidateReferralRequestsPage',
+                ),
+              },
+              {
+                path: '/dashboard/my-referral-requests/:requestId',
+                element: lazyPage(
+                  () => import('@/pages/CandidateReferralRequestsPage'),
+                  'CandidateReferralRequestPage',
+                ),
+              },
+
+              {
+                path: ROUTES.PROFILE,
+
+                element: <Navigate replace to={ROUTES.PORTFOLIO} />,
+              },
+
+              {
+                path: ROUTES.PORTFOLIO,
+
+                element: lazyPage(() => import('@/pages/PortfolioPage'), 'PortfolioPage'),
+              },
+
+              {
+                path: ROUTES.RESUME_MAKER,
+                element: lazyPage(() => import('@/pages/ResumeMakerPage'), 'ResumeMakerPage'),
+              },
+              {
+                path: ROUTES.RESUME,
+
+                element: <Navigate replace to={ROUTES.DASHBOARD_JOBS} />,
+              },
+
+              {
+                path: ROUTES.SAVED_JOBS,
+
+                element: lazyPage(() => import('@/pages/SavedJobsPage'), 'SavedJobsPage'),
+              },
+
+              {
+                path: ROUTES.APPLICATIONS,
+
+                element: lazyPage(() => import('@/pages/ApplicationsPage'), 'ApplicationsPage'),
+              },
+
+              {
+                path: ROUTES.APPLICATION_DETAILS,
+
+                element: lazyPage(
+                  () => import('@/pages/ApplicationDetailsPage'),
+
+                  'ApplicationDetailsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.INTERVIEW_INSIGHTS,
+
+                element: lazyPage(
+                  () =>
+                    import('@/features/interviewInsights/components/InterviewInsightsMembershipGate'),
+
+                  'InterviewInsightsMembershipGate',
+                ),
+              },
+
+              {
+                path: ROUTES.AI_APPLY,
+
+                element: lazyPage(
+                  () => import('@/pages/AIApplyDashboardPage'),
+
+                  'AIApplyDashboardPage',
+                ),
+              },
+
+              {
+                path: ROUTES.AI_APPLY_SETUP,
+
+                element: lazyPage(() => import('@/pages/AIApplyPage'), 'AIApplyPage'),
+              },
+
+              {
+                path: ROUTES.AI_APPLY_APPLICATIONS,
+
+                element: lazyPage(
+                  () => import('@/pages/AIApplyApplicationsPage'),
+
+                  'AIApplyApplicationsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.AI_APPLY_APPLICATION_DETAILS,
+
+                element: lazyPage(
+                  () => import('@/pages/AIApplyApplicationDetailPage'),
+
+                  'AIApplyApplicationDetailPage',
+                ),
+              },
+
+              {
+                path: ROUTES.AI_APPLY_QUESTIONS,
+
+                element: lazyPage(
+                  () => import('@/pages/AIApplyQuestionsPage'),
+
+                  'AIApplyQuestionsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.AI_APPLY_QUESTION_DETAILS,
+
+                element: lazyPage(
+                  () => import('@/pages/AIApplyQuestionDetailPage'),
+
+                  'AIApplyQuestionDetailPage',
+                ),
+              },
+
+              {
+                path: ROUTES.AI_APPLY_ANSWERS,
+
+                element: lazyPage(() => import('@/pages/AIApplyAnswersPage'), 'AIApplyAnswersPage'),
+              },
+
+              {
+                path: ROUTES.AI_APPLY_SUBSCRIPTION,
+
+                element: <Navigate replace to={ROUTES.MEMBERSHIP} />,
+              },
+
+              {
+                path: ROUTES.AI_APPLY_CONNECTIONS,
+
+                element: lazyPage(
+                  () => import('@/pages/AIApplyExternalConnectionsPage'),
+
+                  'AIApplyExternalConnectionsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.INTERVIEW_INSIGHT_CONTRIBUTIONS,
+
+                element: (
+                  <Navigate replace to={`${ROUTES.INTERVIEW_INSIGHTS}?view=contributions`} />
+                ),
+              },
+
+              {
+                path: ROUTES.NOTIFICATIONS,
+
+                element: lazyPage(() => import('@/pages/NotificationsPage'), 'NotificationsPage'),
+              },
+
+              {
+                path: ROUTES.SETTINGS,
+
+                element: lazyPage(() => import('@/pages/SettingsPage'), 'SettingsPage'),
+              },
+
+              {
+                path: ROUTES.MEMBERSHIP,
+
+                element: lazyPage(() => import('@/pages/PaymentPage'), 'PaymentPage'),
+              },
+
+              {
+                path: ROUTES.PAYMENTS,
+
+                element: lazyPage(() => import('@/pages/PaymentsPage'), 'PaymentsPage'),
+              },
+
+              {
+                path: '/career-guidance',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/MarketplacePage'),
+
+                  'MarketplacePage',
+                ),
+              },
+
+              {
+                path: '/career-guidance/consultants/:consultantId',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/ConsultantPublicPage'),
+
+                  'ConsultantPublicPage',
+                ),
+              },
+
+              {
+                path: '/career-guidance/consultant/bookings',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/BookingsPage'),
+
+                  'ConsultantBookingsPage',
+                ),
+              },
+
+              {
+                path: '/career-guidance/bookings/:id',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/BookingDetailPage'),
+
+                  'default',
+                ),
+              },
+
+              {
+                path: '/career-guidance/bookings/:id/confirmed',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/BookingConfirmedPage'),
+
+                  'default',
+                ),
+              },
+
+              {
+                path: '/career-guidance/sessions/:id',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/SessionPage'),
+
+                  'default',
+                ),
+              },
+
+              {
+                path: '/career-guidance/consultants/:consultantId/book/:serviceId',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/BookingCreatePage'),
+
+                  'BookingCreatePage',
+                ),
+              },
+
+              {
+                path: '/career-guidance/consultants/:consultantId/book/:serviceId/confirm',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/ConsultantBookingConfirmPage'),
+
+                  'ConsultantBookingConfirmPage',
+                ),
+              },
+
+              {
+                path: '/career-guidance/bookings/:id/feedback',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/BookingFeedbackPage'),
+
+                  'default',
+                ),
+              },
+
+              {
+                path: ROUTES.REFERRAL_CONTACT_DETAILS,
+
+                element: lazyPage(
+                  () => import('@/pages/ReferralContactDetailsPage'),
+
+                  'ReferralContactDetailsPage',
+                ),
+              },
+            ],
+          },
+
+          {
+            element: <PublicLayout />,
+
+            children: [
+              {
+                path: ROUTES.PAYMENT,
+
+                element: lazyPage(() => import('@/pages/PaymentPage'), 'PaymentPage'),
+              },
+
+              {
+                path: ROUTES.PAYMENT_SUCCESS,
+
+                element: lazyPage(() => import('@/pages/PaymentSuccessPage'), 'PaymentSuccessPage'),
+              },
+
+              {
+                path: ROUTES.PAYMENT_PENDING,
+
+                element: lazyPage(() => import('@/pages/PaymentPendingPage'), 'PaymentPendingPage'),
+              },
+
+              {
+                path: ROUTES.PAYMENT_FAILED,
+
+                element: lazyPage(() => import('@/pages/PaymentFailedPage'), 'PaymentFailedPage'),
+              },
+
+              {
+                path: ROUTES.PHONEPE_RETURN,
+
+                element: lazyPage(() => import('@/pages/PhonePeReturnPage'), 'PhonePeReturnPage'),
+              },
+
+              {
+                path: ROUTES.PHONEPE_RETURN_LEGACY,
+
+                element: lazyPage(() => import('@/pages/PhonePeReturnPage'), 'PhonePeReturnPage'),
+              },
+            ],
+          },
+        ],
+      },
+
+      {
+        element: <ProtectedRoute />,
+
+        children: [
+          {
+            element: <UserDashboardLayout />,
+            children: [
+              {
+                path: supportRoutes.tickets,
+                element: lazyPage(
+                  () => import('@/features/support/MySupportTicketsPage'),
+                  'MySupportTicketsPage',
+                ),
+              },
+              {
+                path: supportRoutes.detail,
+                element: lazyPage(
+                  () => import('@/features/support/MySupportTicketsPage'),
+                  'MySupportTicketsPage',
+                ),
+              },
+
+              {
+                path: '/career-guidance/become-consultant',
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/BecomeConsultantPage'),
+                  'default',
+                ),
+              },
+
+              {
+                path: '/career-guidance/become-consultant/review',
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/ConsultantReviewSubmitPage'),
+                  'default',
+                ),
+              },
+
+              {
+                path: '/career-guidance/become-consultant/basic',
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/ConsultantBasicInformationPage'),
+                  'default',
+                ),
+              },
+
+              {
+                path: '/career-guidance/become-consultant/professional',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/ConsultantProfessionalDetailsPage'),
+
+                  'default',
+                ),
+              },
+
+              {
+                path: '/career-guidance/become-consultant/expertise',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/ConsultantExpertiseServicesPage'),
+
+                  'default',
+                ),
+              },
+
+              {
+                path: '/career-guidance/become-consultant/availability',
+
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/ConsultantAvailabilityPage'),
+
+                  'default',
+                ),
+              },
+            ],
+          },
+
+          {
+            element: <ConsultantWorkspaceGate />,
+
+            children: [
+              {
+                element: <UserDashboardLayout />,
+
+                children: [
+                  {
+                    path: '/career-guidance/consultant/bookings',
+
+                    element: lazyPage(
+                      () => import('@/features/careerGuidance/pages/BookingsPage'),
+
+                      'ConsultantBookingsPage',
+                    ),
+                  },
+
+                  {
+                    path: '/career-guidance/consultant/bookings/:id',
+
+                    element: lazyPage(
+                      () => import('@/features/careerGuidance/pages/BookingDetailPage'),
+
+                      'default',
+                    ),
+                  },
+
+                  {
+                    path: '/career-guidance/consultant/sessions/:id',
+
+                    element: lazyPage(
+                      () => import('@/features/careerGuidance/pages/SessionPage'),
+
+                      'ConsultantSessionPage',
+                    ),
+                  },
+
+                  {
+                    path: '/career-guidance/consultant/disputes/:id',
+
+                    element: lazyPage(
+                      () => import('@/features/careerGuidance/pages/ConsultantDisputePage'),
+
+                      'default',
+                    ),
+                  },
+
+                  {
+                    path: '/career-guidance/consultant/disputes',
+
+                    element: lazyPage(
+                      () => import('@/features/careerGuidance/pages/GuidanceOwnerPage'),
+
+                      'default',
+                    ),
+                  },
+
+                  {
+                    path: '/career-guidance/consultant/*',
+
+                    element: lazyPage(
+                      () => import('@/features/careerGuidance/pages/GuidanceOwnerPage'),
+
+                      'default',
+                    ),
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+
+      {
+        element: <AdminRoute />,
+
+        children: [
+          {
+            element: <AdminDashboardLayout />,
+
+            children: [
+              {
+                path: ROUTES.ADMIN,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminDashboardPage'),
+
+                  'AdminDashboardPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_NOTIFICATIONS,
+                element: lazyPage(() => import('@/pages/NotificationsPage'), 'NotificationsPage'),
+              },
+              {
+                path: '/admin/hiring-drives',
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminHiringDrivesPage'),
+                  'AdminHiringDrivesPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANIES,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCompaniesPage'),
+                  'AdminCompaniesPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_CREATE,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCompanyFormPage'),
+                  'AdminCompanyFormPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_EDIT,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCompanyFormPage'),
+                  'AdminCompanyFormPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_COMPANY_DETAILS,
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCompanyDetailsPage'),
+                  'AdminCompanyDetailsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_JOBS,
+
+                element: lazyPage(() => import('@/pages/admin/AdminJobsPage'), 'AdminJobsPage'),
+              },
+
+              {
+                path: ROUTES.ADMIN_JOB_SOURCES,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminJobSourcesPage'),
+                  'AdminJobSourcesPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_JOB_CREATE,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminCreateJobPage'),
+
+                  'AdminCreateJobPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_JOB_DISCOVERY,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminJobDiscoveryPage'),
+
+                  'AdminJobDiscoveryPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_JOB_DISCOVERY_RUN,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminJobDiscoveryRunPage'),
+
+                  'AdminJobDiscoveryRunPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_JOB_EDIT,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminEditJobPage'),
+
+                  'AdminEditJobPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_JOB_DETAILS,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminJobDetailsPage'),
+
+                  'AdminJobDetailsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_USERS,
+
+                element: lazyPage(() => import('@/pages/admin/AdminUsersPage'), 'AdminUsersPage'),
+              },
+
+              {
+                path: ROUTES.ADMIN_USER_DETAILS,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminUserDetailsPage'),
+
+                  'AdminUserDetailsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_APPLICATIONS,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminApplicationsPage'),
+
+                  'AdminApplicationsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_APPLICATION_DETAILS,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminApplicationDetailsPage'),
+
+                  'AdminApplicationDetailsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_PAYMENTS,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminPaymentsPage'),
+
+                  'AdminPaymentsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_PAYMENT_DETAILS,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminPaymentDetailsPage'),
+
+                  'AdminPaymentDetailsPage',
+                ),
+              },
+
+              {
+                path: adminSupportRoutes.list,
+                element: lazyPage(
+                  () => import('@/features/support/admin/AdminSupportTicketsPage'),
+                  'AdminSupportTicketsPage',
+                ),
+              },
+              {
+                path: adminSupportRoutes.detail,
+                element: lazyPage(
+                  () => import('@/features/support/admin/AdminSupportTicketDetailsPage'),
+                  'AdminSupportTicketDetailsPage',
+                ),
+              },
+              {
+                path: ROUTES.ADMIN_AUDIT_LOGS,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminAuditLogsPage'),
+
+                  'AdminAuditLogsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_INTERVIEW_INSIGHTS,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminInterviewInsightsPage'),
+
+                  'AdminInterviewInsightsPage',
+                ),
+              },
+
+              {
+                path: ROUTES.ADMIN_AI_APPLY,
+
+                element: lazyPage(
+                  () => import('@/pages/admin/AdminAIApplyOperationsPage'),
+
+                  'AdminAIApplyOperationsPage',
+                ),
+              },
+
+              {
+                path: '/admin/career-guidance/disputes/:id',
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/AdminDisputePage'),
+                  'default',
+                ),
+              },
+
+              {
+                path: '/admin/career-guidance/sessions/:id',
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/AdminSessionPage'),
+                  'default',
+                ),
+              },
+
+              {
+                path: '/admin/career-guidance/*',
+                element: lazyPage(
+                  () => import('@/features/careerGuidance/pages/AdminGuidancePage'),
+                  'default',
+                ),
+              },
+            ],
+          },
+        ],
+      },
+
+      {
+        path: ROUTES.UNAUTHORIZED,
+
+        element: lazyPage(() => import('@/pages/UnauthorizedPage'), 'UnauthorizedPage'),
+      },
+
+      {
+        path: '*',
+
+        element: lazyPage(() => import('@/pages/NotFoundPage'), 'NotFoundPage'),
+      },
+    ],
+  },
+];
+ 
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 0 :         s e t S e a r c h P a r a m s ( p a r a m s ) ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 1 :     } ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 2 :  
+ >   s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 3 :     c o n s t   h a n d l e S t a r t A s s e s s m e n t   =   ( )   = >   {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 4 :         c o n s t   p a r a m s   =  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 5 :             n e w   U R L S e a r c h P a r a m s ( s e a r c h P a r a m s ) ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 6 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 7 :         / *  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 8 :           *   T h i s   w i l l   b e   t h e   a c t u a l   q u e s t i o n   s c r e e n .  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 9 :           *   W e   w i l l   b u i l d   i t   n e x t .  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 :           * /  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 1 :         p a r a m s . s e t (  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 9 7 :                             < A r r o w F o r w a r d R o u n d e d I c o n   / >  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 9 8 :                         }  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 0 9 9 :                         o n C l i c k = {  
+ >   s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 0 :                             h a n d l e S t a r t A s s e s s m e n t  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 1 :                         }  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 2 :                         s x = { {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 3 :                             w i d t h :   ' 1 0 0 % ' ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 4 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 5 :                             m i n H e i g h t :   5 6 ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 6 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 7 :                             b o r d e r R a d i u s :   3 ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l A s s e s s m e n t P a g e . t s x : 1 1 0 8 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 1 : i m p o r t   {   t y p e   R e a c t N o d e ,   u s e S t a t e   }   f r o m   ' r e a c t ' ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 2 : i m p o r t   {   u s e S e a r c h P a r a m s   }   f r o m   ' r e a c t - r o u t e r - d o m ' ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 3 :  
+ >   s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 : t y p e   G o a l I d   =  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 5 :     |   ' j o b '  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 6 :     |   ' s w i t c h '  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 7 :     |   ' u p s k i l l '  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 8 :     |   ' p r o j e c t s ' ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 9 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 3 0 : t y p e   L e v e l I d   =  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 3 1 :     |   ' b e g i n n e r '  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 3 2 :     |   ' i n t e r m e d i a t e '  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 4 5 :     |   ' j o b - o p p o r t u n i t i e s ' ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 4 6 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 4 7 : t y p e   G o a l O p t i o n   =   {  
+ >   s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 4 8 :     i d :   G o a l I d ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 4 9 :     t i t l e :   s t r i n g ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 5 0 :     d e s c r i p t i o n :   s t r i n g ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 5 1 :     i c o n :   R e a c t N o d e ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 5 2 : } ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 5 3 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 5 4 : t y p e   L e v e l O p t i o n   =   {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 5 5 :     i d :   L e v e l I d ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 5 6 :     t i t l e :   s t r i n g ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 2 7 :     } ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 2 8 : ] ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 2 9 :  
+ >   s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 0 : c o n s t   g o a l L a b e l s :   R e c o r d < G o a l I d ,   s t r i n g >   =   {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 1 :     j o b :   ' G e t   a   J o b ' ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 2 :     s w i t c h :   ' S w i t c h   R o l e ' ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 3 :     u p s k i l l :   ' I n c r e a s e   S k i l l s ' ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 4 :     p r o j e c t s :   ' B u i l d   P r o j e c t s ' ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 5 : } ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 6 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 7 : c o n s t   l e v e l L a b e l s :   R e c o r d < L e v e l I d ,   s t r i n g >   =   {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 1 3 8 :     b e g i n n e r :   ' B e g i n n e r ' ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 0 :         u s e S e a r c h P a r a m s ( ) ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 1 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 2 :     c o n s t   [ s e l e c t e d G o a l ,   s e t S e l e c t e d G o a l ]   =  
+ >   s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 3 :         u s e S t a t e < G o a l I d > ( ' j o b ' ) ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 4 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 5 :     c o n s t   [ s e l e c t e d L e v e l ,   s e t S e l e c t e d L e v e l ]   =  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 6 :         u s e S t a t e < L e v e l I d > ( ' i n t e r m e d i a t e ' ) ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 7 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 8 :     c o n s t   [ s e l e c t e d T i m e l i n e ,   s e t S e l e c t e d T i m e l i n e ]   =  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 4 9 :         u s e S t a t e < T i m e l i n e I d > ( ' r e c o m m e n d e d ' ) ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 5 0 :  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l G o a l S e t u p P a g e . t s x : 2 5 1 :     c o n s t   [ p r e f e r e n c e s ,   s e t P r e f e r e n c e s ]   =   u s e S t a t e <  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 5 7 :         n a v i g a t e T o S c r e e n ( ' s k i l l - g o a l ' ) ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 5 8 :     } ;  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 5 9 :  
+ >   s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 0 :     c o n s t   h a n d l e S t a r t A s s e s s m e n t   =   ( )   = >   {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 1 :         / *  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 2 :           *   S 4   -   S k i l l   A s s e s s m e n t   Q u e s t i o n s .  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 3 :           *  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 4 :           *   L a t e r   t h e   b a c k e n d   s h o u l d   c r e a t e / r e s u m e   a n  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 5 :           *   a s s e s s m e n t   a t t e m p t   b e f o r e   n a v i g a t i o n .  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 6 :           * /  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 7 :         n a v i g a t e T o S c r e e n (  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 2 6 8 :             ' s k i l l - a s s e s s m e n t - q u e s t i o n s ' ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 4 7 :                     s t a r t I c o n = {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 4 8 :                         < P l a y A r r o w R o u n d e d I c o n   / >  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 4 9 :                     }  
+ >   s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 0 :                     o n C l i c k = { h a n d l e S t a r t A s s e s s m e n t }  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 1 :                     s x = { {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 2 :                         m i n H e i g h t :   5 0 ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 3 :                         m i n W i d t h :   {  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 4 :                             x s :   ' 1 0 0 % ' ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 5 :                             s m :   3 0 0 ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 6 :                         } ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 7 :                         p x :   3 ,  
+     s r c \ f e a t u r e s \ a c c e l e r a t o r \ p a g e s \ S k i l l P a t h A s s e s s m e n t P a g e . t s x : 8 5 8 :                         b o r d e r R a d i u s :   2 . 2 ,  
+  
+  
+ 
