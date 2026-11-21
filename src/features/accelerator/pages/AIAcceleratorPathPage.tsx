@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { isAxiosError } from 'axios';
 
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
@@ -38,9 +39,9 @@ import { JourneyPractice } from './ProjectPracticePage';
 import { JourneyTutor } from './AITutorPage';
 import { JourneyInsights } from './ProgressInsightsPage';
 import { journeyError } from '../hooks/useJourneyWork';
-import { getAcceleratorJourney } from '../api/acceleratorApi';
-import { journeyAction, journeyMessages, remainingTime } from '../journeyPresentation';
-import { NextAction, type AcceleratorJourneyResponse } from '../types/journey';
+import { getAcceleratorJourney, provisionAcceleratorJourney } from '../api/acceleratorApi';
+import { journeyAction, journeyMessages, needsJourneyProvisioning, remainingTime } from '../journeyPresentation';
+import { NextAction, type AcceleratorJourneyResponse, type ProvisionAcceleratorJourneyResponse } from '../types/journey';
 import { getCareerPath, getSkillPath } from '../api/acceleratorMarketApi';
 import { AcceleratorSubscriptionStatus } from '../components/AcceleratorSubscriptionStatus';
 import { marketPathJobsUrl } from '../marketPathJobs';
@@ -123,13 +124,23 @@ export const AIAcceleratorPathPage = () => {
 
   const [journey, setJourney] = useState<AcceleratorJourneyResponse | null>(null);
   const [retry, setRetry] = useState(0);
+  const [provisioning, setProvisioning] = useState<'idle' | 'pending' | 'unavailable'>('idle');
+  const provisionAttempt = useRef<{
+    selection: string;
+    requestKey: string;
+    pending?: Promise<ProvisionAcceleratorJourneyResponse>;
+    contextId?: string;
+  } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
+    const selection = `${isSkill ? 'skill' : 'career'}/${selectedPathId ?? ''}`;
+    if (provisionAttempt.current?.selection !== selection) provisionAttempt.current = null;
 
     const loadPath = async () => {
-      const query = selectedPathId ? (isSkill ? { marketSkillPathId: selectedPathId } : { marketPathId: selectedPathId })
-        : journeyContextId ? { journeyContextId } : null;
+      const market = selectedPathId ? (isSkill ? { marketSkillPathId: selectedPathId } : { marketPathId: selectedPathId }) : null;
+      const contextId = provisionAttempt.current?.contextId ?? journeyContextId;
+      const query = contextId ? { journeyContextId: contextId } : market;
       if (!query) {
         setError(
           'No career path was selected.',
@@ -143,11 +154,48 @@ export const AIAcceleratorPathPage = () => {
 
       try {
         const result = await getAcceleratorJourney(query, controller.signal);
-        if (!controller.signal.aborted) {
-          setJourney(result);
+        if (controller.signal.aborted) return;
+        setJourney(result);
+        setLoading(false);
+        if (!market || result.entitlement.status !== 'Active' || !needsJourneyProvisioning(result)) {
+          setProvisioning('idle');
+          return;
         }
+
+        setProvisioning('pending');
+        const attempt = provisionAttempt.current ?? { selection, requestKey: crypto.randomUUID() };
+        provisionAttempt.current = attempt;
+        if (!attempt.contextId) {
+          try {
+            // Keep the in-flight write across effect cleanup. Abort only the reads.
+            attempt.pending ??= provisionAcceleratorJourney({ ...market, requestKey: attempt.requestKey });
+            const prepared = await attempt.pending;
+            if (prepared.journeyContextId) attempt.contextId = prepared.journeyContextId;
+            if (controller.signal.aborted) return;
+            if (prepared.state === 'ProvisioningUnavailable' || !attempt.contextId) {
+              setProvisioning('unavailable');
+              return;
+            }
+          } catch (failure) {
+            attempt.pending = undefined;
+            if (controller.signal.aborted) return;
+            const status = isAxiosError(failure) ? failure.response?.status : undefined;
+            if (status !== 409 && status !== 403) throw failure;
+            const latest = await getAcceleratorJourney(market, controller.signal);
+            if (controller.signal.aborted) return;
+            setJourney(latest);
+            if (needsJourneyProvisioning(latest) && latest.entitlement.status === 'Active') throw failure;
+            setProvisioning('idle');
+            return;
+          }
+        }
+        const latest = await getAcceleratorJourney({ journeyContextId: attempt.contextId }, controller.signal);
+        if (controller.signal.aborted) return;
+        setJourney(latest);
+        setProvisioning(needsJourneyProvisioning(latest) ? 'unavailable' : 'idle');
       } catch (failure) {
         if (!controller.signal.aborted) {
+          setProvisioning('idle');
           setError(
             journeyError(failure),
           );
@@ -256,6 +304,8 @@ export const AIAcceleratorPathPage = () => {
   const jobsUrl = path ? marketPathJobsUrl(path) : null;
   const matchingJobs = journey.summary?.relevantJobCount ?? path?.demand.activeJobCount;
   const action = journeyAction(journey);
+  const provisioningBlocked = provisioning !== 'idle'
+    || needsJourneyProvisioning(journey) || journey.state === 'ProvisioningUnavailable';
   const activeJourneyIndex = journey.checklist.findIndex((item) => !item.complete);
   const journeySteps = journey.checklist.map((item, index) => ({
     id: item.code,
@@ -699,6 +749,14 @@ export const AIAcceleratorPathPage = () => {
       <Stack spacing={1} sx={{ mb: 2 }}>
         {error && <Alert severity="error" action={<Button onClick={refresh}>Retry</Button>}>{error}</Alert>}
         <AcceleratorSubscriptionStatus entitlement={journey.entitlement} />
+        {provisioning === 'pending' && (
+          <Alert severity="info" role="status" icon={<CircularProgress size={20} />}>
+            Preparing your personalized {title} journey…
+          </Alert>
+        )}
+        {provisioning === 'unavailable' && journey.state !== 'ProvisioningUnavailable' && (
+          <Alert severity="info">{journeyMessages.ProvisioningUnavailable}</Alert>
+        )}
         <Stack direction="row" spacing={2} alignItems="center">
           {matchingJobs != null && <Typography>{matchingJobs} matching jobs</Typography>}
           {jobsUrl && <Button component={Link} to={jobsUrl}>View jobs</Button>}
@@ -707,7 +765,7 @@ export const AIAcceleratorPathPage = () => {
           {journey.summary.applicationCount} applications and {journey.summary.savedJobCount} saved jobs across your account
         </Typography>}
         {journeyMessages[journey.state] && <Alert severity="info">{journeyMessages[journey.state]}</Alert>}
-        {action && actionUrl && <Button component={Link} to={actionUrl} variant="contained" sx={{ alignSelf: 'start' }}>{action.label}</Button>}
+        {!provisioningBlocked && action && actionUrl && <Button component={Link} to={actionUrl} variant="contained" sx={{ alignSelf: 'start' }}>{action.label}</Button>}
       </Stack>
 
       {/* =====================================================
@@ -786,7 +844,7 @@ export const AIAcceleratorPathPage = () => {
           MY ACCELERATOR
       ====================================================== */}
 
-      {dashboard && (
+      {!provisioningBlocked && dashboard && (
         <Box
           sx={{
             mt: 2.5,
@@ -1650,7 +1708,7 @@ export const AIAcceleratorPathPage = () => {
         </Box>
       )}
 
-      {!dashboard && (
+      {!provisioningBlocked && !dashboard && (
         <Box sx={{ mt: 2.5, p: { xs: 2, md: 3 }, border: '1px solid #e0e6ef', borderRadius: 3, bgcolor: '#fff' }}>
           {renderScreen()}
         </Box>

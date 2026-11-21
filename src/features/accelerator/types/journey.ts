@@ -15,6 +15,28 @@ export enum NextAction {
   ViewInterviewReport,
   ViewJobs,
   ViewApplications,
+  ProvisionJourney,
+}
+
+export type MarketJourneySelection =
+  | { marketPathId: string; marketSkillPathId?: never }
+  | { marketSkillPathId: string; marketPathId?: never };
+
+export type ProvisionAcceleratorJourneyRequest = MarketJourneySelection & { requestKey: string };
+
+export interface ProvisionAcceleratorJourneyResponse {
+  state: string;
+  diagnosticReason: string | null;
+  journeyContextId: string | null;
+  learningPathId: string | null;
+  enrollmentId: string | null;
+  nextAction: NextAction;
+  requiredCompetencies: number;
+  coveredCompetencies: number;
+  uncoveredCompetencyIds: string[];
+  policyVersion: string;
+  isPartialBaseline: boolean;
+  competencyCoveragePercent: number;
 }
 
 export interface JourneySummary {

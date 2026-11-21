@@ -1,6 +1,8 @@
 import { NextAction, type AcceleratorJourneyResponse } from './types/journey';
 
 export const journeyMessages: Record<string, string> = {
+  ProvisioningUnavailable:
+    'This path cannot be prepared automatically yet. Choose another path or try again later.',
   MarketSkillNotMapped: 'This market skill is not yet mapped to an Accelerator learning path.',
   CompetencyMappingIncomplete: 'This learning path is still being configured.',
   MarketRoleNotMapped: 'This career path is not yet configured for AI Accelerator learning.',
@@ -8,6 +10,13 @@ export const journeyMessages: Record<string, string> = {
   AssessmentNotConfigured: 'Assessment is not configured for this learning path yet.',
   QuestionsUnavailable: 'Assessment questions are currently unavailable.',
 };
+
+export function needsJourneyProvisioning(journey: AcceleratorJourneyResponse) {
+  return (
+    journey.state !== 'ProvisioningUnavailable' &&
+    (journey.state === 'ProvisioningRequired' || journey.nextAction === NextAction.ProvisionJourney)
+  );
+}
 
 export function remainingTime(minutes: number | null) {
   if (minutes === null) return 'Not calculated yet';

@@ -2,12 +2,24 @@ import { apiClient } from '@/api/apiClient';
 import type { PhonePeCheckoutResponse } from '@/features/payments/types/paymentModels';
 
 import type { ApiResponse } from '../types/marketIntelligence';
-import type { AcceleratorJourneyResponse } from '../types/journey';
+import type {
+  AcceleratorJourneyResponse,
+  MarketJourneySelection,
+  ProvisionAcceleratorJourneyRequest,
+  ProvisionAcceleratorJourneyResponse,
+} from '../types/journey';
 
 type JourneyQuery =
-  | { marketPathId: string; journeyContextId?: never }
-  | { marketSkillPathId: string; marketPathId?: never; journeyContextId?: never }
-  | { journeyContextId: string; marketPathId?: never };
+  | (MarketJourneySelection & { journeyContextId?: never })
+  | { journeyContextId: string; marketPathId?: never; marketSkillPathId?: never };
+
+export async function provisionAcceleratorJourney(request: ProvisionAcceleratorJourneyRequest) {
+  const { data } = await apiClient.post<ApiResponse<ProvisionAcceleratorJourneyResponse>>(
+    '/accelerator/v1/journeys/provision',
+    request,
+  );
+  return data.data;
+}
 
 export async function getAcceleratorJourney(params: JourneyQuery, signal?: AbortSignal) {
   const { data } = await apiClient.get<ApiResponse<AcceleratorJourneyResponse>>(

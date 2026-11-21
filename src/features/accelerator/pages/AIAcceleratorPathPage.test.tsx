@@ -1,8 +1,13 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
+import { MemoryRouter, useSearchParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getAcceleratorJourney, getAcceleratorPlan } from '../api/acceleratorApi';
+import {
+  getAcceleratorJourney,
+  getAcceleratorPlan,
+  provisionAcceleratorJourney,
+} from '../api/acceleratorApi';
 import { getCareerPath, getSkillPath } from '../api/acceleratorMarketApi';
 import {
   finalizeAssessment,
@@ -13,13 +18,18 @@ import {
   startBaselineAssessment,
   getAssessmentAttempt,
 } from '../api/journeyWorkApi';
-import { NextAction, type AcceleratorJourneyResponse } from '../types/journey';
+import {
+  NextAction,
+  type AcceleratorJourneyResponse,
+  type ProvisionAcceleratorJourneyResponse,
+} from '../types/journey';
 import { AIAcceleratorPathPage } from './AIAcceleratorPathPage';
 
 vi.mock('../api/acceleratorApi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/acceleratorApi')>()),
   getAcceleratorJourney: vi.fn(),
   getAcceleratorPlan: vi.fn(),
+  provisionAcceleratorJourney: vi.fn(),
 }));
 vi.mock('../api/acceleratorMarketApi', () => ({ getCareerPath: vi.fn(), getSkillPath: vi.fn() }));
 vi.mock('../api/journeyWorkApi', async (importOriginal) => ({
@@ -308,11 +318,199 @@ describe('Accelerator journey dashboard', () => {
     vi.mocked(getRoadmap).mockResolvedValue(roadmap);
     openJourney('roadmap');
     fireEvent.click(await screen.findByRole('button', { name: 'Generate roadmap' }));
-    expect(await screen.findByText('Generated roadmap')).toBeInTheDocument();
     expect(generateRoadmap).toHaveBeenCalledWith(
       expect.objectContaining({ enrollmentId: 'enrollment' }),
       expect.any(String),
     );
     await waitFor(() => expect(getRoadmap).toHaveBeenCalledWith('roadmap'));
+    expect(await screen.findByText('Generated roadmap')).toBeInTheDocument();
+  });
+});
+
+const provisionable: AcceleratorJourneyResponse = {
+  ...journey,
+  title: 'Full Stack Developer',
+  state: 'ProvisioningRequired',
+  nextAction: NextAction.ProvisionJourney,
+  entitlement: { ...journey.entitlement, status: 'Active' },
+  journeyContextId: null,
+  phases: [],
+};
+const prepared: ProvisionAcceleratorJourneyResponse = {
+  state: 'Ready',
+  diagnosticReason: null,
+  journeyContextId: 'prepared-context',
+  learningPathId: 'path',
+  enrollmentId: 'enrollment',
+  nextAction: NextAction.StartAssessment,
+  requiredCompetencies: 2,
+  coveredCompetencies: 2,
+  uncoveredCompetencyIds: [],
+  policyVersion: 'journey-provision-v1',
+  isPartialBaseline: false,
+  competencyCoveragePercent: 100,
+};
+const configured = {
+  ...journey,
+  entitlement: provisionable.entitlement,
+  journeyContextId: prepared.journeyContextId,
+  nextAction: NextAction.StartAssessment,
+};
+const fullStackId = '523641a2-0532-40ad-96dd-a8f8f64870e2';
+
+function SwitchableJourney() {
+  const [params, setParams] = useSearchParams();
+  return (
+    <>
+      <button onClick={() => setParams({ selected: 'replacement' })}>Switch path</button>
+      <AIAcceleratorPathPage key={params.get('selected')} />
+    </>
+  );
+}
+
+describe('Accelerator self-service provisioning', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(getCareerPath).mockRejectedValue(new Error('Market detail unavailable'));
+    vi.mocked(getSkillPath).mockRejectedValue(new Error('Market detail unavailable'));
+    vi.mocked(getAcceleratorPlan).mockResolvedValue({ checkoutAvailable: false });
+  });
+
+  it.each(['career', 'skill'])(
+    'provisions an active %s selection once and reloads its context',
+    async (type) => {
+      vi.mocked(getAcceleratorJourney).mockImplementation(async (query) =>
+        query.journeyContextId ? configured : provisionable,
+      );
+      let resolve!: (value: ProvisionAcceleratorJourneyResponse) => void;
+      vi.mocked(provisionAcceleratorJourney).mockReturnValue(
+        new Promise((done) => {
+          resolve = done;
+        }),
+      );
+      const renderPage = () => (
+        <StrictMode>
+          <MemoryRouter initialEntries={[`?selected=${fullStackId}&type=${type}`]}>
+            <AIAcceleratorPathPage />
+          </MemoryRouter>
+        </StrictMode>
+      );
+      const view = render(renderPage());
+      expect(
+        await screen.findByText('Preparing your personalized Full Stack Developer journey…'),
+      ).toBeInTheDocument();
+      expect(await screen.findByText('Active access')).toBeInTheDocument();
+      view.rerender(renderPage());
+      expect(provisionAcceleratorJourney).toHaveBeenCalledTimes(1);
+      expect(provisionAcceleratorJourney).toHaveBeenCalledWith({
+        [type === 'skill' ? 'marketSkillPathId' : 'marketPathId']: fullStackId,
+        requestKey: expect.stringMatching(/^[\da-f-]{36}$/i),
+      });
+      await act(async () => resolve(prepared));
+      expect(
+        (await screen.findAllByRole('link', { name: 'Start assessment' })).length,
+      ).toBeGreaterThan(0);
+      expect(getAcceleratorJourney).toHaveBeenLastCalledWith(
+        { journeyContextId: 'prepared-context' },
+        expect.any(AbortSignal),
+      );
+      expect(provisionAcceleratorJourney).toHaveBeenCalledTimes(1);
+      expect(startBaselineAssessment).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    configured,
+    { ...provisionable, entitlement: { ...provisionable.entitlement, status: 'Expired' } },
+  ])(
+    'skips provisioning for an already configured journey or inactive entitlement',
+    async (result) => {
+      vi.mocked(getAcceleratorJourney).mockResolvedValue(result);
+      openJourney();
+      expect(
+        await screen.findByText(
+          result.entitlement.status === 'Active' ? 'Active access' : 'Expired access',
+        ),
+      ).toBeInTheDocument();
+      expect(provisionAcceleratorJourney).not.toHaveBeenCalled();
+    },
+  );
+
+  it('shows a controlled unavailable result without exposing diagnostics', async () => {
+    vi.mocked(getAcceleratorJourney).mockResolvedValue(provisionable);
+    vi.mocked(provisionAcceleratorJourney).mockResolvedValue({
+      ...prepared,
+      state: 'ProvisioningUnavailable',
+      journeyContextId: null,
+      diagnosticReason: 'InternalDiagnostic',
+    });
+    openJourney();
+    expect(
+      await screen.findByText(/This path cannot be prepared automatically/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('InternalDiagnostic')).not.toBeInTheDocument();
+    expect(provisionAcceleratorJourney).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks the selected journey after conflict without repeating the write', async () => {
+    vi.mocked(getAcceleratorJourney)
+      .mockResolvedValueOnce(provisionable)
+      .mockResolvedValue(configured);
+    vi.mocked(provisionAcceleratorJourney).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 409 },
+    });
+    openJourney();
+    expect(
+      (await screen.findAllByRole('link', { name: 'Start assessment' })).length,
+    ).toBeGreaterThan(0);
+    expect(getAcceleratorJourney).toHaveBeenCalledTimes(2);
+    expect(provisionAcceleratorJourney).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses its request key after an explicit retry', async () => {
+    vi.mocked(getAcceleratorJourney).mockImplementation(async (query) =>
+      query.journeyContextId ? configured : provisionable,
+    );
+    vi.mocked(provisionAcceleratorJourney)
+      .mockRejectedValueOnce(new Error('Offline'))
+      .mockResolvedValue(prepared);
+    openJourney();
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    expect(
+      (await screen.findAllByRole('link', { name: 'Start assessment' })).length,
+    ).toBeGreaterThan(0);
+    expect(provisionAcceleratorJourney).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(provisionAcceleratorJourney).mock.calls[0]).toEqual(
+      vi.mocked(provisionAcceleratorJourney).mock.calls[1],
+    );
+  });
+
+  it('ignores a pending provision response after switching paths', async () => {
+    vi.mocked(getAcceleratorJourney).mockImplementation(async (query) =>
+      query.marketPathId === 'replacement'
+        ? { ...configured, title: 'Replacement' }
+        : provisionable,
+    );
+    let resolve!: (value: ProvisionAcceleratorJourneyResponse) => void;
+    vi.mocked(provisionAcceleratorJourney).mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={[`?selected=${fullStackId}`]}>
+        <SwitchableJourney />
+      </MemoryRouter>,
+    );
+    await screen.findByText(/Preparing your personalized/);
+    fireEvent.click(screen.getByRole('button', { name: 'Switch path' }));
+    expect(await screen.findByText('Replacement Path')).toBeInTheDocument();
+    await act(async () => resolve(prepared));
+    expect(screen.queryByText(/Preparing your personalized/)).not.toBeInTheDocument();
+    expect(getAcceleratorJourney).not.toHaveBeenCalledWith(
+      { journeyContextId: 'prepared-context' },
+      expect.any(AbortSignal),
+    );
   });
 });
